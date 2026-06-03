@@ -1,2 +1,2 @@
 # stupanel-web
-StuPanel Next Frontend Application
+StuPanel Frontend Application

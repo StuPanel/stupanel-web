@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { LayoutDashboard, Camera, Users, CreditCard, UserCog } from "lucide-react";
@@ -28,7 +29,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const role = localStorage.getItem("user_role");
     if (!token) { router.replace("/login"); return; }
     if (role === "staff") { router.replace("/member/dashboard"); return; }
-    setReady(true);
+
+    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+    apiFetch(`${API}/auth/me`)
+      .then(r => { if (r.ok) setReady(true); })
+      .catch(() => {});
   }, [router]);
 
   if (!ready) return null;

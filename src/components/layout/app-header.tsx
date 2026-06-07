@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 import { Bell, Search, ChevronDown, Menu, Settings, User, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,13 +36,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     const token = localStorage.getItem("access_token");
     if (!token) return;
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data?.firstName) setUser(data);
-      })
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/auth/me`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.firstName) setUser(data); })
       .catch(() => {});
   }, []);
 

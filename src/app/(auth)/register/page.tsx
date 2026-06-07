@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, Mail, Lock, User, Building2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,14 @@ function PasswordStrength({ password }: { password: string }) {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    router.replace("/dashboard");
+  }, [router]);
+
   const [form, setForm] = useState({
     companyName: "",
     firstName: "",
@@ -88,6 +97,7 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Registration failed."); return; }
       localStorage.setItem("access_token", data.accessToken);
+      localStorage.setItem("user_role", data.user?.role || "owner");
       window.location.href = "/onboarding";
     } catch {
       setError("Something went wrong. Please try again.");

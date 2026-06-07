@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera, Building2, MapPin, Globe, Check,
@@ -34,6 +34,11 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) { router.replace("/login"); return; }
+  }, [router]);
 
   const [studioType, setStudioType] = useState("");
   const [info, setInfo] = useState({

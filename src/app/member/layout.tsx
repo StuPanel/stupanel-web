@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
   LayoutDashboard, Camera, LogOut, Menu, X, ChevronRight, UserCircle,
@@ -29,9 +30,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     const role = localStorage.getItem("user_role");
     if (role !== "staff") { router.replace("/dashboard"); return; }
 
-    fetch(`${API}/member/profile`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
+    apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setProfile(d); })
       .catch(() => {});

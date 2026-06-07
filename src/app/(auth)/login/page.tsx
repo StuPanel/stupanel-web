@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, AtSign, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,20 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    const role = localStorage.getItem("user_role");
+    if (role === "staff") { router.replace("/member/dashboard"); return; }
+    router.replace("/dashboard");
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,7 +114,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="pl-10 pr-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
-              autoComplete="new-password"
+              autoComplete="current-password"
               required
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)}

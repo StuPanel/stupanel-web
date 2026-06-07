@@ -1,7 +1,9 @@
 "use client";
 
-import { Bell, Search, ChevronDown, Menu } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bell, Search, ChevronDown, Menu, Settings, User, CreditCard, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,15 +15,51 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface UserProfile {
+  firstName: string;
+  lastName: string;
+  role: string;
+  avatarUrl?: string | null;
+  company: { name: string };
+}
+
 interface AppHeaderProps {
   onMenuClick?: () => void;
 }
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
+  const router = useRouter();
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data?.firstName) setUser(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user_role");
+    router.push("/login");
+  }
+
+  const initials = user
+    ? `${user.firstName[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
+    : "?";
+  const displayName = user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Loading...";
+  const roleLabel = user?.role === "owner" ? "Studio Admin" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
       <div className="flex items-center gap-3">
-        {/* Mobile Menu Button */}
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -29,7 +67,6 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <Menu className="w-5 h-5 text-slate-600" />
         </button>
 
-        {/* Search */}
         <div className="relative hidden sm:block w-64 lg:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -39,43 +76,51 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         </div>
       </div>
 
-      {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Mobile Search */}
         <button className="sm:hidden p-2 rounded-lg hover:bg-slate-100">
           <Search className="w-5 h-5 text-slate-500" />
         </button>
 
-        {/* Notification */}
         <Button variant="ghost" size="sm" className="relative w-9 h-9 p-0">
           <Bell className="w-4 h-4 text-slate-500" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </Button>
 
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:bg-slate-100 rounded-lg px-2 py-1.5 transition-colors">
               <Avatar className="w-8 h-8">
+                {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
                 <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
-                  FA
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left hidden md:block">
-                <p className="text-sm font-medium text-slate-900 leading-none">Faisal Ahmed</p>
-                <p className="text-xs text-slate-500 mt-0.5">Studio Admin</p>
+                <p className="text-sm font-medium text-slate-900 leading-none">{displayName}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{roleLabel}</p>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-52" sideOffset={8}>
+            <DropdownMenuLabel className="font-normal">
+              <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{user?.company?.name ?? ""}</p>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Billing</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2">
+              <User className="w-4 h-4" /> Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2">
+              <Settings className="w-4 h-4" /> Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2">
+              <CreditCard className="w-4 h-4" /> Billing
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">Logout</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-red-600 focus:text-red-600 focus:bg-red-50">
+              <LogOut className="w-4 h-4" /> Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

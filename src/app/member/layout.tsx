@@ -24,6 +24,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) { router.replace("/login"); return; }
     const role = localStorage.getItem("user_role");
     if (role !== "staff") { router.replace("/dashboard"); return; }
 

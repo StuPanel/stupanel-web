@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search, ChevronDown, Menu, Settings, User, CreditCard, LogOut } from "lucide-react";
+import { Bell, Search, ChevronDown, Menu, Settings, User, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,9 +113,6 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2">
               <Settings className="w-4 h-4" /> Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2">
-              <CreditCard className="w-4 h-4" /> Billing
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-red-600 focus:text-red-600 focus:bg-red-50">

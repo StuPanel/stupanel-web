@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { LayoutDashboard, Camera, Users, CreditCard, UserCog } from "lucide-react";
@@ -17,8 +18,20 @@ const mobileNav = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [ready, setReady] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    const role = localStorage.getItem("user_role");
+    if (!token) { router.replace("/login"); return; }
+    if (role === "staff") { router.replace("/member/dashboard"); return; }
+    setReady(true);
+  }, [router]);
+
+  if (!ready) return null;
 
   return (
     <div className="h-full flex bg-slate-50">

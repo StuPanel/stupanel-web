@@ -11,6 +11,7 @@ function CallbackHandler() {
     const token = params.get("token");
     const onboarding = params.get("onboarding");
     const isSuperAdmin = params.get("isSuperAdmin");
+    const role = params.get("role") ?? "owner";
 
     if (!token) {
       window.location.href = "/login?error=google_failed";
@@ -24,6 +25,12 @@ function CallbackHandler() {
     }
 
     localStorage.setItem("access_token", token);
+    localStorage.setItem("user_role", role);
+
+    if (role === "staff") {
+      window.location.href = "/member/dashboard";
+      return;
+    }
 
     if (onboarding === "true") {
       window.location.href = "/onboarding";

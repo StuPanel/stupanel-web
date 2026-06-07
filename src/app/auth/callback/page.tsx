@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export default function AuthCallbackPage() {
+function CallbackHandler() {
   const params = useSearchParams();
 
   useEffect(() => {
@@ -39,5 +39,17 @@ export default function AuthCallbackPage() {
         <p className="text-slate-600 text-sm">Signing you in...</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    }>
+      <CallbackHandler />
+    </Suspense>
   );
 }

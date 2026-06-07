@@ -201,6 +201,7 @@ export default function RegisterPage() {
               placeholder="Min. 8 characters"
               value={form.password} onChange={set("password")}
               className="pl-10 pr-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
+              autoComplete="new-password"
               minLength={8} required />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">

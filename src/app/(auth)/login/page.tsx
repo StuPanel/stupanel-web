@@ -84,7 +84,7 @@ export default function LoginPage() {
             <Input
               id="identifier"
               type="text"
-              placeholder="email@studio.com or username"
+              placeholder="Enter your email or username"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
               className="pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
@@ -94,12 +94,7 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
-            <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-              Forgot password?
-            </Link>
-          </div>
+          <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
@@ -116,6 +111,11 @@ export default function LoginPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
+          </div>
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+              Forgot password?
+            </Link>
           </div>
         </div>
 

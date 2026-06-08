@@ -406,13 +406,17 @@ export default function AdminStudiosPage() {
 
   async function impersonate(studioId: string) {
     setActionLoading(studioId);
+    // Open tab immediately on click (before await) to avoid popup blocker
+    const tab = window.open("", "_blank");
     const res = await fetch(`${API}/admin/studios/${studioId}/impersonate`, { method: "POST", headers: authH() });
     const d = await res.json();
     setActionLoading(null);
-    if (d.token) {
+    if (d.token && tab) {
       localStorage.setItem("access_token", d.token);
-      localStorage.setItem("user_role", "admin");
-      window.open("/dashboard", "_blank");
+      localStorage.setItem("user_role", "owner");
+      tab.location.href = "/dashboard";
+    } else if (tab) {
+      tab.close();
     }
   }
 

@@ -19,7 +19,7 @@ function CallbackHandler() {
     }
 
     if (isSuperAdmin === "true") {
-      localStorage.setItem("admin_token", token);
+      sessionStorage.setItem("admin_token", token);
       window.location.href = "/admin/dashboard";
       return;
     }

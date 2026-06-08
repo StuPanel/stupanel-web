@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 
 function getAdminToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
+  return typeof window !== "undefined" ? sessionStorage.getItem("admin_token") ?? "" : "";
 }
 
 const navGroups = [
@@ -72,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   function logout() {
-    localStorage.removeItem("admin_token");
+    sessionStorage.removeItem("admin_token");
     localStorage.removeItem("admin_name");
     router.replace("/admin/login");
   }

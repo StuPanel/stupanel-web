@@ -53,8 +53,9 @@ export default function LoginPage() {
 
       // Super admin → separate token + redirect to admin panel
       if (data.user.isSuperAdmin) {
-        localStorage.setItem("admin_token", data.accessToken);
-        localStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
+        // sessionStorage clears on browser close — safer than localStorage for admin token
+        sessionStorage.setItem("admin_token", data.accessToken);
+        sessionStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
         window.location.href = "/admin/dashboard";
         return;
       }

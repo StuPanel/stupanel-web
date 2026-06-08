@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function getToken() { return localStorage.getItem("admin_token") ?? ""; }
+function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authHeaders() {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
 }

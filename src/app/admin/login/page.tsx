@@ -39,7 +39,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    localStorage.setItem("admin_token", data.accessToken);
+    sessionStorage.setItem("admin_token", data.accessToken);
     localStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
     router.replace("/admin/dashboard");
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -34,6 +35,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -55,19 +57,26 @@ export default function OnboardingPage() {
 
   async function finish() {
     setLoading(true);
+    setSaveError(null);
     try {
-      const token = localStorage.getItem("access_token");
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/companies/onboarding`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ studioType, ...info }),
-      });
-    } catch { /* non-blocking */ }
-    setStep(2);
-    setLoading(false);
+      const res = await apiFetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/companies/onboarding`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studioType, ...info }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || "Setup failed. Please try again.");
+      }
+      setStep(2);
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : "Setup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -210,7 +219,13 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              {saveError && (
+                <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {saveError}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-4">
                 <Button variant="outline" onClick={() => setStep(0)}
                   className="h-11 gap-2 border-slate-200 text-slate-600">
                   <ChevronLeft className="w-4 h-4" /> Back

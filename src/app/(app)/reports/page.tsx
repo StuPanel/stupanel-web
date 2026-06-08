@@ -89,11 +89,11 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const [s, m, tc, sb, te] = await Promise.all([
-        fetch(`${API}/dashboard/reports/summary?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/monthly?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/top-clients?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/status-breakdown?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/team-earnings?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+        apiFetch(`${API}/dashboard/reports/summary?year=${year}`).then(r => r.json()),
+        apiFetch(`${API}/dashboard/reports/monthly?year=${year}`).then(r => r.json()),
+        apiFetch(`${API}/dashboard/reports/top-clients?year=${year}`).then(r => r.json()),
+        apiFetch(`${API}/dashboard/reports/status-breakdown?year=${year}`).then(r => r.json()),
+        apiFetch(`${API}/dashboard/reports/team-earnings?year=${year}`).then(r => r.json()),
       ]);
       setSummary(s?.year ? s : null);
       setMonthly(Array.isArray(m) ? m : []);

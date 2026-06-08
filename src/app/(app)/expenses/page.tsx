@@ -53,8 +53,8 @@ export default function ExpensesPage() {
   const loadWallets = useCallback(async () => {
     setLoading(true);
     const [s, w] = await Promise.all([
-      fetch(`${API}/wallets/summary`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/wallets`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
+      apiFetch(`${API}/wallets/summary`).then(r => r.ok ? r.json() : null),
+      apiFetch(`${API}/wallets`).then(r => r.ok ? r.json() : []),
     ]);
     setSummary(s);
     const ws = Array.isArray(w) ? w : [];

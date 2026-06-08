@@ -556,7 +556,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } })
+    apiFetch(`${API}/companies/me`)
       .then(r => r.json()).then(setData).finally(() => setLoading(false));
   }, []);
 

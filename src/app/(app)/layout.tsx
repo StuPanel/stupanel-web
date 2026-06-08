@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { LayoutDashboard, Camera, Users, CreditCard, UserCog, MailWarning, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
@@ -111,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {!emailVerified && <VerificationBanner email={userEmail} />}
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 
         {/* Mobile Bottom Navigation */}

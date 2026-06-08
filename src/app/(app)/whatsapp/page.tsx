@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Edit2, Trash2, X, Check, Loader2, MessageCircle,
@@ -11,8 +13,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 const CATEGORIES = [
   { key: "booking_confirmation", label: "Booking Confirmation", color: "bg-indigo-100 text-indigo-700" },
@@ -71,8 +71,8 @@ function TemplateForm({ initial, onSave, onCancel }: {
     try {
       const url = initial ? `${API}/wa-templates/${initial.id}` : `${API}/wa-templates`;
       const method = initial ? "PATCH" : "POST";
-      const r = await fetch(url, {
-        method, headers: jsonH(), body: JSON.stringify({ name: name.trim(), category, body: body.trim() }),
+      const r = await apiFetch(url, {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), category, body: body.trim() }),
       });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to save."); return; }
@@ -159,7 +159,7 @@ export default function WhatsAppPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/wa-templates`, { headers: authH() });
+      const r = await apiFetch(`${API}/wa-templates`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) setTemplates(await r.json());
     } finally { setLoading(false); }
   }, []);
@@ -178,7 +178,7 @@ export default function WhatsAppPage() {
   async function del(id: string) {
     setDeleting(id);
     try {
-      await fetch(`${API}/wa-templates/${id}`, { method: "DELETE", headers: authH() });
+      await apiFetch(`${API}/wa-templates/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
       setTemplates(ts => ts.filter(t => t.id !== id));
     } finally { setDeleting(null); }
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp, TrendingDown, DollarSign, Camera, Users, BarChart2,
@@ -9,8 +11,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
-function authH() { return { Authorization: `Bearer ${token()}` }; }
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -89,11 +89,11 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const [s, m, tc, sb, te] = await Promise.all([
-        fetch(`${API}/dashboard/reports/summary?year=${year}`, { headers: authH() }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/monthly?year=${year}`, { headers: authH() }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/top-clients?year=${year}`, { headers: authH() }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/status-breakdown?year=${year}`, { headers: authH() }).then(r => r.json()),
-        fetch(`${API}/dashboard/reports/team-earnings?year=${year}`, { headers: authH() }).then(r => r.json()),
+        fetch(`${API}/dashboard/reports/summary?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+        fetch(`${API}/dashboard/reports/monthly?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+        fetch(`${API}/dashboard/reports/top-clients?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+        fetch(`${API}/dashboard/reports/status-breakdown?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+        fetch(`${API}/dashboard/reports/team-earnings?year=${year}`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
       ]);
       setSummary(s?.year ? s : null);
       setMonthly(Array.isArray(m) ? m : []);

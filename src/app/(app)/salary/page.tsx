@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Banknote, Plus, Loader2, X, CheckCircle2, AlertCircle,
@@ -8,8 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", ...authH() }; }
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number) { return "৳" + Math.round(n).toLocaleString(); }
@@ -44,8 +44,8 @@ export default function SalaryPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     const [s, m] = await Promise.all([
-      fetch(`${API}/salary?year=${yearFilter}${monthFilter ? "&month=" + monthFilter : ""}`, { headers: authH() }).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/salary/team-members`, { headers: authH() }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/salary?year=${yearFilter}${monthFilter ? "&month=" + monthFilter : ""}`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/salary/team-members`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
     ]);
     setSlips(Array.isArray(s) ? s : []);
     setMembers(Array.isArray(m) ? m : []);
@@ -58,7 +58,7 @@ export default function SalaryPage() {
   async function calcBonus() {
     if (!form.memberId) return;
     setCalcLoading(true);
-    const r = await fetch(`${API}/salary/calc-bonus?memberId=${form.memberId}&month=${form.month}&year=${form.year}`, { headers: authH() });
+    const r = await apiFetch(`${API}/salary/calc-bonus?memberId=${form.memberId}&month=${form.month}&year=${form.year}`, { headers: { "Content-Type": "application/json" } });
     if (r.ok) {
       const d = await r.json();
       setForm(p => ({ ...p, programBonus: String(d.bonus) }));
@@ -70,8 +70,8 @@ export default function SalaryPage() {
   async function save() {
     if (!form.memberId) return;
     setSaving(true);
-    const r = await fetch(`${API}/salary`, {
-      method: "POST", headers: jsonH(),
+    const r = await apiFetch(`${API}/salary`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         teamMemberId: form.memberId, month: form.month, year: form.year,
         baseSalary: Number(form.baseSalary) || 0,
@@ -86,13 +86,13 @@ export default function SalaryPage() {
   }
 
   async function markPaid(id: string) {
-    const r = await fetch(`${API}/salary/${id}/pay`, { method: "PATCH", headers: authH() });
+    const r = await apiFetch(`${API}/salary/${id}/pay`, { method: "PATCH", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadAll(); setToast({ msg: "Marked as paid!", ok: true }); }
   }
 
   async function deleteSlip(id: string) {
     if (!confirm("Delete this salary slip?")) return;
-    const r = await fetch(`${API}/salary/${id}`, { method: "DELETE", headers: authH() });
+    const r = await apiFetch(`${API}/salary/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadAll(); setToast({ msg: "Deleted.", ok: true }); }
   }
 

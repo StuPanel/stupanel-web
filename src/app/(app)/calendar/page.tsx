@@ -1,12 +1,13 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Loader2, CalendarDays, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() { return { Authorization: `Bearer ${token()}` }; }
 
 interface Booking {
@@ -110,7 +111,7 @@ export default function CalendarPage() {
     const startDate = new Date(year, month, 1).toISOString().split("T")[0];
     const endDate   = new Date(year, month + 1, 0).toISOString().split("T")[0];
     try {
-      const res = await fetch(`${API}/bookings?limit=200&startDate=${startDate}&endDate=${endDate}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/bookings?limit=200&startDate=${startDate}&endDate=${endDate}`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) {
         const data = await res.json();
         setBookings(data.data ?? data);

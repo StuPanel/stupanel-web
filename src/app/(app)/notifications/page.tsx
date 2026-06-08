@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -9,7 +11,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 const DISMISSED_KEY = "notif_dismissed";
 function getDismissed(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]")); } catch { return new Set(); } }
@@ -55,7 +56,7 @@ export default function NotificationsPage() {
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const r = await fetch(`${API}/dashboard/notifications`, { headers: authH() });
+      const r = await apiFetch(`${API}/dashboard/notifications`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) setData(await r.json());
     } finally { setLoading(false); setRefreshing(false); }
   }, []);

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Camera, Plus, Search, Loader2, X, CheckCircle2, AlertCircle,
@@ -8,8 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", ...authH() }; }
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
 const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> = {
@@ -46,8 +46,8 @@ export default function EquipmentPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     const [eq, st] = await Promise.all([
-      fetch(`${API}/equipment?search=${search}&status=${statusFilter}`, { headers: authH() }).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/equipment/stats`, { headers: authH() }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/equipment?search=${search}&status=${statusFilter}`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/equipment/stats`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : null),
     ]);
     setItems(Array.isArray(eq) ? eq : []);
     setStats(st);
@@ -79,7 +79,7 @@ export default function EquipmentPage() {
     };
     const url = modal === "edit" && editItem ? `${API}/equipment/${editItem.id}` : `${API}/equipment`;
     const method = modal === "edit" ? "PATCH" : "POST";
-    const r = await fetch(url, { method, headers: jsonH(), body: JSON.stringify(body) });
+    const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (r.ok) { setToast({ msg: modal === "edit" ? "Updated!" : "Equipment added!", ok: true }); setModal(null); loadAll(); }
     else setToast({ msg: "Failed to save.", ok: false });
     setSaving(false);
@@ -87,7 +87,7 @@ export default function EquipmentPage() {
 
   async function deleteItem(id: string) {
     if (!confirm("Delete this equipment?")) return;
-    const r = await fetch(`${API}/equipment/${id}`, { method: "DELETE", headers: authH() });
+    const r = await apiFetch(`${API}/equipment/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadAll(); setToast({ msg: "Deleted.", ok: true }); }
   }
 

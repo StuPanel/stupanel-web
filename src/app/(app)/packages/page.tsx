@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Edit3, Trash2, Loader2, X, AlertTriangle, Package, CheckCircle2, Eye, EyeOff, Clock, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 
 interface Pkg {
@@ -78,7 +79,7 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
     };
     try {
       const url = isEdit ? `${API}/packages/${editing!.id}` : `${API}/packages`;
-      const res = await fetch(url, { method: isEdit ? "PATCH" : "POST", headers: authHeaders(), body: JSON.stringify(body) });
+      const res = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Failed to save."); return; }
       onSaved(); onClose();
@@ -186,7 +187,7 @@ function DeleteDialog({ pkg, onClose, onDeleted }: { pkg: Pkg | null; onClose: (
   if (!pkg) return null;
   async function doDelete() {
     setLoading(true);
-    await fetch(`${API}/packages/${pkg!.id}`, { method: "DELETE", headers: authHeaders() }).catch(() => {});
+    await apiFetch(`${API}/packages/${pkg!.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } }).catch(() => {});
     onDeleted(); onClose(); setLoading(false);
   }
   return (
@@ -272,7 +273,7 @@ export default function PackagesPage() {
   const fetchPackages = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/packages`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/packages`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) setPackages(await res.json());
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -281,7 +282,7 @@ export default function PackagesPage() {
   useEffect(() => { fetchPackages(); }, [fetchPackages]);
 
   async function toggle(pkg: Pkg) {
-    await fetch(`${API}/packages/${pkg.id}/toggle`, { method: "PATCH", headers: authHeaders() }).catch(() => {});
+    await apiFetch(`${API}/packages/${pkg.id}/toggle`, { method: "PATCH", headers: { "Content-Type": "application/json" } }).catch(() => {});
     fetchPackages();
   }
 

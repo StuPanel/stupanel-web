@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, X, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
@@ -15,8 +17,6 @@ import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function fmtDate(d: string | Date | null | undefined) {
@@ -152,11 +152,11 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
   }, [grand]);
 
   useEffect(() => {
-    fetch(`${API}/clients?limit=100`, { headers: authH() }).then(r => r.json()).then(d => setClients(d.data ?? []));
-    fetch(`${API}/packages?limit=100`, { headers: authH() }).then(r => r.json()).then(d => setPrograms(Array.isArray(d) ? d : (d.data ?? [])));
+    fetch(`${API}/clients?limit=100`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setClients(d.data ?? []));
+    fetch(`${API}/packages?limit=100`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setPrograms(Array.isArray(d) ? d : (d.data ?? [])));
     // fetch company defaults for new quotes only
     if (!isEdit) {
-      fetch(`${API}/companies/me`, { headers: authH() }).then(r => r.json()).then(d => {
+      fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => {
         if (d.defaultTerms) setTerms(d.defaultTerms);
         if (d.defaultValidityDays) {
           const dt = new Date();
@@ -200,7 +200,7 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
         termsAndConditions: terms || undefined,
       };
       const url = isEdit ? `${API}/quotes/${quote.id}` : `${API}/quotes`;
-      const r = await fetch(url, { method: isEdit ? "PATCH" : "POST", headers: jsonH(), body: JSON.stringify(body) });
+      const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to save."); return; }
       onSaved(d);
@@ -402,7 +402,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   useEffect(() => {
     if (!quote) return;
     setLoading(true);
-    fetch(`${API}/quotes/${quote.id}`, { headers: authH() })
+    fetch(`${API}/quotes/${quote.id}`, { headers: { "Content-Type": "application/json" } })
       .then(r => r.json()).then(setDetail).finally(() => setLoading(false));
   }, [quote]);
 
@@ -415,14 +415,14 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
 
   async function sendQuote() {
     setSending(true);
-    await fetch(`${API}/quotes/${q.id}/send`, { method: "POST", headers: authH() });
+    await apiFetch(`${API}/quotes/${q.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" } });
     setSending(false); onRefresh();
     setDetail(d => d ? { ...d, status: "sent", sentAt: new Date().toISOString() } : d);
   }
 
   async function convertToBooking() {
     setConverting(true);
-    const r = await fetch(`${API}/quotes/${q.id}/convert`, { method: "POST", headers: authH() });
+    const r = await apiFetch(`${API}/quotes/${q.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" } });
     const d = await r.json();
     setConverting(false);
     if (r.ok) { onRefresh(); setDetail(prev => prev ? { ...prev, status: "converted" } : prev); }
@@ -701,7 +701,7 @@ export default function QuotesPage() {
       const p = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) p.set("search", search);
       if (statusFilter !== "all") p.set("status", statusFilter);
-      const r = await fetch(`${API}/quotes?${p}`, { headers: authH() });
+      const r = await apiFetch(`${API}/quotes?${p}`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) { const d = await r.json(); setQuotes(d.data ?? []); setMeta(d.meta); }
     } finally { setLoading(false); }
   }, [page, search, statusFilter]);
@@ -709,18 +709,18 @@ export default function QuotesPage() {
   useEffect(() => { load(); }, [load]);
 
   async function sendQuote(q: Quote) {
-    await fetch(`${API}/quotes/${q.id}/send`, { method: "POST", headers: authH() });
+    await apiFetch(`${API}/quotes/${q.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" } });
     load();
   }
 
   async function duplicateQuote(q: Quote) {
-    const r = await fetch(`${API}/quotes/${q.id}/duplicate`, { method: "POST", headers: authH() });
+    const r = await apiFetch(`${API}/quotes/${q.id}/duplicate`, { method: "POST", headers: { "Content-Type": "application/json" } });
     if (r.ok) load();
   }
 
   async function deleteQuote(q: Quote) {
     if (!confirm(`Delete ${q.quoteNumber}?`)) return;
-    await fetch(`${API}/quotes/${q.id}`, { method: "DELETE", headers: authH() });
+    await apiFetch(`${API}/quotes/${q.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     load();
   }
 

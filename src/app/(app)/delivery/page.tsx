@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, X, Loader2, Link2, Check, ExternalLink, Copy,
@@ -12,9 +14,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
-function authH() { return { Authorization: `Bearer ${token()}` }; }
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function fmtDate(d: string | Date | null | undefined): string {
@@ -82,8 +81,8 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   async function save() {
     setError(""); setLoading(true);
     try {
-      const r = await fetch(`${API}/bookings/${booking!.id}/delivery`, {
-        method: "PATCH", headers: jsonH(),
+      const r = await apiFetch(`${API}/bookings/${booking!.id}/delivery`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deliveryLink: link || undefined, deliveryNote: note || undefined, deliveryDate: date || undefined, status }),
       });
       const d = await r.json();
@@ -321,7 +320,7 @@ export default function DeliveryPage() {
       // Exclude inquiry/cancelled/refunded — only programs past "confirmed"
       const targetStatus = statusFilter !== "all" ? statusFilter : undefined;
       if (targetStatus) params.set("status", targetStatus);
-      const r = await fetch(`${API}/bookings?${params}`, { headers: authH() });
+      const r = await apiFetch(`${API}/bookings?${params}`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) {
         const d = await r.json();
         // If "all", filter out inquiry-only statuses

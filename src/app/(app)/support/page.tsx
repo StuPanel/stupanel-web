@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Loader2, Plus, MessageCircle, Send, ArrowLeft,
@@ -11,8 +13,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function getToken() { return localStorage.getItem("access_token") ?? ""; }
-function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleString("en-GB", {
@@ -80,8 +80,8 @@ export default function SupportPage() {
     setLoading(true);
     const q = new URLSearchParams({ page: String(p), ...(st && { status: st }) });
     const [ticketRes, statsRes] = await Promise.all([
-      fetch(`${API}/support/tickets?${q}`, { headers: authH() }),
-      fetch(`${API}/support/stats`, { headers: authH() }),
+      fetch(`${API}/support/tickets?${q}`, { headers: { "Content-Type": "application/json" } }),
+      fetch(`${API}/support/stats`, { headers: { "Content-Type": "application/json" } }),
     ]);
     const d = await ticketRes.json();
     setTickets(d.items ?? []);
@@ -98,7 +98,7 @@ export default function SupportPage() {
     setSelected(ticket);
     setDetailLoading(true);
     setView("detail");
-    const res = await fetch(`${API}/support/tickets/${ticket.id}`, { headers: authH() });
+    const res = await apiFetch(`${API}/support/tickets/${ticket.id}`, { headers: { "Content-Type": "application/json" } });
     const d = await res.json();
     setMessages(d.messages ?? []);
     setDetailLoading(false);
@@ -107,11 +107,11 @@ export default function SupportPage() {
   async function sendReply() {
     if (!reply.trim() || !selected) return;
     setReplying(true);
-    await fetch(`${API}/support/tickets/${selected.id}/reply`, {
-      method: "POST", headers: authH(),
+    await apiFetch(`${API}/support/tickets/${selected.id}/reply`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: reply.trim() }),
     });
-    const res = await fetch(`${API}/support/tickets/${selected.id}`, { headers: authH() });
+    const res = await apiFetch(`${API}/support/tickets/${selected.id}`, { headers: { "Content-Type": "application/json" } });
     const d = await res.json();
     setMessages(d.messages ?? []);
     setReply("");
@@ -122,8 +122,8 @@ export default function SupportPage() {
   async function createTicket(e: React.FormEvent) {
     e.preventDefault();
     setCreateErr(""); setCreating(true);
-    const res = await fetch(`${API}/support/tickets`, {
-      method: "POST", headers: authH(),
+    const res = await apiFetch(`${API}/support/tickets`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subject: subject.trim(), content: content.trim(), priority, category }),
     });
     const d = await res.json();

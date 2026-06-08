@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import {
   Camera, DollarSign, Users, Clock, TrendingUp, TrendingDown,
@@ -40,7 +42,6 @@ interface MonthData { month: number; total: number }
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() { return { Authorization: `Bearer ${token()}` }; }
 
 function fmt(n: number, currency = "BDT") {
@@ -116,7 +117,7 @@ export default function DashboardPage() {
   const fetchStats = useCallback(async () => {
     setLoadingStats(true);
     try {
-      const res = await fetch(`${API}/dashboard/stats?period=${period}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/dashboard/stats?period=${period}`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) setStats(await res.json());
     } catch { /* silent */ }
     finally { setLoadingStats(false); }
@@ -125,7 +126,7 @@ export default function DashboardPage() {
   const fetchUpcoming = useCallback(async () => {
     setLoadingUpcoming(true);
     try {
-      const res = await fetch(`${API}/dashboard/upcoming`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/dashboard/upcoming`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) setUpcoming(await res.json());
     } catch { /* silent */ }
     finally { setLoadingUpcoming(false); }
@@ -134,7 +135,7 @@ export default function DashboardPage() {
   const fetchRecent = useCallback(async () => {
     setLoadingRecent(true);
     try {
-      const res = await fetch(`${API}/dashboard/recent`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/dashboard/recent`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) setRecent(await res.json());
     } catch { /* silent */ }
     finally { setLoadingRecent(false); }
@@ -143,7 +144,7 @@ export default function DashboardPage() {
   const fetchChart = useCallback(async () => {
     setLoadingChart(true);
     try {
-      const res = await fetch(`${API}/dashboard/revenue-chart?year=${chartYear}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/dashboard/revenue-chart?year=${chartYear}`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) setChart(await res.json());
     } catch { /* silent */ }
     finally { setLoadingChart(false); }

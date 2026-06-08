@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Wallet, Plus, Loader2, X, CheckCircle2, AlertCircle, Trash2,
@@ -8,8 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", ...authH() }; }
 
 const WALLET_TYPES = [
   { key: "cash",   label: "Cash",   color: "bg-emerald-500", light: "bg-emerald-50 text-emerald-700" },
@@ -53,8 +53,8 @@ export default function ExpensesPage() {
   const loadWallets = useCallback(async () => {
     setLoading(true);
     const [s, w] = await Promise.all([
-      fetch(`${API}/wallets/summary`, { headers: authH() }).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/wallets`, { headers: authH() }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/wallets/summary`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/wallets`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
     ]);
     setSummary(s);
     const ws = Array.isArray(w) ? w : [];
@@ -66,7 +66,7 @@ export default function ExpensesPage() {
   const loadTxs = useCallback(async () => {
     if (!selWallet) return;
     setTxLoading(true);
-    const r = await fetch(`${API}/wallets/${selWallet.id}/transactions?page=${txPage}${txFilter ? "&type=" + txFilter : ""}`, { headers: authH() });
+    const r = await apiFetch(`${API}/wallets/${selWallet.id}/transactions?page=${txPage}${txFilter ? "&type=" + txFilter : ""}`, { headers: { "Content-Type": "application/json" } });
     if (r.ok) {
       const d = await r.json();
       setTxs(d.items ?? []);
@@ -82,8 +82,8 @@ export default function ExpensesPage() {
   async function createWallet() {
     if (!walletForm.name.trim()) return;
     setSaving(true);
-    const r = await fetch(`${API}/wallets`, {
-      method: "POST", headers: jsonH(),
+    const r = await apiFetch(`${API}/wallets`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: walletForm.name, type: walletForm.type, balance: Number(walletForm.balance) || 0 }),
     });
     if (r.ok) { setToast({ msg: "Wallet created!", ok: true }); setWalletModal(false); loadWallets(); }
@@ -94,8 +94,8 @@ export default function ExpensesPage() {
   async function addTx() {
     if (!txForm.amount || !txForm.description || !selWallet) return;
     setSaving(true);
-    const r = await fetch(`${API}/wallets/${selWallet.id}/transactions`, {
-      method: "POST", headers: jsonH(),
+    const r = await apiFetch(`${API}/wallets/${selWallet.id}/transactions`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...txForm, amount: Number(txForm.amount) }),
     });
     if (r.ok) { setToast({ msg: "Transaction added!", ok: true }); setTxModal(false); loadWallets(); loadTxs(); setTxForm({ type: "debit", amount: "", description: "", category: "misc", date: new Date().toISOString().slice(0,10) }); }
@@ -105,13 +105,13 @@ export default function ExpensesPage() {
 
   async function deleteTx(txId: string) {
     if (!selWallet) return;
-    const r = await fetch(`${API}/wallets/${selWallet.id}/transactions/${txId}`, { method: "DELETE", headers: authH() });
+    const r = await apiFetch(`${API}/wallets/${selWallet.id}/transactions/${txId}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadWallets(); loadTxs(); }
   }
 
   async function deleteWallet(id: string) {
     if (!confirm("Delete this wallet?")) return;
-    const r = await fetch(`${API}/wallets/${id}`, { method: "DELETE", headers: authH() });
+    const r = await apiFetch(`${API}/wallets/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { if (selWallet?.id === id) setSelWallet(null); loadWallets(); }
   }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Search, Filter, CreditCard, Loader2, X, AlertTriangle,
@@ -76,7 +78,6 @@ const PAYMENT_TYPES = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 function fmt(n: number, cur = "BDT") { return (cur === "BDT" ? "৳" : "$") + Number(n).toLocaleString(); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
@@ -174,9 +175,9 @@ function PaymentDrawer({
 
     try {
       const url = isEdit ? `${API}/payments/${editing!.id}` : `${API}/payments`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? "PATCH" : "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -354,7 +355,7 @@ function DeleteDialog({
   async function doDelete() {
     setLoading(true);
     try {
-      await fetch(`${API}/payments/${payment!.id}`, { method: "DELETE", headers: authHeaders() });
+      await apiFetch(`${API}/payments/${payment!.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
       onDeleted();
       onClose();
     } catch { /* silent */ }
@@ -578,7 +579,7 @@ export default function PaymentsPage() {
         ...(search && { search }),
         ...(methodFilter && { paymentMethod: methodFilter }),
       });
-      const res = await fetch(`${API}/payments?${params}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/payments?${params}`, { headers: { "Content-Type": "application/json" } });
       if (!res.ok) return;
       const data = await res.json();
       setPayments(data.data ?? []);
@@ -590,7 +591,7 @@ export default function PaymentsPage() {
 
   const fetchBookings = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/bookings?limit=200`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/bookings?limit=200`, { headers: { "Content-Type": "application/json" } });
       if (!res.ok) return;
       const data = await res.json();
       setBookings((data.data ?? []).map((b: any) => ({

@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect } from "react";
 import {
   Loader2, Save, Lock, Eye, EyeOff, CheckCircle,
@@ -11,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function getToken() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
 }
@@ -70,9 +71,9 @@ export default function MyAccountPage() {
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaveErr(""); setSavedOk(false); setSaving(true);
-    const res = await fetch(`${API}/profile`, {
+    const res = await apiFetch(`${API}/profile`, {
       method: "PATCH",
-      headers: authHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: firstName.trim(),
         lastName: lastName.trim() || undefined,
@@ -96,9 +97,9 @@ export default function MyAccountPage() {
     if (newPw !== confirmPw) { setPwErr("New passwords do not match"); return; }
     if (newPw.length < 6) { setPwErr("Password must be at least 6 characters"); return; }
     setPwSaving(true);
-    const res = await fetch(`${API}/profile/change-password`, {
+    const res = await apiFetch(`${API}/profile/change-password`, {
       method: "PATCH",
-      headers: authHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
     });
     const d = await res.json();

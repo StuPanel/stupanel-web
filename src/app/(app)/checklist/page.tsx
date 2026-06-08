@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   CheckSquare, Square, Plus, Trash2, Loader2, Search,
@@ -8,8 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", ...authH() }; }
 
 const CATEGORIES = [
   { key: "pre_shoot",  label: "Pre-Shoot",   color: "bg-blue-100 text-blue-700 border-blue-200"   },
@@ -38,13 +38,13 @@ export default function ChecklistPage() {
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`${API}/checklist/templates`, { headers: authH() });
+    const r = await apiFetch(`${API}/checklist/templates`, { headers: { "Content-Type": "application/json" } });
     if (r.ok) setTemplates(await r.json());
     setLoading(false);
   }, []);
 
   const loadBookings = useCallback(async () => {
-    const r = await fetch(`${API}/bookings?limit=50`, { headers: authH() });
+    const r = await apiFetch(`${API}/bookings?limit=50`, { headers: { "Content-Type": "application/json" } });
     if (r.ok) {
       const d = await r.json();
       setBookings(Array.isArray(d) ? d : (d.items ?? []));
@@ -55,7 +55,7 @@ export default function ChecklistPage() {
 
   async function loadProgramChecklist(bookingId: string) {
     setLoading(true);
-    const r = await fetch(`${API}/checklist/programs/${bookingId}`, { headers: authH() });
+    const r = await apiFetch(`${API}/checklist/programs/${bookingId}`, { headers: { "Content-Type": "application/json" } });
     if (r.ok) {
       const d = await r.json();
       setProgramInfo(d.booking);
@@ -65,8 +65,8 @@ export default function ChecklistPage() {
   }
 
   async function toggleItem(item: ChecklistItem, isProg: boolean) {
-    const r = await fetch(`${API}/checklist/items/${item.id}`, {
-      method: "PATCH", headers: jsonH(), body: JSON.stringify({ isChecked: !item.isChecked }),
+    const r = await apiFetch(`${API}/checklist/items/${item.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isChecked: !item.isChecked }),
     });
     if (r.ok) {
       if (isProg) setProgramItems(p => p.map(x => x.id === item.id ? { ...x, isChecked: !x.isChecked } : x));
@@ -75,7 +75,7 @@ export default function ChecklistPage() {
   }
 
   async function deleteItem(id: string, isProg: boolean) {
-    const r = await fetch(`${API}/checklist/items/${id}`, { method: "DELETE", headers: authH() });
+    const r = await apiFetch(`${API}/checklist/items/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) {
       if (isProg) setProgramItems(p => p.filter(x => x.id !== id));
       else setTemplates(p => p.filter(x => x.id !== id));
@@ -85,13 +85,13 @@ export default function ChecklistPage() {
   async function addItem() {
     if (!newLabel.trim()) return;
     if (addingFor === "template") {
-      const r = await fetch(`${API}/checklist/templates`, {
-        method: "POST", headers: jsonH(), body: JSON.stringify({ label: newLabel, category: newCategory }),
+      const r = await apiFetch(`${API}/checklist/templates`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: newLabel, category: newCategory }),
       });
       if (r.ok) { const item = await r.json(); setTemplates(p => [...p, item]); setNewLabel(""); setAddingFor(null); }
     } else if (addingFor === "program" && selectedBookingId) {
-      const r = await fetch(`${API}/checklist/programs/${selectedBookingId}`, {
-        method: "POST", headers: jsonH(), body: JSON.stringify({ label: newLabel, category: newCategory }),
+      const r = await apiFetch(`${API}/checklist/programs/${selectedBookingId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: newLabel, category: newCategory }),
       });
       if (r.ok) { const item = await r.json(); setProgramItems(p => [...p, item]); setNewLabel(""); setAddingFor(null); }
     }

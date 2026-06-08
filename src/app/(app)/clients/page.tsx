@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Search, Plus, Filter, Phone, Mail, MapPin, Star, MoreVertical,
@@ -44,7 +46,6 @@ interface Client {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() {
   return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` };
 }
@@ -160,9 +161,9 @@ function ClientDrawer({
 
     try {
       const url = isEdit ? `${API}/clients/${editing!.id}` : `${API}/clients`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? "PATCH" : "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -334,9 +335,9 @@ function ProfileDrawer({
     if (!client) return;
     setPortalLoading(true);
     try {
-      const res = await fetch(`${API}/client-portal/generate/${client.id}`, {
+      const res = await apiFetch(`${API}/client-portal/generate/${client.id}`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
       });
       const d = await res.json();
       const link = `${window.location.origin}/portal/${d.token}`;
@@ -480,9 +481,9 @@ function DeleteDialog({
   async function doDelete() {
     setLoading(true);
     try {
-      await fetch(`${API}/clients/${client!.id}`, {
+      await apiFetch(`${API}/clients/${client!.id}`, {
         method: "DELETE",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
       });
       onDeleted();
       onClose();
@@ -677,7 +678,7 @@ export default function ClientsPage() {
         ...(search && { search }),
         ...(vipOnly && { vipStatus: "true" }),
       });
-      const res = await fetch(`${API}/clients?${params}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/clients?${params}`, { headers: { "Content-Type": "application/json" } });
       if (!res.ok) return;
       const data = await res.json();
       setClients(data.data ?? []);

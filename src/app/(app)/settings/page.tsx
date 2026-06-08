@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect } from "react";
 import {
   Building2, FileText, Loader2, CheckCircle2, Camera,
@@ -13,8 +15,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "security";
 
@@ -103,8 +103,8 @@ function useSave() {
   async function save(payload: object, successMsg = "Saved!") {
     setSaving(true);
     try {
-      const r = await fetch(`${API}/companies/me`, {
-        method: "PATCH", headers: jsonH(), body: JSON.stringify(payload),
+      const r = await apiFetch(`${API}/companies/me`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!r.ok) throw new Error();
       setToast({ msg: successMsg, type: "success" });
@@ -556,7 +556,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/companies/me`, { headers: authH() })
+    fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } })
       .then(r => r.json()).then(setData).finally(() => setLoading(false));
   }, []);
 

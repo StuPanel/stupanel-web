@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, X, Loader2, AlertTriangle, Trash2, Edit3, MoreVertical,
@@ -12,9 +14,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
-function authH() { return { Authorization: `Bearer ${token()}` }; }
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_ROLES = [
@@ -91,8 +90,8 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     if (!name) return;
     setAddingRole(true);
     try {
-      const r = await fetch(`${API}/team/custom-roles`, {
-        method: "POST", headers: jsonH(), body: JSON.stringify({ name }),
+      const r = await apiFetch(`${API}/team/custom-roles`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
       });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to add role"); return; }
@@ -114,7 +113,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     unTimer.current = setTimeout(async () => {
       try {
         const qs = isEdit ? `?username=${encodeURIComponent(val)}&excludeId=${editing!.id}` : `?username=${encodeURIComponent(val)}`;
-        const r = await fetch(`${API}/team/check-username${qs}`, { headers: authH() });
+        const r = await apiFetch(`${API}/team/check-username${qs}`, { headers: { "Content-Type": "application/json" } });
         const d = await r.json();
         setUnCheck({ checking: false, available: d.available, suggestions: d.suggestions ?? [] });
       } catch { setUnCheck({ checking: false, available: null, suggestions: [] }); }
@@ -169,7 +168,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
         ? { ...base, username: form.username || undefined }
         : { ...base, username: form.username, password: form.password };
       const url = isEdit ? `${API}/team/${editing!.id}` : `${API}/team`;
-      const r = await fetch(url, { method: isEdit ? "PATCH" : "POST", headers: jsonH(), body: JSON.stringify(body) });
+      const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to save."); return; }
       onSaved(); onClose();
@@ -410,8 +409,8 @@ function ResetPassDialog({ member, onClose, onDone }: { member: Member | null; o
     e.preventDefault();
     if (pass.length < 6) { setError("Minimum 6 characters."); return; }
     setError(""); setLoading(true);
-    const r = await fetch(`${API}/team/${member!.id}/reset-password`, {
-      method: "POST", headers: jsonH(), body: JSON.stringify({ newPassword: pass }),
+    const r = await apiFetch(`${API}/team/${member!.id}/reset-password`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword: pass }),
     });
     const d = await r.json();
     if (!r.ok) { setError(d.message || "Failed."); setLoading(false); return; }
@@ -463,7 +462,7 @@ function DeleteDialog({ member, onClose, onDeleted }: { member: Member | null; o
   if (!member) return null;
   async function doDelete() {
     setLoading(true);
-    await fetch(`${API}/team/${member!.id}`, { method: "DELETE", headers: authH() }).catch(() => {});
+    await apiFetch(`${API}/team/${member!.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } }).catch(() => {});
     onDeleted(); onClose(); setLoading(false);
   }
   return (
@@ -618,8 +617,8 @@ export default function TeamPage() {
     setLoading(true);
     try {
       const [mRes, crRes] = await Promise.all([
-        fetch(`${API}/team`, { headers: authH() }),
-        fetch(`${API}/team/custom-roles`, { headers: authH() }),
+        fetch(`${API}/team`, { headers: { "Content-Type": "application/json" } }),
+        fetch(`${API}/team/custom-roles`, { headers: { "Content-Type": "application/json" } }),
       ]);
       if (mRes.ok) setMembers(await mRes.json());
       if (crRes.ok) setCustomRoles(await crRes.json());
@@ -629,7 +628,7 @@ export default function TeamPage() {
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   async function toggleStatus(m: Member) {
-    await fetch(`${API}/team/${m.id}/toggle-status`, { method: "PATCH", headers: authH() }).catch(() => {});
+    await apiFetch(`${API}/team/${m.id}/toggle-status`, { method: "PATCH", headers: { "Content-Type": "application/json" } }).catch(() => {});
     fetchMembers();
   }
 

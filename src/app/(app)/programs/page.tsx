@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, X, Loader2, Search, MoreVertical, Edit3, Trash2, Eye,
@@ -15,9 +17,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function token() { return localStorage.getItem("access_token") ?? ""; }
-function authH() { return { Authorization: `Bearer ${token()}` }; }
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function fmtDate(d: string | Date | undefined | null): string {
@@ -109,7 +108,7 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       try {
-        const r = await fetch(`${API}/clients?search=${encodeURIComponent(query)}&limit=8`, { headers: authH() });
+        const r = await apiFetch(`${API}/clients?search=${encodeURIComponent(query)}&limit=8`, { headers: { "Content-Type": "application/json" } });
         if (r.ok) { const d = await r.json(); setResults(d.data ?? []); }
       } finally { setSearching(false); }
     }, 300);
@@ -225,7 +224,7 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
     try {
       const params = new URLSearchParams({ date });
       if (editingBookingId) params.set("excludeBookingId", editingBookingId);
-      const r = await fetch(`${API}/bookings/busy-members?${params}`, { headers: authH() });
+      const r = await apiFetch(`${API}/bookings/busy-members?${params}`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) { const d = await r.json(); setBusyMap(m => ({ ...m, [dayId]: d })); }
     } catch { /* silent */ }
   }
@@ -693,8 +692,8 @@ function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialB
     try {
       let clientId = data.selectedClient?.id;
       if (!clientId) {
-        const cr = await fetch(`${API}/clients`, {
-          method: "POST", headers: jsonH(),
+        const cr = await apiFetch(`${API}/clients`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             firstName: data.ncFirst, lastName: data.ncLast || undefined,
             phone: data.ncPhone, phone2: data.ncPhone2 || undefined,
@@ -730,7 +729,7 @@ function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialB
       };
 
       const url = isEdit ? `${API}/bookings/${initialBooking!.id}` : `${API}/bookings`;
-      const r = await fetch(url, { method: isEdit ? "PATCH" : "POST", headers: jsonH(), body: JSON.stringify(body) });
+      const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to save program."); return; }
       onSaved(); onClose();
@@ -884,7 +883,7 @@ function DeleteDialog({ booking, onClose, onDeleted }: { booking: Booking | null
   if (!booking) return null;
   async function doDelete() {
     setLoading(true);
-    await fetch(`${API}/bookings/${booking!.id}`, { method: "DELETE", headers: authH() }).catch(() => {});
+    await apiFetch(`${API}/bookings/${booking!.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } }).catch(() => {});
     onDeleted(); onClose(); setLoading(false);
   }
   return (
@@ -923,8 +922,8 @@ function StatusPipeline({ current, bookingId, onChanged }: { current: string; bo
     if (s === current || loading) return;
     setLoading(s);
     try {
-      await fetch(`${API}/bookings/${bookingId}/status`, {
-        method: "PATCH", headers: jsonH(), body: JSON.stringify({ status: s }),
+      await apiFetch(`${API}/bookings/${bookingId}/status`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }),
       });
       onChanged();
     } finally { setLoading(null); }
@@ -1006,7 +1005,7 @@ function WhatsAppModal({ booking, onClose }: { booking: Booking | null; onClose:
   useEffect(() => {
     if (!booking) return;
     setPhone(booking.client?.phone ?? "");
-    fetch(`${API}/wa-templates`, { headers: authH() })
+    fetch(`${API}/wa-templates`, { headers: { "Content-Type": "application/json" } })
       .then(r => r.json()).then(d => { setTemplates(Array.isArray(d) ? d : []); })
       .catch(() => {}).finally(() => setLoadingTpl(false));
   }, [booking]);
@@ -1015,8 +1014,8 @@ function WhatsAppModal({ booking, onClose }: { booking: Booking | null; onClose:
     if (!booking || !id) return;
     setFilling(true); setSelectedId(id);
     try {
-      const r = await fetch(`${API}/wa-templates/fill`, {
-        method: "POST", headers: jsonH(),
+      const r = await apiFetch(`${API}/wa-templates/fill`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateId: id, bookingId: booking.id }),
       });
       if (r.ok) { const d = await r.json(); setPreview(d.filled); if (d.phone) setPhone(d.phone); }
@@ -1157,8 +1156,8 @@ function PaymentModal({ booking, onClose, onSaved }: { booking: Booking | null; 
     if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
     setError(""); setLoading(true);
     try {
-      const r = await fetch(`${API}/payments`, {
-        method: "POST", headers: jsonH(),
+      const r = await apiFetch(`${API}/payments`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingId: bk.id,
           amount: amt,
@@ -1263,7 +1262,7 @@ function ViewDrawer({ booking, onClose, onEdit, onRefresh }: {
   async function refreshBooking() {
     if (!localBooking) return;
     try {
-      const r = await fetch(`${API}/bookings/${localBooking.id}`, { headers: authH() });
+      const r = await apiFetch(`${API}/bookings/${localBooking.id}`, { headers: { "Content-Type": "application/json" } });
       if (r.ok) setLocalBooking(await r.json());
     } catch { /* silent */ }
     onRefresh();
@@ -1299,7 +1298,7 @@ function ViewDrawer({ booking, onClose, onEdit, onRefresh }: {
               onClick={async () => {
                 setGenInvoicing(true);
                 try {
-                  const r = await fetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` } });
+                  const r = await apiFetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` } });
                   const d = await r.json();
                   if (r.ok || d.message?.includes("already exists")) {
                     router.push("/invoices");
@@ -1456,9 +1455,9 @@ export default function ProgramsPage() {
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
       const [bRes, pkgRes, tmRes] = await Promise.all([
-        fetch(`${API}/bookings?${params}`, { headers: authH() }),
-        fetch(`${API}/programs?limit=100`, { headers: authH() }),
-        fetch(`${API}/team`, { headers: authH() }),
+        fetch(`${API}/bookings?${params}`, { headers: { "Content-Type": "application/json" } }),
+        fetch(`${API}/programs?limit=100`, { headers: { "Content-Type": "application/json" } }),
+        fetch(`${API}/team`, { headers: { "Content-Type": "application/json" } }),
       ]);
       if (bRes.ok) { const d = await bRes.json(); setBookings(d.data ?? []); setMeta(d.meta); }
       if (pkgRes.ok) { const d = await pkgRes.json(); setPackages(d.data ?? d ?? []); }

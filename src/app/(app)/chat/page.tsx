@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import {
@@ -11,7 +13,6 @@ import { cn } from "@/lib/utils";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 const STATUS_COLOR: Record<string, string> = {
   inquiry: "bg-slate-400", quote_sent: "bg-blue-400", confirmed: "bg-indigo-500",
@@ -68,7 +69,7 @@ export default function ChatPage() {
       setMyId(payload.sub);
     } catch {}
 
-    fetch(`${API}/chat/bookings`, { headers: authH() })
+    fetch(`${API}/chat/bookings`, { headers: { "Content-Type": "application/json" } })
       .then(r => r.ok ? r.json() : [])
       .then(d => setBookings(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));

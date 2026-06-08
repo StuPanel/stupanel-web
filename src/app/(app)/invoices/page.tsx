@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, X, Loader2, Search, Eye, Trash2, Send, CheckCircle2,
@@ -13,8 +15,6 @@ import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
-function authH() { return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
-function jsonH() { return { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` }; }
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function fmtDate(d: string | Date | null | undefined) {
@@ -128,9 +128,9 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const s = sym(currency);
 
   useEffect(() => {
-    fetch(`${API}/clients?limit=200`, { headers: authH() }).then(r => r.json()).then(d => setClients(d.data ?? []));
-    fetch(`${API}/bookings?limit=200`, { headers: authH() }).then(r => r.json()).then(d => setBookings(d.data ?? []));
-    fetch(`${API}/companies/me`, { headers: authH() }).then(r => r.json()).then(d => {
+    fetch(`${API}/clients?limit=200`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setClients(d.data ?? []));
+    fetch(`${API}/bookings?limit=200`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setBookings(d.data ?? []));
+    fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => {
       if (d.taxLabel) setTaxLabel(d.taxLabel);
       if (d.defaultTaxPercent) setTaxPercent(Number(d.defaultTaxPercent));
       if (d.defaultTerms) setTerms(d.defaultTerms);
@@ -148,8 +148,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
     if (items.every(i => !i.name.trim())) { setError("Add at least one item."); return; }
     setSaving(true); setError("");
     try {
-      const r = await fetch(`${API}/studio-invoices`, {
-        method: "POST", headers: jsonH(),
+      const r = await apiFetch(`${API}/studio-invoices`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClient.id, bookingId: selectedBookingId || undefined,
           currency, issueDate, dueDate: dueDate || undefined,
@@ -319,7 +319,7 @@ function ViewDrawer({ inv, onClose, onRefresh }: { inv: Invoice; onClose: () => 
   async function doAction(path: string, msg: string) {
     setActing(true);
     try {
-      const r = await fetch(`${API}/studio-invoices/${inv.id}/${path}`, { method: "PATCH", headers: jsonH() });
+      const r = await apiFetch(`${API}/studio-invoices/${inv.id}/${path}`, { method: "PATCH", headers: { "Content-Type": "application/json" } });
       if (!r.ok) throw new Error();
       setToast({ msg, type: "success" });
       onRefresh();
@@ -331,7 +331,7 @@ function ViewDrawer({ inv, onClose, onRefresh }: { inv: Invoice; onClose: () => 
     if (!confirm(`Delete invoice ${inv.invoiceNumber}?`)) return;
     setActing(true);
     try {
-      await fetch(`${API}/studio-invoices/${inv.id}`, { method: "DELETE", headers: authH() });
+      await apiFetch(`${API}/studio-invoices/${inv.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
       onClose(); onRefresh();
     } catch { setToast({ msg: "Delete failed.", type: "error" }); }
     finally { setActing(false); }
@@ -507,7 +507,7 @@ export default function InvoicesPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20", ...(search && { search }), ...(statusFilter && { status: statusFilter }) });
-      const r = await fetch(`${API}/studio-invoices?${params}`, { headers: authH() });
+      const r = await apiFetch(`${API}/studio-invoices?${params}`, { headers: { "Content-Type": "application/json" } });
       const d = await r.json();
       setInvoices(d.data ?? []);
       setTotal(d.meta?.total ?? 0);

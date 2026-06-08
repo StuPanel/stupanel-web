@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, Search, Building2, ChevronLeft, ChevronRight,
-  CheckCircle, AlertTriangle, Clock, Ban, ExternalLink,
-  UserCheck, RefreshCw,
+  Loader2, Search, ChevronLeft, ChevronRight,
+  CheckCircle, Ban, ExternalLink,
+  RefreshCw, HardDrive, X, Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,153 @@ const statusColors: Record<string, string> = {
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
+function fmtBytes(b: number): string {
+  if (b < 1048576) return `${(b / 1024).toFixed(0)} KB`;
+  if (b < 1073741824) return `${(b / 1048576).toFixed(1)} MB`;
+  return `${(b / 1073741824).toFixed(2)} GB`;
+}
 
+// ─── R2 Settings Modal ────────────────────────────────────────────────────────
+function R2Modal({ studio, onClose, onSaved }: {
+  studio: any; onClose: () => void; onSaved: (updated: any) => void;
+}) {
+  const [enabled, setEnabled] = useState(studio.r2Enabled ?? false);
+  const [limitGb, setLimitGb] = useState(
+    studio.r2StorageLimitMb ? String(Math.round(studio.r2StorageLimitMb / 1024 * 10) / 10) : "5"
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const usedBytes = Number(studio.storageUsedBytes ?? 0);
+  const limitBytes = (studio.r2StorageLimitMb ?? 0) * 1024 * 1024;
+  const usedPct = limitBytes > 0 ? Math.min(100, Math.round(usedBytes / limitBytes * 100)) : 0;
+
+  async function save() {
+    const gb = parseFloat(limitGb);
+    if (enabled && (isNaN(gb) || gb <= 0)) {
+      setError("Please enter a valid storage limit (e.g. 5 for 5 GB)");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/admin/studios/${studio.id}/r2`, {
+        method: "PATCH",
+        headers: authH(),
+        body: JSON.stringify({ r2Enabled: enabled, r2StorageLimitMb: enabled ? Math.round(gb * 1024) : 0 }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setError(d.message || "Failed to save"); return; }
+      onSaved(d);
+      onClose();
+    } catch { setError("Something went wrong"); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div>
+              <p className="font-bold text-white text-sm">Cloud Storage (R2)</p>
+              <p className="text-xs text-slate-400 mt-0.5">{studio.name}</p>
+            </div>
+            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-5">
+            {/* Current usage */}
+            {studio.r2Enabled && usedBytes > 0 && (
+              <div className="bg-slate-800 rounded-xl p-3 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400">Storage Used</span>
+                  <span className="text-white font-medium">{fmtBytes(usedBytes)} / {studio.r2StorageLimitMb ? (studio.r2StorageLimitMb / 1024).toFixed(1) + " GB" : "—"}</span>
+                </div>
+                {limitBytes > 0 && (
+                  <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", usedPct > 90 ? "bg-red-500" : usedPct > 70 ? "bg-amber-500" : "bg-emerald-500")}
+                      style={{ width: `${usedPct}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Enable toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Enable R2 Storage</p>
+                <p className="text-xs text-slate-400 mt-0.5">Allow this studio to upload delivery files</p>
+              </div>
+              <button
+                onClick={() => setEnabled((v: boolean) => !v)}
+                className={cn("relative w-11 h-6 rounded-full transition-colors",
+                  enabled ? "bg-indigo-600" : "bg-slate-700"
+                )}>
+                <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                  enabled ? "translate-x-5" : "translate-x-0"
+                )} />
+              </button>
+            </div>
+
+            {/* Storage limit */}
+            {enabled && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-300">Storage Limit (GB)</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={limitGb}
+                    onChange={e => setLimitGb(e.target.value)}
+                    className="bg-slate-800 border-slate-600 text-white h-10 flex-1"
+                    placeholder="e.g. 5"
+                  />
+                  <span className="text-sm text-slate-400 whitespace-nowrap">GB</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {["1", "5", "10", "20", "50"].map(v => (
+                    <button key={v} onClick={() => setLimitGb(v)}
+                      className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                        limitGb === v
+                          ? "bg-indigo-600 border-indigo-500 text-white"
+                          : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-white"
+                      )}>
+                      {v} GB
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  ≈ ${(parseFloat(limitGb) * 0.015).toFixed(3)}/month max (Cloudflare R2 pricing)
+                </p>
+              </div>
+            )}
+
+            {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose}
+                className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">
+                Cancel
+              </Button>
+              <Button onClick={save} disabled={saving}
+                className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminStudiosPage() {
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
@@ -36,7 +182,7 @@ export default function AdminStudiosPage() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selected, setSelected] = useState<any | null>(null);
+  const [r2Target, setR2Target] = useState<any | null>(null);
 
   const load = useCallback(async (p = 1, s = search, st = status) => {
     setLoading(true);
@@ -59,7 +205,6 @@ export default function AdminStudiosPage() {
     await fetch(`${API}/admin/studios/${studio.id}/${endpoint}`, { method: "PATCH", headers: authH() });
     await load(page);
     setActionLoading(null);
-    if (selected?.id === studio.id) setSelected({ ...selected, isActive: !studio.isActive });
   }
 
   async function impersonate(studioId: string) {
@@ -72,6 +217,12 @@ export default function AdminStudiosPage() {
       localStorage.setItem("user_role", "admin");
       window.open("/dashboard", "_blank");
     }
+  }
+
+  function onR2Saved(updated: any) {
+    setItems(prev => prev.map(s =>
+      s.id === updated.id ? { ...s, r2Enabled: updated.r2Enabled, r2StorageLimitMb: updated.r2StorageLimitMb } : s
+    ));
   }
 
   return (
@@ -117,7 +268,7 @@ export default function AdminStudiosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  {["Studio", "Owner Email", "Status", "Users", "Bookings", "Created", "Actions"].map(h => (
+                  {["Studio", "Owner Email", "Status", "R2 Storage", "Users", "Bookings", "Created", "Actions"].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -142,6 +293,22 @@ export default function AdminStudiosPage() {
                           <Ban className="w-2.5 h-2.5" />Suspended
                         </span>
                       )}
+                    </td>
+                    {/* R2 Storage */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setR2Target(studio)}
+                        className={cn("inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors",
+                          studio.r2Enabled
+                            ? "bg-indigo-500/15 text-indigo-400 border-indigo-600/30 hover:bg-indigo-500/25"
+                            : "bg-slate-700/50 text-slate-500 border-slate-600 hover:bg-slate-700"
+                        )}>
+                        <HardDrive className="w-3 h-3" />
+                        {studio.r2Enabled
+                          ? `ON · ${studio.r2StorageLimitMb ? (studio.r2StorageLimitMb / 1024).toFixed(0) + " GB" : "—"}`
+                          : "OFF"
+                        }
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-slate-300">{studio._count?.users ?? 0}</td>
                     <td className="px-4 py-3 text-slate-300">{studio._count?.bookings ?? 0}</td>
@@ -193,6 +360,15 @@ export default function AdminStudiosPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* R2 Modal */}
+      {r2Target && (
+        <R2Modal
+          studio={r2Target}
+          onClose={() => setR2Target(null)}
+          onSaved={onR2Saved}
+        />
       )}
     </div>
   );

@@ -44,7 +44,7 @@ export default function LoginPage() {
         const msg: string = data.message || "Login failed. Please try again.";
         // Email not verified — redirect to check-email page
         if (msg.includes("EMAIL_NOT_VERIFIED")) {
-          window.location.href = `/auth/check-email?email=${encodeURIComponent(identifier.trim())}`;
+          window.location.href = `/check-email?email=${encodeURIComponent(identifier.trim())}`;
           return;
         }
         setError(msg.replace("EMAIL_NOT_VERIFIED: ", ""));

@@ -97,7 +97,7 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Registration failed."); return; }
       // Do NOT store tokens — redirect to email verification page
-      window.location.href = `/auth/check-email?email=${encodeURIComponent(form.email)}`;
+      window.location.href = `/check-email?email=${encodeURIComponent(form.email)}`;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

@@ -282,7 +282,7 @@ export default function AdminStudiosPage() {
                         <p className="text-xs text-slate-500">/{studio.slug}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-300 text-xs">{studio.ownerEmail ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-300 text-xs">{studio.email ?? "—"}</td>
                     <td className="px-4 py-3">
                       <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium",
                         statusColors[studio.subscriptionStatus] ?? "bg-slate-700 text-slate-400 border-slate-600")}>

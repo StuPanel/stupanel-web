@@ -78,7 +78,6 @@ const PAYMENT_TYPES = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 function fmt(n: number, cur = "BDT") { return (cur === "BDT" ? "৳" : "$") + Number(n).toLocaleString(); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return new Date().toISOString().split("T")[0]; }

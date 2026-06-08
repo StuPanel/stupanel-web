@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${token()}` }; }
 
 interface Pkg {
   id: string; name: string; description?: string; category?: string;

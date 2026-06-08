@@ -42,7 +42,6 @@ interface MonthData { month: number; total: number }
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authHeaders() { return { Authorization: `Bearer ${token()}` }; }
 
 function fmt(n: number, currency = "BDT") {
   if (n >= 100000) return (currency === "BDT" ? "৳" : "$") + (n / 100000).toFixed(1) + "L";

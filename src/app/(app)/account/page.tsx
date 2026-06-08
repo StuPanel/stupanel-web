@@ -13,9 +13,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
-}
 
 interface Profile {
   id: string;
@@ -53,7 +50,7 @@ export default function MyAccountPage() {
   const [pwErr, setPwErr]             = useState("");
 
   useEffect(() => {
-    fetch(`${API}/profile`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    apiFetch(`${API}/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {

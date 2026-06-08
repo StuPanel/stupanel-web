@@ -8,7 +8,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-function authHeaders() { return { Authorization: `Bearer ${token()}` }; }
 
 interface Booking {
   id: string; bookingNumber: string; eventName: string; eventDate?: string;

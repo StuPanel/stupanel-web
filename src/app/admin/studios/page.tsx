@@ -6,7 +6,7 @@ import {
   Loader2, Search, ChevronLeft, ChevronRight,
   CheckCircle, Ban, ExternalLink, RefreshCw,
   HardDrive, X, Check, Trash2, Archive,
-  RotateCcw, AlertTriangle, Download, Eye, EyeOff,
+  RotateCcw, AlertTriangle, Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -128,8 +128,6 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
   onArchived: (id: string) => void;
 }) {
   const [deleteType, setDeleteType] = useState<"instant" | "archive" | null>(null);
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -150,13 +148,11 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
 
   async function proceed() {
     if (!deleteType) { setError("Please choose a delete option"); return; }
-    if (!password.trim()) { setError("Admin password is required"); return; }
     setLoading(true); setError("");
     try {
       const endpoint = deleteType === "instant" ? "instant-delete" : "archive";
       const res = await fetch(`${API}/admin/studios/${studio.id}/${endpoint}`, {
         method: "POST", headers: authH(),
-        body: JSON.stringify({ adminPassword: password }),
       });
       const d = await res.json();
       if (!res.ok) { setError(d.message || "Operation failed"); return; }
@@ -225,23 +221,6 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
               </button>
             </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-400">Admin Password (Verification)</label>
-              <div className="relative">
-                <Input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter your admin password"
-                  className="bg-slate-800 border-slate-600 text-white h-10 pr-10"
-                />
-                <button onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
             {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-900/30">{error}</p>}
 
             <div className="flex gap-3 pt-1">
@@ -265,9 +244,7 @@ function ArchivedTab() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [password, setPassword] = useState("");
   const [pwError, setPwError] = useState("");
-  const [showPw, setShowPw] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -289,18 +266,17 @@ function ArchivedTab() {
   }
 
   async function permanentDelete() {
-    if (!deleteTarget || !password.trim()) { setPwError("Password required"); return; }
+    if (!deleteTarget) return;
     setActionLoading(deleteTarget.id);
     setPwError("");
     try {
       const res = await fetch(`${API}/admin/studios/${deleteTarget.id}/permanent-delete`, {
         method: "POST", headers: authH(),
-        body: JSON.stringify({ adminPassword: password }),
       });
       const d = await res.json();
       if (!res.ok) { setPwError(d.message || "Failed"); setActionLoading(null); return; }
       setItems(prev => prev.filter(s => s.id !== deleteTarget.id));
-      setDeleteTarget(null); setPassword("");
+      setDeleteTarget(null);
     } finally { setActionLoading(null); }
   }
 
@@ -344,7 +320,7 @@ function ArchivedTab() {
                         className="h-7 px-2 text-emerald-400 hover:bg-emerald-900/20 gap-1 text-xs">
                         {actionLoading === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}Restore
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setDeleteTarget(s); setPassword(""); setPwError(""); }}
+                      <Button size="sm" variant="ghost" onClick={() => { setDeleteTarget(s); setPwError(""); }}
                         disabled={actionLoading === s.id}
                         className="h-7 px-2 text-red-400 hover:bg-red-900/20 gap-1 text-xs">
                         <Trash2 className="w-3 h-3" />Delete
@@ -374,17 +350,7 @@ function ArchivedTab() {
                 </div>
               </div>
               <p className="text-xs text-red-300 bg-red-900/20 px-3 py-2 rounded-lg">This will permanently delete all data. Cannot be undone.</p>
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Admin Password</label>
-                <div className="relative">
-                  <Input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
-                    placeholder="Enter admin password" className="bg-slate-800 border-slate-600 text-white h-10 pr-10" />
-                  <button onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {pwError && <p className="text-xs text-red-400">{pwError}</p>}
-              </div>
+              {pwError && <p className="text-xs text-red-400">{pwError}</p>}
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
                 <Button onClick={permanentDelete} disabled={actionLoading === deleteTarget.id}

@@ -16,6 +16,14 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
 
+function getAdminEmail(): string {
+  try {
+    const token = sessionStorage.getItem("admin_token") ?? "";
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return (payload.email ?? "").toLowerCase();
+  } catch { return ""; }
+}
+
 const statusColors: Record<string, string> = {
   active:   "bg-emerald-500/20 text-emerald-400 border-emerald-600/30",
   trialing: "bg-amber-500/20 text-amber-400 border-amber-600/30",
@@ -380,6 +388,7 @@ export default function AdminStudiosPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [r2Target, setR2Target] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [adminEmail] = useState(() => getAdminEmail());
 
   const load = useCallback(async (p = 1, s = search, st = status) => {
     setLoading(true);
@@ -489,9 +498,23 @@ export default function AdminStudiosPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
-                    {items.map(studio => (
-                      <tr key={studio.id} className="hover:bg-slate-700/30 transition-colors">
-                        <td className="px-4 py-3"><div><p className="font-medium text-white">{studio.name}</p><p className="text-xs text-slate-500">/{studio.slug}</p></div></td>
+                    {items.map(studio => {
+                      const isOwnStudio = !!adminEmail && (studio.email ?? "").toLowerCase() === adminEmail;
+                      return (
+                      <tr key={studio.id} className={cn("hover:bg-slate-700/30 transition-colors", isOwnStudio && "bg-indigo-950/30")}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div>
+                              <p className="font-medium text-white">{studio.name}</p>
+                              <p className="text-xs text-slate-500">/{studio.slug}</p>
+                            </div>
+                            {isOwnStudio && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold whitespace-nowrap">
+                                Platform Owner
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-slate-300 text-xs">{studio.email ?? "—"}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium", statusColors[studio.subscriptionStatus] ?? "bg-slate-700 text-slate-400 border-slate-600")}>
@@ -516,22 +539,32 @@ export default function AdminStudiosPage() {
                         <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{fmtDate(studio.createdAt)}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => impersonate(studio.id)} disabled={actionLoading === studio.id}
-                              className="h-7 px-2 text-indigo-400 hover:bg-indigo-600/20 gap-1 text-xs">
-                              {actionLoading === studio.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}View
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => toggleSuspend(studio)} disabled={actionLoading === studio.id}
-                              className={cn("h-7 px-2 gap-1 text-xs", studio.isActive ? "text-orange-400 hover:bg-orange-900/20" : "text-emerald-400 hover:bg-emerald-900/20")}>
-                              {studio.isActive ? <><Ban className="w-3 h-3" />Suspend</> : <><CheckCircle className="w-3 h-3" />Activate</>}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(studio)}
-                              className="h-7 px-2 text-red-400 hover:bg-red-900/20 gap-1 text-xs">
-                              <Trash2 className="w-3 h-3" />Delete
-                            </Button>
+                            {!isOwnStudio && (
+                              <Button size="sm" variant="ghost" onClick={() => impersonate(studio.id)} disabled={actionLoading === studio.id}
+                                className="h-7 px-2 text-indigo-400 hover:bg-indigo-600/20 gap-1 text-xs">
+                                {actionLoading === studio.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}View
+                              </Button>
+                            )}
+                            {!isOwnStudio && (
+                              <Button size="sm" variant="ghost" onClick={() => toggleSuspend(studio)} disabled={actionLoading === studio.id}
+                                className={cn("h-7 px-2 gap-1 text-xs", studio.isActive ? "text-orange-400 hover:bg-orange-900/20" : "text-emerald-400 hover:bg-emerald-900/20")}>
+                                {studio.isActive ? <><Ban className="w-3 h-3" />Suspend</> : <><CheckCircle className="w-3 h-3" />Activate</>}
+                              </Button>
+                            )}
+                            {!isOwnStudio && (
+                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(studio)}
+                                className="h-7 px-2 text-red-400 hover:bg-red-900/20 gap-1 text-xs">
+                                <Trash2 className="w-3 h-3" />Delete
+                              </Button>
+                            )}
+                            {isOwnStudio && (
+                              <span className="text-xs text-slate-600 italic">Protected</span>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -617,8 +617,8 @@ export default function TeamPage() {
     setLoading(true);
     try {
       const [mRes, crRes] = await Promise.all([
-        fetch(`${API}/team`, { headers: { "Content-Type": "application/json" } }),
-        fetch(`${API}/team/custom-roles`, { headers: { "Content-Type": "application/json" } }),
+        apiFetch(`${API}/team`),
+        apiFetch(`${API}/team/custom-roles`),
       ]);
       if (mRes.ok) setMembers(await mRes.json());
       if (crRes.ok) setCustomRoles(await crRes.json());

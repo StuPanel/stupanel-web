@@ -11,6 +11,7 @@ function CallbackHandler() {
     const token = params.get("token");
     const onboarding = params.get("onboarding");
     const isSuperAdmin = params.get("isSuperAdmin");
+    const isNewUser = params.get("isNewUser");
     const role = params.get("role") ?? "owner";
 
     if (!token) {
@@ -29,6 +30,12 @@ function CallbackHandler() {
 
     if (role === "staff") {
       window.location.href = "/member/dashboard";
+      return;
+    }
+
+    // New Google user → collect password, phone, company name first
+    if (isNewUser === "true") {
+      window.location.href = "/complete-profile";
       return;
     }
 

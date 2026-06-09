@@ -170,7 +170,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
       const url = isEdit ? `${API}/team/${editing!.id}` : `${API}/team`;
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
-      if (!r.ok) { setError(d.message || "Failed to save."); return; }
+      if (!r.ok) { const msg = d.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
     finally { setLoading(false); }

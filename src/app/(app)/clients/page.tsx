@@ -165,7 +165,7 @@ function ClientDrawer({
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || "Failed to save."); return; }
+      if (!res.ok) { const msg = data.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
       onSaved();
       onClose();
     } catch {

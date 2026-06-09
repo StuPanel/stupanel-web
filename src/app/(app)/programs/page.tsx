@@ -110,8 +110,8 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
     timer.current = setTimeout(async () => {
       try {
         const url = query.trim()
-          ? `${API}/clients?search=${encodeURIComponent(query)}&limit=10`
-          : `${API}/clients?limit=20`;
+          ? `${API}/clients?search=${encodeURIComponent(query)}&limit=100`
+          : `${API}/clients?limit=200`;
         const r = await apiFetch(url, { headers: { "Content-Type": "application/json" } });
         if (r.ok) { const d = await r.json(); setResults(d.data ?? []); }
       } finally { setSearching(false); }
@@ -151,7 +151,7 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
           ) : results.length > 0 ? (
             <div className="border border-slate-200 rounded-xl overflow-hidden">
               {results.map(c => (
-                <button key={c.id} onClick={() => { onChange({ selectedClient: c }); setQuery(""); setResults([]); }}
+                <button key={c.id} onClick={() => { onChange({ selectedClient: c }); setQuery(""); }}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left border-b border-slate-100 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-slate-900">{c.firstName} {c.lastName ?? ""}</p>

@@ -616,8 +616,15 @@ function IntegrationsTab() {
     } finally { setActionId(null); }
   }
 
-  function connectNew() {
-    window.location.href = `${API}/google-drive/connect`;
+  async function connectNew() {
+    try {
+      const r = await apiFetch(`${API}/google-drive/connect-url`);
+      if (!r.ok) throw new Error("Failed");
+      const { url } = await r.json();
+      window.location.href = url;
+    } catch {
+      setToast({ msg: "Could not start Google authentication. Please try again.", type: "error" });
+    }
   }
 
   return (

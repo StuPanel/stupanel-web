@@ -1588,9 +1588,9 @@ export default function ProgramsPage() {
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
       const [bRes, pkgRes, tmRes] = await Promise.all([
-        fetch(`${API}/bookings?${params}`, { headers: { "Content-Type": "application/json" } }),
-        fetch(`${API}/programs?limit=100`, { headers: { "Content-Type": "application/json" } }),
-        fetch(`${API}/team`, { headers: { "Content-Type": "application/json" } }),
+        apiFetch(`${API}/bookings?${params}`),
+        apiFetch(`${API}/programs?limit=100`),
+        apiFetch(`${API}/team`),
       ]);
       if (bRes.ok) { const d = await bRes.json(); setBookings(d.data ?? []); setMeta(d.meta); }
       if (pkgRes.ok) { const d = await pkgRes.json(); setPackages(d.data ?? d ?? []); }

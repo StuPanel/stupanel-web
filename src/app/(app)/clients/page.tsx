@@ -11,12 +11,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -75,17 +75,6 @@ function avatarColor(id: string) {
   return AVATAR_COLORS[n % AVATAR_COLORS.length];
 }
 
-const SOURCES = [
-  { value: "referral", label: "Referral" },
-  { value: "instagram", label: "Instagram" },
-  { value: "facebook", label: "Facebook" },
-  { value: "google", label: "Google" },
-  { value: "website", label: "Website" },
-  { value: "walk_in", label: "Walk-in" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "other", label: "Other" },
-];
-
 // ─── Add / Edit Drawer ──────────────────────────────────────────────────────
 
 function ClientDrawer({
@@ -98,13 +87,7 @@ function ClientDrawer({
 }) {
   const isEdit = !!editing;
 
-  const blank = {
-    firstName: "", lastName: "", email: "", phone: "",
-    city: "", source: "", occupation: "", companyName: "",
-    notes: "", internalNotes: "", vipStatus: false,
-  };
-
-  const [form, setForm] = useState<typeof blank & { vipStatus: boolean }>(blank);
+  const [form, setForm] = useState<ClientFormData>(blankClientForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -117,25 +100,23 @@ function ClientDrawer({
           lastName: editing.lastName ?? "",
           email: editing.email ?? "",
           phone: editing.phone ?? "",
+          phoneSecondary: editing.phoneSecondary ?? "",
+          facebookProfile: (editing as any).facebookProfile ?? "",
           city: editing.city ?? "",
           source: editing.source ?? "",
+          address: (editing as any).address ?? "",
           occupation: editing.occupation ?? "",
           companyName: editing.companyName ?? "",
+          vipStatus: editing.vipStatus ?? false,
           notes: editing.notes ?? "",
           internalNotes: editing.internalNotes ?? "",
-          vipStatus: editing.vipStatus ?? false,
         });
       } else {
-        setForm(blank);
+        setForm(blankClientForm);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
-
-  function set(key: string) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm(prev => ({ ...prev, [key]: e.target.value }));
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -148,8 +129,11 @@ function ClientDrawer({
       lastName: form.lastName.trim() || undefined,
       email: form.email.trim() || undefined,
       phone: form.phone.trim() || undefined,
+      phoneSecondary: form.phoneSecondary.trim() || undefined,
+      facebookProfile: form.facebookProfile.trim() || undefined,
       city: form.city.trim() || undefined,
       source: form.source || undefined,
+      address: form.address.trim() || undefined,
       occupation: form.occupation.trim() || undefined,
       companyName: form.companyName.trim() || undefined,
       notes: form.notes.trim() || undefined,
@@ -200,106 +184,11 @@ function ClientDrawer({
               <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
             )}
 
-            {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">First Name *</Label>
-                <Input placeholder="Karim" value={form.firstName} onChange={set("firstName")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Last Name</Label>
-                <Input placeholder="Ahmed" value={form.lastName} onChange={set("lastName")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-              </div>
-            </div>
-
-            {/* Phone + Email */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Phone</Label>
-                <Input placeholder="017XXXXXXXX" value={form.phone} onChange={set("phone")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Email</Label>
-                <Input type="email" placeholder="client@email.com" value={form.email} onChange={set("email")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-                {form.email.trim() && (
-                  <p className="text-[11px] text-amber-600 flex items-center gap-1">
-                    ⚠️ Make sure this email is correct — we cannot verify if it exists.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* City + Source */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">City</Label>
-                <Input placeholder="Dhaka" value={form.city} onChange={set("city")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Source</Label>
-                <select value={form.source} onChange={set("source")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  <option value="">Select source...</option>
-                  {SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Occupation + Company */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Occupation</Label>
-                <Input placeholder="e.g. Engineer" value={form.occupation} onChange={set("occupation")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Company</Label>
-                <Input placeholder="Company name" value={form.companyName} onChange={set("companyName")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
-              </div>
-            </div>
-
-            {/* VIP toggle */}
-            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-              <div className={cn(
-                "w-10 h-6 rounded-full transition-colors relative flex-shrink-0",
-                form.vipStatus ? "bg-yellow-400" : "bg-slate-200"
-              )}>
-                <div className={cn(
-                  "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform",
-                  form.vipStatus ? "translate-x-4.5" : "translate-x-0.5"
-                )} style={{ transform: form.vipStatus ? "translateX(18px)" : "translateX(2px)" }} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-900 flex items-center gap-1.5">
-                  <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" /> VIP Client
-                </p>
-                <p className="text-xs text-slate-400">Mark as high-value client</p>
-              </div>
-              <input type="checkbox" checked={form.vipStatus}
-                onChange={e => setForm(prev => ({ ...prev, vipStatus: e.target.checked }))}
-                className="sr-only" />
-            </label>
-
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></Label>
-              <textarea value={form.notes} onChange={set("notes")} rows={2}
-                placeholder="Any notes about this client..."
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Internal Notes <span className="text-slate-400 font-normal">(private)</span></Label>
-              <textarea value={form.internalNotes} onChange={set("internalNotes")} rows={2}
-                placeholder="Internal notes, visible only to your team..."
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
+            <ClientFormFields
+              value={form}
+              onChange={updates => setForm(prev => ({ ...prev, ...updates }))}
+              autoFocus={!isEdit}
+            />
 
           </div>
         </form>

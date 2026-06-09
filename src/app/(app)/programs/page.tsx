@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
@@ -29,7 +30,6 @@ function fmtDate(d: string | Date | undefined | null): string {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const EVENT_TYPES = ["Wedding", "Holud", "Reception", "Engagement", "Akd", "Birthday", "Corporate", "Party", "Naming Ceremony", "Other"];
-const SOURCES = ["Facebook", "Instagram", "Referral", "Walk-in", "Google", "Phone", "Other"];
 const STATUS_CFG: Record<string, { label: string; badge: string; dot: string }> = {
   inquiry:            { label: "Inquiry",       badge: "bg-slate-100 text-slate-600",     dot: "bg-slate-400" },
   quote_sent:         { label: "Quote Sent",     badge: "bg-blue-100 text-blue-700",       dot: "bg-blue-400" },
@@ -81,7 +81,7 @@ function blankWizard() {
     // Step 1 — Client
     clientMode: "search" as "search" | "new",
     selectedClient: null as Client | null,
-    ncFirst: "", ncLast: "", ncPhone: "", ncPhone2: "", ncFacebook: "", ncAddress: "", ncSource: "",
+    newClient: blankClientForm as ClientFormData,
     // Step 2 — Event Days
     eventDays: [] as EventDay[],
     eventName: "",
@@ -168,46 +168,11 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
           ) : null}
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">First Name *</Label>
-              <Input value={data.ncFirst} onChange={e => onChange({ ncFirst: e.target.value })} placeholder="James" className="h-10 border-slate-200 text-sm" autoFocus />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Last Name</Label>
-              <Input value={data.ncLast} onChange={e => onChange({ ncLast: e.target.value })} placeholder="Wilson" className="h-10 border-slate-200 text-sm" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Phone *</Label>
-              <Input value={data.ncPhone} onChange={e => onChange({ ncPhone: e.target.value })} placeholder="01XXXXXXXXX" className="h-10 border-slate-200 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Phone 2</Label>
-              <Input value={data.ncPhone2} onChange={e => onChange({ ncPhone2: e.target.value })} placeholder="01XXXXXXXXX" className="h-10 border-slate-200 text-sm" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Facebook Profile</Label>
-            <Input value={data.ncFacebook} onChange={e => onChange({ ncFacebook: e.target.value })} placeholder="facebook.com/username" className="h-10 border-slate-200 text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Address</Label>
-              <Input value={data.ncAddress} onChange={e => onChange({ ncAddress: e.target.value })} placeholder="City, Area" className="h-10 border-slate-200 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Reference Source</Label>
-              <select value={data.ncSource} onChange={e => onChange({ ncSource: e.target.value })}
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
-                <option value="">Select...</option>
-                {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
+        <ClientFormFields
+          value={data.newClient}
+          onChange={updates => onChange({ newClient: { ...data.newClient, ...updates } })}
+          autoFocus
+        />
       )}
     </div>
   );
@@ -646,7 +611,7 @@ function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
   return {
     clientMode: "search",
     selectedClient: b.client as Client,
-    ncFirst: "", ncLast: "", ncPhone: "", ncPhone2: "", ncFacebook: "", ncAddress: "", ncSource: "",
+    newClient: blankClientForm,
     eventDays: (b.eventDays as EventDay[]) ?? [],
     eventName: b.eventName ?? "",
     packageId: b.program?.id ?? "",
@@ -686,7 +651,7 @@ function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialB
   function canNext() {
     if (step === 0) {
       if (data.clientMode === "search") return !!data.selectedClient;
-      return !!data.ncFirst.trim() && !!data.ncPhone.trim();
+      return !!data.newClient.firstName.trim() && !!data.newClient.phone.trim();
     }
     if (step === 1) return !!data.eventName.trim() && data.eventDays.length > 0 && data.eventDays.every(d => d.date);
     if (step === 2) return !!(parseFloat(data.totalAmount) > 0);
@@ -701,11 +666,20 @@ function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialB
         const cr = await apiFetch(`${API}/clients`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            firstName: data.ncFirst, lastName: data.ncLast || undefined,
-            phone: data.ncPhone, phone2: data.ncPhone2 || undefined,
-            facebookProfile: data.ncFacebook || undefined,
-            address: data.ncAddress || undefined,
-            referralSource: data.ncSource || undefined,
+            firstName: data.newClient.firstName.trim(),
+            lastName: data.newClient.lastName.trim() || undefined,
+            phone: data.newClient.phone.trim(),
+            phoneSecondary: data.newClient.phoneSecondary.trim() || undefined,
+            email: data.newClient.email.trim() || undefined,
+            facebookProfile: data.newClient.facebookProfile.trim() || undefined,
+            city: data.newClient.city.trim() || undefined,
+            source: data.newClient.source || undefined,
+            address: data.newClient.address.trim() || undefined,
+            occupation: data.newClient.occupation.trim() || undefined,
+            companyName: data.newClient.companyName.trim() || undefined,
+            vipStatus: data.newClient.vipStatus,
+            notes: data.newClient.notes.trim() || undefined,
+            internalNotes: data.newClient.internalNotes.trim() || undefined,
           }),
         });
         const cd = await cr.json();

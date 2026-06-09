@@ -103,15 +103,19 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (data.clientMode !== "search" || !query.trim()) { setResults([]); return; }
+    if (data.clientMode !== "search") { setResults([]); return; }
     setSearching(true);
     clearTimeout(timer.current);
+    const delay = query.trim() ? 300 : 0;
     timer.current = setTimeout(async () => {
       try {
-        const r = await apiFetch(`${API}/clients?search=${encodeURIComponent(query)}&limit=8`, { headers: { "Content-Type": "application/json" } });
+        const url = query.trim()
+          ? `${API}/clients?search=${encodeURIComponent(query)}&limit=10`
+          : `${API}/clients?limit=20`;
+        const r = await apiFetch(url, { headers: { "Content-Type": "application/json" } });
         if (r.ok) { const d = await r.json(); setResults(d.data ?? []); }
       } finally { setSearching(false); }
-    }, 300);
+    }, delay);
   }, [query, data.clientMode]);
 
   return (
@@ -157,8 +161,10 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
                 </button>
               ))}
             </div>
-          ) : query && !searching ? (
-            <p className="text-center text-sm text-slate-400 py-4">No clients found — <button className="text-indigo-500 underline" onClick={() => onChange({ clientMode: "new" })}>create new</button></p>
+          ) : !searching && results.length === 0 ? (
+            <p className="text-center text-sm text-slate-400 py-4">
+              {query.trim() ? <>No clients found — <button className="text-indigo-500 underline" onClick={() => onChange({ clientMode: "new" })}>create new</button></> : "No clients yet"}
+            </p>
           ) : null}
         </div>
       ) : (

@@ -8,6 +8,7 @@ import {
   Link2, Globe, Phone, MapPin, Palette, Percent, CalendarDays,
   CreditCard, Smartphone, ExternalLink, Video,
   Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
+  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "security";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "security" | "integrations";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -555,9 +556,201 @@ function SecurityTab({ data }: { data: any }) {
   );
 }
 
+// ─── Integrations Tab ──────────────────────────────────────────────────────────
+interface DriveAccount {
+  id: string;
+  googleEmail: string;
+  isPrimary: boolean;
+  totalStorageGb: number;
+  usedStorageGb: number;
+  usedPercent: number;
+  rootFolderUrl: string | null;
+  connectedAt: string;
+}
+
+function IntegrationsTab() {
+  const [accounts, setAccounts] = useState<DriveAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  async function loadAccounts() {
+    try {
+      const r = await apiFetch(`${API}/google-drive/accounts`);
+      if (r.ok) setAccounts(await r.json());
+    } finally { setLoading(false); }
+  }
+
+  useEffect(() => { loadAccounts(); }, []);
+
+  // Handle redirect back from Google OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "integrations") {
+      if (params.get("drive") === "connected") {
+        setToast({ msg: "Google Drive connected successfully!", type: "success" });
+        loadAccounts();
+      } else if (params.get("drive") === "error") {
+        const msg = params.get("msg") || "Failed to connect Google Drive";
+        setToast({ msg: decodeURIComponent(msg), type: "error" });
+      }
+      window.history.replaceState({}, "", window.location.pathname + "?tab=integrations");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function setPrimary(id: string) {
+    setActionId(id);
+    try {
+      const r = await apiFetch(`${API}/google-drive/accounts/${id}/primary`, { method: "PATCH" });
+      if (r.ok) { setToast({ msg: "Primary account updated", type: "success" }); loadAccounts(); }
+    } finally { setActionId(null); }
+  }
+
+  async function disconnect(id: string, email: string) {
+    if (!confirm(`Disconnect ${email}?`)) return;
+    setActionId(id);
+    try {
+      const r = await apiFetch(`${API}/google-drive/accounts/${id}`, { method: "DELETE" });
+      if (r.ok) { setToast({ msg: "Account disconnected", type: "success" }); loadAccounts(); }
+    } finally { setActionId(null); }
+  }
+
+  function connectNew() {
+    window.location.href = `${API}/google-drive/connect`;
+  }
+
+  return (
+    <div className="space-y-6">
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+
+      <div>
+        <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+          <HardDrive className="w-4 h-4 text-indigo-500" /> Google Drive
+        </h3>
+        <p className="text-xs text-slate-400 mt-1">
+          Connect Google Drive accounts to deliver photos/videos directly to client folders
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {accounts.length === 0 && (
+            <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl">
+              <HardDrive className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-500 font-medium">No Google Drive connected</p>
+              <p className="text-xs text-slate-400 mt-1">Connect a Gmail account to auto-deliver bookings</p>
+            </div>
+          )}
+
+          {accounts.map(acc => (
+            <div key={acc.id} className={cn(
+              "border rounded-xl p-4 space-y-3 transition-colors",
+              acc.isPrimary ? "border-indigo-200 bg-indigo-50/50" : "border-slate-200 bg-white"
+            )}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{acc.googleEmail}</p>
+                    <p className="text-xs text-slate-400">
+                      Connected {new Date(acc.connectedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {acc.isPrimary && (
+                    <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-indigo-500" /> Primary
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Storage bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Storage</span>
+                  <span>{acc.usedStorageGb} GB / {acc.totalStorageGb} GB</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all",
+                      acc.usedPercent > 85 ? "bg-red-500" :
+                      acc.usedPercent > 65 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${Math.min(acc.usedPercent, 100)}%` }}
+                  />
+                </div>
+                {acc.usedPercent > 85 && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Storage almost full — add another account
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-1">
+                {!acc.isPrimary && (
+                  <button onClick={() => setPrimary(acc.id)} disabled={actionId === acc.id}
+                    className="flex-1 h-8 rounded-lg border border-indigo-200 text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
+                    {actionId === acc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
+                    Set as Primary
+                  </button>
+                )}
+                {acc.rootFolderUrl && (
+                  <a href={acc.rootFolderUrl} target="_blank" rel="noopener noreferrer"
+                    className="h-8 px-3 rounded-lg border border-slate-200 text-slate-500 text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+                    <ExternalLink className="w-3 h-3" /> View Drive
+                  </a>
+                )}
+                <button onClick={() => disconnect(acc.id, acc.googleEmail)} disabled={actionId === acc.id}
+                  className="h-8 px-3 rounded-lg border border-red-100 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors flex items-center gap-1.5">
+                  <Trash2 className="w-3 h-3" /> Disconnect
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={connectNew}
+            className="w-full h-11 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-500 font-medium hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2">
+            <Plus className="w-4 h-4" /> Add Google Drive Account
+          </button>
+        </div>
+      )}
+
+      {/* Info box */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5">
+        <p className="text-xs font-semibold text-slate-700">How it works</p>
+        <ul className="text-xs text-slate-500 space-y-1">
+          <li>• Connect one or more Gmail accounts</li>
+          <li>• <strong className="text-slate-700">Primary</strong> account is used for all auto-deliveries</li>
+          <li>• When delivering a booking, StuPanel creates a folder automatically</li>
+          <li>• Client gets a shareable link — no Gmail required on their side</li>
+          <li>• Switch primary if a Drive gets full</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("studio");
+  const initialTab = (typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("tab") === "integrations")
+    ? "integrations" : "studio";
+  const [tab, setTab] = useState<Tab>(initialTab as Tab);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -567,13 +760,14 @@ export default function SettingsPage() {
   }, []);
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "studio",    label: "Studio",    icon: Building2  },
-    { id: "branding",  label: "Branding",  icon: Palette    },
-    { id: "payment",   label: "Payment",   icon: CreditCard },
-    { id: "quotation", label: "Quotation", icon: FileText   },
-    { id: "tax",       label: "Tax",       icon: Percent    },
-    { id: "social",    label: "Social",    icon: Globe      },
-    { id: "security",  label: "Security",  icon: Shield     },
+    { id: "studio",       label: "Studio",       icon: Building2  },
+    { id: "branding",     label: "Branding",     icon: Palette    },
+    { id: "payment",      label: "Payment",      icon: CreditCard },
+    { id: "quotation",    label: "Quotation",    icon: FileText   },
+    { id: "tax",          label: "Tax",          icon: Percent    },
+    { id: "social",       label: "Social",       icon: Globe      },
+    { id: "security",     label: "Security",     icon: Shield     },
+    { id: "integrations", label: "Integrations", icon: HardDrive  },
   ];
 
   if (loading) return (
@@ -617,7 +811,8 @@ export default function SettingsPage() {
         {tab === "quotation" && <QuotationTab data={data} />}
         {tab === "tax"       && <TaxTab       data={data} />}
         {tab === "social"    && <SocialTab    data={data} />}
-        {tab === "security"  && <SecurityTab  data={data} />}
+        {tab === "security"      && <SecurityTab      data={data} />}
+        {tab === "integrations"  && <IntegrationsTab />}
       </div>
     </div>
   );

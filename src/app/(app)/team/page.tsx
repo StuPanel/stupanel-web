@@ -217,7 +217,11 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
               placeholder="alex@example.com"
               className="h-11 border-slate-200"
             />
-            <p className="text-[11px] text-slate-400">Optional — used to send assignment &amp; event notifications</p>
+            {form.email.trim() ? (
+              <p className="text-[11px] text-amber-600">⚠️ Make sure this email is correct — we cannot verify if it exists.</p>
+            ) : (
+              <p className="text-[11px] text-slate-400">Optional — used to send assignment &amp; event notifications</p>
+            )}
           </div>
 
           <div className="space-y-1.5">

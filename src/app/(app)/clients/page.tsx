@@ -225,6 +225,11 @@ function ClientDrawer({
                 <Label className="text-sm font-medium text-slate-700">Email</Label>
                 <Input type="email" placeholder="client@email.com" value={form.email} onChange={set("email")}
                   className="h-11 border-slate-200 focus:border-indigo-400" />
+                {form.email.trim() && (
+                  <p className="text-[11px] text-amber-600 flex items-center gap-1">
+                    ⚠️ Make sure this email is correct — we cannot verify if it exists.
+                  </p>
+                )}
               </div>
             </div>
 

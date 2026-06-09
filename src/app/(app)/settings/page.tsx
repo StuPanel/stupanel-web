@@ -106,9 +106,15 @@ function useSave() {
       const r = await apiFetch(`${API}/companies/me`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        const msg = d.message;
+        const errText = Array.isArray(msg) ? msg[0] : (msg || `Error ${r.status}`);
+        setToast({ msg: errText, type: "error" });
+        return;
+      }
       setToast({ msg: successMsg, type: "success" });
-    } catch { setToast({ msg: "Failed to save. Try again.", type: "error" }); }
+    } catch { setToast({ msg: "Network error. Please try again.", type: "error" }); }
     finally { setSaving(false); }
   }
 

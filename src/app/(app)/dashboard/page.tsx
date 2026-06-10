@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import {
   Camera, DollarSign, Users, Clock, TrendingUp, TrendingDown,
-  ArrowRight, CalendarDays, Eye, EyeOff, Loader2, Plus,
+  ArrowRight, CalendarDays, Eye, EyeOff, Loader2, Plus, Zap, AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,6 +107,7 @@ export default function DashboardPage() {
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
   const [recent, setRecent] = useState<Booking[]>([]);
   const [chart, setChart] = useState<MonthData[]>([]);
+  const [trialInfo, setTrialInfo] = useState<{ daysLeft: number; status: string } | null>(null);
 
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingUpcoming, setLoadingUpcoming] = useState(true);
@@ -152,6 +153,17 @@ export default function DashboardPage() {
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchUpcoming(); fetchRecent(); }, [fetchUpcoming, fetchRecent]);
   useEffect(() => { fetchChart(); }, [fetchChart]);
+
+  useEffect(() => {
+    apiFetch(`${API}/auth/me`).then(r => r.ok ? r.json() : null).then(data => {
+      if (!data?.company) return;
+      const { subscriptionStatus, trialEndsAt } = data.company;
+      if (subscriptionStatus === "trialing" && trialEndsAt) {
+        const diff = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000);
+        setTrialInfo({ daysLeft: diff, status: subscriptionStatus });
+      }
+    }).catch(() => {});
+  }, []);
 
   // Chart max for scaling
   const chartMax = Math.max(...chart.map(d => d.total), 1);
@@ -217,6 +229,60 @@ export default function DashboardPage() {
           </select>
         </div>
       </div>
+
+      {/* Trial Warning Banner */}
+      {trialInfo && trialInfo.daysLeft <= 14 && (
+        <div className={cn(
+          "rounded-2xl p-4 flex items-center gap-4 border",
+          trialInfo.daysLeft <= 3
+            ? "bg-red-50 border-red-200"
+            : trialInfo.daysLeft <= 7
+            ? "bg-amber-50 border-amber-200"
+            : "bg-indigo-50 border-indigo-200"
+        )}>
+          <div className={cn(
+            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+            trialInfo.daysLeft <= 3 ? "bg-red-100" : trialInfo.daysLeft <= 7 ? "bg-amber-100" : "bg-indigo-100"
+          )}>
+            {trialInfo.daysLeft <= 7
+              ? <AlertTriangle className={cn("w-5 h-5", trialInfo.daysLeft <= 3 ? "text-red-600" : "text-amber-600")} />
+              : <Zap className="w-5 h-5 text-indigo-600" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn(
+              "text-sm font-bold",
+              trialInfo.daysLeft <= 3 ? "text-red-800" : trialInfo.daysLeft <= 7 ? "text-amber-800" : "text-indigo-800"
+            )}>
+              {trialInfo.daysLeft <= 0
+                ? "আপনার ফ্রি ট্রায়াল শেষ হয়ে গেছে!"
+                : trialInfo.daysLeft === 1
+                ? "মাত্র ১ দিন বাকি — আজই আপগ্রেড করুন!"
+                : `ফ্রি ট্রায়াল: আর ${trialInfo.daysLeft} দিন বাকি`}
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="flex-1 h-1.5 rounded-full bg-white/60 overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full transition-all",
+                    trialInfo.daysLeft <= 3 ? "bg-red-500" : trialInfo.daysLeft <= 7 ? "bg-amber-500" : "bg-indigo-500"
+                  )}
+                  style={{ width: `${Math.max(0, Math.min(100, (trialInfo.daysLeft / 14) * 100))}%` }}
+                />
+              </div>
+              <span className={cn("text-[10px] font-semibold flex-shrink-0",
+                trialInfo.daysLeft <= 3 ? "text-red-600" : trialInfo.daysLeft <= 7 ? "text-amber-600" : "text-indigo-600"
+              )}>{Math.max(0, trialInfo.daysLeft)}/14 days</span>
+            </div>
+          </div>
+          <Link href="/settings/billing">
+            <button className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-opacity hover:opacity-90",
+              trialInfo.daysLeft <= 3 ? "bg-red-600" : trialInfo.daysLeft <= 7 ? "bg-amber-500" : "bg-indigo-600"
+            )}>
+              Upgrade Now
+            </button>
+          </Link>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">

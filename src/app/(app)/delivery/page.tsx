@@ -109,6 +109,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [zipDownloading, setZipDownloading] = useState<string | null>(null); // folderKey or "all"
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null); // folderKey being confirmed
+  const [targetFolder, setTargetFolder] = useState<string>(""); // "" = Other Files
+  const [newFolderInput, setNewFolderInput] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -238,9 +241,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
     const updateItem = (patch: Partial<UploadItem>) =>
       setUploads(prev => prev.map(u => u.file === file ? { ...u, ...patch } : u));
 
-    // Extract folder name from webkitRelativePath (e.g. "Holud Photos/img001.jpg" → "Holud Photos")
+    // Folder priority: webkitRelativePath (folder upload) > targetFolder state (manual selection)
     const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-    const folderName = webkitPath ? webkitPath.split('/')[0] : undefined;
+    const folderName = webkitPath ? webkitPath.split('/')[0] : (targetFolder || undefined);
 
     try {
       const urlRes = await apiFetch(`${API}/deliveries/upload-url`, {
@@ -370,6 +373,83 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   </div>
                 </div>
 
+                {/* Folder selector */}
+                {(() => {
+                  const existingFolders = [...new Set(r2Files.map(f => f.folderName).filter(Boolean))] as string[];
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {/* Other Files chip */}
+                        <button
+                          onClick={() => { setTargetFolder(""); setShowNewFolder(false); }}
+                          className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                            targetFolder === "" && !showNewFolder
+                              ? "bg-indigo-600 border-indigo-500 text-white"
+                              : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600")}>
+                          <FolderOpen className="w-3 h-3" />Other Files
+                        </button>
+                        {/* Existing folder chips */}
+                        {existingFolders.map(f => (
+                          <button key={f}
+                            onClick={() => { setTargetFolder(f); setShowNewFolder(false); }}
+                            className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                              targetFolder === f && !showNewFolder
+                                ? "bg-amber-500 border-amber-400 text-white"
+                                : "border-amber-200 text-amber-700 bg-amber-50 hover:border-amber-400")}>
+                            <FolderOpen className="w-3 h-3" />{f}
+                          </button>
+                        ))}
+                        {/* New folder button */}
+                        <button
+                          onClick={() => { setShowNewFolder(true); setTargetFolder(""); }}
+                          className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                            showNewFolder
+                              ? "bg-indigo-600 border-indigo-500 text-white"
+                              : "border-dashed border-slate-300 text-slate-400 hover:border-indigo-300 hover:text-indigo-500")}>
+                          + New Folder
+                        </button>
+                      </div>
+                      {/* New folder name input */}
+                      {showNewFolder && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text" value={newFolderInput}
+                            onChange={e => setNewFolderInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && newFolderInput.trim()) {
+                                setTargetFolder(newFolderInput.trim());
+                                setShowNewFolder(false);
+                                setNewFolderInput("");
+                              }
+                              if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); }
+                            }}
+                            placeholder="Folder name (e.g. Holud Photos)"
+                            autoFocus
+                            className="flex-1 h-8 text-xs px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-slate-700 outline-none focus:border-indigo-500" />
+                          <button
+                            onClick={() => {
+                              if (newFolderInput.trim()) {
+                                setTargetFolder(newFolderInput.trim());
+                                setShowNewFolder(false);
+                                setNewFolderInput("");
+                              }
+                            }}
+                            className="h-8 px-3 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">
+                            Create
+                          </button>
+                        </div>
+                      )}
+                      {/* Active folder indicator */}
+                      {(targetFolder || !showNewFolder) && (
+                        <p className="text-[10px] text-slate-400">
+                          Files will upload to: <span className="font-semibold text-indigo-600">{targetFolder || "Other Files"}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Drop Zone */}
                 <div
                   ref={dropRef}
@@ -384,7 +464,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   <UploadCloud className={cn("w-8 h-8", dragOver ? "text-indigo-500" : "text-slate-300")} />
                   <div className="text-center">
                     <p className="text-sm font-medium text-slate-600">Drop files or click to select</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Photos, Videos, PDF, ZIP — up to 500MB each</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Upload to: <span className="font-semibold text-indigo-500">{targetFolder || "Other Files"}</span>
+                    </p>
                   </div>
                   <input
                     ref={fileInputRef} type="file" multiple className="hidden"
@@ -398,7 +480,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   onClick={() => folderInputRef.current?.click()}
                   className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                   <FolderOpen className="w-4 h-4" />
-                  Upload Entire Folder
+                  Upload Entire Folder (auto-detect folder name)
                 </button>
                 <input
                   ref={folderInputRef}

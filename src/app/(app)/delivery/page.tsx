@@ -93,7 +93,7 @@ interface UploadItem { file: File; progress: number; done: boolean; error?: stri
 function DeliveryModal({ booking, onClose, onSaved }: {
   booking: Booking | null; onClose: () => void; onSaved: (updated: Booking) => void;
 }) {
-  const [tab, setTab] = useState<"files" | "link" | "drive">("files");
+  const [tab, setTab] = useState<"files" | "link" | "drive">("drive");
 
   // Link tab state — multiple links with titles
   const [links, setLinks] = useState<DeliveryLink[]>([]);
@@ -465,9 +465,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
           {/* Tabs */}
           <div className="flex border-b border-slate-200 flex-shrink-0">
             {([
-              ["files", "Upload Files"],
               ["drive", "Drive Auto"],
               ["link", "Manual Links"],
+              ["files", "Upload Files"],
             ] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",

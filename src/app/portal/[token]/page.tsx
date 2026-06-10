@@ -5,7 +5,7 @@ import {
   Loader2, Camera, Calendar, FileText, CreditCard, Receipt,
   Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink,
   Package, Image as ImageIcon, Lock, Download, Link2,
-  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp,
+  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ const INV_STATUS: Record<string, { label: string; color: string }> = {
 
 interface R2File {
   id: string; fileName: string; mimeType: string;
-  fileSize: number; downloadUrl: string | null;
+  fileSize: number; downloadUrl: string | null; folderName?: string | null;
 }
 
 interface ManualLink { id: string; title: string; url: string }
@@ -222,37 +222,64 @@ function DeliverySection({ delivery, dueAmount, currency, brand }: {
             </a>
           )}
 
-          {/* R2 Files */}
-          {delivery.r2Files.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide">Files ({delivery.r2Files.length})</p>
-              {delivery.r2Files.map(f => {
-                const Icon = fileIcon(f.mimeType);
-                return (
-                  <div key={f.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100">
-                    <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-4 h-4 text-slate-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                      <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)}</p>
-                    </div>
-                    {f.downloadUrl ? (
-                      <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90"
-                        style={{ backgroundColor: brand }}>
-                        <Download className="w-3 h-3" />Download
-                      </a>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs text-slate-400 px-2.5 py-1.5">
-                        <Lock className="w-3 h-3" />Locked
-                      </span>
+          {/* R2 Files — grouped by folder */}
+          {delivery.r2Files.length > 0 && (() => {
+            const groups: Record<string, R2File[]> = {};
+            for (const f of delivery.r2Files) {
+              const key = f.folderName || "__root__";
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(f);
+            }
+            const groupEntries = Object.entries(groups);
+            const hasFolders = groupEntries.some(([k]) => k !== "__root__");
+
+            return (
+              <div className="space-y-3">
+                <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide">
+                  Files ({delivery.r2Files.length})
+                  {hasFolders && <span className="ml-1.5 text-teal-400">· {groupEntries.filter(([k]) => k !== "__root__").length} folders</span>}
+                </p>
+                {groupEntries.map(([folderKey, files]) => (
+                  <div key={folderKey}>
+                    {hasFolders && folderKey !== "__root__" && (
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-xs font-semibold text-slate-700">{folderKey}</span>
+                        <span className="text-[10px] text-teal-400">({files.length} files)</span>
+                      </div>
                     )}
+                    <div className={cn("space-y-2", hasFolders && folderKey !== "__root__" && "pl-4 border-l-2 border-teal-100")}>
+                      {files.map(f => {
+                        const Icon = fileIcon(f.mimeType);
+                        return (
+                          <div key={f.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100">
+                            <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-4 h-4 text-slate-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
+                              <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)}</p>
+                            </div>
+                            {f.downloadUrl ? (
+                              <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90"
+                                style={{ backgroundColor: brand }}>
+                                <Download className="w-3 h-3" />Download
+                              </a>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-slate-400 px-2.5 py-1.5">
+                                <Lock className="w-3 h-3" />Locked
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

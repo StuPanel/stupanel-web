@@ -1390,46 +1390,52 @@ function DeliverySection({ booking, r2Enabled, onRefresh }: { booking: Booking; 
       {(!booking.deliveryMethod || ((booking.deliveryMethod === "drive_link" || booking.deliveryMethod === "r2") && editing)) && (
         <>
           {mode === null && (
-            <div className={`grid gap-2 ${r2Enabled ? "grid-cols-3" : "grid-cols-2"}`}>
-              <button onClick={() => setMode("drive_link")}
-                className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
-                <Link2 className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-xs font-semibold text-slate-700">Drive Link</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Paste link</p>
-                </div>
-              </button>
-              <button onClick={createDriveFolder} disabled={autoLoading}
-                className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
-                {autoLoading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <HardDrive className="w-5 h-5 text-slate-400" />}
-                <div>
-                  <p className="text-xs font-semibold text-slate-700">Drive Auto</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Auto folder</p>
-                </div>
-              </button>
-              {r2Enabled && (
-                <button onClick={() => setMode("r2")}
-                  className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
-                  <ArrowRight className="w-5 h-5 text-slate-400" />
+            <div className="space-y-2">
+              {/* Method cards */}
+              <div className={`grid gap-2 ${r2Enabled ? "grid-cols-3" : "grid-cols-2"}`}>
+                <button onClick={() => setMode("drive_link")}
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
+                  <Link2 className="w-4 h-4 text-indigo-500" />
                   <div>
-                    <p className="text-xs font-semibold text-slate-700">R2 Upload</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Cloud storage</p>
+                    <p className="text-xs font-bold text-slate-700">Manual Link</p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Paste Google Drive, Dropbox or WeTransfer link. Saved in DB. All companies.</p>
                   </div>
                 </button>
-              )}
+                <button onClick={createDriveFolder} disabled={autoLoading}
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
+                  {autoLoading ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <HardDrive className="w-4 h-4 text-emerald-500" />}
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Drive Auto</p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Auto-creates a folder in your Google Drive. Requires connected Drive account. All companies.</p>
+                  </div>
+                </button>
+                {r2Enabled && (
+                  <button onClick={() => setMode("r2")}
+                    className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
+                    <ArrowRight className="w-4 h-4 text-blue-500" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">R2 Upload</p>
+                      <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Upload files to Cloudflare R2 cloud. Secure storage. Super Admin permission required.</p>
+                    </div>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
           {mode === "drive_link" && (
             <div className="space-y-2.5 bg-slate-50 rounded-xl p-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-600">Drive Link Delivery</p>
+                <div>
+                  <p className="text-xs font-semibold text-slate-600">Manual Link Delivery</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Paste your Google Drive, Dropbox, or WeTransfer link</p>
+                </div>
                 {!booking.deliveryMethod && (
                   <button onClick={() => setMode(null)} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Drive Link *</Label>
+                <Label className="text-xs text-slate-500">Delivery Link *</Label>
                 <Input value={link} onChange={e => setLink(e.target.value)}
                   placeholder="https://drive.google.com/drive/folders/..."
                   className="h-10 text-sm border-slate-200" />
@@ -1453,7 +1459,10 @@ function DeliverySection({ booking, r2Enabled, onRefresh }: { booking: Booking; 
           {mode === "r2" && (
             <div className="space-y-2.5 bg-slate-50 rounded-xl p-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-600">R2 Cloud Upload</p>
+                <div>
+                  <p className="text-xs font-semibold text-slate-600">R2 Cloud Upload</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Files stored securely on Cloudflare R2. Client downloads after full payment.</p>
+                </div>
                 <button onClick={() => { setMode(null); setEditing(!booking.deliveryMethod); setR2Files([]); }} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
               </div>
               <input ref={r2InputRef} type="file" multiple className="hidden"

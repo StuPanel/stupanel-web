@@ -7,7 +7,7 @@ import {
   Search, X, Loader2, Link2, Check, ExternalLink, Copy,
   CalendarDays, MapPin, CheckCircle2, Clock, Send, MoreVertical,
   UploadCloud, Trash2, Download, FileImage, FileVideo, FileArchive, File,
-  Package, Video, Image,
+  Package, Video, Image, Plus, Info, HardDrive, Globe,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,11 +34,14 @@ function fmtBytes(n: number): string {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface DeliveryLink { id: string; title: string; url: string }
+
 interface Booking {
   id: string; bookingNumber: string; eventName?: string; status: string;
   eventDate?: string; eventLocation?: string; currency: string;
   grandTotal: number; paidAmount: number;
-  deliveryLink?: string; deliveryNote?: string; deliveryDate?: string;
+  deliveryLink?: string; deliveryLinks?: DeliveryLink[];
+  deliveryNote?: string; deliveryDate?: string;
   client: { id: string; firstName: string; lastName?: string; phone?: string };
 }
 
@@ -83,14 +86,13 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 }) {
   const [tab, setTab] = useState<"files" | "link">("files");
 
-  // Link tab state
-  const [link, setLink] = useState("");
+  // Link tab state — multiple links with titles
+  const [links, setLinks] = useState<DeliveryLink[]>([]);
   const [note, setNote] = useState("");
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("");
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkError, setLinkError] = useState("");
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Files tab state
   const [r2Files, setR2Files] = useState<R2File[]>([]);
@@ -102,7 +104,13 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
   useEffect(() => {
     if (booking) {
-      setLink(booking.deliveryLink ?? "");
+      // Load links from booking (new format) or legacy single link
+      const existing = booking.deliveryLinks?.length
+        ? booking.deliveryLinks
+        : booking.deliveryLink
+          ? [{ id: crypto.randomUUID(), title: "Delivery Link", url: booking.deliveryLink }]
+          : [];
+      setLinks(existing);
       setNote(booking.deliveryNote ?? "");
       setDate(booking.deliveryDate ? booking.deliveryDate.slice(0, 10) : "");
       setStatus(booking.status);
@@ -121,31 +129,48 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       if (r.ok) {
         const d = await r.json();
         setR2Files(d.r2Files ?? []);
+        // Sync links from server response
+        if (d.deliveryLinks?.length) {
+          setLinks(d.deliveryLinks);
+        }
       }
     } finally { setFilesLoading(false); }
   }
 
   if (!booking) return null;
 
-  async function saveLink() {
+  function addLink() {
+    setLinks(prev => [...prev, { id: crypto.randomUUID(), title: "", url: "" }]);
+  }
+
+  function updateLink(id: string, field: "title" | "url", val: string) {
+    setLinks(prev => prev.map(l => l.id === id ? { ...l, [field]: val } : l));
+  }
+
+  function removeLink(id: string) {
+    setLinks(prev => prev.filter(l => l.id !== id));
+  }
+
+  async function saveLinks() {
     setLinkError(""); setLinkSaving(true);
+    // Filter out empty links
+    const validLinks = links.filter(l => l.url.trim());
     try {
       const r = await apiFetch(`${API}/bookings/${booking!.id}/delivery`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliveryLink: link || undefined, deliveryNote: note || undefined, deliveryDate: date || undefined, status }),
+        body: JSON.stringify({
+          deliveryLinks: validLinks,
+          deliveryNote: note || undefined,
+          deliveryDate: date || undefined,
+          status,
+        }),
       });
       const d = await r.json();
       if (!r.ok) { setLinkError(d.message || "Failed to save."); return; }
-      onSaved(d); onClose();
+      onSaved({ ...d, deliveryLinks: validLinks });
+      onClose();
     } catch { setLinkError("Something went wrong."); }
     finally { setLinkSaving(false); }
-  }
-
-  function copyLink() {
-    if (!link) return;
-    navigator.clipboard.writeText(link);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   async function uploadFile(file: File) {
@@ -156,15 +181,11 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       setUploads(prev => prev.map(u => u.file === file ? { ...u, ...patch } : u));
 
     try {
-      // 1. Get presigned URL
       const urlRes = await apiFetch(`${API}/deliveries/upload-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bookingId: booking!.id,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          fileSize: file.size,
+          bookingId: booking!.id, fileName: file.name,
+          mimeType: file.type || "application/octet-stream", fileSize: file.size,
         }),
       });
       if (!urlRes.ok) {
@@ -174,7 +195,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       }
       const { uploadUrl, fileKey } = await urlRes.json();
 
-      // 2. Upload directly to R2 via XHR (for progress tracking)
+      // Upload to R2 via XHR for progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", uploadUrl);
@@ -186,22 +207,17 @@ function DeliveryModal({ booking, onClose, onSaved }: {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
           else reject(new Error(`Upload failed: ${xhr.status}`));
         };
-        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onerror = () => reject(new Error("Network error — check R2 CORS settings"));
         xhr.send(file);
       });
 
       updateItem({ progress: 95 });
 
-      // 3. Confirm with backend
       const confirmRes = await apiFetch(`${API}/deliveries/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bookingId: booking!.id,
-          fileKey,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          fileSize: file.size,
+          bookingId: booking!.id, fileKey, fileName: file.name,
+          mimeType: file.type || "application/octet-stream", fileSize: file.size,
         }),
       });
       if (!confirmRes.ok) {
@@ -254,11 +270,16 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
           {/* Tabs */}
           <div className="flex border-b border-slate-200 flex-shrink-0">
-            {([["files", "Upload Files"], ["link", "Manual Link"]] as const).map(([key, label]) => (
+            {([["files", "Upload Files"], ["link", "Manual Links"]] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={cn("flex-1 py-2.5 text-sm font-medium transition-colors",
                   tab === key ? "border-b-2 border-indigo-600 text-indigo-600" : "text-slate-400 hover:text-slate-600")}>
                 {label}
+                {key === "link" && links.filter(l => l.url).length > 0 && (
+                  <span className="ml-1.5 text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                    {links.filter(l => l.url).length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -269,6 +290,15 @@ function DeliveryModal({ booking, onClose, onSaved }: {
             {/* ── FILES TAB ── */}
             {tab === "files" && (
               <div className="p-5 space-y-4">
+                {/* Info banner */}
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+                  <HardDrive className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700">Cloudflare R2 Cloud Storage</p>
+                    <p className="text-[11px] text-blue-500 mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
+                  </div>
+                </div>
+
                 {/* Drop Zone */}
                 <div
                   ref={dropRef}
@@ -286,10 +316,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                     <p className="text-xs text-slate-400 mt-0.5">Photos, Videos, PDF, ZIP — up to 500MB each</p>
                   </div>
                   <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
+                    ref={fileInputRef} type="file" multiple className="hidden"
                     accept="image/*,video/*,application/pdf,application/zip,application/x-zip-compressed"
                     onChange={e => handleFiles(e.target.files)}
                   />
@@ -322,9 +349,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
                 ) : r2Files.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Uploaded Files ({r2Files.length})
-                    </p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Uploaded Files ({r2Files.length})</p>
                     {r2Files.map(f => {
                       const Icon = fileIcon(f.mimeType);
                       return (
@@ -337,13 +362,11 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                             <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
                           </div>
                           <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-indigo-500 transition-colors"
-                            title="Download">
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-indigo-500 transition-colors" title="Download">
                             <Download className="w-3.5 h-3.5" />
                           </a>
                           <button onClick={() => deleteFile(f.id)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                            title="Delete">
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -356,42 +379,85 @@ function DeliveryModal({ booking, onClose, onSaved }: {
               </div>
             )}
 
-            {/* ── LINK TAB ── */}
+            {/* ── MANUAL LINKS TAB ── */}
             {tab === "link" && (
               <div className="p-5 space-y-4">
                 {linkError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">{linkError}</p>}
 
+                {/* Info banner */}
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+                  <Globe className="w-3.5 h-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-700">External Link Delivery</p>
+                    <p className="text-[11px] text-emerald-600 mt-0.5">Add Google Drive, Dropbox, WeTransfer or any URL. Client can access these from their portal after full payment.</p>
+                  </div>
+                </div>
+
                 {/* Status */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Status</Label>
+                  <Label className="text-xs font-medium text-slate-600">Delivery Status</Label>
                   <select value={status} onChange={e => setStatus(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
                     {DELIVERY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
 
-                {/* Link */}
+                {/* Links list */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Delivery Link</Label>
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input value={link} onChange={e => setLink(e.target.value)}
-                      placeholder="https://drive.google.com/... or WeTransfer..."
-                      className="pl-9 h-11 border-slate-200 text-sm pr-16" />
-                    {link && (
-                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-1">
-                        <button onClick={copyLink} title="Copy link"
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-400">
-                          {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        <a href={link} target="_blank" rel="noopener noreferrer"
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-400">
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-slate-600">Delivery Links</Label>
+                    <button onClick={addLink}
+                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold">
+                      <Plus className="w-3.5 h-3.5" />Add Link
+                    </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">Google Drive, Dropbox, WeTransfer, etc.</p>
+
+                  {links.length === 0 ? (
+                    <button onClick={addLink}
+                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
+                      <Plus className="w-4 h-4" />Add your first link
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      {links.map((l) => (
+                        <div key={l.id} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={l.title}
+                              onChange={e => updateLink(l.id, "title", e.target.value)}
+                              placeholder="Title (e.g. Wedding Photos, Highlight Video)"
+                              className="flex-1 h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400"
+                            />
+                            <button onClick={() => removeLink(l.id)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="relative">
+                            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input
+                              value={l.url}
+                              onChange={e => updateLink(l.id, "url", e.target.value)}
+                              placeholder="https://drive.google.com/..."
+                              className="w-full h-9 pl-8 pr-16 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400"
+                            />
+                            {l.url && (
+                              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-0.5">
+                                <button onClick={() => { navigator.clipboard.writeText(l.url); }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-400">
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                                <a href={l.url} target="_blank" rel="noopener noreferrer"
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-400">
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Date */}
@@ -402,7 +468,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
                 {/* Note */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Note</Label>
+                  <Label className="text-xs font-medium text-slate-600">Note for Client</Label>
                   <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                     placeholder="e.g. 500 photos + highlight video, password: abc123..."
                     className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
@@ -410,9 +476,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
                 <div className="flex gap-3 pt-1">
                   <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-                  <Button onClick={saveLink} disabled={linkSaving} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                  <Button onClick={saveLinks} disabled={linkSaving} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
                     {linkSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Save
+                    Save Links
                   </Button>
                 </div>
               </div>
@@ -448,9 +514,11 @@ function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) {
     return () => document.removeEventListener("mousedown", close);
   }, [menuOpen]);
 
-  function copyLink() {
-    if (!b.deliveryLink) return;
-    navigator.clipboard.writeText(b.deliveryLink);
+  const allLinks = b.deliveryLinks?.filter(l => l.url) ?? (b.deliveryLink ? [{ id: "legacy", title: "Delivery Link", url: b.deliveryLink }] : []);
+
+  function copyFirstLink() {
+    if (!allLinks[0]?.url) return;
+    navigator.clipboard.writeText(allLinks[0].url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -480,12 +548,12 @@ function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) {
               <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                 <UploadCloud className="w-4 h-4 text-slate-400" />Manage Delivery
               </button>
-              {b.deliveryLink && (
+              {allLinks[0] && (
                 <>
-                  <button onClick={() => { copyLink(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                  <button onClick={() => { copyFirstLink(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                     <Copy className="w-4 h-4 text-slate-400" />Copy Link
                   </button>
-                  <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
+                  <a href={allLinks[0].url} target="_blank" rel="noopener noreferrer"
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                     <ExternalLink className="w-4 h-4 text-slate-400" />Open Link
                   </a>
@@ -507,17 +575,26 @@ function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) {
         {b.eventLocation && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{b.eventLocation}</span>}
       </div>
 
-      {/* Delivery link or upload CTA */}
-      {b.deliveryLink ? (
-        <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl mb-3">
-          <Link2 className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-          <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
-            className="flex-1 text-xs text-indigo-700 truncate font-medium hover:underline">
-            {b.deliveryLink}
-          </a>
-          <button onClick={copyLink} className="flex-shrink-0 text-indigo-400 hover:text-indigo-600 transition-colors">
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
+      {/* Delivery links or upload CTA */}
+      {allLinks.length > 0 ? (
+        <div className="space-y-1.5 mb-3">
+          {allLinks.map((l, i) => (
+            <div key={l.id} className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
+              <Link2 className="w-3 h-3 text-indigo-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                {l.title && <p className="text-[10px] text-indigo-400 font-semibold truncate">{l.title}</p>}
+                <a href={l.url} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-indigo-700 truncate font-medium hover:underline block">
+                  {l.url}
+                </a>
+              </div>
+              {i === 0 && (
+                <button onClick={copyFirstLink} className="flex-shrink-0 text-indigo-400 hover:text-indigo-600 transition-colors">
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       ) : (
         <button onClick={onEdit}
@@ -585,7 +662,7 @@ export default function DeliveryPage() {
 
   // Stats
   const delivered    = bookings.filter(b => b.status === "delivered" || b.status === "completed").length;
-  const withLink     = bookings.filter(b => !!b.deliveryLink).length;
+  const withLink     = bookings.filter(b => (b.deliveryLinks?.length ?? 0) > 0 || !!b.deliveryLink).length;
   const readyCount   = bookings.filter(b => b.status === "ready_for_delivery").length;
   const editingCount = bookings.filter(b => b.status === "editing" || b.status === "in_progress").length;
 

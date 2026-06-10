@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { uploadStore } from "@/lib/upload-store";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -288,13 +289,22 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   async function uploadDriveFile(file: File) {
-    const item: UploadItem = { file, progress: 0, done: false };
-    setDriveUploads(prev => [item, ...prev]);
-    const updateItem = (patch: Partial<UploadItem>) =>
-      setDriveUploads(prev => prev.map(u => u.file === file ? { ...u, ...patch } : u));
-
+    const uid = crypto.randomUUID();
     const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
     const folderName = webkitPath ? webkitPath.split("/")[0] : (driveTargetFolder || undefined);
+
+    const localItem: UploadItem = { file, progress: 0, done: false };
+    setDriveUploads(prev => [localItem, ...prev]);
+    const updateLocal = (patch: Partial<UploadItem>) =>
+      setDriveUploads(prev => prev.map(u => u.file === file ? { ...u, ...patch } : u));
+
+    // Also track in global store so it survives page navigation
+    uploadStore.add({
+      id: uid, fileName: file.name, progress: 0, done: false,
+      type: "drive", bookingId: booking!.id,
+      bookingName: booking!.eventName ?? booking!.bookingNumber,
+      folderName,
+    });
 
     try {
       const token = localStorage.getItem("access_token") ?? "";
@@ -307,14 +317,19 @@ function DeliveryModal({ booking, onClose, onSaved }: {
         xhr.open("POST", `${API}/google-drive/upload/${booking!.id}${qs}`);
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
         xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) updateItem({ progress: Math.round((e.loaded / e.total) * 90) });
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 90);
+            updateLocal({ progress: pct });
+            uploadStore.update(uid, { progress: pct });
+          }
         };
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data: DriveFile = JSON.parse(xhr.responseText);
               setDriveFiles(prev => [...prev, data]);
-              updateItem({ progress: 100, done: true });
+              updateLocal({ progress: 100, done: true });
+              uploadStore.update(uid, { progress: 100, done: true });
               resolve();
             } catch { reject(new Error("Invalid response")); }
           } else {
@@ -328,7 +343,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
         xhr.send(formData);
       });
     } catch (err: unknown) {
-      updateItem({ error: err instanceof Error ? err.message : "Upload failed" });
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      updateLocal({ error: msg });
+      uploadStore.update(uid, { error: msg });
     }
   }
 
@@ -388,6 +405,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   async function uploadFile(file: File) {
+    const uid = crypto.randomUUID();
     const item: UploadItem = { file, progress: 0, done: false };
     setUploads(prev => [item, ...prev]);
 
@@ -397,6 +415,13 @@ function DeliveryModal({ booking, onClose, onSaved }: {
     // Folder priority: webkitRelativePath (folder upload) > targetFolder state (manual selection)
     const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
     const folderName = webkitPath ? webkitPath.split('/')[0] : (targetFolder || undefined);
+
+    uploadStore.add({
+      id: uid, fileName: file.name, progress: 0, done: false,
+      type: "r2", bookingId: booking!.id,
+      bookingName: booking!.eventName ?? booking!.bookingNumber,
+      folderName,
+    });
 
     try {
       const urlRes = await apiFetch(`${API}/deliveries/upload-url`, {
@@ -410,17 +435,21 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       if (!urlRes.ok) {
         const e = await urlRes.json().catch(() => ({}));
         updateItem({ error: e.message || "Failed to get upload URL" });
+        uploadStore.update(uid, { error: e.message || "Failed to get upload URL" });
         return;
       }
       const { uploadUrl, fileKey } = await urlRes.json();
 
-      // Upload to R2 via XHR for progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", uploadUrl);
         xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
         xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) updateItem({ progress: Math.round((e.loaded / e.total) * 90) });
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 90);
+            updateItem({ progress: pct });
+            uploadStore.update(uid, { progress: pct });
+          }
         };
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
@@ -431,6 +460,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       });
 
       updateItem({ progress: 95 });
+      uploadStore.update(uid, { progress: 95 });
 
       const confirmRes = await apiFetch(`${API}/deliveries/confirm`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -443,13 +473,17 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       if (!confirmRes.ok) {
         const e = await confirmRes.json().catch(() => ({}));
         updateItem({ error: e.message || "Failed to confirm upload" });
+        uploadStore.update(uid, { error: e.message || "Failed to confirm upload" });
         return;
       }
 
       updateItem({ progress: 100, done: true });
+      uploadStore.update(uid, { progress: 100, done: true });
       await loadFiles();
     } catch (err: unknown) {
-      updateItem({ error: err instanceof Error ? err.message : "Upload failed" });
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      updateItem({ error: msg });
+      uploadStore.update(uid, { error: msg });
     }
   }
 

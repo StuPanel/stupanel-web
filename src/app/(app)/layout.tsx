@@ -9,6 +9,7 @@ import { LayoutDashboard, Camera, Users, CreditCard, UserCog, MailWarning, X, Lo
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
@@ -114,6 +115,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
+
+        <FloatingUploadPanel />
 
         {/* Mobile Bottom Navigation */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20">

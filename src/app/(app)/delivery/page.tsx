@@ -151,7 +151,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   if (!booking) return null;
 
   function isFolderExpanded(key: string) {
-    return expandedFolders[key] ?? true; // default expanded
+    return expandedFolders[key] ?? false; // default collapsed
   }
   function toggleFolder(key: string) {
     setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) }));

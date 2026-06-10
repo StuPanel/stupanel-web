@@ -80,7 +80,7 @@ interface BookingDelivery {
   fullyPaid: boolean;
   dueAmount: number;
   r2Files: R2File[];
-  driveFiles: DriveFile[];
+  driveFiles?: DriveFile[];
   links: ManualLink[];
   driveFolderUrl: string | null;
   note: string | null;
@@ -130,7 +130,8 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   const [expanded, setExpanded] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const cs = sym(currency);
-  const hasContent = delivery.r2Files.length > 0 || delivery.links.length > 0 || delivery.driveFiles.length > 0 || !!delivery.driveFolderUrl;
+  const driveFiles: DriveFile[] = delivery.driveFiles ?? [];
+  const hasContent = delivery.r2Files.length > 0 || delivery.links.length > 0 || driveFiles.length > 0 || !!delivery.driveFolderUrl;
 
   function isFolderExpanded(key: string) { return expandedFolders[key] ?? false; } // default collapsed in portal
   function toggleFolder(key: string) {
@@ -166,9 +167,9 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 <FileImage className="w-3 h-3" />{delivery.r2Files.length} file{delivery.r2Files.length > 1 ? "s" : ""}
               </span>
             )}
-            {delivery.driveFiles.length > 0 && (
+            {driveFiles.length > 0 && (
               <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
-                <FileImage className="w-3 h-3" />{delivery.driveFiles.length} Drive file{delivery.driveFiles.length > 1 ? "s" : ""}
+                <FileImage className="w-3 h-3" />{driveFiles.length} Drive file{driveFiles.length > 1 ? "s" : ""}
               </span>
             )}
             {delivery.links.length > 0 && (
@@ -176,7 +177,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 <Link2 className="w-3 h-3" />{delivery.links.length} link{delivery.links.length > 1 ? "s" : ""}
               </span>
             )}
-            {delivery.driveFolderUrl && delivery.driveFiles.length === 0 && (
+            {delivery.driveFolderUrl && driveFiles.length === 0 && (
               <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
                 <Link2 className="w-3 h-3" />Drive folder
               </span>
@@ -187,7 +188,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
     );
   }
 
-  const totalItems = delivery.r2Files.length + delivery.driveFiles.length + delivery.links.length + (delivery.driveFolderUrl && delivery.driveFiles.length === 0 ? 1 : 0);
+  const totalItems = delivery.r2Files.length + driveFiles.length + delivery.links.length + (delivery.driveFolderUrl && driveFiles.length === 0 ? 1 : 0);
 
   return (
     <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 overflow-hidden">
@@ -233,9 +234,9 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
           )}
 
           {/* Drive Files — collapsible folders (same as R2) */}
-          {delivery.driveFiles.length > 0 && (() => {
+          {driveFiles.length > 0 && (() => {
             const groups: Record<string, DriveFile[]> = {};
-            for (const f of delivery.driveFiles) {
+            for (const f of driveFiles) {
               const key = f.folderName || "Other Files";
               if (!groups[key]) groups[key] = [];
               groups[key].push(f);
@@ -246,7 +247,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide">
-                    Drive Files ({delivery.driveFiles.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
+                    Drive Files ({driveFiles.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                   </p>
                   <div className="flex items-center gap-2">
                     {delivery.driveFolderUrl && (
@@ -322,7 +323,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
           })()}
 
           {/* Drive Folder link fallback — only if no individual files loaded */}
-          {delivery.driveFolderUrl && delivery.driveFiles.length === 0 && !delivery.links.some(l => l.url === delivery.driveFolderUrl) && (
+          {delivery.driveFolderUrl && driveFiles.length === 0 && !delivery.links.some(l => l.url === delivery.driveFolderUrl) && (
             <a href={delivery.driveFolderUrl} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 transition-colors group">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-50">

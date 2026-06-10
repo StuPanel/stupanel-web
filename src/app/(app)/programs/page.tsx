@@ -1231,9 +1231,10 @@ function PaymentModal({ booking, onClose, onSaved }: { booking: Booking | null; 
 }
 
 // ─── Delivery Section ─────────────────────────────────────────────────────────
-function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: () => void }) {
-  const [mode, setMode] = useState<"drive_link" | null>(
-    booking.deliveryMethod === "drive_link" ? "drive_link" : null
+function DeliverySection({ booking, r2Enabled, onRefresh }: { booking: Booking; r2Enabled: boolean; onRefresh: () => void }) {
+  const [mode, setMode] = useState<"drive_link" | "r2" | null>(
+    booking.deliveryMethod === "drive_link" ? "drive_link" :
+    booking.deliveryMethod === "r2" ? "r2" : null
   );
   const [editing, setEditing] = useState(!booking.deliveryMethod);
   const [link, setLink] = useState(booking.deliveryLink ?? "");
@@ -1244,6 +1245,9 @@ function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: 
   const [saving, setSaving] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
   const [error, setError] = useState("");
+  const [r2Files, setR2Files] = useState<{ name: string; status: "uploading" | "done" | "error" }[]>([]);
+  const [r2Uploading, setR2Uploading] = useState(false);
+  const r2InputRef = useRef<HTMLInputElement>(null);
 
   async function saveLink() {
     if (!link.trim()) { setError("Drive link is required."); return; }
@@ -1268,6 +1272,44 @@ function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: 
       onRefresh();
     } catch { setError("Something went wrong."); }
     finally { setAutoLoading(false); }
+  }
+
+  async function handleR2Upload(files: FileList) {
+    if (!files.length) return;
+    const fileArr = Array.from(files);
+    setR2Uploading(true); setError("");
+    setR2Files(fileArr.map(f => ({ name: f.name, status: "uploading" })));
+    let successCount = 0;
+    for (let i = 0; i < fileArr.length; i++) {
+      const file = fileArr[i];
+      try {
+        const urlRes = await apiFetch(`${API}/deliveries/upload-url`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: booking.id, fileName: file.name, mimeType: file.type || "application/octet-stream", fileSize: file.size }),
+        });
+        if (!urlRes.ok) throw new Error("URL error");
+        const { uploadUrl, fileKey } = await urlRes.json();
+        const up = await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+        if (!up.ok) throw new Error("Upload error");
+        const confRes = await apiFetch(`${API}/deliveries/confirm`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: booking.id, fileKey, fileName: file.name, mimeType: file.type || "application/octet-stream", fileSize: file.size }),
+        });
+        if (!confRes.ok) throw new Error("Confirm error");
+        setR2Files(prev => prev.map((f, idx) => idx === i ? { ...f, status: "done" } : f));
+        successCount++;
+      } catch {
+        setR2Files(prev => prev.map((f, idx) => idx === i ? { ...f, status: "error" } : f));
+      }
+    }
+    if (successCount > 0) {
+      await apiFetch(`${API}/bookings/${booking.id}/delivery`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliveryMethod: "r2", status: "delivered" }),
+      });
+      onRefresh();
+    }
+    setR2Uploading(false);
   }
 
   return (
@@ -1318,27 +1360,63 @@ function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: 
         </div>
       )}
 
+      {/* R2 result */}
+      {booking.deliveryMethod === "r2" && !editing && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ArrowRight className="w-4 h-4 text-emerald-600" />
+              <span className="text-sm font-semibold text-emerald-700">R2 Cloud Upload</span>
+            </div>
+            <button onClick={() => { setEditing(true); setMode("r2"); }} className="text-xs text-slate-400 hover:text-indigo-600">Add More</button>
+          </div>
+          {r2Files.length > 0 && (
+            <div className="space-y-1">
+              {r2Files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  {f.status === "done" ? <Check className="w-3 h-3 text-emerald-500" /> : f.status === "error" ? <X className="w-3 h-3 text-red-500" /> : <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                  <span className="text-slate-600 truncate">{f.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <a href="/delivery" className="flex items-center gap-1.5 text-xs text-indigo-600 hover:underline">
+            <ExternalLink className="w-3 h-3" /> Manage files in Delivery page
+          </a>
+        </div>
+      )}
+
       {/* No delivery / choosing method */}
-      {(!booking.deliveryMethod || (booking.deliveryMethod === "drive_link" && editing)) && (
+      {(!booking.deliveryMethod || ((booking.deliveryMethod === "drive_link" || booking.deliveryMethod === "r2") && editing)) && (
         <>
           {mode === null && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${r2Enabled ? "grid-cols-3" : "grid-cols-2"}`}>
               <button onClick={() => setMode("drive_link")}
-                className="flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
+                className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
                 <Link2 className="w-5 h-5 text-slate-400" />
                 <div>
                   <p className="text-xs font-semibold text-slate-700">Drive Link</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Paste share link</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Paste link</p>
                 </div>
               </button>
               <button onClick={createDriveFolder} disabled={autoLoading}
-                className="flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
+                className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
                 {autoLoading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <HardDrive className="w-5 h-5 text-slate-400" />}
                 <div>
                   <p className="text-xs font-semibold text-slate-700">Drive Auto</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Auto-create folder</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Auto folder</p>
                 </div>
               </button>
+              {r2Enabled && (
+                <button onClick={() => setMode("r2")}
+                  className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-center">
+                  <ArrowRight className="w-5 h-5 text-slate-400" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">R2 Upload</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Cloud storage</p>
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
@@ -1371,6 +1449,33 @@ function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: 
               </Button>
             </div>
           )}
+
+          {mode === "r2" && (
+            <div className="space-y-2.5 bg-slate-50 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-600">R2 Cloud Upload</p>
+                <button onClick={() => { setMode(null); setEditing(!booking.deliveryMethod); setR2Files([]); }} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
+              </div>
+              <input ref={r2InputRef} type="file" multiple className="hidden"
+                onChange={e => e.target.files && handleR2Upload(e.target.files)} />
+              <button onClick={() => r2InputRef.current?.click()} disabled={r2Uploading}
+                className="w-full flex flex-col items-center gap-2 py-6 rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-all">
+                {r2Uploading ? <Loader2 className="w-6 h-6 animate-spin text-indigo-500" /> : <ArrowRight className="w-6 h-6 text-slate-400" />}
+                <span className="text-xs text-slate-500">{r2Uploading ? "Uploading…" : "Click to select files"}</span>
+                <span className="text-[10px] text-slate-400">Photos, Videos, ZIP — max 500 MB each</span>
+              </button>
+              {r2Files.length > 0 && (
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {r2Files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs bg-white rounded-lg px-3 py-2">
+                      {f.status === "done" ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : f.status === "error" ? <X className="w-3.5 h-3.5 text-red-500 shrink-0" /> : <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500 shrink-0" />}
+                      <span className={`truncate ${f.status === "error" ? "text-red-600" : "text-slate-700"}`}>{f.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1378,8 +1483,8 @@ function DeliverySection({ booking, onRefresh }: { booking: Booking; onRefresh: 
 }
 
 // ─── View Drawer ──────────────────────────────────────────────────────────────
-function ViewDrawer({ booking, onClose, onEdit, onRefresh }: {
-  booking: Booking | null; onClose: () => void; onEdit: () => void; onRefresh: () => void;
+function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
+  booking: Booking | null; onClose: () => void; onEdit: () => void; onRefresh: () => void; r2Enabled: boolean;
 }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
@@ -1541,7 +1646,7 @@ function ViewDrawer({ booking, onClose, onEdit, onRefresh }: {
           )}
 
           {/* Delivery */}
-          <DeliverySection booking={b} onRefresh={refreshBooking} />
+          <DeliverySection booking={b} r2Enabled={r2Enabled} onRefresh={refreshBooking} />
 
           {b.internalNotes && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -1575,6 +1680,7 @@ export default function ProgramsPage() {
   const [page, setPage] = useState(1);
   const [packages, setPackages] = useState<Package[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [r2Enabled, setR2Enabled] = useState(false);
 
   const [newOpen, setNewOpen] = useState(false);
   const [viewTarget, setViewTarget] = useState<Booking | null>(null);
@@ -1587,14 +1693,16 @@ export default function ProgramsPage() {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      const [bRes, pkgRes, tmRes] = await Promise.all([
+      const [bRes, pkgRes, tmRes, compRes] = await Promise.all([
         apiFetch(`${API}/bookings?${params}`),
         apiFetch(`${API}/programs?limit=100`),
         apiFetch(`${API}/team`),
+        apiFetch(`${API}/companies/me`),
       ]);
       if (bRes.ok) { const d = await bRes.json(); setBookings(d.data ?? []); setMeta(d.meta); }
       if (pkgRes.ok) { const d = await pkgRes.json(); setPackages(d.data ?? d ?? []); }
       if (tmRes.ok) { setTeamMembers(await tmRes.json()); }
+      if (compRes.ok) { const d = await compRes.json(); setR2Enabled(!!d.r2Enabled); }
     } finally { setLoading(false); }
   }, [page, search, statusFilter]);
 
@@ -1692,6 +1800,7 @@ export default function ProgramsPage() {
         onClose={() => setViewTarget(null)}
         onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
         onRefresh={fetchAll}
+        r2Enabled={r2Enabled}
       />
       <DeleteDialog booking={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={fetchAll} />
     </div>

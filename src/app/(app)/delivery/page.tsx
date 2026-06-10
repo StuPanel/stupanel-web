@@ -467,7 +467,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
             {([
               ["drive", "Drive Auto"],
               ["link", "Manual Links"],
-              ["files", "Upload Files"],
+              ["files", "R2 Storage"],
             ] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",

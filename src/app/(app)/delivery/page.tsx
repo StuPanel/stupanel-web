@@ -314,6 +314,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        uploadStore.registerXhr(uid, xhr);
         xhr.open("POST", `${API}/google-drive/upload/${booking!.id}${qs}`);
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
         xhr.upload.onprogress = (e) => {
@@ -340,6 +341,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
           }
         };
         xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onabort = () => reject(new Error("Cancelled"));
         xhr.send(formData);
       });
     } catch (err: unknown) {
@@ -442,6 +444,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        uploadStore.registerXhr(uid, xhr);
         xhr.open("PUT", uploadUrl);
         xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
         xhr.upload.onprogress = (e) => {
@@ -456,6 +459,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
           else reject(new Error(`Upload failed: ${xhr.status}`));
         };
         xhr.onerror = () => reject(new Error("Network error — check R2 CORS settings"));
+        xhr.onabort = () => reject(new Error("Cancelled"));
         xhr.send(file);
       });
 

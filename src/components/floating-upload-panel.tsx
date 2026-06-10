@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { uploadStore, UploadEntry } from "@/lib/upload-store";
-import { X, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Cloud, HardDrive } from "lucide-react";
+import { X, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Cloud, HardDrive, XCircle } from "lucide-react";
 
 export function FloatingUploadPanel() {
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
@@ -99,8 +99,16 @@ export function FloatingUploadPanel() {
                 )}
                 {u.error && <p className="text-[10px] text-red-500 mt-0.5 truncate">{u.error}</p>}
               </div>
-              {!u.done && !u.error && (
-                <span className="text-[10px] font-semibold text-slate-400 flex-shrink-0">{u.progress}%</span>
+              {!u.done && !u.error && !u.cancelled && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="text-[10px] font-semibold text-slate-400">{u.progress}%</span>
+                  <button
+                    onClick={() => uploadStore.cancel(u.id)}
+                    title="Cancel upload"
+                    className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
           ))}

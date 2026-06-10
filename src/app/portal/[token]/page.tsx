@@ -596,33 +596,25 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                       </span>
                     )}
                   </div>
-                  {/* Payment Progress Bar */}
-                  {Number(b.grandTotal) > 0 && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="text-xs text-slate-500">
-                          <span className="font-semibold text-slate-700">{cs}{num(b.paidAmount)}</span>
-                          <span className="text-slate-400"> paid of </span>
-                          <span className="font-semibold text-slate-700">{cs}{num(b.grandTotal)}</span>
-                        </div>
-                        {bal > 0 ? (
-                          <span className="text-xs font-bold text-red-600">
-                            Due {cs}{num(bal)}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                            <CheckCircle className="w-3 h-3" />Paid
-                          </span>
-                        )}
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={cn("h-full rounded-full transition-all", bal <= 0 ? "bg-emerald-500" : "bg-indigo-500")}
-                          style={{ width: `${Math.min(100, (Number(b.paidAmount) / Number(b.grandTotal)) * 100)}%` }}
-                        />
-                      </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div className="text-sm">
+                      <span className="text-slate-400">Total: </span>
+                      <span className="font-semibold text-slate-800">{cs}{num(b.grandTotal)}</span>
+                      {Number(b.paidAmount) > 0 && (
+                        <span className="text-emerald-600 ml-2">· Paid {cs}{num(b.paidAmount)}</span>
+                      )}
                     </div>
-                  )}
+                    {bal > 0 && (
+                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-lg">
+                        Due {cs}{num(bal)}
+                      </span>
+                    )}
+                    {bal <= 0 && Number(b.grandTotal) > 0 && (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                        <CheckCircle className="w-3.5 h-3.5" />Fully Paid
+                      </span>
+                    )}
+                  </div>
 
                   {/* Delivery Section */}
                   {b.delivery && (

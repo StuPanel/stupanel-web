@@ -8,6 +8,7 @@ import {
   CalendarDays, MapPin, CheckCircle2, Clock, Send, MoreVertical,
   UploadCloud, Trash2, Download, FileImage, FileVideo, FileArchive, File,
   Package, Video, Image, Plus, Info, HardDrive, Globe, FolderOpen,
+  ChevronDown, ChevronUp, AlertTriangle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,6 +106,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   const [filesLoading, setFilesLoading] = useState(false);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [zipDownloading, setZipDownloading] = useState<string | null>(null); // folderKey or "all"
+  const [deletingFolder, setDeletingFolder] = useState<string | null>(null); // folderKey being confirmed
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -145,6 +149,41 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   if (!booking) return null;
+
+  function isFolderExpanded(key: string) {
+    return expandedFolders[key] ?? true; // default expanded
+  }
+  function toggleFolder(key: string) {
+    setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) }));
+  }
+
+  async function downloadZip(folderName?: string) {
+    const key = folderName ?? "all";
+    setZipDownloading(key);
+    try {
+      const qs = folderName ? `?folderName=${encodeURIComponent(folderName)}` : "";
+      const res = await apiFetch(`${API}/deliveries/${booking!.id}/download-zip${qs}`);
+      if (!res.ok) { alert("Download failed"); return; }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = folderName ? `${folderName}.zip` : `delivery.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } catch { alert("Download failed"); }
+    finally { setZipDownloading(null); }
+  }
+
+  async function confirmDeleteFolder(folderName: string) {
+    setDeletingFolder(null);
+    try {
+      const res = await apiFetch(`${API}/deliveries/${booking!.id}/folder/${encodeURIComponent(folderName)}`, { method: "DELETE" });
+      if (!res.ok) { alert("Delete failed"); return; }
+      setR2Files(prev => prev.filter(f => f.folderName !== folderName));
+    } catch { alert("Delete failed"); }
+  }
 
   async function createDriveFolder() {
     setDriveLoading(true); setDriveError("");
@@ -393,11 +432,25 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   </div>
                 )}
 
-                {/* Uploaded Files — grouped by folder */}
+                {/* Delete folder confirm modal */}
+                {deletingFolder && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-red-700">Delete folder "{deletingFolder}"?</p>
+                    </div>
+                    <p className="text-xs text-red-600">All files in this folder will be permanently deleted from R2 cloud. This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setDeletingFolder(null)} className="flex-1 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
+                      <button onClick={() => confirmDeleteFolder(deletingFolder)} className="flex-1 h-8 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700">Delete All Files</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Uploaded Files — grouped by folder with collapsible */}
                 {filesLoading ? (
                   <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
                 ) : r2Files.length > 0 ? (() => {
-                  // Group files by folderName
                   const groups: Record<string, R2File[]> = {};
                   for (const f of r2Files) {
                     const key = f.folderName || "__root__";
@@ -408,46 +461,82 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   const hasFolders = groupEntries.some(([k]) => k !== "__root__");
 
                   return (
-                    <div className="space-y-3">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Uploaded Files ({r2Files.length})
-                        {hasFolders && <span className="ml-1.5 text-indigo-500">· {groupEntries.filter(([k]) => k !== "__root__").length} folders</span>}
-                      </p>
-                      {groupEntries.map(([folderKey, files]) => (
-                        <div key={folderKey}>
-                          {hasFolders && folderKey !== "__root__" && (
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-                              <span className="text-xs font-semibold text-slate-600">{folderKey}</span>
-                              <span className="text-[10px] text-slate-400">({files.length})</span>
-                            </div>
-                          )}
-                          <div className={cn("space-y-1.5", hasFolders && folderKey !== "__root__" && "pl-4 border-l-2 border-amber-100")}>
-                            {files.map(f => {
-                              const Icon = fileIcon(f.mimeType);
-                              return (
-                                <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                  <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
-                                    <Icon className="w-4 h-4 text-slate-400" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                    <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
-                                  </div>
-                                  <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-indigo-500 transition-colors" title="Download">
-                                    <Download className="w-3.5 h-3.5" />
-                                  </a>
-                                  <button onClick={() => deleteFile(f.id)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              );
-                            })}
+                    <div className="space-y-2">
+                      {/* Header row */}
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Files ({r2Files.length}){hasFolders && <span className="ml-1.5 text-indigo-500">· {groupEntries.filter(([k]) => k !== "__root__").length} folders</span>}
+                        </p>
+                        <button
+                          onClick={() => downloadZip()}
+                          disabled={zipDownloading === "all"}
+                          className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors">
+                          {zipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                          Download All
+                        </button>
+                      </div>
+
+                      {groupEntries.map(([folderKey, files]) => {
+                        const isFolder = folderKey !== "__root__";
+                        const expanded = isFolderExpanded(folderKey);
+                        return (
+                          <div key={folderKey} className={cn(isFolder && "bg-amber-50/50 border border-amber-100 rounded-xl overflow-hidden")}>
+                            {/* Folder header */}
+                            {isFolder && (
+                              <div className="flex items-center gap-2 px-3 py-2">
+                                <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                                  <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                  <span className="text-xs font-semibold text-slate-700 truncate">{folderKey}</span>
+                                  <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length} files)</span>
+                                </button>
+                                <button
+                                  onClick={() => downloadZip(folderKey)}
+                                  disabled={zipDownloading === folderKey}
+                                  title="Download folder as ZIP"
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-600 disabled:opacity-50 transition-colors flex-shrink-0">
+                                  {zipDownloading === folderKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                </button>
+                                <button
+                                  onClick={() => setDeletingFolder(folderKey)}
+                                  title="Delete entire folder"
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                                <button onClick={() => toggleFolder(folderKey)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-500 flex-shrink-0">
+                                  {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            )}
+                            {/* Files list */}
+                            {(!isFolder || expanded) && (
+                              <div className={cn("space-y-1.5", isFolder && "px-3 pb-3")}>
+                                {files.map(f => {
+                                  const Icon = fileIcon(f.mimeType);
+                                  return (
+                                    <div key={f.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                        <Icon className="w-4 h-4 text-slate-400" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
+                                        <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
+                                      </div>
+                                      <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
+                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 transition-colors" title="Download">
+                                        <Download className="w-3.5 h-3.5" />
+                                      </a>
+                                      <button onClick={() => deleteFile(f.id)}
+                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })() : (

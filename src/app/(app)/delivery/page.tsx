@@ -7,7 +7,7 @@ import {
   Search, X, Loader2, Link2, Check, ExternalLink, Copy,
   CalendarDays, MapPin, CheckCircle2, Clock, Send, MoreVertical,
   UploadCloud, Trash2, Download, FileImage, FileVideo, FileArchive, File,
-  Package, Video, Image, Plus, Info, HardDrive, Globe,
+  Package, Video, Image, Plus, Info, HardDrive, Globe, FolderOpen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,7 @@ interface Booking {
   grandTotal: number; paidAmount: number;
   deliveryLink?: string; deliveryLinks?: DeliveryLink[];
   deliveryNote?: string; deliveryDate?: string;
+  driveFolderUrl?: string; driveDeliveredAt?: string;
   client: { id: string; firstName: string; lastName?: string; phone?: string };
 }
 
@@ -84,7 +85,7 @@ interface UploadItem { file: File; progress: number; done: boolean; error?: stri
 function DeliveryModal({ booking, onClose, onSaved }: {
   booking: Booking | null; onClose: () => void; onSaved: (updated: Booking) => void;
 }) {
-  const [tab, setTab] = useState<"files" | "link">("files");
+  const [tab, setTab] = useState<"files" | "link" | "drive">("files");
 
   // Link tab state — multiple links with titles
   const [links, setLinks] = useState<DeliveryLink[]>([]);
@@ -94,17 +95,22 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   const [linkSaving, setLinkSaving] = useState(false);
   const [linkError, setLinkError] = useState("");
 
+  // Drive Auto tab state
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveError, setDriveError] = useState("");
+  const [driveFolderUrl, setDriveFolderUrl] = useState("");
+
   // Files tab state
   const [r2Files, setR2Files] = useState<R2File[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (booking) {
-      // Load links from booking (new format) or legacy single link
       const existing = booking.deliveryLinks?.length
         ? booking.deliveryLinks
         : booking.deliveryLink
@@ -114,7 +120,8 @@ function DeliveryModal({ booking, onClose, onSaved }: {
       setNote(booking.deliveryNote ?? "");
       setDate(booking.deliveryDate ? booking.deliveryDate.slice(0, 10) : "");
       setStatus(booking.status);
-      setLinkError("");
+      setDriveFolderUrl(booking.driveFolderUrl ?? "");
+      setLinkError(""); setDriveError("");
       setUploads([]);
       loadFiles();
     }
@@ -138,6 +145,18 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   if (!booking) return null;
+
+  async function createDriveFolder() {
+    setDriveLoading(true); setDriveError("");
+    try {
+      const r = await apiFetch(`${API}/google-drive/deliver/${booking!.id}`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) { setDriveError(d.message || "Failed to create Drive folder."); return; }
+      setDriveFolderUrl(d.driveFolderUrl ?? "");
+      onSaved({ ...booking!, driveFolderUrl: d.driveFolderUrl, driveDeliveredAt: new Date().toISOString() });
+    } catch { setDriveError("Something went wrong."); }
+    finally { setDriveLoading(false); }
+  }
 
   function addLink() {
     setLinks(prev => [...prev, { id: crypto.randomUUID(), title: "", url: "" }]);
@@ -270,15 +289,22 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
           {/* Tabs */}
           <div className="flex border-b border-slate-200 flex-shrink-0">
-            {([["files", "Upload Files"], ["link", "Manual Links"]] as const).map(([key, label]) => (
+            {([
+              ["files", "Upload Files"],
+              ["drive", "Drive Auto"],
+              ["link", "Manual Links"],
+            ] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
-                className={cn("flex-1 py-2.5 text-sm font-medium transition-colors",
+                className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",
                   tab === key ? "border-b-2 border-indigo-600 text-indigo-600" : "text-slate-400 hover:text-slate-600")}>
                 {label}
                 {key === "link" && links.filter(l => l.url).length > 0 && (
-                  <span className="ml-1.5 text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                  <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
                     {links.filter(l => l.url).length}
                   </span>
+                )}
+                {key === "drive" && driveFolderUrl && (
+                  <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">✓</span>
                 )}
               </button>
             ))}
@@ -307,12 +333,12 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                   onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
-                    "border-2 border-dashed rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors",
+                    "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-colors",
                     dragOver ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
                   )}>
-                  <UploadCloud className={cn("w-10 h-10", dragOver ? "text-indigo-500" : "text-slate-300")} />
+                  <UploadCloud className={cn("w-8 h-8", dragOver ? "text-indigo-500" : "text-slate-300")} />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-slate-600">Drop files here or click to upload</p>
+                    <p className="text-sm font-medium text-slate-600">Drop files or click to select</p>
                     <p className="text-xs text-slate-400 mt-0.5">Photos, Videos, PDF, ZIP — up to 500MB each</p>
                   </div>
                   <input
@@ -321,6 +347,23 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                     onChange={e => handleFiles(e.target.files)}
                   />
                 </div>
+
+                {/* Folder upload button */}
+                <button
+                  onClick={() => folderInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <FolderOpen className="w-4 h-4" />
+                  Upload Entire Folder
+                </button>
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  // @ts-ignore — webkitdirectory is non-standard
+                  webkitdirectory=""
+                  onChange={e => handleFiles(e.target.files)}
+                />
 
                 {/* Upload Progress */}
                 {uploads.filter(u => !u.done).length > 0 && (
@@ -376,6 +419,61 @@ function DeliveryModal({ booking, onClose, onSaved }: {
                 ) : (
                   <p className="text-center text-xs text-slate-400 py-4">No files uploaded yet</p>
                 )}
+              </div>
+            )}
+
+            {/* ── DRIVE AUTO TAB ── */}
+            {tab === "drive" && (
+              <div className="p-5 space-y-4">
+                {/* Info banner */}
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-green-50 border border-green-100 rounded-xl">
+                  <HardDrive className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-green-700">Google Drive Auto-Upload</p>
+                    <p className="text-[11px] text-green-600 mt-0.5">StuPanel automatically creates a dedicated folder in your connected Google Drive account for this booking. Client gets access after full payment.</p>
+                  </div>
+                </div>
+
+                {driveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">{driveError}</p>}
+
+                {driveFolderUrl ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <p className="text-sm font-semibold text-emerald-700">Drive Folder Created</p>
+                    </div>
+                    <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-indigo-600 hover:underline break-all">
+                      <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                      Open Drive Folder
+                    </a>
+                    <button onClick={createDriveFolder} disabled={driveLoading}
+                      className="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1.5">
+                      {driveLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Create New Folder
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={createDriveFolder}
+                    disabled={driveLoading}
+                    className="w-full flex flex-col items-center gap-3 py-8 rounded-2xl border-2 border-dashed border-slate-200 hover:border-green-300 hover:bg-green-50 transition-all">
+                    {driveLoading
+                      ? <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+                      : <HardDrive className="w-8 h-8 text-slate-300" />
+                    }
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-slate-600">
+                        {driveLoading ? "Creating folder…" : "Create Drive Folder"}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">Automatically creates a shared folder in your Google Drive</p>
+                    </div>
+                  </button>
+                )}
+
+                <div className="pt-1">
+                  <Button variant="outline" onClick={onClose} className="w-full h-10 border-slate-200">Close</Button>
+                </div>
               </div>
             )}
 
@@ -485,7 +583,7 @@ function DeliveryModal({ booking, onClose, onSaved }: {
             )}
           </div>
 
-          {/* Close button for files tab */}
+          {/* Close button for files tab only */}
           {tab === "files" && (
             <div className="px-5 pb-5 flex-shrink-0 border-t border-slate-100 pt-4">
               <Button variant="outline" onClick={onClose} className="w-full h-10 border-slate-200">Close</Button>

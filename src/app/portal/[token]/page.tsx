@@ -64,7 +64,7 @@ const INV_STATUS: Record<string, { label: string; color: string }> = {
 
 interface R2File {
   id: string; fileName: string; mimeType: string;
-  fileSize: number; downloadUrl: string | null; folderName?: string | null;
+  fileSize: number; viewUrl: string | null; downloadUrl: string | null; folderName?: string | null;
 }
 
 interface ManualLink { id: string; title: string; url: string }
@@ -234,24 +234,22 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             </a>
           )}
 
-          {/* R2 Files — grouped by folder, collapsible */}
+          {/* R2 Files — all in folders, collapsible */}
           {delivery.r2Files.length > 0 && (() => {
             const groups: Record<string, R2File[]> = {};
             for (const f of delivery.r2Files) {
-              const key = f.folderName || "__root__";
+              const key = f.folderName || "Other Files";
               if (!groups[key]) groups[key] = [];
               groups[key].push(f);
             }
             const groupEntries = Object.entries(groups);
-            const hasFolders = groupEntries.some(([k]) => k !== "__root__");
 
             return (
               <div className="space-y-3">
                 {/* Files header + Download All */}
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide">
-                    Files ({delivery.r2Files.length})
-                    {hasFolders && <span className="ml-1.5 text-teal-400">· {groupEntries.filter(([k]) => k !== "__root__").length} folders</span>}
+                    Files ({delivery.r2Files.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                   </p>
                   <a
                     href={downloadZipUrl()}
@@ -262,47 +260,47 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 </div>
 
                 {groupEntries.map(([folderKey, files]) => {
-                  const isFolder = folderKey !== "__root__";
                   const isOpen = isFolderExpanded(folderKey);
                   return (
-                    <div key={folderKey} className={cn(isFolder && "border border-teal-100 rounded-xl overflow-hidden bg-white")}>
-                      {/* Folder header — clickable to toggle */}
-                      {isFolder && (
-                        <div className="flex items-center gap-2 px-3 py-2.5">
-                          <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                            <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                            <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
-                            <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length} files)</span>
-                          </button>
-                          <a
-                            href={downloadZipUrl(folderKey)}
-                            title="Download folder as ZIP"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
-                            onClick={e => e.stopPropagation()}>
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-                          <button onClick={() => toggleFolder(folderKey)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-teal-50 text-teal-500 flex-shrink-0">
-                            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      )}
+                    <div key={folderKey} className="border border-teal-100 rounded-xl overflow-hidden bg-white">
+                      {/* Folder header */}
+                      <div className="flex items-center gap-2 px-3 py-2.5">
+                        <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                          <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length})</span>
+                        </button>
+                        <a
+                          href={downloadZipUrl(folderKey)}
+                          title="Download folder as ZIP"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
+                          onClick={e => e.stopPropagation()}>
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                        <button onClick={() => toggleFolder(folderKey)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-teal-50 text-teal-500 flex-shrink-0">
+                          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
 
-                      {/* Files — show if not a folder OR if folder is expanded */}
-                      {(!isFolder || isOpen) && (
-                        <div className={cn("space-y-2", isFolder && "px-3 pb-3 border-t border-teal-50 pt-2")}>
+                      {/* Smooth animated files list */}
+                      <div
+                        style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : '0', transition: 'max-height 0.35s ease' }}
+                        className="overflow-hidden">
+                        <div className="px-3 pb-3 border-t border-teal-50 pt-2 space-y-2">
                           {files.map(f => {
                             const Icon = fileIcon(f.mimeType);
                             return (
                               <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-teal-100">
-                                <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0">
+                                <a href={f.viewUrl || f.downloadUrl || '#'} target="_blank" rel="noopener noreferrer"
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-teal-300 transition-colors" title="View">
                                   <Icon className="w-4 h-4 text-slate-400" />
-                                </div>
+                                </a>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
                                   <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)}</p>
                                 </div>
                                 {f.downloadUrl ? (
-                                  <a href={f.downloadUrl} download={f.fileName} target="_blank" rel="noopener noreferrer"
+                                  <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90 flex-shrink-0"
                                     style={{ backgroundColor: brand }}>
                                     <Download className="w-3 h-3" />
@@ -316,7 +314,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                             );
                           })}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}

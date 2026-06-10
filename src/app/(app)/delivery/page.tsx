@@ -322,9 +322,9 @@ function DeliveryModal({ booking, onClose, onSaved }: {
     }
   }
 
-  function handleDriveFiles(files: FileList | null) {
+  async function handleDriveFiles(files: FileList | null) {
     if (!files) return;
-    for (let i = 0; i < files.length; i++) uploadDriveFile(files[i]);
+    for (let i = 0; i < files.length; i++) await uploadDriveFile(files[i]);
   }
 
   function addLink() {

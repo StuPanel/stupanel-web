@@ -135,6 +135,16 @@ function DeliveryModal({ booking, onClose, onSaved }: {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
+  // Warn before tab/window close if uploads are in progress
+  useEffect(() => {
+    const inProgress = driveUploads.some(u => !u.done && !u.error) ||
+                       uploads.some(u => !u.done && !u.error);
+    if (!inProgress) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [driveUploads, uploads]);
+
   useEffect(() => {
     if (booking) {
       const existing = booking.deliveryLinks?.length
@@ -324,7 +334,23 @@ function DeliveryModal({ booking, onClose, onSaved }: {
 
   async function handleDriveFiles(files: FileList | null) {
     if (!files) return;
-    for (let i = 0; i < files.length; i++) await uploadDriveFile(files[i]);
+    const arr = Array.from(files);
+
+    // Group files by their target folder — same folder uploads sequentially (no race),
+    // different folders upload concurrently (fast)
+    const groups = new Map<string, File[]>();
+    for (const file of arr) {
+      const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+      const key = wp ? wp.split("/")[0] : (driveTargetFolder || "__root__");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(file);
+    }
+
+    await Promise.all(
+      Array.from(groups.values()).map(async (groupFiles) => {
+        for (const file of groupFiles) await uploadDriveFile(file);
+      })
+    );
   }
 
   function addLink() {

@@ -501,6 +501,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [viewing, setViewing] = useState<Invoice | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success"|"error" } | null>(null);
 
   const fetch_ = useCallback(async () => {
@@ -583,8 +584,25 @@ export default function InvoicesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {invoices.map(inv => (
-            <InvoiceCard key={inv.id} inv={inv} onClick={() => setViewing(inv)} />
+            <InvoiceCard key={inv.id} inv={inv} onClick={async () => {
+              setViewLoading(true);
+              try {
+                const r = await apiFetch(`${API}/studio-invoices/${inv.id}`);
+                const full = await r.json();
+                setViewing(full);
+              } catch { setViewing(inv); }
+              finally { setViewLoading(false); }
+            }} />
           ))}
+        </div>
+      )}
+
+      {viewLoading && (
+        <div className="fixed inset-0 bg-black/20 z-40 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-5 shadow-xl flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+            <p className="text-sm font-medium text-slate-700">Loading invoice…</p>
+          </div>
         </div>
       )}
 

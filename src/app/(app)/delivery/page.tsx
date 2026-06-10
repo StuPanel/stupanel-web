@@ -1242,33 +1242,14 @@ function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) {
         {b.eventLocation && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{b.eventLocation}</span>}
       </div>
 
-      {/* Delivery links or upload CTA */}
-      {allLinks.length > 0 ? (
-        <div className="space-y-1.5 mb-3">
-          {allLinks.map((l, i) => (
-            <div key={l.id} className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
-              <Link2 className="w-3 h-3 text-indigo-500 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                {l.title && <p className="text-[10px] text-indigo-400 font-semibold truncate">{l.title}</p>}
-                <a href={l.url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-indigo-700 truncate font-medium hover:underline block">
-                  {l.url}
-                </a>
-              </div>
-              {i === 0 && (
-                <button onClick={copyFirstLink} className="flex-shrink-0 text-indigo-400 hover:text-indigo-600 transition-colors">
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <button onClick={onEdit}
-          className="w-full flex items-center justify-center gap-1.5 h-9 mb-3 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
-          <UploadCloud className="w-3.5 h-3.5" />Upload files or add link
-        </button>
-      )}
+      {/* Upload CTA — always visible */}
+      <button onClick={onEdit}
+        className="w-full flex items-center justify-center gap-1.5 h-9 mb-3 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
+        <UploadCloud className="w-3.5 h-3.5" />
+        {allLinks.length > 0
+          ? <span><span className="font-semibold text-indigo-500">{allLinks.length} link{allLinks.length > 1 ? "s" : ""} added</span> · click to manage</span>
+          : "Upload files or add link"}
+      </button>
 
       {/* Note */}
       {b.deliveryNote && (

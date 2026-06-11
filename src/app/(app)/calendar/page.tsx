@@ -6,8 +6,8 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Loader2, CalendarDays, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 interface Booking {
   id: string; bookingNumber: string; eventName: string; eventDate?: string;

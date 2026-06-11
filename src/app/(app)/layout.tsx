@@ -11,8 +11,8 @@ import { usePathname } from "next/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 const mobileNav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },

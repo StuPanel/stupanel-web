@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle2, Clock, XCircle, Camera, Loader2, MapPin, CalendarDays, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 interface Step { key: string; label: string; done: boolean; current: boolean; }
 interface TrackData {

@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,6 @@ const PAYMENT_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 function fmt(n: number, cur = "BDT") { return (cur === "BDT" ? "৳" : "$") + Number(n).toLocaleString(); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return new Date().toISOString().split("T")[0]; }

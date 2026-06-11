@@ -1,4 +1,7 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+
+const BASE = API_URL;
 
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("access_token") ?? "";

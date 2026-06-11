@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_URL as API } from "@/lib/api";
 import {
   Bell, Search, ChevronDown, Menu, Settings, User, LogOut, ShieldAlert,
   Camera, Users, FileText, X, Loader2,
@@ -37,8 +37,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-
+  
   const [user, setUser] = useState<UserProfile | null>(null);
 
   // Search state

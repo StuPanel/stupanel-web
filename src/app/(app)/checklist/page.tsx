@@ -8,8 +8,8 @@ import {
   ClipboardList, CheckCircle2, Camera, ChevronDown, ChevronUp, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 const CATEGORIES = [
   { key: "pre_shoot",  label: "Pre-Shoot",   color: "bg-blue-100 text-blue-700 border-blue-200"   },

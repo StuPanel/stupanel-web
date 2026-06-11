@@ -8,8 +8,8 @@ import {
   FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
 function fmtDate(d: string | Date | null | undefined) {

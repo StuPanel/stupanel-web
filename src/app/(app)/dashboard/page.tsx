@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { API_URL as API } from "@/lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,6 @@ interface MonthData { month: number; total: number }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 function fmt(n: number, currency = "BDT") {
   if (n >= 100000) return (currency === "BDT" ? "৳" : "$") + (n / 100000).toFixed(1) + "L";

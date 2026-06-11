@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, TrendingUp, DollarSign, Building2, BarChart3 } from "lucide-react";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { Authorization: `Bearer ${getToken()}` }; }
 

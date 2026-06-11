@@ -8,8 +8,8 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronRight, Settings2, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 const WALLET_TYPES = [
   { key: "cash",   label: "Cash",   color: "bg-emerald-500", light: "bg-emerald-50 text-emerald-700" },

@@ -9,9 +9,8 @@ import {
   Circle, CheckCheck, Trash2, X, Users, CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API, WS_URL } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
 
 const STATUS_COLOR: Record<string, string> = {

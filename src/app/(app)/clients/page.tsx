@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { API_URL as API } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,6 @@ interface Client {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 
 function fullName(c: Client) {

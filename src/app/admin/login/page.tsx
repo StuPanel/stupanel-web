@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 export default function AdminLoginPage() {
   const router = useRouter();

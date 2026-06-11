@@ -8,8 +8,8 @@ import {
   Download, Printer, ChevronDown, Trash2, BadgeCheck, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number) { return "৳" + Math.round(n).toLocaleString(); }

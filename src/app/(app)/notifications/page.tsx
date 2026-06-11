@@ -9,8 +9,8 @@ import {
   Loader2, RefreshCw, CheckCheck, ChevronRight, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
 const DISMISSED_KEY = "notif_dismissed";
 function getDismissed(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]")); } catch { return new Set(); } }

@@ -69,6 +69,7 @@ export interface Booking {
   internalNotes?: string;
   deliveryMethod?: string;
   deliveryLink?: string;
+  deliveryLinks?: { id: string; title: string; url: string }[];
   deliveryNote?: string;
   deliveryDate?: string;
   driveFolderUrl?: string;

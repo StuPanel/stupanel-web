@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   X, Edit3, DollarSign, MessageCircle, FileText,
-  Loader2, MapPin, TrendingUp,
+  Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
+  ExternalLink, Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -13,9 +14,83 @@ import { STATUS_CFG, fmtDate } from "./constants";
 import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
 import { WhatsAppModal } from "./whatsapp-modal";
-import { DeliverySection } from "./delivery-section";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import type { Booking } from "./types";
+
+function DeliveryOverview({ booking }: { booking: Booking }) {
+  const [r2FileCount, setR2FileCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (booking.deliveryMethod !== "r2") return;
+    apiFetch(`${API}/deliveries/${booking.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (Array.isArray(data)) setR2FileCount(data.length); })
+      .catch(() => {});
+  }, [booking.id, booking.deliveryMethod]);
+
+  const method = booking.deliveryMethod;
+  const linksCount = (booking.deliveryLinks as any[])?.length ?? 0;
+
+  if (!method) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-center">
+        <p className="text-xs text-slate-400">No delivery set yet</p>
+      </div>
+    );
+  }
+
+  const methodMeta = {
+    drive_auto: { icon: <HardDrive className="w-4 h-4 text-emerald-600" />, label: "Drive Auto", color: "text-emerald-700" },
+    drive_link: { icon: <Link2 className="w-4 h-4 text-indigo-600" />, label: "Drive Link", color: "text-indigo-700" },
+    r2: { icon: <Cloud className="w-4 h-4 text-blue-600" />, label: "R2 Cloud", color: "text-blue-700" },
+  }[method] ?? { icon: <HardDrive className="w-4 h-4 text-slate-500" />, label: method, color: "text-slate-600" };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+      {/* Method header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-white">
+        <div className="flex items-center gap-2">
+          {methodMeta.icon}
+          <span className={`text-xs font-semibold ${methodMeta.color}`}>{methodMeta.label}</span>
+        </div>
+        {method === "drive_auto" && booking.driveFolderUrl && (
+          <a href={booking.driveFolderUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700">
+            <ExternalLink className="w-3 h-3" /> Open Folder
+          </a>
+        )}
+        {method === "drive_link" && (booking.deliveryLink || linksCount > 0) && (
+          <a href={booking.deliveryLink ?? "#"} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700">
+            <ExternalLink className="w-3 h-3" /> Open
+          </a>
+        )}
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 divide-x divide-slate-200">
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <span className="text-base font-bold text-slate-800">
+            {method === "r2" ? (r2FileCount ?? "—") : (method === "drive_auto" ? "✓" : linksCount)}
+          </span>
+          <span className="text-[10px] text-slate-400">
+            {method === "r2" ? "Files" : method === "drive_auto" ? "Folder" : "Links"}
+          </span>
+        </div>
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
+          <span className="text-base font-bold text-slate-800">{linksCount}</span>
+          <span className="text-[10px] text-slate-400">Links</span>
+        </div>
+        <div className="flex flex-col items-center justify-center py-3 gap-0.5 px-1">
+          <span className="text-[11px] font-semibold text-slate-700 text-center leading-tight">
+            {booking.deliveryDate ? fmtDate(booking.deliveryDate) : "—"}
+          </span>
+          <span className="text-[10px] text-slate-400">Date</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
   booking: Booking | null;
@@ -178,13 +253,16 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
             </div>
           )}
 
-          <DeliverySection booking={b} r2Enabled={r2Enabled} onRefresh={refreshBooking} />
-          <button
-            onClick={() => setDeliveryOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition-colors"
-          >
-            Manage Delivery →
-          </button>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Delivery</p>
+            <DeliveryOverview booking={b} />
+            <button
+              onClick={() => setDeliveryOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition-colors"
+            >
+              Manage Delivery →
+            </button>
+          </div>
 
           {b.internalNotes && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

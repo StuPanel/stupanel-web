@@ -3,6 +3,7 @@
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search, Plus, Filter, Phone, Mail, MapPin, Star, MoreVertical,
   Camera, CreditCard, Building2, User, Loader2, X, AlertTriangle,
@@ -546,6 +547,8 @@ function ClientCard({
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -581,6 +584,25 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
   useEffect(() => { setPage(1); }, [search, vipOnly]);
+
+  // Auto-open drawer when navigating from search (?view=id)
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || loading) return;
+    const found = clients.find((c) => c.id === viewId);
+    if (found) {
+      setViewTarget(found);
+      router.replace("/clients", { scroll: false });
+    } else {
+      apiFetch(`${API}/clients/${viewId}`).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setViewTarget(data);
+          router.replace("/clients", { scroll: false });
+        }
+      });
+    }
+  }, [searchParams, clients, loading, router]);
 
   function openNew() { setEditTarget(null); setDrawer(true); }
   function openEdit(c: Client) { setEditTarget(c); setDrawer(true); }

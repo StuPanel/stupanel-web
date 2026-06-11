@@ -79,7 +79,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   quote_sent:         { label: "Quote Sent",  bg: "bg-sky-100",     text: "text-sky-700" },
   confirmed:          { label: "Confirmed",   bg: "bg-blue-100",    text: "text-blue-700" },
   advance_received:   { label: "Advance",     bg: "bg-indigo-100",  text: "text-indigo-700" },
-  in_progress:        { label: "In Progress", bg: "bg-yellow-100",  text: "text-yellow-700" },
+  in_progress:        { label: "Shooting",    bg: "bg-yellow-100",  text: "text-yellow-700" },
   editing:            { label: "Editing",     bg: "bg-orange-100",  text: "text-orange-700" },
   ready_for_delivery: { label: "Ready",       bg: "bg-purple-100",  text: "text-purple-700" },
   delivered:          { label: "Delivered",   bg: "bg-cyan-100",    text: "text-cyan-700" },

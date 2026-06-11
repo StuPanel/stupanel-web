@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, { dot: string; badge: string; label: string 
   quote_sent:          { dot: "bg-blue-400",    badge: "bg-blue-100 text-blue-700",       label: "Quote Sent" },
   confirmed:           { dot: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700",   label: "Confirmed" },
   advance_received:    { dot: "bg-violet-500",  badge: "bg-violet-100 text-violet-700",   label: "Advance Rcvd" },
-  in_progress:         { dot: "bg-amber-500",   badge: "bg-amber-100 text-amber-700",     label: "In Progress" },
+  in_progress:         { dot: "bg-amber-500",   badge: "bg-amber-100 text-amber-700",     label: "Shooting" },
   editing:             { dot: "bg-orange-400",  badge: "bg-orange-100 text-orange-700",   label: "Editing" },
   ready_for_delivery:  { dot: "bg-cyan-500",    badge: "bg-cyan-100 text-cyan-700",       label: "Ready" },
   delivered:           { dot: "bg-teal-500",    badge: "bg-teal-100 text-teal-700",       label: "Delivered" },

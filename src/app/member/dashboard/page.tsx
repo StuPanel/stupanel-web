@@ -24,7 +24,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> 
   inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600",   dot: "bg-slate-400" },
   confirmed:          { label: "Confirmed",    color: "bg-blue-100 text-blue-700",     dot: "bg-blue-500" },
   advance_received:   { label: "Advance Paid", color: "bg-cyan-100 text-cyan-700",     dot: "bg-cyan-500" },
-  in_progress:        { label: "In Progress",  color: "bg-amber-100 text-amber-700",   dot: "bg-amber-500" },
+  in_progress:        { label: "Shooting",     color: "bg-amber-100 text-amber-700",   dot: "bg-amber-500" },
   editing:            { label: "Editing",      color: "bg-purple-100 text-purple-700", dot: "bg-purple-500" },
   ready_for_delivery: { label: "Ready",        color: "bg-indigo-100 text-indigo-700", dot: "bg-indigo-500" },
   completed:          { label: "Completed",    color: "bg-emerald-100 text-emerald-700",dot:"bg-emerald-500" },

@@ -23,7 +23,7 @@ const STATUS_CFG: Record<string, { label: string; color: string }> = {
   inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600" },
   confirmed:          { label: "Confirmed",    color: "bg-blue-100 text-blue-700" },
   advance_received:   { label: "Advance Paid", color: "bg-cyan-100 text-cyan-700" },
-  in_progress:        { label: "In Progress",  color: "bg-amber-100 text-amber-700" },
+  in_progress:        { label: "Shooting",     color: "bg-amber-100 text-amber-700" },
   editing:            { label: "Editing",      color: "bg-purple-100 text-purple-700" },
   ready_for_delivery: { label: "Ready",        color: "bg-indigo-100 text-indigo-700" },
   completed:          { label: "Completed",    color: "bg-emerald-100 text-emerald-700" },
@@ -54,7 +54,7 @@ interface Booking {
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
   { value: "confirmed", label: "Confirmed" },
-  { value: "in_progress", label: "In Progress" },
+  { value: "in_progress", label: "Shooting" },
   { value: "editing", label: "Editing" },
   { value: "ready_for_delivery", label: "Ready" },
   { value: "completed", label: "Completed" },

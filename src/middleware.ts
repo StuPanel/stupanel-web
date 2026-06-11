@@ -68,13 +68,12 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = !!accessToken;
 
-  // Admin routes — require admin token cookie
+  // Admin routes — require login at minimum; superadmin check is page-level
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {
-    const adminToken = request.cookies.get("admin_token")?.value;
-    // Admin login page is public
     if (pathname === "/admin/login") return NextResponse.next();
-    // For other admin routes, we rely on the page-level check
-    // (admin token is in sessionStorage, not accessible server-side)
+    if (!isAuthenticated) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
     return NextResponse.next();
   }
 

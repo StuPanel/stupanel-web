@@ -95,7 +95,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           id: b.id, type: "booking" as const,
           label: b.eventName ?? "Program",
           sub: b.client ? `${b.client.firstName ?? ""} ${b.client.lastName ?? ""}`.trim() : "",
-          href: `/bookings/${b.id}`,
+          href: `/programs?view=${b.id}`,
         })),
         ...(clientsData.data ?? []).map((c: any) => ({
           id: c.id, type: "client" as const,

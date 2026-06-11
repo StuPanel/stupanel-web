@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Loader2, Search, X, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,8 @@ import { ViewDrawer } from "./_components/view-drawer";
 import type { Booking, Package, TeamMember } from "./_components/types";
 
 export default function ProgramsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, statusCounts: {} as Record<string, number> });
   const [loading, setLoading] = useState(true);
@@ -49,6 +52,26 @@ export default function ProgramsPage() {
   }, [page, search, statusFilter]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Auto-open drawer when navigating from search (?view=id)
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (!viewId || loading) return;
+    const found = bookings.find((b) => b.id === viewId);
+    if (found) {
+      setViewTarget(found);
+      router.replace("/programs", { scroll: false });
+    } else {
+      // Not in current page — fetch directly
+      apiFetch(`${API}/bookings/${viewId}`).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setViewTarget(data);
+          router.replace("/programs", { scroll: false });
+        }
+      });
+    }
+  }, [searchParams, bookings, loading, router]);
 
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 

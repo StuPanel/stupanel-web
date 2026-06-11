@@ -14,6 +14,7 @@ import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliverySection } from "./delivery-section";
+import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import type { Booking } from "./types";
 
 export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
@@ -25,6 +26,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
 }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [genInvoicing, setGenInvoicing] = useState(false);
   const [localBooking, setLocalBooking] = useState<Booking | null>(null);
   const router = useRouter();
@@ -177,6 +179,12 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
           )}
 
           <DeliverySection booking={b} r2Enabled={r2Enabled} onRefresh={refreshBooking} />
+          <button
+            onClick={() => setDeliveryOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition-colors"
+          >
+            Manage Delivery →
+          </button>
 
           {b.internalNotes && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -195,6 +203,11 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
       <WhatsAppModal
         booking={waOpen ? b : null}
         onClose={() => setWaOpen(false)}
+      />
+      <DeliveryModal
+        booking={deliveryOpen ? (b as any) : null}
+        onClose={() => setDeliveryOpen(false)}
+        onSaved={(updated) => { refreshBooking(); setDeliveryOpen(false); }}
       />
     </>
   );

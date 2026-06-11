@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { setAccessTokenCookie } from "@/lib/auth-cookie";
 
 function CallbackHandler() {
   const params = useSearchParams();
@@ -27,6 +28,7 @@ function CallbackHandler() {
 
     localStorage.setItem("access_token", token);
     localStorage.setItem("user_role", role);
+    setAccessTokenCookie(token);
 
     if (role === "staff") {
       window.location.href = "/member/dashboard";

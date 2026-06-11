@@ -171,6 +171,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     } catch {}
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
+    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
     router.push("/login");
   }
 

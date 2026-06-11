@@ -63,11 +63,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // refresh_token is set as httpOnly cookie by the backend on login/OAuth
-  // access_token lives in localStorage (client-side only, not readable here)
-  const refreshToken = request.cookies.get("refresh_token")?.value;
+  // access_token is set as a client cookie by the frontend after login
+  const accessToken = request.cookies.get("access_token")?.value;
 
-  const isAuthenticated = !!refreshToken;
+  const isAuthenticated = !!accessToken;
 
   // Admin routes — require admin token cookie
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {

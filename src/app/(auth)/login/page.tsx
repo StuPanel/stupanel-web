@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { setAccessTokenCookie } from "@/lib/auth-cookie";
 
 function LoginForm() {
   const router = useRouter();
@@ -65,6 +66,7 @@ function LoginForm() {
 
       localStorage.setItem("access_token", data.accessToken);
       localStorage.setItem("user_role", data.user.role);
+      setAccessTokenCookie(data.accessToken);
 
       // Role-based redirect
       if (data.user.role === "staff") {

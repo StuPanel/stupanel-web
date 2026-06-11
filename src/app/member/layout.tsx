@@ -39,6 +39,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   function logout() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
+    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
     router.replace("/login");
   }
 

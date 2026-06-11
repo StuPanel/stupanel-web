@@ -63,12 +63,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const accessToken = request.cookies.get("access_token")?.value;
-  const localToken =
-    request.headers.get("x-access-token") ??
-    request.headers.get("authorization")?.replace("Bearer ", "");
+  // refresh_token is set as httpOnly cookie by the backend on login/OAuth
+  // access_token lives in localStorage (client-side only, not readable here)
+  const refreshToken = request.cookies.get("refresh_token")?.value;
 
-  const isAuthenticated = !!(accessToken || localToken);
+  const isAuthenticated = !!refreshToken;
 
   // Admin routes — require admin token cookie
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {

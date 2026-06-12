@@ -74,6 +74,7 @@ export interface Booking {
   deliveryDate?: string;
   driveFolderUrl?: string;
   driveDeliveredAt?: string;
+  rawFilesInfo?: { pcName?: string; folderPath?: string; driveLink?: string; notes?: string };
   eventDays: EventDay[];
   costEntries: CostEntry[];
   client: { id: string; firstName: string; lastName?: string; phone?: string };

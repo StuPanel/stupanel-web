@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   X, Edit3, DollarSign, MessageCircle, FileText,
   Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
-  ExternalLink, Calendar,
+  ExternalLink, Calendar, Monitor, FolderOpen, Users, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -92,12 +92,189 @@ function DeliveryOverview({ booking }: { booking: Booking }) {
   );
 }
 
-export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
+function RawFilesSection({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {
+  const info = booking.rawFilesInfo ?? {};
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ pcName: info.pcName ?? "", folderPath: info.folderPath ?? "", driveLink: info.driveLink ?? "", notes: info.notes ?? "" });
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await apiFetch(`${API}/bookings/${booking.id}/raw-files`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      setEditing(false);
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  const hasInfo = info.pcName || info.folderPath || info.driveLink || info.notes;
+
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <Monitor className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs font-semibold text-slate-600">Raw Files Info</span>
+        </div>
+        <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Edit"}</button>
+      </div>
+
+      {editing ? (
+        <div className="p-4 space-y-3 bg-white">
+          {[
+            { key: "pcName", label: "PC Name", placeholder: "Editing PC 2" },
+            { key: "folderPath", label: "Folder Path", placeholder: "D:/Projects/2026/Saiful_Wedding" },
+            { key: "driveLink", label: "Drive Link", placeholder: "https://drive.google.com/..." },
+            { key: "notes", label: "Notes", placeholder: "1st session footage আলাদা folder-এ আছে" },
+          ].map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+              <input
+                value={(form as any)[key]}
+                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                placeholder={placeholder}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          ))}
+          <button onClick={save} disabled={saving}
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save
+          </button>
+        </div>
+      ) : hasInfo ? (
+        <div className="p-4 space-y-2 bg-white">
+          {info.pcName && <div className="flex items-center gap-2"><Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="text-sm text-slate-700">{info.pcName}</span></div>}
+          {info.folderPath && <div className="flex items-start gap-2"><FolderOpen className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" /><span className="text-sm text-slate-700 font-mono break-all">{info.folderPath}</span></div>}
+          {info.driveLink && <a href={info.driveLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"><Link2 className="w-3.5 h-3.5 shrink-0" />Open Drive Folder</a>}
+          {info.notes && <p className="text-xs text-slate-500 bg-amber-50 rounded-lg px-3 py-2">{info.notes}</p>}
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-center bg-white">
+          <p className="text-xs text-slate-400">No raw files info yet — click Edit to add</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void }) {
+  const [editors, setEditors] = useState<{ userId: string; role: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<{ userId: string; role: "photo_editor" | "video_editor" }[]>([]);
+
+  useEffect(() => {
+    apiFetch(`${API}/bookings/${booking.id}/editors`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        setEditors((data as any[]).map((e: any) => ({
+          userId: e.userId,
+          role: e.roleInBooking,
+          name: `${e.user?.firstName ?? ""} ${e.user?.lastName ?? ""}`.trim(),
+        })));
+        setDraft((data as any[]).map((e: any) => ({ userId: e.userId, role: e.roleInBooking })));
+      })
+      .finally(() => setLoading(false));
+  }, [booking.id]);
+
+  const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
+
+  function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
+    setDraft(prev => {
+      const exists = prev.find(e => e.userId === userId && e.role === role);
+      return exists ? prev.filter(e => !(e.userId === userId && e.role === role)) : [...prev, { userId, role }];
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await apiFetch(`${API}/bookings/${booking.id}/editors`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ editors: draft }),
+      });
+      setEditing(false);
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs font-semibold text-slate-600">Editors</span>
+          {!loading && editors.length > 0 && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium">{editors.length}</span>}
+        </div>
+        <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Assign"}</button>
+      </div>
+
+      {editing ? (
+        <div className="p-4 space-y-3 bg-white">
+          {editorMembers.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center">No members with editor roles found</p>
+          ) : (
+            <div className="space-y-2">
+              {editorMembers.map(m => (
+                <div key={m.id} className="space-y-1">
+                  <p className="text-xs font-medium text-slate-700">{m.firstName} {m.lastName ?? ""}</p>
+                  <div className="flex gap-2">
+                    {m.memberRoles.includes("photo_editor") && (
+                      <button onClick={() => toggleEditor(m.id, "photo_editor")}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "photo_editor") ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-600 hover:border-indigo-300"}`}>
+                        Photo Editor
+                      </button>
+                    )}
+                    {m.memberRoles.includes("video_editor") && (
+                      <button onClick={() => toggleEditor(m.id, "video_editor")}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "video_editor") ? "bg-purple-600 text-white border-purple-600" : "border-slate-200 text-slate-600 hover:border-purple-300"}`}>
+                        Video Editor
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={save} disabled={saving}
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Editors
+          </button>
+        </div>
+      ) : loading ? (
+        <div className="py-4 flex justify-center bg-white"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+      ) : editors.length > 0 ? (
+        <div className="divide-y divide-slate-100 bg-white">
+          {editors.map((e, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm text-slate-700">{e.name}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${e.role === "photo_editor" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
+                {e.role === "photo_editor" ? "Photo Editor" : "Video Editor"}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-center bg-white">
+          <p className="text-xs text-slate-400">No editors assigned — click Assign</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, teamMembers }: {
   booking: Booking | null;
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
   r2Enabled: boolean;
+  teamMembers?: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[];
 }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
@@ -252,6 +429,9 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled }: {
               </span>
             </div>
           )}
+
+          <RawFilesSection booking={b} onSaved={refreshBooking} />
+          <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
 
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Delivery</p>

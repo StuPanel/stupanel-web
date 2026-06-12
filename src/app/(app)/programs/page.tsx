@@ -161,6 +161,7 @@ export default function ProgramsPage() {
         onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
         onRefresh={fetchAll}
         r2Enabled={r2Enabled}
+        teamMembers={teamMembers}
       />
       <DeleteDialog booking={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={fetchAll} />
     </div>

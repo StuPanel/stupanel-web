@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
-  LayoutDashboard, Camera, LogOut, Menu, X, ChevronRight, UserCircle,
+  LayoutDashboard, Camera, LogOut, Menu, X, ChevronRight, UserCircle, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -15,6 +15,7 @@ function getToken() { return typeof window !== "undefined" ? localStorage.getIte
 const navItems = [
   { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard },
   { label: "My Programs", href: "/member/programs",  icon: Camera },
+  { label: "Editing",     href: "/member/editing",   icon: Video },
   { label: "My Profile",  href: "/member/profile",   icon: UserCircle },
 ];
 

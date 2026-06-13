@@ -424,24 +424,33 @@ function Step4Costs({ data, onChange, teamMembers }: {
   const profit = net - totalCost;
   const margin = net > 0 ? Math.round((profit / net) * 100) : 0;
 
+  // Only show members assigned in event days shifts
+  const assignedMemberIds = new Set(
+    data.eventDays.flatMap(d => d.shifts.flatMap(s => s.memberIds))
+  );
+  const assignedMembers = assignedMemberIds.size > 0
+    ? teamMembers.filter(m => assignedMemberIds.has(m.id))
+    : teamMembers;
+
   function addEntry() {
     onChange({ costEntries: [...data.costEntries, { id: uid(), role: "", memberId: "", memberName: "", totalBill: 0, note: "" }] });
   }
   function removeEntry(id: string) {
     onChange({ costEntries: data.costEntries.filter(e => e.id !== id) });
   }
-  function updateEntry(id: string, field: string, value: string | number) {
-    onChange({ costEntries: data.costEntries.map(e => e.id === id ? { ...e, [field]: value } : e) });
+  function updateEntry(id: string, updates: Record<string, string | number>) {
+    onChange({ costEntries: data.costEntries.map(e => e.id === id ? { ...e, ...updates } : e) });
   }
   function pickMember(entryId: string, member: TeamMember) {
-    const entry = data.costEntries.find(e => e.id === entryId)!;
     const role = member.memberRoles[0] ?? "";
     const rateEntry = member.roleRates?.find(r => r.roleId === role);
-    updateEntry(entryId, "memberId", member.id);
-    updateEntry(entryId, "memberName", `${member.firstName} ${member.lastName ?? ""}`.trim());
-    updateEntry(entryId, "role", role);
-    if (rateEntry?.rate) updateEntry(entryId, "totalBill", rateEntry.rate);
-    void entry;
+    // Single update call to avoid stale-closure overwrite bug
+    updateEntry(entryId, {
+      memberId: member.id,
+      memberName: `${member.firstName} ${member.lastName ?? ""}`.trim(),
+      role,
+      ...(rateEntry?.rate ? { totalBill: Number(rateEntry.rate) } : {}),
+    });
   }
 
   return (
@@ -467,18 +476,23 @@ function Step4Costs({ data, onChange, teamMembers }: {
                   <select
                     value={entry.memberId ?? ""}
                     onChange={e => {
-                      const m = teamMembers.find(t => t.id === e.target.value);
-                      if (m) pickMember(entry.id, m); else updateEntry(entry.id, "memberId", e.target.value);
+                      const m = assignedMembers.find(t => t.id === e.target.value);
+                      if (m) pickMember(entry.id, m);
+                      else updateEntry(entry.id, { memberId: e.target.value, memberName: "", role: "" });
                     }}
                     className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400">
                     <option value="">Select member...</option>
-                    {teamMembers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName ?? ""} ({m.memberId})</option>)}
+                    {assignedMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName ?? ""}{m.memberRoles[0] ? ` — ${m.memberRoles[0].replace(/_/g, " ")}` : ""}
+                      </option>
+                    ))}
                     <option value="__custom__">Other / Freelancer</option>
                   </select>
                   <div className="relative w-28">
                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
                     <input type="number" min="0" value={entry.totalBill || ""}
-                      onChange={e => updateEntry(entry.id, "totalBill", parseFloat(e.target.value) || 0)}
+                      onChange={e => updateEntry(entry.id, { totalBill: parseFloat(e.target.value) || 0 })}
                       placeholder="0"
                       className="w-full h-9 pl-5 pr-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400" />
                   </div>
@@ -487,11 +501,11 @@ function Step4Costs({ data, onChange, teamMembers }: {
                   </button>
                 </div>
                 {(!entry.memberId || entry.memberId === "__custom__") && (
-                  <input value={entry.memberName} onChange={e => updateEntry(entry.id, "memberName", e.target.value)}
+                  <input value={entry.memberName} onChange={e => updateEntry(entry.id, { memberName: e.target.value })}
                     placeholder="Name / Role (e.g. Freelance Photographer)"
                     className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
                 )}
-                <input value={entry.note ?? ""} onChange={e => updateEntry(entry.id, "note", e.target.value)}
+                <input value={entry.note ?? ""} onChange={e => updateEntry(entry.id, { note: e.target.value })}
                   placeholder="Note (e.g. with setup, 2 days coverage...)"
                   className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400" />
               </div>

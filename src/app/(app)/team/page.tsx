@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { ProfileDrawer } from "./_components/profile-drawer";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -526,9 +527,9 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
 }
 
 // ─── Member Card ───────────────────────────────────────────────────────────────
-function MemberCard({ m, customRoles, onEdit, onReset, onToggle, onDelete }: {
+function MemberCard({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete }: {
   m: Member; customRoles: string[];
-  onEdit: () => void; onReset: () => void; onToggle: () => void; onDelete: () => void;
+  onView: () => void; onEdit: () => void; onReset: () => void; onToggle: () => void; onDelete: () => void;
 }) {
   const initials = (m.firstName[0] + (m.lastName?.[0] ?? "")).toUpperCase();
   const colors = ["bg-indigo-500","bg-violet-500","bg-emerald-500","bg-blue-500","bg-orange-500","bg-pink-500"];
@@ -541,7 +542,8 @@ function MemberCard({ m, customRoles, onEdit, onReset, onToggle, onDelete }: {
   }
 
   return (
-    <div className={cn("bg-white border rounded-xl p-4 shadow-sm transition-opacity", !m.isActive && "opacity-60")}>
+    <div className={cn("bg-white border rounded-xl p-4 shadow-sm transition-opacity cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all", !m.isActive && "opacity-60")}
+      onClick={onView}>
       <div className="flex items-start gap-3">
         <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0", bg)}>
           {initials}
@@ -586,7 +588,9 @@ function MemberCard({ m, customRoles, onEdit, onReset, onToggle, onDelete }: {
             </div>
           )}
         </div>
-        <ActionMenu member={m} onEdit={onEdit} onReset={onReset} onToggle={onToggle} onDelete={onDelete} />
+        <div onClick={e => e.stopPropagation()}>
+          <ActionMenu member={m} onEdit={onEdit} onReset={onReset} onToggle={onToggle} onDelete={onDelete} />
+        </div>
       </div>
       {m.memberRoles.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -613,6 +617,7 @@ export default function TeamPage() {
   const [editTarget, setEditTarget] = useState<Member | null>(null);
   const [resetTarget, setResetTarget] = useState<Member | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [profileTarget, setProfileTarget] = useState<Member | null>(null);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -729,6 +734,7 @@ export default function TeamPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredMembers.map(m => (
             <MemberCard key={m.id} m={m} customRoles={customRoles}
+              onView={() => setProfileTarget(m)}
               onEdit={() => openEdit(m)}
               onReset={() => setResetTarget(m)}
               onToggle={() => toggleStatus(m)}
@@ -740,6 +746,14 @@ export default function TeamPage() {
       <MemberDrawer open={drawer} onClose={() => { setDrawer(false); setEditTarget(null); }} onSaved={fetchMembers} editing={editTarget} customRoles={customRoles} onCustomRolesChange={setCustomRoles} />
       <ResetPassDialog member={resetTarget} onClose={() => setResetTarget(null)} onDone={fetchMembers} />
       <DeleteDialog member={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={fetchMembers} />
+      <ProfileDrawer
+        member={profileTarget}
+        onClose={() => setProfileTarget(null)}
+        customRoles={customRoles}
+        onEdit={m => { setProfileTarget(null); openEdit(m); }}
+        onReset={m => { setResetTarget(m); }}
+        onToggle={m => { toggleStatus(m); setProfileTarget(null); }}
+      />
     </div>
   );
 }

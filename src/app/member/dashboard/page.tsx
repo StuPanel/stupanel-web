@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Loader2, Camera, CalendarDays, Clock,
-  MapPin, Phone, ArrowRight,
+  MapPin, Phone, ArrowRight, Wallet, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -31,6 +31,14 @@ const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> 
   cancelled:          { label: "Cancelled",    color: "bg-red-100 text-red-600",       dot: "bg-red-500" },
 };
 
+function daysUntil(d: string | null | undefined): number | null {
+  if (!d) return null;
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return null;
+  const now = new Date(); now.setHours(0, 0, 0, 0); dt.setHours(0, 0, 0, 0);
+  return Math.ceil((dt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 interface DashData {
   total: number;
   upcoming: number;
@@ -42,6 +50,8 @@ interface DashData {
     client: { firstName: string; lastName?: string; phone?: string };
   }[];
 }
+
+interface EarningStats { totalEarned: number; pendingAmount: number; thisMonthEarned: number; totalPaid: number; }
 
 function StatCard({ icon: Icon, label, value, color, bg, className }: {
   icon: React.ElementType; label: string; value: number;
@@ -60,14 +70,17 @@ function StatCard({ icon: Icon, label, value, color, bg, className }: {
 
 export default function MemberDashboardPage() {
   const [data, setData] = useState<DashData | null>(null);
+  const [earnings, setEarnings] = useState<EarningStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/member/dashboard`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`${API}/member/dashboard`, { headers: authHeaders() }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/member/earnings`, { headers: authHeaders() }).then(r => r.ok ? r.json() : null),
+    ]).then(([dash, earn]) => {
+      if (dash) setData(dash);
+      if (earn?.stats) setEarnings(earn.stats);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -83,6 +96,9 @@ export default function MemberDashboardPage() {
   const activeStatuses = ["confirmed","advance_received","in_progress","editing","ready_for_delivery"];
   const activeCount = activeStatuses.reduce((s, k) => s + (data.statusCounts[k] ?? 0), 0);
 
+  const nextEvent = data.recentUpcoming[0] ?? null;
+  const nextDays = nextEvent ? daysUntil(nextEvent.eventDate) : null;
+
   return (
     <div className="p-5 md:p-7 space-y-6 max-w-3xl">
       <div>
@@ -90,12 +106,64 @@ export default function MemberDashboardPage() {
         <p className="text-sm text-slate-500 mt-0.5">Your assigned programs overview</p>
       </div>
 
+      {/* Next event countdown */}
+      {nextEvent && nextDays !== null && nextDays >= 0 && (
+        <div className={cn("rounded-xl p-4 flex items-center gap-4 border",
+          nextDays === 0 ? "bg-red-50 border-red-200" :
+          nextDays <= 3 ? "bg-amber-50 border-amber-200" :
+          "bg-indigo-50 border-indigo-200")}>
+          <div className={cn("w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 font-bold",
+            nextDays === 0 ? "bg-red-100 text-red-700" :
+            nextDays <= 3 ? "bg-amber-100 text-amber-700" :
+            "bg-indigo-100 text-indigo-700")}>
+            <span className="text-xl leading-none">{nextDays === 0 ? "!" : nextDays}</span>
+            <span className="text-[9px] uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn("text-xs font-semibold mb-0.5",
+              nextDays === 0 ? "text-red-600" : nextDays <= 3 ? "text-amber-600" : "text-indigo-600")}>
+              {nextDays === 0 ? "Program today!" : nextDays <= 3 ? "Coming up soon" : "Next program"}
+            </p>
+            <p className="font-bold text-slate-900 truncate">{nextEvent.eventName || "Event"}</p>
+            <p className="text-xs text-slate-500">{nextEvent.client.firstName} {nextEvent.client.lastName ?? ""} · {fmtDate(nextEvent.eventDate)}</p>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard icon={Camera} label="Total Programs" value={data.total} color="text-indigo-600" bg="bg-indigo-50" />
         <StatCard icon={CalendarDays} label="Upcoming (30d)" value={data.upcoming} color="text-blue-600" bg="bg-blue-50" />
         <StatCard icon={Clock} label="Active" value={activeCount} color="text-amber-600" bg="bg-amber-50" className="col-span-2 md:col-span-1" />
       </div>
+
+      {/* Earnings quick view */}
+      {earnings && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">My Earnings</p>
+            <Link href="/member/earnings" className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:underline">
+              Details <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Total Earned</p>
+              <p className="font-extrabold text-slate-900 text-base">{earnings.totalEarned.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">This Month</p>
+              <p className="font-extrabold text-indigo-700 text-base">{earnings.thisMonthEarned.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Pending</p>
+              <p className={cn("font-extrabold text-base", earnings.pendingAmount > 0 ? "text-amber-600" : "text-emerald-600")}>
+                {earnings.pendingAmount.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status breakdown */}
       {Object.keys(data.statusCounts).length > 0 && (

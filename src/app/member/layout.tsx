@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
   LayoutDashboard, Camera, LogOut, Menu, X, ChevronRight, UserCircle, Video,
+  Wallet, CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -16,6 +17,8 @@ const navItems = [
   { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard },
   { label: "My Programs", href: "/member/programs",  icon: Camera },
   { label: "Editing",     href: "/member/editing",   icon: Video },
+  { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays },
+  { label: "My Earnings", href: "/member/earnings",  icon: Wallet },
   { label: "My Profile",  href: "/member/profile",   icon: UserCircle },
 ];
 

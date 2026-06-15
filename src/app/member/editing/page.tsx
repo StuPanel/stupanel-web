@@ -220,7 +220,7 @@ export default function EditingPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="p-5 md:p-7 space-y-4 max-w-3xl">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Editing</h1>
         <p className="text-xs text-slate-400 mt-0.5">Programs assigned to you for editing</p>

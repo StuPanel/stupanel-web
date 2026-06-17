@@ -7,15 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d: string | Date | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
+import { fmtDate } from "@/lib/format";
 
 interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; }
 interface Quote {
@@ -94,7 +86,8 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
     </div>
   );
 
-  const sym = quote.currency === "BDT" ? "৳" : "$";
+  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
+  const sym = SYMS[quote.currency] ?? quote.currency;
   const sc = STATUS_CFG[quote.status] ?? STATUS_CFG.sent;
   const isExpired = quote.status === "expired";
   const canAct = ["sent", "viewed"].includes(quote.status) && !done;

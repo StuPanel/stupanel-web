@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, TrendingUp, DollarSign, Building2, BarChart3 } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { Authorization: `Bearer ${getToken()}` }; }
@@ -52,7 +53,7 @@ export default function AdminRevenuePage() {
 
   const maxMonthly = Math.max(...data.monthly.map(m => m.total), 1);
   const maxStudio = Math.max(...data.topStudios.map(s => s.total), 1);
-  const f = (v: number) => `৳${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  const f = (v: number) => formatCurrency(Math.round(v));
 
   return (
     <div className="p-6 md:p-8 space-y-6">

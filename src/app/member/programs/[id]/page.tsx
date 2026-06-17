@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 
 type ProgramHub = {
   id: string;
@@ -54,10 +55,6 @@ const ASSIGNMENT_STATUS: Record<string, { label: string; cls: string }> = {
   delivered:          { label: "Delivered",      cls: "bg-green-100 text-green-700" },
 };
 
-function fmtDate(d?: string) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 function wa(phone: string) {
   const clean = phone.replace(/\D/g, "");

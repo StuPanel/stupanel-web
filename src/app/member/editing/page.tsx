@@ -5,17 +5,11 @@ import { Loader2, Video, CalendarDays, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 
 function getToken() { return localStorage.getItem("access_token") ?? ""; }
 function authFetch(url: string, opts?: RequestInit) {
   return fetch(url, { ...opts, headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts?.headers ?? {}) } });
-}
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d?: string | null) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? "—" : `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
 }
 
 const ASSIGNMENT_STATUS: Record<string, { label: string; color: string }> = {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -27,14 +28,8 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: "bg-red-400", refunded: "bg-rose-400",
 };
 
-function sym(currency = "BDT") { return currency === "BDT" ? "৳" : "$"; }
-function fmt(n: number) {
-  if (n >= 10000000) return "৳" + (n / 10000000).toFixed(1) + "Cr";
-  if (n >= 100000) return "৳" + (n / 100000).toFixed(1) + "L";
-  if (n >= 1000) return "৳" + (n / 1000).toFixed(1) + "K";
-  return "৳" + n.toLocaleString();
-}
-function fmtFull(n: number) { return "৳" + Math.round(n).toLocaleString(); }
+function fmt(n: number, currency = "BDT") { return formatCurrencyCompact(n, currency); }
+function fmtFull(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
 
 interface Summary {
   year: number; totalPrograms: number; contractValue: number; netRevenue: number;

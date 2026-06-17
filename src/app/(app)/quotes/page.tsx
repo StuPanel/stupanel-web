@@ -15,16 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate, formatCurrency } from "@/lib/format";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d: string | Date | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
 function fmtDateTime(d: string | Date | null | undefined) {
   if (!d) return "—";
   const dt = new Date(d);
@@ -34,7 +28,7 @@ function fmtDateTime(d: string | Date | null | undefined) {
   const hh = h % 12 || 12;
   return `${fmtDate(dt)}  ${hh}:${String(m).padStart(2,"0")} ${ampm}`;
 }
-function currSym(c: string) { return c === "BDT" ? "৳" : "$"; }
+function currSym(c: string) { return c === "BDT" ? "৳" : c === "USD" ? "$" : c === "EUR" ? "€" : c === "GBP" ? "£" : c === "INR" ? "₹" : c + " "; }
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS: Record<string, { label: string; badge: string; dot: string; icon: typeof Clock }> = {

@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { STATUS_CFG, fmtDate } from "./constants";
+import { formatCurrency } from "@/lib/format";
 import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
 import { WhatsAppModal } from "./whatsapp-modal";
@@ -207,7 +208,7 @@ function RawFilesSection({ booking, onSaved }: { booking: Booking; onSaved: () =
           <div>
             <p className="text-[10px] text-slate-500 mb-1">Notes</p>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Holud footage আলাদা sub-folder-এ আছে..." rows={2}
+              placeholder="e.g. Event footage is in a separate sub-folder..." rows={2}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
           <button onClick={save} disabled={saving}
@@ -542,7 +543,6 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
   const b = localBooking;
   if (!b) return null;
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-  const sym = b.currency === "BDT" ? "৳" : "$";
   const due = Number(b.grandTotal) - Number(b.paidAmount);
 
   return (
@@ -628,16 +628,16 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Financials</p>
             <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Contract</span><span className="font-semibold">{sym}{Number(b.totalAmount).toLocaleString()}</span></div>
-              {Number(b.discountAmount) > 0 && <div className="flex justify-between"><span className="text-slate-500">Discount</span><span className="text-red-500">− {sym}{Number(b.discountAmount).toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold"><span>Net</span><span>{sym}{Number(b.grandTotal).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Contract</span><span className="font-semibold">{formatCurrency(Number(b.totalAmount), b.currency)}</span></div>
+              {Number(b.discountAmount) > 0 && <div className="flex justify-between"><span className="text-slate-500">Discount</span><span className="text-red-500">− {formatCurrency(Number(b.discountAmount), b.currency)}</span></div>}
+              <div className="flex justify-between font-bold"><span>Net</span><span>{formatCurrency(Number(b.grandTotal), b.currency)}</span></div>
               <div className="border-t border-slate-200 pt-2 flex justify-between">
                 <span className="text-slate-500">Paid</span>
-                <span className="text-emerald-600 font-semibold">{sym}{Number(b.paidAmount).toLocaleString()}</span>
+                <span className="text-emerald-600 font-semibold">{formatCurrency(Number(b.paidAmount), b.currency)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Due</span>
-                <span className={cn("font-bold", due > 0 ? "text-red-600" : "text-emerald-600")}>{sym}{due.toLocaleString()}</span>
+                <span className={cn("font-bold", due > 0 ? "text-red-600" : "text-emerald-600")}>{formatCurrency(due, b.currency)}</span>
               </div>
             </div>
             {due > 0 && (
@@ -657,7 +657,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
                     <p className="font-medium text-slate-800">{e.memberName}</p>
                     {e.note && <p className="text-xs text-slate-400">{e.note}</p>}
                   </div>
-                  <span className="font-bold text-slate-800">{sym}{Number(e.totalBill).toLocaleString()}</span>
+                  <span className="font-bold text-slate-800">{formatCurrency(Number(e.totalBill), b.currency)}</span>
                 </div>
               ))}
             </div>
@@ -670,7 +670,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
                 <span className="font-semibold text-sm text-slate-800">Net Profit</span>
               </div>
               <span className={cn("font-extrabold text-lg", Number(b.profitAmount) >= 0 ? "text-emerald-700" : "text-red-600")}>
-                {sym}{Number(b.profitAmount).toLocaleString()}
+                {formatCurrency(Number(b.profitAmount), b.currency)}
               </span>
             </div>
           )}

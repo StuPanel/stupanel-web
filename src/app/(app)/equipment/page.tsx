@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
@@ -19,7 +20,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> 
   retired:     { label: "Retired",      color: "bg-slate-100 text-slate-500",    dot: "bg-slate-400"   },
 };
 
-function fmt(n?: number | null) { return n ? "৳" + Math.round(n).toLocaleString() : "—"; }
+function fmt(n?: number | null, currency = "BDT") { return n != null ? formatCurrency(Math.round(n), currency) : "—"; }
 
 interface Equipment {
   id: string; name: string; category: string; brand?: string; model?: string;
@@ -278,12 +279,12 @@ export default function EquipmentPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Purchase Price (৳)</label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Purchase Price</label>
                   <input type="number" value={form.purchasePrice} onChange={set("purchasePrice")} placeholder="0"
                     className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Current Value (৳)</label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Current Value</label>
                   <input type="number" value={form.currentValue} onChange={set("currentValue")} placeholder="0"
                     className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
                 </div>

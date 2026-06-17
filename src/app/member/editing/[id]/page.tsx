@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 
 type Workspace = {
   assignment: {
@@ -51,11 +52,6 @@ const DELIVERABLE_TYPES = [
   { value: "album", label: "Album" },
   { value: "other", label: "Other" },
 ];
-
-function fmtDate(d?: string) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });

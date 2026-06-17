@@ -4,16 +4,8 @@ import { useState, useEffect, use } from "react";
 import { Loader2, Printer, Phone, Mail, MapPin, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-
-function fmtDate(d: string | Date | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
-function sym(cur = "BDT") { return cur === "BDT" ? "৳" : "$"; }
+import { fmtDate } from "@/lib/format";
+function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft", sent: "Sent", viewed: "Viewed",

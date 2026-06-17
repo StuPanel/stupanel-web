@@ -149,7 +149,7 @@ export default function MemberProfilePage() {
           <Label className="text-xs font-medium text-slate-600">Phone</Label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" className="h-9 text-sm pl-9" />
+            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 234 567 8900" className="h-9 text-sm pl-9" />
           </div>
         </div>
 

@@ -139,13 +139,13 @@ function StudioTab({ data }: { data: any }) {
       <SectionHead icon={Building2} title="Studio Information" sub="Your studio's public profile and contact details" />
       <form onSubmit={e => { e.preventDefault(); save(f, "Studio info saved!"); }} className="space-y-4 max-w-lg">
         <Field label="Studio Name *">
-          <Input value={f.name} onChange={set("name")} placeholder="Faisal Photography" className="h-11 border-slate-200" required />
+          <Input value={f.name} onChange={set("name")} placeholder="My Photography Studio" className="h-11 border-slate-200" required />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Phone">
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input value={f.phone} onChange={set("phone")} placeholder="+880 1XXXXXXXXX" className="h-11 pl-9 border-slate-200" />
+              <Input value={f.phone} onChange={set("phone")} placeholder="+1 234 567 8900" className="h-11 pl-9 border-slate-200" />
             </div>
           </Field>
           <Field label="Website">
@@ -292,10 +292,10 @@ function PaymentTab({ data }: { data: any }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Bank Name">
-              <Input value={f.bankName} onChange={set("bankName")} placeholder="Dutch Bangla Bank" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankName} onChange={set("bankName")} placeholder="Bank name" className="h-10 border-slate-200 text-sm bg-white" />
             </Field>
             <Field label="Branch">
-              <Input value={f.bankBranch} onChange={set("bankBranch")} placeholder="Gulshan Branch" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankBranch} onChange={set("bankBranch")} placeholder="Branch name" className="h-10 border-slate-200 text-sm bg-white" />
             </Field>
           </div>
           <Field label="Account Holder Name">
@@ -309,7 +309,7 @@ function PaymentTab({ data }: { data: any }) {
               </div>
             </Field>
             <Field label="Routing Number">
-              <Input value={f.bankRoutingNumber} onChange={set("bankRoutingNumber")} placeholder="090261688" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankRoutingNumber} onChange={set("bankRoutingNumber")} placeholder="Routing number" className="h-10 border-slate-200 text-sm bg-white" />
             </Field>
           </div>
         </div>
@@ -322,9 +322,9 @@ function PaymentTab({ data }: { data: any }) {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {([
-              ["bkashNumber",  "bKash",  "01XXXXXXXXX", "text-pink-600"   ],
-              ["nagadNumber",  "Nagad",  "01XXXXXXXXX", "text-orange-600" ],
-              ["rocketNumber", "Rocket", "01XXXXXXXXX", "text-purple-600" ],
+              ["bkashNumber",  "bKash",  "Mobile number", "text-pink-600"   ],
+              ["nagadNumber",  "Nagad",  "Mobile number", "text-orange-600" ],
+              ["rocketNumber", "Rocket", "Mobile number", "text-purple-600" ],
             ] as [string,string,string,string][]).map(([key, label, placeholder, color]) => (
               <Field key={key} label={label}>
                 <div className="relative">

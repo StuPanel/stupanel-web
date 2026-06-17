@@ -1,14 +1,5 @@
 import { Camera, Video, Image, Film, Navigation, Briefcase } from "lucide-react";
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-
-export function fmtDate(d: string | Date | undefined | null): string {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return `${dd}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
+export { fmtDate } from "@/lib/format";
 
 export function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -47,7 +38,7 @@ export const ROLE_ICONS: Record<string, { icon: typeof Camera; color: string }> 
 
 export const PAYMENT_METHODS = [
   { value: "cash", label: "Cash" },
-  { value: "mobile_banking", label: "bKash / Nagad" },
+  { value: "mobile_banking", label: "Mobile Banking" },
   { value: "bank_transfer", label: "Bank Transfer" },
   { value: "credit_card", label: "Card" },
   { value: "other", label: "Other" },

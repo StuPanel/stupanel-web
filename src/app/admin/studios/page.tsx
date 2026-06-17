@@ -285,7 +285,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
                 <Archive className={cn("w-4 h-4 mt-0.5 flex-shrink-0", deleteType === "archive" ? "text-amber-400" : "text-slate-500")} />
                 <div>
                   <p className="text-sm font-medium text-slate-200">Archive (30 days)</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Studio deactivated, data kept for 30 days. Restore করা যাবে।</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Studio deactivated, data kept for 30 days. Can be restored.</p>
                 </div>
                 {deleteType === "archive" && <Check className="w-4 h-4 text-amber-400 ml-auto mt-0.5 flex-shrink-0" />}
               </button>
@@ -296,7 +296,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
                 <Trash2 className={cn("w-4 h-4 mt-0.5 flex-shrink-0", deleteType === "instant" ? "text-red-400" : "text-slate-500")} />
                 <div>
                   <p className="text-sm font-medium text-slate-200">Instant Delete</p>
-                  <p className="text-xs text-slate-500 mt-0.5">সব data + R2 files এখনই permanently delete। Restore সম্ভব না।</p>
+                  <p className="text-xs text-slate-500 mt-0.5">All data + R2 files permanently deleted. Cannot be restored.</p>
                 </div>
                 {deleteType === "instant" && <Check className="w-4 h-4 text-red-400 ml-auto mt-0.5 flex-shrink-0" />}
               </button>

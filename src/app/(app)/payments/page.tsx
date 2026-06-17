@@ -78,7 +78,8 @@ const PAYMENT_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmt(n: number, cur = "BDT") { return (cur === "BDT" ? "৳" : "$") + Number(n).toLocaleString(); }
+import { formatCurrency } from "@/lib/format";
+function fmt(n: number, cur = "BDT") { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return new Date().toISOString().split("T")[0]; }
 
@@ -222,7 +223,7 @@ function PaymentDrawer({
                 <option value="">Select a booking...</option>
                 {bookings.map(b => (
                   <option key={b.id} value={b.id}>
-                    {b.bookingNumber} — {b.eventName || "Untitled"} ({b.currency === "BDT" ? "৳" : "$"}{Number(b.grandTotal).toLocaleString()})
+                    {b.bookingNumber} — {b.eventName || "Untitled"} ({formatCurrency(b.grandTotal, b.currency)})
                   </option>
                 ))}
               </select>
@@ -310,7 +311,7 @@ function PaymentDrawer({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Transaction ID <span className="text-slate-400 font-normal">(optional)</span></Label>
-                <Input placeholder="bKash TXN ID" value={form.transactionId} onChange={set("transactionId")}
+                <Input placeholder="Transaction ID" value={form.transactionId} onChange={set("transactionId")}
                   className="h-11 border-slate-200 focus:border-indigo-400" />
               </div>
             </div>

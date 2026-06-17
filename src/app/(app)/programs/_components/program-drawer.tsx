@@ -15,6 +15,7 @@ import { ClientFormFields, blankClientForm, type ClientFormData } from "@/compon
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { EVENT_TYPES, ROLE_ICONS, fmtDate, uid } from "./constants";
+import { formatCurrency } from "@/lib/format";
 import type { Client, Package, TeamMember, EventDay, CostEntry, Booking } from "./types";
 
 // ─── Wizard State ─────────────────────────────────────────────────────────────
@@ -332,7 +333,8 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
   const adv = parseFloat(data.advanceAmount) || 0;
   const net = total - disc;
   const due = net - adv;
-  const sym = data.currency === "BDT" ? "৳" : "$";
+  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
+  const sym = SYMS[data.currency] ?? data.currency;
 
   return (
     <div className="space-y-4">
@@ -343,7 +345,7 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
           onChange({ packageId: e.target.value, totalAmount: pkg?.basePrice ? String(pkg.basePrice) : data.totalAmount });
         }} className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
           <option value="">No package selected</option>
-          {packages.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${sym}${p.basePrice.toLocaleString()}` : ""}</option>)}
+          {packages.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${formatCurrency(p.basePrice, data.currency)}` : ""}</option>)}
         </select>
       </div>
 
@@ -353,6 +355,9 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
           className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
           <option value="BDT">BDT (৳)</option>
           <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="INR">INR (₹)</option>
         </select>
       </div>
 
@@ -377,7 +382,7 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">Net Amount</Label>
           <div className="h-11 px-3 flex items-center bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-800">
-            {sym}{net.toLocaleString()}
+            {formatCurrency(net, data.currency)}
           </div>
         </div>
       </div>
@@ -399,7 +404,7 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
           <Label className="text-xs font-medium text-slate-600">Due Amount</Label>
           <div className={cn("h-11 px-3 flex items-center rounded-lg border text-sm font-bold",
             due > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
-            {sym}{due.toLocaleString()}
+            {formatCurrency(due, data.currency)}
           </div>
         </div>
       </div>
@@ -413,7 +418,8 @@ function Step4Costs({ data, onChange, teamMembers }: {
   onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
   teamMembers: TeamMember[];
 }) {
-  const sym = data.currency === "BDT" ? "৳" : "$";
+  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
+  const sym = SYMS[data.currency] ?? data.currency;
   const net = (parseFloat(data.totalAmount) || 0) - (parseFloat(data.discountAmount) || 0);
   const teamBill = data.costEntries.reduce((s, e) => s + (parseFloat(String(e.totalBill)) || 0), 0);
   const transport = parseFloat(data.transportCost) || 0;
@@ -538,17 +544,17 @@ function Step4Costs({ data, onChange, teamMembers }: {
       <div className="bg-slate-900 rounded-2xl p-4 text-white space-y-2.5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Profit Summary</p>
         <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between"><span className="text-slate-400">Revenue</span><span className="font-semibold">{sym}{net.toLocaleString()}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Team Cost</span><span className="text-red-400">− {sym}{teamBill.toLocaleString()}</span></div>
-          {transport > 0 && <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="text-red-400">− {sym}{transport.toLocaleString()}</span></div>}
-          {equip > 0 && <div className="flex justify-between"><span className="text-slate-400">Equipment</span><span className="text-red-400">− {sym}{equip.toLocaleString()}</span></div>}
-          {album > 0 && <div className="flex justify-between"><span className="text-slate-400">Album</span><span className="text-red-400">− {sym}{album.toLocaleString()}</span></div>}
-          {other > 0 && <div className="flex justify-between"><span className="text-slate-400">Other</span><span className="text-red-400">− {sym}{other.toLocaleString()}</span></div>}
+          <div className="flex justify-between"><span className="text-slate-400">Revenue</span><span className="font-semibold">{formatCurrency(net, data.currency)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Team Cost</span><span className="text-red-400">− {formatCurrency(teamBill, data.currency)}</span></div>
+          {transport > 0 && <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="text-red-400">− {formatCurrency(transport, data.currency)}</span></div>}
+          {equip > 0 && <div className="flex justify-between"><span className="text-slate-400">Equipment</span><span className="text-red-400">− {formatCurrency(equip, data.currency)}</span></div>}
+          {album > 0 && <div className="flex justify-between"><span className="text-slate-400">Album</span><span className="text-red-400">− {formatCurrency(album, data.currency)}</span></div>}
+          {other > 0 && <div className="flex justify-between"><span className="text-slate-400">Other</span><span className="text-red-400">− {formatCurrency(other, data.currency)}</span></div>}
         </div>
         <div className="border-t border-slate-700 pt-2.5 flex justify-between items-center">
           <span className="font-bold text-base">Net Profit</span>
           <div className="text-right">
-            <span className={cn("font-extrabold text-xl", profit >= 0 ? "text-emerald-400" : "text-red-400")}>{sym}{profit.toLocaleString()}</span>
+            <span className={cn("font-extrabold text-xl", profit >= 0 ? "text-emerald-400" : "text-red-400")}>{formatCurrency(profit, data.currency)}</span>
             <span className={cn("ml-2 text-xs px-1.5 py-0.5 rounded-full font-medium", profit >= 0 ? "bg-emerald-900 text-emerald-300" : "bg-red-900 text-red-300")}>{margin}%</span>
           </div>
         </div>

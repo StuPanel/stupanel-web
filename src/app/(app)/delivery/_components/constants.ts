@@ -1,13 +1,5 @@
 import { Clock, Send, CheckCircle2, FileImage, FileVideo, FileArchive, File } from "lucide-react";
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-
-export function fmtDate(d: string | Date | null | undefined): string {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
+export { fmtDate } from "@/lib/format";
 
 export function daysFromNow(d: string | Date): number {
   return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);

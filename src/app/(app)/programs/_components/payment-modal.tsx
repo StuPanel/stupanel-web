@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { PAYMENT_METHODS } from "./constants";
 import type { Booking } from "./types";
+import { formatCurrency } from "@/lib/format";
 
 export function PaymentModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -34,7 +35,8 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 
   if (!booking) return null;
   const bk = booking;
-  const sym = bk.currency === "BDT" ? "৳" : "$";
+  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
+  const sym = SYMS[bk.currency] ?? bk.currency;
   const due = Number(bk.grandTotal) - Number(bk.paidAmount);
 
   async function submit() {
@@ -81,7 +83,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
             {due > 0 && (
               <div className="flex items-center justify-between px-3 py-2 bg-red-50 rounded-xl border border-red-100">
                 <span className="text-xs text-red-600">Outstanding Due</span>
-                <span className="font-bold text-red-700 text-sm">{sym}{due.toLocaleString()}</span>
+                <span className="font-bold text-red-700 text-sm">{formatCurrency(due, bk.currency)}</span>
               </div>
             )}
             {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}

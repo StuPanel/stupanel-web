@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 import {
   Building2, Users, TrendingUp, BookOpen,
   Activity, AlertTriangle, Loader2, DollarSign,
@@ -85,7 +86,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Total Users" value={data?.totalUsers ?? 0} color="bg-purple-600" />
         <StatCard icon={BookOpen} label="Total Bookings" value={data?.totalBookings ?? 0} color="bg-sky-600" />
-        <StatCard icon={DollarSign} label="Total Revenue" value={`৳${Number(data?.totalRevenue ?? 0).toLocaleString()}`} color="bg-teal-600" />
+        <StatCard icon={DollarSign} label="Total Revenue" value={formatCurrency(Number(data?.totalRevenue ?? 0))} color="bg-teal-600" />
         <StatCard icon={TrendingUp} label="New This Month" value={data?.newStudiosThisMonth ?? 0} color="bg-violet-600" />
       </div>
 

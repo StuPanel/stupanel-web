@@ -9,15 +9,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-
+import { fmtDate, formatCurrency } from "@/lib/format";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-function fmt(n: number) { return "৳" + Math.round(n).toLocaleString(); }
-function fmtDate(iso?: string) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,"0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}-${d.getFullYear()}`;
-}
+function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
 
 interface SalarySlip {
   id: string; month: number; year: number;
@@ -270,13 +265,13 @@ export default function SalaryPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Base Salary (৳)</label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Base Salary</label>
                 <input type="number" value={form.baseSalary} onChange={set("baseSalary")} placeholder="0"
                   className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Program Bonus (৳)</label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Program Bonus</label>
                   <button onClick={calcBonus} disabled={!form.memberId || calcLoading}
                     className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50">
                     {calcLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
@@ -290,14 +285,14 @@ export default function SalaryPage() {
                     {bonusBreakdown.map((b, i) => (
                       <div key={i} className="flex items-center justify-between text-xs bg-blue-50 px-3 py-1.5 rounded-lg">
                         <span className="text-blue-700 truncate">{b.eventName}</span>
-                        <span className="font-bold text-blue-800 ml-2 flex-shrink-0">৳{Math.round(b.amount).toLocaleString()}</span>
+                        <span className="font-bold text-blue-800 ml-2 flex-shrink-0">{formatCurrency(Math.round(b.amount))}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Deductions (৳)</label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Deductions</label>
                 <input type="number" value={form.deductions} onChange={set("deductions")} placeholder="0"
                   className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
               </div>

@@ -4,19 +4,15 @@ import { useState, useEffect } from "react";
 import { Loader2, Wallet, TrendingUp, Clock, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 
 function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` };
 }
 
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d: string | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? "—" : `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
 function fmtMonth(month: number, year: number) {
-  return `${MONTHS[month - 1]} ${year}`;
+  const dt = new Date(year, month - 1, 1);
+  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(dt);
 }
 
 const STATUS_COLOR: Record<string, string> = {

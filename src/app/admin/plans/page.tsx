@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -165,11 +166,11 @@ export default function AdminPlansPage() {
               <div className="flex gap-4">
                 <div>
                   <p className="text-xs text-slate-500">Monthly</p>
-                  <p className="text-lg font-bold text-white">৳{f(plan.priceMonthly)}</p>
+                  <p className="text-lg font-bold text-white">{formatCurrency(Number(plan.priceMonthly))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Yearly</p>
-                  <p className="text-lg font-bold text-white">৳{f(plan.priceYearly)}</p>
+                  <p className="text-lg font-bold text-white">{formatCurrency(Number(plan.priceYearly))}</p>
                 </div>
               </div>
 
@@ -207,12 +208,12 @@ export default function AdminPlansPage() {
                   placeholder="pro" className="bg-slate-800 border-slate-700 text-white h-9 font-mono" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Monthly Price (৳)</label>
+                <label className="text-xs text-slate-400">Monthly Price</label>
                 <Input type="number" value={form.priceMonthly} onChange={e => setForm(p => ({ ...p, priceMonthly: e.target.value }))}
                   placeholder="999" className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Yearly Price (৳)</label>
+                <label className="text-xs text-slate-400">Yearly Price</label>
                 <Input type="number" value={form.priceYearly} onChange={e => setForm(p => ({ ...p, priceYearly: e.target.value }))}
                   placeholder="9999" className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>

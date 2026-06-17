@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 
 interface Pkg {
@@ -215,7 +216,7 @@ function DeleteDialog({ pkg, onClose, onDeleted }: { pkg: Pkg | null; onClose: (
 function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
   pkg: Pkg; onEdit: (p: Pkg) => void; onDelete: (p: Pkg) => void; onToggle: (p: Pkg) => void;
 }) {
-  const fmt = (n: number) => (pkg.currency === "BDT" ? "৳" : "$") + Number(n).toLocaleString();
+  const fmt = (n: number) => formatCurrency(Number(n), pkg.currency);
   return (
     <div className={cn("bg-white border rounded-xl p-4 shadow-sm transition-opacity", !pkg.isActive && "opacity-60")}>
       <div className="flex items-start justify-between gap-3 mb-3">

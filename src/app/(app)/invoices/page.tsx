@@ -13,17 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate, formatCurrency } from "@/lib/format";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d: string | Date | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
-function sym(cur = "BDT") { return cur === "BDT" ? "৳" : "$"; }
+function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
 
 const STATUS: Record<string, { label: string; badge: string; dot: string }> = {
   draft:          { label: "Draft",         badge: "bg-slate-100 text-slate-600",   dot: "bg-slate-400"   },
@@ -539,9 +532,9 @@ export default function InvoicesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Total Value",    val: `৳${Number(stats.totalValue).toLocaleString()}`,     icon: FileText,   color: "bg-indigo-50 text-indigo-600" },
-          { label: "Collected",      val: `৳${Number(stats.totalCollected).toLocaleString()}`,  icon: TrendingUp, color: "bg-emerald-50 text-emerald-600" },
-          { label: "Balance Due",    val: `৳${Number(stats.totalDue).toLocaleString()}`,        icon: DollarSign, color: "bg-red-50 text-red-500" },
+          { label: "Total Value",    val: formatCurrency(Number(stats.totalValue)),    icon: FileText,   color: "bg-indigo-50 text-indigo-600" },
+          { label: "Collected",      val: formatCurrency(Number(stats.totalCollected)), icon: TrendingUp, color: "bg-emerald-50 text-emerald-600" },
+          { label: "Balance Due",    val: formatCurrency(Number(stats.totalDue)),       icon: DollarSign, color: "bg-red-50 text-red-500" },
           { label: "Pending",        val: String(stats.draft),                                  icon: Clock,      color: "bg-amber-50 text-amber-600" },
         ].map(({ label, val, icon: Icon, color }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">

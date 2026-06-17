@@ -73,7 +73,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </div>
               <div>
                 <p className="text-slate-900 font-semibold text-sm leading-none">Payment Received</p>
-                <p className="text-emerald-600 text-xs mt-1 font-medium">+৳55,000 · Karim & Sara</p>
+                <p className="text-emerald-600 text-xs mt-1 font-medium">+$750 · Karim & Sara</p>
               </div>
             </div>
 

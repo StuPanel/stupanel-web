@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ interface Client {
   vipStatus?: boolean;
   isActive?: boolean;
   createdAt?: string;
-  bookings?: { id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; grandTotal: number; paidAmount: number }[];
+  bookings?: { id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; grandTotal: number; paidAmount: number; currency?: string }[];
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -334,11 +335,11 @@ function ProfileDrawer({
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900">৳{Number(b.grandTotal).toLocaleString()}</p>
+                    <p className="text-sm font-bold text-slate-900">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
                     <p className={cn("text-xs font-medium",
                       b.paidAmount >= b.grandTotal && b.grandTotal > 0 ? "text-emerald-600" : "text-orange-500"
                     )}>
-                      {b.paidAmount >= b.grandTotal && b.grandTotal > 0 ? "Paid" : `Due ৳${Math.max(0, b.grandTotal - b.paidAmount).toLocaleString()}`}
+                      {b.paidAmount >= b.grandTotal && b.grandTotal > 0 ? "Paid" : `Due ${formatCurrency(Math.max(0, b.grandTotal - b.paidAmount), b.currency)}`}
                     </p>
                   </div>
                 </div>

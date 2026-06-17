@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
+import { formatCurrency } from "@/lib/format";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -351,13 +352,12 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
                     <p className="text-xs font-semibold text-slate-700">{roleCfg?.label ?? rid}</p>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">৳</span>
                         <input
                           type="number" min="0" step="100"
                           value={rr.rate}
                           onChange={e => updateRoleRate(rid, "rate", e.target.value)}
                           placeholder="0"
-                          className="w-full h-9 pl-6 pr-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400"
+                          className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400"
                         />
                       </div>
                       <select
@@ -565,14 +565,14 @@ function MemberCard({ m, customRoles, onView, onEdit, onReset, onToggle, onDelet
                 const type = r.rateType === "per_program" ? "prog" : r.rateType === "per_day" ? "day" : "mo";
                 return (
                   <span key={r.roleId} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">
-                    {lbl}: ৳{Number(r.rate).toLocaleString()}/{type}
+                    {lbl}: {formatCurrency(Number(r.rate))}/{type}
                   </span>
                 );
               })}
             </div>
           ) : m.payRate ? (
             <p className="text-xs text-emerald-600 font-medium mt-0.5">
-              ৳{Number(m.payRate).toLocaleString()} / {m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}
+              {formatCurrency(Number(m.payRate))} / {m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}
             </p>
           ) : null}
           {m.phone && (

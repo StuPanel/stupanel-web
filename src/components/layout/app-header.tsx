@@ -227,7 +227,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               >
                 {results.length === 0 && !searching && (
                   <div className="px-4 py-6 text-center text-sm text-slate-400">
-                    কোনো ফলাফল পাওয়া যায়নি
+                    No results found
                   </div>
                 )}
                 {results.length > 0 && (

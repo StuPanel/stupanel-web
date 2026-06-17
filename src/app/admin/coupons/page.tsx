@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -169,7 +170,7 @@ export default function AdminCouponsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-bold text-white">
-                      {c.discountType === "percent" ? `${c.discountValue}%` : `৳${c.discountValue}`}
+                      {c.discountType === "percent" ? `${c.discountValue}%` : formatCurrency(Number(c.discountValue))}
                     </span>
                     <span className="text-xs text-slate-500 ml-1 capitalize">off</span>
                   </td>
@@ -233,7 +234,7 @@ export default function AdminCouponsPage() {
                 <select value={form.discountType} onChange={e => setForm(p => ({ ...p, discountType: e.target.value }))}
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-md px-3 h-9 outline-none">
                   <option value="percent">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount (৳)</option>
+                  <option value="fixed">Fixed Amount</option>
                 </select>
               </div>
               <div className="space-y-1.5">

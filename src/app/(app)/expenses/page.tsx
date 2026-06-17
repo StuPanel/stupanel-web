@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency, fmtDate } from "@/lib/format";
 
 
 const WALLET_TYPES = [
@@ -23,11 +24,7 @@ const WALLET_MAP = Object.fromEntries(WALLET_TYPES.map(w => [w.key, w]));
 
 const TX_CATS = ["food", "transport", "equipment", "salary", "marketing", "rent", "utilities", "misc"];
 
-function fmt(n: number) { return "৳" + Math.round(Math.abs(n)).toLocaleString(); }
-function fmtDate(iso: string) {
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,"0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}-${d.getFullYear()}`;
-}
+function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(Math.abs(n)), currency); }
 
 interface WalletData { id: string; name: string; type: string; balance: number; totalCredit: number; totalDebit: number; }
 interface TxData { id: string; type: string; amount: number; description: string; category?: string; date: string; bookingId?: string; }
@@ -302,7 +299,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Opening Balance (৳)</label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Opening Balance</label>
                 <input type="number" value={walletForm.balance} onChange={setW("balance")} placeholder="0"
                   className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
               </div>
@@ -340,7 +337,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Amount (৳) *</label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Amount *</label>
                 <input type="number" value={txForm.amount} onChange={setT("amount")} placeholder="0" autoFocus
                   className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
               </div>

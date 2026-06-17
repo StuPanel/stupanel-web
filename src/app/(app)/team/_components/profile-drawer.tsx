@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
+import { formatCurrency, fmtDate as sharedFmtDate } from "@/lib/format";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Member {
@@ -62,13 +63,8 @@ const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> 
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function fmtDate(d?: string | null) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? "—" : `${String(dt.getDate()).padStart(2,"0")} ${MONTH_SHORT[dt.getMonth()]} ${dt.getFullYear()}`;
-}
+function fmtDate(d?: string | null) { return sharedFmtDate(d); }
 
 function roleConfig(id: string, customRoles: string[] = []) {
   const def = DEFAULT_ROLES.find(r => r.id === id);
@@ -143,14 +139,14 @@ function AddPaymentModal({ memberId, onClose, onSaved }: {
               </div>
             </div>
             <div>
-              <p className="text-xs text-slate-500 mb-1">Amount (৳) *</p>
+              <p className="text-xs text-slate-500 mb-1">Amount *</p>
               <input type="number" min="0" step="100" value={form.amount}
                 onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                 placeholder="0" autoFocus
                 className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 mb-1">Deductions (৳) <span className="text-slate-400">(optional)</span></p>
+              <p className="text-xs text-slate-500 mb-1">Deductions <span className="text-slate-400">(optional)</span></p>
               <input type="number" min="0" step="100" value={form.deductions}
                 onChange={e => setForm(f => ({ ...f, deductions: e.target.value }))}
                 placeholder="0"
@@ -159,7 +155,7 @@ function AddPaymentModal({ memberId, onClose, onSaved }: {
             {form.amount && (
               <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between">
                 <span className="text-xs text-emerald-700">Net Payment</span>
-                <span className="text-sm font-bold text-emerald-700">৳{net.toLocaleString()}</span>
+                <span className="text-sm font-bold text-emerald-700">{formatCurrency(net)}</span>
               </div>
             )}
             <div>
@@ -370,7 +366,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                       <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                       <span className="text-[10px] font-semibold text-emerald-500 uppercase">Lifetime Earned</span>
                     </div>
-                    <p className="text-xl font-bold text-emerald-700">৳{(stats?.lifetimeEarned ?? 0).toLocaleString()}</p>
+                    <p className="text-xl font-bold text-emerald-700">{formatCurrency(stats?.lifetimeEarned ?? 0)}</p>
                   </div>
                   <div className={cn("rounded-xl p-3 border", (stats?.pendingAmount ?? 0) > 0 ? "bg-amber-50 border-amber-100" : "bg-slate-50 border-slate-100")}>
                     <div className="flex items-center gap-2 mb-1">
@@ -378,7 +374,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                       <span className={cn("text-[10px] font-semibold uppercase", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")}>Pending</span>
                     </div>
                     <p className={cn("text-xl font-bold", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-700" : "text-slate-500")}>
-                      ৳{(stats?.pendingAmount ?? 0).toLocaleString()}
+                      {formatCurrency(stats?.pendingAmount ?? 0)}
                     </p>
                   </div>
                 </div>
@@ -419,7 +415,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                               )}
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-sm font-bold text-emerald-700">৳{Number(p.totalBill).toLocaleString()}</p>
+                              <p className="text-sm font-bold text-emerald-700">{formatCurrency(Number(p.totalBill))}</p>
                               <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block", sc.badge)}>{sc.label}</span>
                             </div>
                           </div>
@@ -449,11 +445,11 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                             <p className="text-sm font-semibold text-slate-900">{MONTH_NAMES[s.month - 1]} {s.year}</p>
                             {s.notes && <p className="text-xs text-slate-400 mt-0.5">{s.notes}</p>}
                             {Number(s.deductions) > 0 && (
-                              <p className="text-xs text-red-500 mt-0.5">-৳{Number(s.deductions).toLocaleString()} deduction</p>
+                              <p className="text-xs text-red-500 mt-0.5">-{formatCurrency(Number(s.deductions))} deduction</p>
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="text-base font-bold text-emerald-700">৳{Number(s.netSalary).toLocaleString()}</p>
+                            <p className="text-base font-bold text-emerald-700">{formatCurrency(Number(s.netSalary))}</p>
                             <div className="flex items-center gap-1 justify-end mt-0.5">
                               <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                               <span className="text-[10px] text-emerald-600 font-medium">Paid</span>
@@ -467,7 +463,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                     {slips.length > 0 && (
                       <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
                         <span className="text-xs text-slate-500 font-medium">Total Paid</span>
-                        <span className="text-sm font-bold text-slate-800">৳{(stats?.totalPaid ?? 0).toLocaleString()}</span>
+                        <span className="text-sm font-bold text-slate-800">{formatCurrency(stats?.totalPaid ?? 0)}</span>
                       </div>
                     )}
                   </div>
@@ -496,7 +492,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                             <span className="text-sm text-slate-700 font-medium">{rc.label}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-emerald-700">৳{Number(r.rate).toLocaleString()}</span>
+                            <span className="text-sm font-bold text-emerald-700">{formatCurrency(Number(r.rate))}</span>
                             <span className="text-xs text-slate-400 ml-1">{typeLabel}</span>
                           </div>
                         </div>

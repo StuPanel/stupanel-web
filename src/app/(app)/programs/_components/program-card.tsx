@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { STATUS_CFG, STATUS_PIPELINE, fmtDate } from "./constants";
+import { formatCurrency } from "@/lib/format";
 import type { Booking } from "./types";
 
 export function ProgramCard({ b, onView, onEdit, onDelete }: {
@@ -28,7 +29,6 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
   }, [menuOpen]);
 
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-  const sym = b.currency === "BDT" ? "৳" : "$";
   const due = Number(b.grandTotal) - Number(b.paidAmount);
   const days = b.eventDays?.length ?? 0;
 
@@ -71,17 +71,17 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
         <div>
           <p className="text-xs text-slate-400">Contract</p>
-          <p className="font-bold text-slate-900 text-sm">{sym}{Number(b.grandTotal).toLocaleString()}</p>
+          <p className="font-bold text-slate-900 text-sm">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-400">Due</p>
-          <p className={cn("font-bold text-sm", due > 0 ? "text-red-600" : "text-emerald-600")}>{sym}{due.toLocaleString()}</p>
+          <p className={cn("font-bold text-sm", due > 0 ? "text-red-600" : "text-emerald-600")}>{formatCurrency(due, b.currency)}</p>
         </div>
         {Number(b.profitAmount) !== 0 && (
           <div className="text-right">
             <p className="text-xs text-slate-400">Profit</p>
             <p className={cn("font-bold text-sm", Number(b.profitAmount) >= 0 ? "text-emerald-600" : "text-red-600")}>
-              {sym}{Number(b.profitAmount).toLocaleString()}
+              {formatCurrency(Number(b.profitAmount), b.currency)}
             </p>
           </div>
         )}

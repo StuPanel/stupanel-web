@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate as sharedFmtDate, formatCurrencyCompact, formatCurrency } from "@/lib/format";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,23 +44,16 @@ interface MonthData { month: number; total: number }
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 
-function fmt(n: number, currency = "BDT") {
-  if (n >= 100000) return (currency === "BDT" ? "৳" : "$") + (n / 100000).toFixed(1) + "L";
-  if (n >= 1000) return (currency === "BDT" ? "৳" : "$") + (n / 1000).toFixed(1) + "K";
-  return (currency === "BDT" ? "৳" : "$") + n.toLocaleString();
-}
-
+function fmt(n: number, currency = "BDT") { return formatCurrencyCompact(n, currency); }
+function fmtFull(n: number, currency = "BDT") { return formatCurrency(n, currency); }
 function fmtDate(d: string | Date | null | undefined, short = false): string {
   if (!d) return "—";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return "—";
-  const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return short ? `${dd}-${MONTHS[dt.getMonth()]}` : `${dd}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
-
-function fmtFull(n: number, currency = "BDT") {
-  return (currency === "BDT" ? "৳" : "$") + Number(n).toLocaleString();
+  if (short) {
+    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(dt).toUpperCase().replace(" ", "-");
+  }
+  return sharedFmtDate(dt);
 }
 
 function clientName(c: { firstName: string; lastName?: string }) {

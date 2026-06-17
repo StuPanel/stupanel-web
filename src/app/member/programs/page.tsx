@@ -8,17 +8,10 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 
 function getToken() { return localStorage.getItem("access_token") ?? ""; }
 function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
-
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-function fmtDate(d: string | null | undefined) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2,"0")}-${MONTHS[dt.getMonth()]}-${dt.getFullYear()}`;
-}
 
 const STATUS_CFG: Record<string, { label: string; color: string }> = {
   inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600" },

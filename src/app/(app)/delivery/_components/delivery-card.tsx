@@ -8,12 +8,12 @@ import {
 import { cn } from "@/lib/utils";
 import { DEL_STATUS, fmtDate, daysFromNow } from "./constants";
 import type { Booking } from "./types";
+import { formatCurrency } from "@/lib/format";
 
 export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) {
   const cfg = DEL_STATUS[b.status] ?? DEL_STATUS.confirmed;
   const StatusIcon = cfg.icon;
   const due = Number(b.grandTotal) - Number(b.paidAmount);
-  const sym = b.currency === "BDT" ? "৳" : "$";
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -105,7 +105,7 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
           )}
         </div>
         {due > 0 && (
-          <span className="text-xs font-bold text-red-600">{sym}{due.toLocaleString()} due</span>
+          <span className="text-xs font-bold text-red-600">{formatCurrency(due, b.currency)} due</span>
         )}
       </div>
       <span className="hidden">{String(copied)}</span>

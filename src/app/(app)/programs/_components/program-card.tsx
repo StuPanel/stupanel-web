@@ -33,7 +33,7 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
   const days = b.eventDays?.length ?? 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div onClick={onView} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -48,7 +48,7 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
           <h3 className="font-bold text-slate-900 text-sm truncate">{b.eventName ?? "—"}</h3>
           <p className="text-xs text-slate-400">{b.client.firstName} {b.client.lastName ?? ""}</p>
         </div>
-        <div className="relative flex-shrink-0" ref={menuRef}>
+        <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
           <button onClick={() => setMenuOpen(o => !o)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
             <MoreVertical className="w-4 h-4" />
           </button>

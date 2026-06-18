@@ -12,26 +12,98 @@ import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 
 
+interface StaffingLine { role: string; level: string; count: number; }
+
 interface Pkg {
   id: string; name: string; description?: string; category?: string;
   basePrice: number; currency: string; priceIsNegotiable: boolean;
   durationHours?: number; deliveryDays?: number; deliverablesDescription?: string;
+  eventTypesIncluded?: string[]; staffing?: StaffingLine[];
+  photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
+  ritualsIncluded?: string[]; deliveryMethod?: string;
   isActive: boolean; isVisibleInPortal: boolean; sortOrder: number;
 }
 
 const CATEGORIES = ["Wedding", "Portrait", "Corporate", "Video", "Birthday", "Maternity", "Event", "Other"];
+
+const EVENT_TYPES = [
+  { value: "holud", label: "Holud" },
+  { value: "mehndi", label: "Mehndi" },
+  { value: "wedding", label: "Wedding" },
+  { value: "reception", label: "Reception" },
+  { value: "engagement", label: "Engagement" },
+  { value: "pre_wedding", label: "Pre-Wedding" },
+  { value: "other", label: "Other" },
+];
+const ROLES = [
+  { value: "photographer", label: "Photographer" },
+  { value: "cinematographer", label: "Cinematographer" },
+];
+const LEVELS = [
+  { value: "junior", label: "Junior" },
+  { value: "associate", label: "Associate" },
+  { value: "senior", label: "Senior" },
+  { value: "lead", label: "Lead" },
+  { value: "top_senior", label: "Top Senior" },
+];
+const RITUAL_PRESETS = ["Dodhi Mangal", "Ghot Purano", "Briddhi", "Bashi Biye", "Bodhu Boron"];
+const DELIVERY_METHODS = [
+  { value: "pendrive", label: "Pendrive" },
+  { value: "google_drive", label: "Google Drive" },
+  { value: "both", label: "Pendrive & Google Drive" },
+  { value: "other", label: "Other" },
+];
+
+const LEVEL_LABELS: Record<string, string> = { junior: "Junior", associate: "Associate", senior: "Senior", lead: "Lead", top_senior: "Top Senior" };
+const ROLE_LABELS: Record<string, string> = { photographer: "Photographer", cinematographer: "Cinematographer" };
+const DELIVERY_LABELS: Record<string, string> = { pendrive: "Pendrive", google_drive: "Google Drive", both: "Pendrive & Google Drive", other: "Custom delivery" };
+
+// Renders structured package fields (staffing, deliverables) as bullet lines — shared by the card and the drawer's live preview.
+function summaryLines(p: {
+  staffing?: StaffingLine[]; durationHours?: number;
+  photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
+  ritualsIncluded?: string[]; deliveryMethod?: string;
+}): string[] {
+  const lines: string[] = [];
+  (p.staffing ?? []).forEach(s => {
+    const role = ROLE_LABELS[s.role] ?? s.role;
+    lines.push(`${s.count} ${LEVEL_LABELS[s.level] ?? s.level} ${role}${s.count > 1 ? "s" : ""}`);
+  });
+  if (p.durationHours) lines.push(`${p.durationHours} Hours Coverage`);
+  if (p.photoEditCount) lines.push(`${p.photoEditCount} Photo${p.photoEditCount > 1 ? "s" : ""} Edited`);
+  if (p.trailerCount || p.fullVideoCount) {
+    lines.push([
+      p.trailerCount ? `${p.trailerCount} Trailer${p.trailerCount > 1 ? "s" : ""}` : null,
+      p.fullVideoCount ? `${p.fullVideoCount} Full Video${p.fullVideoCount > 1 ? "s" : ""}` : null,
+    ].filter(Boolean).join(" + "));
+  }
+  if (p.ritualsIncluded?.length) lines.push(`Rituals: ${p.ritualsIncluded.join(", ")}`);
+  if (p.deliveryMethod) lines.push(`Delivered via ${DELIVERY_LABELS[p.deliveryMethod] ?? p.deliveryMethod}`);
+  return lines;
+}
 
 // ─── Drawer ───────────────────────────────────────────────────────────────────
 function PackageDrawer({ open, onClose, onSaved, editing }: {
   open: boolean; onClose: () => void; onSaved: () => void; editing?: Pkg | null;
 }) {
   const isEdit = !!editing;
-  const blank = {
+  const blank: {
+    name: string; description: string; category: string; basePrice: string; currency: string;
+    priceIsNegotiable: boolean; durationHours: string; deliveryDays: string;
+    deliverablesDescription: string; isActive: boolean; isVisibleInPortal: boolean;
+    eventTypesIncluded: string[]; staffing: StaffingLine[];
+    photoEditCount: string; trailerCount: string; fullVideoCount: string;
+    ritualsIncluded: string[]; deliveryMethod: string;
+  } = {
     name: "", description: "", category: "", basePrice: "", currency: "BDT",
     priceIsNegotiable: true, durationHours: "", deliveryDays: "",
     deliverablesDescription: "", isActive: true, isVisibleInPortal: false,
+    eventTypesIncluded: [], staffing: [],
+    photoEditCount: "", trailerCount: "", fullVideoCount: "",
+    ritualsIncluded: [], deliveryMethod: "",
   };
-  const [form, setForm] = useState<typeof blank & { priceIsNegotiable: boolean; isActive: boolean; isVisibleInPortal: boolean }>(blank);
+  const [form, setForm] = useState(blank);
+  const [customRitual, setCustomRitual] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,6 +119,13 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
           deliveryDays: editing.deliveryDays ? String(editing.deliveryDays) : "",
           deliverablesDescription: editing.deliverablesDescription ?? "",
           isActive: editing.isActive, isVisibleInPortal: editing.isVisibleInPortal,
+          eventTypesIncluded: editing.eventTypesIncluded ?? [],
+          staffing: editing.staffing ?? [],
+          photoEditCount: editing.photoEditCount ? String(editing.photoEditCount) : "",
+          trailerCount: editing.trailerCount ? String(editing.trailerCount) : "",
+          fullVideoCount: editing.fullVideoCount ? String(editing.fullVideoCount) : "",
+          ritualsIncluded: editing.ritualsIncluded ?? [],
+          deliveryMethod: editing.deliveryMethod ?? "",
         });
       } else {
         setForm(blank);
@@ -58,6 +137,37 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
   function set(key: string) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value }));
+  }
+
+  function toggleEventType(v: string) {
+    setForm(prev => ({
+      ...prev,
+      eventTypesIncluded: prev.eventTypesIncluded.includes(v)
+        ? prev.eventTypesIncluded.filter(x => x !== v)
+        : [...prev.eventTypesIncluded, v],
+    }));
+  }
+  function toggleRitual(v: string) {
+    setForm(prev => ({
+      ...prev,
+      ritualsIncluded: prev.ritualsIncluded.includes(v)
+        ? prev.ritualsIncluded.filter(x => x !== v)
+        : [...prev.ritualsIncluded, v],
+    }));
+  }
+  function addCustomRitual(v: string) {
+    const t = v.trim();
+    if (!t || form.ritualsIncluded.includes(t)) return;
+    setForm(prev => ({ ...prev, ritualsIncluded: [...prev.ritualsIncluded, t] }));
+  }
+  function addStaffingRow() {
+    setForm(prev => ({ ...prev, staffing: [...prev.staffing, { role: "photographer", level: "junior", count: 1 }] }));
+  }
+  function updateStaffingRow(idx: number, patch: Partial<StaffingLine>) {
+    setForm(prev => ({ ...prev, staffing: prev.staffing.map((s, i) => i === idx ? { ...s, ...patch } : s) }));
+  }
+  function removeStaffingRow(idx: number) {
+    setForm(prev => ({ ...prev, staffing: prev.staffing.filter((_, i) => i !== idx) }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -74,6 +184,13 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
       durationHours: form.durationHours ? parseFloat(form.durationHours) : undefined,
       deliveryDays: form.deliveryDays ? parseInt(form.deliveryDays) : undefined,
       deliverablesDescription: form.deliverablesDescription || undefined,
+      eventTypesIncluded: form.eventTypesIncluded.length ? form.eventTypesIncluded : undefined,
+      staffing: form.staffing.length ? form.staffing : undefined,
+      photoEditCount: form.photoEditCount ? parseInt(form.photoEditCount) : undefined,
+      trailerCount: form.trailerCount ? parseInt(form.trailerCount) : undefined,
+      fullVideoCount: form.fullVideoCount ? parseInt(form.fullVideoCount) : undefined,
+      ritualsIncluded: form.ritualsIncluded.length ? form.ritualsIncluded : undefined,
+      deliveryMethod: form.deliveryMethod || undefined,
       isActive: form.isActive,
       isVisibleInPortal: form.isVisibleInPortal,
     };
@@ -137,14 +254,151 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
               <Label className="text-sm font-medium text-slate-700">Duration (hours) <span className="text-slate-400 font-normal">(optional)</span></Label>
               <Input type="number" min="0" step="0.5" placeholder="e.g. 8" value={form.durationHours} onChange={set("durationHours")} className="h-11 border-slate-200" />
             </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Event Days Included <span className="text-slate-400 font-normal">(optional — for multi-day packages)</span></Label>
+              <div className="flex flex-wrap gap-2">
+                {EVENT_TYPES.map(et => (
+                  <button key={et.value} type="button" onClick={() => toggleEventType(et.value)}
+                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                      form.eventTypesIncluded.includes(et.value) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                    )}>
+                    {et.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-slate-700">Staffing</Label>
+                <button type="button" onClick={addStaffingRow} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> Add Role
+                </button>
+              </div>
+              {form.staffing.length === 0 ? (
+                <p className="text-xs text-slate-400">No staffing added yet — click &quot;Add Role&quot; to build the team for this package.</p>
+              ) : (
+                <div className="space-y-2">
+                  {form.staffing.map((s, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select value={s.role} onChange={e => updateStaffingRow(idx, { role: e.target.value })}
+                        className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 cursor-pointer">
+                        {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                      <select value={s.level} onChange={e => updateStaffingRow(idx, { level: e.target.value })}
+                        className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 cursor-pointer">
+                        {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                      </select>
+                      <Input type="number" min="1" value={s.count}
+                        onChange={e => updateStaffingRow(idx, { count: parseInt(e.target.value) || 1 })}
+                        className="w-16 h-9 text-xs border-slate-200" />
+                      <button type="button" onClick={() => removeStaffingRow(idx)}
+                        className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+              <Label className="text-sm font-medium text-slate-700">Deliverables</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">Photo Edits</Label>
+                  <Input type="number" min="0" placeholder="0" value={form.photoEditCount} onChange={set("photoEditCount")} className="h-9 text-sm border-slate-200" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">Trailer</Label>
+                  <Input type="number" min="0" placeholder="0" value={form.trailerCount} onChange={set("trailerCount")} className="h-9 text-sm border-slate-200" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">Full Video</Label>
+                  <Input type="number" min="0" placeholder="0" value={form.fullVideoCount} onChange={set("fullVideoCount")} className="h-9 text-sm border-slate-200" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">Rituals Included</Label>
+                <div className="flex flex-wrap gap-2">
+                  {RITUAL_PRESETS.map(r => (
+                    <button key={r} type="button" onClick={() => toggleRitual(r)}
+                      className={cn("px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                        form.ritualsIncluded.includes(r) ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"
+                      )}>
+                      {r}
+                    </button>
+                  ))}
+                  {form.ritualsIncluded.filter(r => !RITUAL_PRESETS.includes(r)).map(r => (
+                    <button key={r} type="button" onClick={() => toggleRitual(r)}
+                      className="px-2.5 py-1 rounded-full text-xs font-medium border bg-emerald-600 text-white border-emerald-600">
+                      {r} ×
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1.5">
+                  <Input value={customRitual} onChange={e => setCustomRitual(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomRitual(customRitual); setCustomRitual(""); } }}
+                    placeholder="Add custom ritual..." className="h-8 text-xs border-slate-200 flex-1" />
+                  <Button type="button" variant="outline" onClick={() => { addCustomRitual(customRitual); setCustomRitual(""); }} className="h-8 text-xs px-3 border-slate-200">Add</Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">Delivery Method</Label>
+                <select value={form.deliveryMethod} onChange={set("deliveryMethod")}
+                  className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  <option value="">Select...</option>
+                  {DELIVERY_METHODS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {(form.staffing.length > 0 || form.eventTypesIncluded.length > 0) && (
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
+                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wide">Live Preview</p>
+                <p className="font-bold text-slate-900 text-sm">{form.name || "Package Name"}</p>
+                <p className="text-sm font-bold text-emerald-600">
+                  {formatCurrency(form.basePrice ? Number(form.basePrice) : 0, form.currency)}
+                  {form.priceIsNegotiable && <span className="text-[10px] text-slate-400 font-normal ml-1">negotiable</span>}
+                </p>
+                {form.eventTypesIncluded.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {form.eventTypesIncluded.map(v => (
+                      <span key={v} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
+                        {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <ul className="space-y-1 mt-1">
+                  {summaryLines({
+                    staffing: form.staffing,
+                    durationHours: form.durationHours ? Number(form.durationHours) : undefined,
+                    photoEditCount: form.photoEditCount ? Number(form.photoEditCount) : undefined,
+                    trailerCount: form.trailerCount ? Number(form.trailerCount) : undefined,
+                    fullVideoCount: form.fullVideoCount ? Number(form.fullVideoCount) : undefined,
+                    ritualsIncluded: form.ritualsIncluded,
+                    deliveryMethod: form.deliveryMethod,
+                  }).map((line, i) => (
+                    <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />{line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-700">Description <span className="text-slate-400 font-normal">(optional)</span></Label>
               <textarea value={form.description} onChange={set("description")} rows={2} placeholder="Describe what's included..."
                 className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Deliverables <span className="text-slate-400 font-normal">(optional)</span></Label>
-              <textarea value={form.deliverablesDescription} onChange={set("deliverablesDescription")} rows={2} placeholder="Photos, albums, videos..."
+              <Label className="text-sm font-medium text-slate-700">Custom Note <span className="text-slate-400 font-normal">(optional — used only if no staffing is set above)</span></Label>
+              <textarea value={form.deliverablesDescription} onChange={set("deliverablesDescription")} rows={2} placeholder="Free-text deliverables note for quick/simple packages..."
                 className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
             </div>
             <div className="space-y-2">
@@ -241,6 +495,26 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
         </div>
       </div>
       {pkg.description && <p className="text-xs text-slate-500 mb-3 leading-relaxed">{pkg.description}</p>}
+      {pkg.staffing && pkg.staffing.length > 0 && (
+        <div className="mb-3 space-y-1.5">
+          {pkg.eventTypesIncluded && pkg.eventTypesIncluded.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1">
+              {pkg.eventTypesIncluded.map(v => (
+                <span key={v} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">
+                  {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
+                </span>
+              ))}
+            </div>
+          )}
+          <ul className="space-y-1">
+            {summaryLines(pkg).map((line, i) => (
+              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />{line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
           <DollarSign className="w-3.5 h-3.5 text-emerald-500" />

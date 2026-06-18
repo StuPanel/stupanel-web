@@ -80,12 +80,10 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = !!accessToken;
 
-  // Admin routes — require login at minimum; superadmin check is page-level
+  // Admin routes — admin auth lives in sessionStorage (admin_token), which middleware
+  // (server-side) cannot read at all. The real gate is the client-side check in
+  // admin/layout.tsx; just let the request through here.
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p))) {
-    if (pathname === "/admin/login") return NextResponse.next();
-    if (!isAuthenticated) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
-    }
     return NextResponse.next();
   }
 

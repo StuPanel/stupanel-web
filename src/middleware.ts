@@ -30,6 +30,10 @@ const PROTECTED_PREFIXES = [
 // Routes that require super admin
 const ADMIN_PREFIXES = ["/admin"];
 
+// Apex/marketing hostnames — the app itself only lives on APP_HOST now
+const MARKETING_HOSTS = ["stupanel.com", "www.stupanel.com"];
+const APP_HOST = "app.stupanel.com";
+
 // Public routes (never redirect)
 const PUBLIC_PREFIXES = [
   "/login",
@@ -47,7 +51,15 @@ const PUBLIC_PREFIXES = [
 ];
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
+  const host = request.headers.get("host") || "";
+
+  // stupanel.com / www.stupanel.com is marketing-only now — send every app route to app.stupanel.com.
+  // Explicit hostname allowlist (not "doesn't start with app.") so localhost and Vercel preview URLs are untouched.
+  if (MARKETING_HOSTS.includes(host)) {
+    const target = pathname === "/" ? `https://${APP_HOST}/login` : `https://${APP_HOST}${pathname}${search}`;
+    return NextResponse.redirect(target, 307);
+  }
 
   // Allow public routes through
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {

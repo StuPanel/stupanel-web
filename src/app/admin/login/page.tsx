@@ -20,28 +20,35 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(""); setLoading(true);
 
-    const res = await fetch(`${API}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), password }),
-    });
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.message ?? "Login failed");
-      return;
+      if (!res.ok) {
+        const raw = data.message;
+        setError(Array.isArray(raw) ? raw[0] : (raw || "Login failed"));
+        return;
+      }
+
+      if (!data.user?.isSuperAdmin) {
+        setError("Access denied. Super Admin account required.");
+        return;
+      }
+
+      sessionStorage.setItem("admin_token", data.accessToken);
+      localStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
+      router.replace("/admin/dashboard");
+    } catch {
+      setError("Something went wrong. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    if (!data.user?.isSuperAdmin) {
-      setError("Access denied. Super Admin account required.");
-      return;
-    }
-
-    sessionStorage.setItem("admin_token", data.accessToken);
-    localStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
-    router.replace("/admin/dashboard");
   }
 
   return (

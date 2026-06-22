@@ -75,15 +75,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (role === "staff") { router.replace("/member/dashboard"); return; }
 
     apiFetch(`${API}/auth/me`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
-        if (data) {
-          setEmailVerified(data.emailVerified ?? true);
-          setUserEmail(data.email ?? "");
-          setReady(true);
-        }
+        setEmailVerified(data.emailVerified ?? true);
+        setUserEmail(data.email ?? "");
+        setReady(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("user_role");
+        router.replace("/login");
+      });
   }, [router]);
 
   if (!ready) return null;

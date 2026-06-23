@@ -470,6 +470,11 @@ function Step3Financial({ data, onChange, packages, isEdit, teamMembers }: {
   function removeCrewEntry(id: string) {
     onChange({ costEntries: data.costEntries.filter(e => e.id !== id) });
   }
+  function rolesForMember(memberId: string) {
+    const roles = new Set<string>();
+    for (const d of data.eventDays) for (const s of d.shifts) for (const a of s.assignments) if (a.id === memberId) roles.add(a.role);
+    return Array.from(roles);
+  }
 
   return (
     <div className="space-y-4">
@@ -552,13 +557,17 @@ function Step3Financial({ data, onChange, packages, isEdit, teamMembers }: {
               const bill = parseFloat(String(entry.totalBill)) || 0;
               const paid = parseFloat(String(entry.paidAmount ?? 0)) || 0;
               const crewDue = bill - paid;
+              const liveRoles = entry.memberId ? rolesForMember(entry.memberId) : [];
+              const roleLabel = liveRoles.length > 0
+                ? liveRoles.map(r => ROLE_LABELS[r] ?? r.replace(/_/g, " ")).join(" + ")
+                : (ROLE_LABELS[entry.role] ?? entry.role.replace(/_/g, " "));
               return (
                 <div key={entry.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2">
                   <div className="flex items-center gap-2">
                     <input value={entry.memberName} onChange={e => updateCrewEntry(entry.id, { memberName: e.target.value })}
                       placeholder="Name"
                       className="flex-1 h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs font-medium focus:outline-none focus:border-indigo-400" />
-                    <span className="text-[10px] text-slate-400 px-1.5 whitespace-nowrap">{ROLE_LABELS[entry.role] ?? entry.role.replace(/_/g, " ")}</span>
+                    <span className="text-[10px] text-slate-400 px-1.5 whitespace-nowrap">{roleLabel}</span>
                     <button onClick={() => removeCrewEntry(entry.id)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="grid grid-cols-3 gap-2">

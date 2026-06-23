@@ -40,7 +40,7 @@ export default function ProgramsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       const [bRes, pkgRes, tmRes, compRes] = await Promise.all([
         apiFetch(`${API}/bookings?${params}`),
-        apiFetch(`${API}/programs?limit=100`),
+        apiFetch(`${API}/packages`),
         apiFetch(`${API}/team`),
         apiFetch(`${API}/companies/me`),
       ]);

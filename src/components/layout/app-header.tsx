@@ -39,6 +39,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
   
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [hasUnread, setHasUnread] = useState(false);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -56,6 +57,17 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     apiFetch(`${API}/auth/me`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.firstName) setUser(data); })
+      .catch(() => {});
+
+    apiFetch(`${API}/dashboard/notifications`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.items) return;
+        let dismissed: string[] = [];
+        try { dismissed = JSON.parse(localStorage.getItem("notif_dismissed") ?? "[]"); } catch {}
+        const active = data.items.filter((n: { id: string }) => !dismissed.includes(n.id));
+        setHasUnread(active.length > 0);
+      })
       .catch(() => {});
   }, []);
 
@@ -268,7 +280,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
           <Button variant="ghost" size="sm" className="relative w-9 h-9 p-0" onClick={() => router.push("/notifications")}>
             <Bell className="w-4 h-4 text-slate-500" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+            {hasUnread && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />}
           </Button>
 
           <DropdownMenu>

@@ -3,6 +3,7 @@
 import { Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReferrerInput } from "@/components/ui/referrer-input";
 import { cn } from "@/lib/utils";
 
 export interface ClientFormData {
@@ -14,6 +15,8 @@ export interface ClientFormData {
   facebookProfile: string;
   city: string;
   source: string;
+  referredByClientId: string;
+  referredByName: string;
   address: string;
   occupation: string;
   companyName: string;
@@ -25,6 +28,7 @@ export interface ClientFormData {
 export const blankClientForm: ClientFormData = {
   firstName: "", lastName: "", email: "", phone: "",
   phoneSecondary: "", facebookProfile: "", city: "", source: "",
+  referredByClientId: "", referredByName: "",
   address: "", occupation: "", companyName: "",
   vipStatus: false, notes: "", internalNotes: "",
 };
@@ -120,6 +124,17 @@ export function ClientFormFields({ value, onChange, autoFocus }: ClientFormField
           </select>
         </div>
       </div>
+
+      {value.source === "referral" && (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-slate-700">Referred By</Label>
+          <ReferrerInput
+            clientId={value.referredByClientId || undefined}
+            name={value.referredByName}
+            onChange={({ clientId, name }) => onChange({ referredByClientId: clientId ?? "", referredByName: name ?? "" })}
+          />
+        </div>
+      )}
 
       {/* Address */}
       <div className="space-y-1.5">

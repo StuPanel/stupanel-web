@@ -26,6 +26,7 @@ import {
   Wrench,
   Banknote,
   Wallet,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ const navigation = [
     title: "Studio",
     items: [
       { name: "Clients", href: "/clients", icon: Users },
+      { name: "Referrals", href: "/referrals", icon: Handshake },
       { name: "Quotes", href: "/quotes", icon: FileText },
       { name: "Invoices", href: "/invoices", icon: CreditCard },
       { name: "Payments", href: "/payments", icon: BarChart3 },

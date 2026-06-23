@@ -751,6 +751,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
             facebookProfile: data.newClient.facebookProfile.trim() || undefined,
             city: data.newClient.city.trim() || undefined,
             source: data.newClient.source || undefined,
+            referredByClientId: data.newClient.source === "referral" && data.newClient.referredByClientId ? data.newClient.referredByClientId : undefined,
+            referredByName: data.newClient.source === "referral" && !data.newClient.referredByClientId && data.newClient.referredByName.trim() ? data.newClient.referredByName.trim() : undefined,
             address: data.newClient.address.trim() || undefined,
             occupation: data.newClient.occupation.trim() || undefined,
             companyName: data.newClient.companyName.trim() || undefined,

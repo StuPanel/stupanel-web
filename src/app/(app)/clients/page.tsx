@@ -38,6 +38,9 @@ interface Client {
   address?: string;
   city?: string;
   source?: string;
+  referredByClientId?: string;
+  referredByName?: string;
+  referredByClientName?: string;
   notes?: string;
   internalNotes?: string;
   vipStatus?: boolean;
@@ -106,6 +109,8 @@ function ClientDrawer({
           facebookProfile: (editing as any).facebookProfile ?? "",
           city: editing.city ?? "",
           source: editing.source ?? "",
+          referredByClientId: editing.referredByClientId ?? "",
+          referredByName: editing.referredByClientName ?? editing.referredByName ?? "",
           address: (editing as any).address ?? "",
           occupation: editing.occupation ?? "",
           companyName: editing.companyName ?? "",
@@ -135,6 +140,8 @@ function ClientDrawer({
       facebookProfile: form.facebookProfile.trim() || undefined,
       city: form.city.trim() || undefined,
       source: form.source || undefined,
+      referredByClientId: form.source === "referral" && form.referredByClientId ? form.referredByClientId : undefined,
+      referredByName: form.source === "referral" && !form.referredByClientId && form.referredByName.trim() ? form.referredByName.trim() : undefined,
       address: form.address.trim() || undefined,
       occupation: form.occupation.trim() || undefined,
       companyName: form.companyName.trim() || undefined,

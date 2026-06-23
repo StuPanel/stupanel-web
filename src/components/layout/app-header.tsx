@@ -51,6 +51,21 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const checkUnread = useCallback(() => {
+    apiFetch(`${API}/dashboard/notifications`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.items) { setHasUnread(false); return; }
+        let dismissed: string[] = [];
+        let seen: string[] = [];
+        try { dismissed = JSON.parse(localStorage.getItem("notif_dismissed") ?? "[]"); } catch {}
+        try { seen = JSON.parse(localStorage.getItem("notif_seen") ?? "[]"); } catch {}
+        const unseen = data.items.filter((n: { id: string }) => !dismissed.includes(n.id) && !seen.includes(n.id));
+        setHasUnread(unseen.length > 0);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
@@ -59,17 +74,14 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       .then(data => { if (data?.firstName) setUser(data); })
       .catch(() => {});
 
-    apiFetch(`${API}/dashboard/notifications`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.items) return;
-        let dismissed: string[] = [];
-        try { dismissed = JSON.parse(localStorage.getItem("notif_dismissed") ?? "[]"); } catch {}
-        const active = data.items.filter((n: { id: string }) => !dismissed.includes(n.id));
-        setHasUnread(active.length > 0);
-      })
-      .catch(() => {});
-  }, []);
+    checkUnread();
+    window.addEventListener("notif-seen-updated", checkUnread);
+    const interval = setInterval(checkUnread, 60000);
+    return () => {
+      window.removeEventListener("notif-seen-updated", checkUnread);
+      clearInterval(interval);
+    };
+  }, [checkUnread]);
 
   // Close on outside click
   useEffect(() => {

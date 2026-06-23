@@ -16,6 +16,15 @@ const DISMISSED_KEY = "notif_dismissed";
 function getDismissed(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]")); } catch { return new Set(); } }
 function saveDismissed(s: Set<string>) { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...s].slice(-200))); }
 
+const SEEN_KEY = "notif_seen";
+function markSeen(ids: string[]) {
+  let seen: string[] = [];
+  try { seen = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]"); } catch {}
+  const merged = Array.from(new Set([...seen, ...ids])).slice(-200);
+  localStorage.setItem(SEEN_KEY, JSON.stringify(merged));
+  window.dispatchEvent(new Event("notif-seen-updated"));
+}
+
 interface Notif {
   id: string; type: string; priority: "high" | "medium" | "low";
   title: string; body: string; bookingId: string; bookingNumber: string; createdAt: string;
@@ -57,7 +66,11 @@ export default function NotificationsPage() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
       const r = await apiFetch(`${API}/dashboard/notifications`, { headers: { "Content-Type": "application/json" } });
-      if (r.ok) setData(await r.json());
+      if (r.ok) {
+        const json = await r.json();
+        setData(json);
+        if (json?.items?.length) markSeen(json.items.map((n: Notif) => n.id));
+      }
     } finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -66,11 +79,13 @@ export default function NotificationsPage() {
   function dismiss(id: string) {
     const next = new Set(dismissed); next.add(id);
     setDismissed(next); saveDismissed(next);
+    window.dispatchEvent(new Event("notif-seen-updated"));
   }
   function dismissAll() {
     const next = new Set(dismissed);
     visible.forEach(n => next.add(n.id));
     setDismissed(next); saveDismissed(next);
+    window.dispatchEvent(new Event("notif-seen-updated"));
   }
 
   const allItems = data?.items ?? [];

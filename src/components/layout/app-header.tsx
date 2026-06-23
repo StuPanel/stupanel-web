@@ -266,7 +266,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             <Search className="w-5 h-5 text-slate-500" />
           </button>
 
-          <Button variant="ghost" size="sm" className="relative w-9 h-9 p-0">
+          <Button variant="ghost" size="sm" className="relative w-9 h-9 p-0" onClick={() => router.push("/notifications")}>
             <Bell className="w-4 h-4 text-slate-500" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           </Button>

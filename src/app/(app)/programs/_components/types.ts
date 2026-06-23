@@ -37,6 +37,14 @@ export interface EventDay {
   shifts: Shift[];
 }
 
+export interface EditorDraft {
+  userId: string;
+  role: "photo_editor" | "video_editor";
+  editingDeadline?: string;
+  deliveryDeadline?: string;
+  studioNote?: string;
+}
+
 export interface CostEntry {
   id: string;
   role: string;

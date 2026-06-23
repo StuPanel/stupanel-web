@@ -5,7 +5,7 @@ import {
   Plus, X, Loader2, Search, Check, AlertTriangle,
   User, CalendarDays, DollarSign, BarChart2,
   ChevronRight, Clock, Tag, ArrowRight, Users,
-  TrendingUp,
+  TrendingUp, Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
-import { EVENT_TYPES, ROLE_ICONS, fmtDate, uid } from "./constants";
+import { EVENT_TYPES, ROLE_ICONS, ROLE_LABELS, SHOOT_ROLE_ORDER, EDITOR_ROLE_ORDER, fmtDate, uid } from "./constants";
 import { formatCurrency } from "@/lib/format";
-import type { Client, Package, TeamMember, EventDay, CostEntry, Booking } from "./types";
+import type { Client, Package, TeamMember, EventDay, CostEntry, Booking, EditorDraft } from "./types";
 
 // ─── Wizard State ─────────────────────────────────────────────────────────────
 export function blankWizard() {
@@ -31,6 +31,7 @@ export function blankWizard() {
     costEntries: [] as CostEntry[],
     transportCost: "", otherCost: "", albumCost: "", equipCost: "",
     internalNotes: "",
+    editorAssignments: [] as EditorDraft[],
   };
 }
 
@@ -52,7 +53,18 @@ export function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
     albumCost: String(Number(b.albumCost) || ""),
     equipCost: String(Number(b.equipCost) || ""),
     internalNotes: b.internalNotes ?? "",
+    editorAssignments: [] as EditorDraft[],
   };
+}
+
+function groupMembersByRole(members: TeamMember[], order: string[]) {
+  const groups = order
+    .map(role => ({ role, members: members.filter(m => m.memberRoles.includes(role)) }))
+    .filter(g => g.members.length > 0);
+  const known = new Set(order);
+  const other = members.filter(m => !m.memberRoles.some(r => known.has(r)));
+  if (other.length > 0) groups.push({ role: "other", members: other });
+  return groups;
 }
 
 interface BusyInfo {
@@ -192,6 +204,17 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
     });
   }
 
+  function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
+    const exists = data.editorAssignments.find(e => e.userId === userId && e.role === role);
+    onChange({
+      editorAssignments: exists
+        ? data.editorAssignments.filter(e => !(e.userId === userId && e.role === role))
+        : [...data.editorAssignments, { userId, role }],
+    });
+  }
+
+  const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
+
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
@@ -258,37 +281,46 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
                           <button onClick={() => removeShift(day.id, shift.id)} className="text-slate-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
                         </div>
                         {teamMembers.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {teamMembers.map(m => {
-                              const selected = shift.memberIds.includes(m.id);
-                              const isBusy = !selected && (busy?.busyMemberIds?.includes(m.id) ?? false);
-                              const busyDetail = busy?.busyDetails?.[m.id];
-                              const RoleIcon = ROLE_ICONS[m.memberRoles[0]]?.icon ?? Tag;
-                              return (
-                                <div key={m.id} className="relative group">
-                                  <button type="button" onClick={() => toggleMember(day.id, shift.id, m.id)}
-                                    title={isBusy ? `Busy: ${busyDetail?.bookingNumber ?? ""} — ${busyDetail?.shiftLabel ?? ""}` : undefined}
-                                    className={cn("flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-xs font-medium transition-all",
-                                      selected
-                                        ? "bg-indigo-600 text-white border-indigo-600"
-                                        : isBusy
-                                        ? "bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-500"
-                                        : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300")}>
-                                    <RoleIcon className="w-3 h-3" />
-                                    {m.firstName} {m.lastName ?? ""}
-                                    {selected && <Check className="w-3 h-3" />}
-                                    {isBusy && <AlertTriangle className="w-3 h-3 text-amber-500" />}
-                                  </button>
-                                  {isBusy && busyDetail && (
-                                    <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:flex flex-col bg-slate-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap z-10 shadow-xl">
-                                      <span className="font-semibold">{busyDetail.bookingNumber}</span>
-                                      {busyDetail.eventName && <span className="text-slate-300">{busyDetail.eventName}</span>}
-                                      <span className="text-amber-300">{busyDetail.shiftLabel}</span>
-                                    </div>
-                                  )}
+                          <div className="space-y-2">
+                            {groupMembersByRole(teamMembers, SHOOT_ROLE_ORDER).map(group => (
+                              <div key={group.role}>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                                  {ROLE_LABELS[group.role] ?? "Other"}
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.members.map(m => {
+                                    const selected = shift.memberIds.includes(m.id);
+                                    const isBusy = !selected && (busy?.busyMemberIds?.includes(m.id) ?? false);
+                                    const busyDetail = busy?.busyDetails?.[m.id];
+                                    const RoleIcon = ROLE_ICONS[m.memberRoles[0]]?.icon ?? Tag;
+                                    return (
+                                      <div key={m.id} className="relative group">
+                                        <button type="button" onClick={() => toggleMember(day.id, shift.id, m.id)}
+                                          title={isBusy ? `Busy: ${busyDetail?.bookingNumber ?? ""} — ${busyDetail?.shiftLabel ?? ""}` : undefined}
+                                          className={cn("flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-xs font-medium transition-all",
+                                            selected
+                                              ? "bg-indigo-600 text-white border-indigo-600"
+                                              : isBusy
+                                              ? "bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-500"
+                                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300")}>
+                                          <RoleIcon className="w-3 h-3" />
+                                          {m.firstName} {m.lastName ?? ""}
+                                          {selected && <Check className="w-3 h-3" />}
+                                          {isBusy && <AlertTriangle className="w-3 h-3 text-amber-500" />}
+                                        </button>
+                                        {isBusy && busyDetail && (
+                                          <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:flex flex-col bg-slate-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap z-10 shadow-xl">
+                                            <span className="font-semibold">{busyDetail.bookingNumber}</span>
+                                            {busyDetail.eventName && <span className="text-slate-300">{busyDetail.eventName}</span>}
+                                            <span className="text-amber-300">{busyDetail.shiftLabel}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              );
-                            })}
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <p className="text-xs text-slate-400">No team members — add them in the Team section first</p>
@@ -315,6 +347,35 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
           <button onClick={addDay} className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
             <Plus className="w-4 h-4" />Add Another Day
           </button>
+        </div>
+      )}
+
+      {editorMembers.length > 0 && (
+        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+          <div className="bg-slate-50 px-4 py-2.5 flex items-center gap-2">
+            <Film className="w-3.5 h-3.5 text-slate-500" />
+            <span className="text-xs font-semibold text-slate-700">Editing Assignment</span>
+            <span className="text-[10px] text-slate-400">(optional — can also assign later)</span>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            {editorMembers.map(m => (
+              <div key={m.id} className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-sm text-slate-700">{m.firstName} {m.lastName ?? ""}</span>
+                <div className="flex gap-1.5">
+                  {EDITOR_ROLE_ORDER.filter(role => m.memberRoles.includes(role)).map(role => {
+                    const selected = !!data.editorAssignments.find(e => e.userId === m.id && e.role === role);
+                    return (
+                      <button key={role} type="button" onClick={() => toggleEditor(m.id, role as "photo_editor" | "video_editor")}
+                        className={cn("h-7 px-2.5 rounded-full border text-xs font-medium transition-all",
+                          selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300")}>
+                        {ROLE_LABELS[role]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -596,6 +657,14 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     if (open) {
       setStep(0); setError("");
       setData(isEdit && initialBooking ? bookingToWizard(initialBooking) : blankWizard());
+      if (isEdit && initialBooking) {
+        apiFetch(`${API}/bookings/${initialBooking.id}/editors`)
+          .then(r => r.ok ? r.json() : [])
+          .then((rows: { userId: string; role: "photo_editor" | "video_editor" }[]) => {
+            onChange({ editorAssignments: rows.map(r => ({ userId: r.userId, role: r.role })) });
+          })
+          .catch(() => {});
+      }
     }
   }, [open, initialBooking]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -665,6 +734,15 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed to save program."); return; }
+
+      const bookingId = isEdit ? initialBooking!.id : d.id;
+      if (bookingId) {
+        await apiFetch(`${API}/bookings/${bookingId}/editors`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ editors: data.editorAssignments }),
+        }).catch(() => {});
+      }
+
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
     finally { setLoading(false); }

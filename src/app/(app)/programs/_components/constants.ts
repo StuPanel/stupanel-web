@@ -36,6 +36,21 @@ export const ROLE_ICONS: Record<string, { icon: typeof Camera; color: string }> 
   assistant:      { icon: Briefcase,   color: "text-slate-600" },
 };
 
+export const ROLE_LABELS: Record<string, string> = {
+  photographer: "Photographer",
+  cinematographer: "Cinematographer",
+  drone_pilot: "Drone Pilot",
+  assistant: "Assistant",
+  photo_editor: "Photo Editor",
+  video_editor: "Video Editor",
+  other: "Other",
+};
+
+// Display order for the shoot-day member picker
+export const SHOOT_ROLE_ORDER = ["photographer", "cinematographer", "drone_pilot", "assistant"];
+// Display order for the editing assignment picker
+export const EDITOR_ROLE_ORDER = ["photo_editor", "video_editor"];
+
 export const PAYMENT_METHODS = [
   { value: "cash", label: "Cash" },
   { value: "mobile_banking", label: "Mobile Banking" },

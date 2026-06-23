@@ -35,12 +35,25 @@ export function blankWizard() {
   };
 }
 
+// Bookings created before shifts switched from memberIds to assignments still
+// have the old shape in stored JSON — normalize once here so every downstream
+// read can assume `assignments` is always an array.
+function normalizeEventDays(eventDays: EventDay[] | undefined | null): EventDay[] {
+  return (eventDays ?? []).map(day => ({
+    ...day,
+    shifts: (day.shifts ?? []).map(s => ({
+      ...s,
+      assignments: s.assignments ?? (s as any).memberIds ?? [],
+    })),
+  }));
+}
+
 export function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
   return {
     clientMode: "search",
     selectedClient: b.client as Client,
     newClient: blankClientForm,
-    eventDays: (b.eventDays as EventDay[]) ?? [],
+    eventDays: normalizeEventDays(b.eventDays as EventDay[]),
     eventName: b.eventName ?? "",
     packageId: b.program?.id ?? "",
     currency: b.currency ?? "BDT",

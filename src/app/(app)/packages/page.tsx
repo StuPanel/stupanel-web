@@ -40,6 +40,10 @@ const EVENT_TYPES = [
 const ROLES = [
   { value: "photographer", label: "Photographer" },
   { value: "cinematographer", label: "Cinematographer" },
+  { value: "drone_pilot", label: "Drone Pilot" },
+  { value: "assistant", label: "Assistant" },
+  { value: "photo_editor", label: "Photo Editor" },
+  { value: "video_editor", label: "Video Editor" },
 ];
 const LEVELS = [
   { value: "junior", label: "Junior" },
@@ -57,7 +61,11 @@ const DELIVERY_METHODS = [
 ];
 
 const LEVEL_LABELS: Record<string, string> = { junior: "Junior", associate: "Associate", senior: "Senior", lead: "Lead", top_senior: "Top Senior" };
-const ROLE_LABELS: Record<string, string> = { photographer: "Photographer", cinematographer: "Cinematographer" };
+const ROLE_LABELS: Record<string, string> = {
+  photographer: "Photographer", cinematographer: "Cinematographer",
+  drone_pilot: "Drone Pilot", assistant: "Assistant",
+  photo_editor: "Photo Editor", video_editor: "Video Editor",
+};
 const DELIVERY_LABELS: Record<string, string> = { pendrive: "Pendrive", google_drive: "Google Drive", both: "Pendrive & Google Drive", other: "Custom delivery" };
 
 // Renders structured package fields (staffing, deliverables) as bullet lines — shared by the card and the drawer's live preview.
@@ -69,7 +77,8 @@ function summaryLines(p: {
   const lines: string[] = [];
   (p.staffing ?? []).forEach(s => {
     const role = ROLE_LABELS[s.role] ?? s.role;
-    lines.push(`${s.count} ${LEVEL_LABELS[s.level] ?? s.level} ${role}${s.count > 1 ? "s" : ""}`);
+    const level = s.level ? `${LEVEL_LABELS[s.level] ?? s.level} ` : "";
+    lines.push(`${s.count} ${level}${role}${s.count > 1 ? "s" : ""}`);
   });
   if (p.durationUnit === "days" && p.durationDays) {
     lines.push(`${p.durationDays} Day${p.durationDays > 1 ? "s" : ""} Coverage`);
@@ -325,14 +334,14 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
                 <div className="space-y-2">
                   {form.staffing.map((s, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <select value={s.role} onChange={e => updateStaffingRow(idx, { role: e.target.value })}
-                        className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 cursor-pointer">
-                        {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
-                      <select value={s.level} onChange={e => updateStaffingRow(idx, { level: e.target.value })}
-                        className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 cursor-pointer">
-                        {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                      </select>
+                      <div className="flex-1">
+                        <EditableSelect value={s.role} onChange={v => updateStaffingRow(idx, { role: v })}
+                          options={ROLES} className="h-9 text-xs" customPlaceholder="Custom role..." />
+                      </div>
+                      <div className="flex-1">
+                        <EditableSelect value={s.level} onChange={v => updateStaffingRow(idx, { level: v })}
+                          options={LEVELS} placeholder="None" customPlaceholder="Custom level..." className="h-9 text-xs" />
+                      </div>
                       <Input type="number" min="1" value={s.count}
                         onChange={e => updateStaffingRow(idx, { count: parseInt(e.target.value) || 1 })}
                         className="w-16 h-9 text-xs border-slate-200" />

@@ -17,6 +17,7 @@ import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
+import { EditableSelect } from "@/components/ui/editable-select";
 import type { Booking } from "./types";
 
 function DeliveryOverview({ booking }: { booking: Booking }) {
@@ -150,10 +151,8 @@ function RawFilesSection({ booking, onSaved }: { booking: Booking; onSaved: () =
         <div className="p-4 space-y-3 bg-white">
           <div>
             <p className="text-[10px] text-slate-500 mb-1">Storage Type</p>
-            <select value={form.storageType} onChange={e => setForm(f => ({ ...f, storageType: e.target.value }))}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-              {STORAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <EditableSelect value={form.storageType} onChange={v => setForm(f => ({ ...f, storageType: v }))}
+              options={STORAGE_TYPES} className="rounded-lg" />
           </div>
           {[
             { key: "folderName", label: "Folder Name", placeholder: "Saiful_Wedding_RAW" },

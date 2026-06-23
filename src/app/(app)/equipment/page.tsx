@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { EditableSelect } from "@/components/ui/editable-select";
 
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
@@ -249,10 +250,8 @@ export default function EquipmentPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Category</label>
-                  <select value={form.category} onChange={set("category")}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 capitalize">
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <EditableSelect value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))}
+                    options={CATEGORIES.map(c => ({ value: c, label: c }))} className="rounded-xl capitalize" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Status</label>

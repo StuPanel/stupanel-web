@@ -7,6 +7,7 @@ import { Plus, Edit3, Trash2, Loader2, X, AlertTriangle, Package, CheckCircle2, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EditableSelect } from "@/components/ui/editable-select";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
@@ -109,6 +110,7 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
   };
   const [form, setForm] = useState(blank);
   const [customRitual, setCustomRitual] = useState("");
+  const [customEventType, setCustomEventType] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -166,6 +168,11 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
     const t = v.trim();
     if (!t || form.ritualsIncluded.includes(t)) return;
     setForm(prev => ({ ...prev, ritualsIncluded: [...prev.ritualsIncluded, t] }));
+  }
+  function addCustomEventType(v: string) {
+    const t = v.trim();
+    if (!t || form.eventTypesIncluded.includes(t)) return;
+    setForm(prev => ({ ...prev, eventTypesIncluded: [...prev.eventTypesIncluded, t] }));
   }
   function addStaffingRow() {
     setForm(prev => ({ ...prev, staffing: [...prev.staffing, { role: "photographer", level: "junior", count: 1 }] }));
@@ -232,11 +239,8 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Category</Label>
-                <select value={form.category} onChange={set("category")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  <option value="">Select...</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <EditableSelect value={form.category} onChange={v => setForm(prev => ({ ...prev, category: v }))}
+                  options={CATEGORIES.map(c => ({ value: c, label: c }))} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Currency</Label>
@@ -293,6 +297,18 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
                     {et.label}
                   </button>
                 ))}
+                {form.eventTypesIncluded.filter(v => !EVENT_TYPES.some(et => et.value === v)).map(v => (
+                  <button key={v} type="button" onClick={() => toggleEventType(v)}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium border bg-indigo-600 text-white border-indigo-600">
+                    {v} ×
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-1.5">
+                <Input value={customEventType} onChange={e => setCustomEventType(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomEventType(customEventType); setCustomEventType(""); } }}
+                  placeholder="Add custom event day..." className="h-8 text-xs border-slate-200 flex-1" />
+                <Button type="button" variant="outline" onClick={() => { addCustomEventType(customEventType); setCustomEventType(""); }} className="h-8 text-xs px-3 border-slate-200">Add</Button>
               </div>
             </div>
 
@@ -375,11 +391,8 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-500">Delivery Method</Label>
-                <select value={form.deliveryMethod} onChange={set("deliveryMethod")}
-                  className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  <option value="">Select...</option>
-                  {DELIVERY_METHODS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                </select>
+                <EditableSelect value={form.deliveryMethod} onChange={v => setForm(prev => ({ ...prev, deliveryMethod: v }))}
+                  options={DELIVERY_METHODS} className="h-9" />
               </div>
             </div>
 

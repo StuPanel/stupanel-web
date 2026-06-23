@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { EditableSelect } from "@/components/ui/editable-select";
 
 
 const CATEGORIES = [
@@ -155,10 +156,11 @@ export default function ChecklistPage() {
               <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()}
                 placeholder="Task description…" autoFocus
                 className="flex-1 h-10 px-3 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none focus:border-indigo-400" />
-              <select value={newCategory} onChange={e => setNewCategory(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none">
-                {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              <div className="w-40 flex-shrink-0">
+                <EditableSelect value={newCategory} onChange={setNewCategory}
+                  options={CATEGORIES.map(c => ({ value: c.key, label: c.label }))}
+                  className="h-10 rounded-xl border-indigo-200" />
+              </div>
               <button onClick={addItem} className="h-10 px-4 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">Save</button>
               <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-slate-400" /></button>
             </div>
@@ -174,7 +176,7 @@ export default function ChecklistPage() {
             </div>
           ) : (
             Object.entries(grouped(templates)).map(([cat, items]) => {
-              const c = CATEGORY_MAP[cat] ?? CATEGORY_MAP.general;
+              const c = CATEGORY_MAP[cat] ?? { label: cat, color: CATEGORY_MAP.general.color };
               return (
                 <div key={cat} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                   <div className={cn("flex items-center gap-2 px-4 py-3 border-b border-slate-100")}>
@@ -288,17 +290,18 @@ export default function ChecklistPage() {
                   <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()}
                     placeholder="Task description…" autoFocus
                     className="flex-1 h-10 px-3 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none focus:border-indigo-400" />
-                  <select value={newCategory} onChange={e => setNewCategory(e.target.value)}
-                    className="h-10 px-3 rounded-xl border border-indigo-200 bg-white text-sm focus:outline-none">
-                    {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                  </select>
+                  <div className="w-40 flex-shrink-0">
+                    <EditableSelect value={newCategory} onChange={setNewCategory}
+                      options={CATEGORIES.map(c => ({ value: c.key, label: c.label }))}
+                      className="h-10 rounded-xl border-indigo-200" />
+                  </div>
                   <button onClick={addItem} className="h-10 px-4 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">Save</button>
                   <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-slate-400" /></button>
                 </div>
               )}
 
               {Object.entries(grouped(programItems)).map(([cat, items]) => {
-                const c = CATEGORY_MAP[cat] ?? CATEGORY_MAP.general;
+                const c = CATEGORY_MAP[cat] ?? { label: cat, color: CATEGORY_MAP.general.color };
                 return (
                   <div key={cat} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                     <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { EditableSelect } from "@/components/ui/editable-select";
 
 
 const CATEGORIES = [
@@ -22,7 +23,7 @@ const CATEGORIES = [
   { key: "custom",               label: "Custom",               color: "bg-slate-100 text-slate-600" },
 ];
 function catCfg(key: string) {
-  return CATEGORIES.find(c => c.key === key) ?? CATEGORIES[4];
+  return CATEGORIES.find(c => c.key === key) ?? { key, label: key, color: CATEGORIES[4].color };
 }
 
 const PLACEHOLDERS = [
@@ -93,10 +94,8 @@ function TemplateForm({ initial, onSave, onCancel }: {
         </div>
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">Category</Label>
-          <select value={category} onChange={e => setCategory(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
-            {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </select>
+          <EditableSelect value={category} onChange={setCategory}
+            options={CATEGORIES.map(c => ({ value: c.key, label: c.label }))} className="h-10" />
         </div>
       </div>
 

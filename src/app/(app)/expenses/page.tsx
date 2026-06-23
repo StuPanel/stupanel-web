@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate } from "@/lib/format";
+import { EditableSelect } from "@/components/ui/editable-select";
 
 
 const WALLET_TYPES = [
@@ -289,14 +290,8 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {WALLET_TYPES.map(wt => (
-                    <button key={wt.key} onClick={() => setWalletForm(p => ({ ...p, type: wt.key }))}
-                      className={cn("h-9 rounded-xl border text-xs font-medium transition-all", walletForm.type === wt.key ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 text-slate-600 hover:border-indigo-200")}>
-                      {wt.label}
-                    </button>
-                  ))}
-                </div>
+                <EditableSelect value={walletForm.type} onChange={v => setWalletForm(p => ({ ...p, type: v }))}
+                  options={WALLET_TYPES.map(wt => ({ value: wt.key, label: wt.label }))} className="h-9 rounded-xl" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Opening Balance</label>
@@ -349,10 +344,8 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Category</label>
-                  <select value={txForm.category} onChange={setT("category")}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none capitalize">
-                    {TX_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <EditableSelect value={txForm.category} onChange={v => setTxForm(p => ({ ...p, category: v }))}
+                    options={TX_CATS.map(c => ({ value: c, label: c }))} className="h-10 rounded-xl capitalize" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Date</label>

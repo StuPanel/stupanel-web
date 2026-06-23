@@ -36,6 +36,7 @@ export default function ChecklistPage() {
   const [addingFor, setAddingFor] = useState<"template" | "program" | null>(null);
   const [bookingSearch, setBookingSearch] = useState("");
   const [showBookingList, setShowBookingList] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -53,6 +54,14 @@ export default function ChecklistPage() {
   }, []);
 
   useEffect(() => { loadTemplates(); loadBookings(); }, [loadTemplates, loadBookings]);
+
+  async function seedDefaults() {
+    setSeeding(true);
+    try {
+      await apiFetch(`${API}/checklist/templates/seed-defaults`, { method: "POST" });
+      await loadTemplates();
+    } finally { setSeeding(false); }
+  }
 
   async function loadProgramChecklist(bookingId: string) {
     setLoading(true);
@@ -172,7 +181,11 @@ export default function ChecklistPage() {
             <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
               <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
               <p className="text-slate-500 font-medium">No template tasks yet</p>
-              <p className="text-sm text-slate-400 mt-1">Add tasks and they'll auto-populate every program</p>
+              <p className="text-sm text-slate-400 mt-1 mb-4">Add tasks and they'll auto-populate every program</p>
+              <button onClick={seedDefaults} disabled={seeding}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>✨</span>} Use Recommended Checklist
+              </button>
             </div>
           ) : (
             Object.entries(grouped(templates)).map(([cat, items]) => {

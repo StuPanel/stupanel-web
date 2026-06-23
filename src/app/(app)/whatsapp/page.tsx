@@ -154,6 +154,7 @@ export default function WhatsAppPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,6 +165,14 @@ export default function WhatsAppPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function seedDefaults() {
+    setSeeding(true);
+    try {
+      await apiFetch(`${API}/wa-templates/seed-defaults`, { method: "POST" });
+      await load();
+    } finally { setSeeding(false); }
+  }
 
   function onSaved(t: Template) {
     setTemplates(ts => {
@@ -260,9 +269,14 @@ export default function WhatsAppPage() {
           <MessageCircle className="w-12 h-12 text-slate-200 mx-auto mb-3" />
           <p className="font-semibold text-slate-600 mb-1">No templates yet</p>
           <p className="text-sm text-slate-400 mb-4">Create your first WhatsApp message template</p>
-          <Button onClick={() => setShowForm(true)} className="bg-green-600 hover:bg-green-700 text-white gap-2 text-sm">
-            <Plus className="w-4 h-4" />Create First Template
-          </Button>
+          <div className="flex items-center justify-center gap-2">
+            <Button onClick={() => setShowForm(true)} className="bg-green-600 hover:bg-green-700 text-white gap-2 text-sm">
+              <Plus className="w-4 h-4" />Create First Template
+            </Button>
+            <Button onClick={seedDefaults} disabled={seeding} variant="outline" className="gap-2 text-sm border-slate-200">
+              {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>✨</span>}Use Recommended Templates
+            </Button>
+          </div>
         </div>
       )}
 

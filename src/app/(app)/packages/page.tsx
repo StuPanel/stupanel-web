@@ -17,7 +17,8 @@ interface StaffingLine { role: string; level: string; count: number; }
 interface Pkg {
   id: string; name: string; description?: string; category?: string;
   basePrice: number; currency: string; priceIsNegotiable: boolean;
-  durationHours?: number; deliveryDays?: number; deliverablesDescription?: string;
+  durationHours?: number; durationDays?: number; durationUnit?: "hours" | "days";
+  deliveryDays?: number; deliverablesDescription?: string;
   eventTypesIncluded?: string[]; staffing?: StaffingLine[];
   photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
   ritualsIncluded?: string[]; deliveryMethod?: string;
@@ -60,7 +61,7 @@ const DELIVERY_LABELS: Record<string, string> = { pendrive: "Pendrive", google_d
 
 // Renders structured package fields (staffing, deliverables) as bullet lines — shared by the card and the drawer's live preview.
 function summaryLines(p: {
-  staffing?: StaffingLine[]; durationHours?: number;
+  staffing?: StaffingLine[]; durationHours?: number; durationDays?: number; durationUnit?: "hours" | "days";
   photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
   ritualsIncluded?: string[]; deliveryMethod?: string;
 }): string[] {
@@ -69,7 +70,11 @@ function summaryLines(p: {
     const role = ROLE_LABELS[s.role] ?? s.role;
     lines.push(`${s.count} ${LEVEL_LABELS[s.level] ?? s.level} ${role}${s.count > 1 ? "s" : ""}`);
   });
-  if (p.durationHours) lines.push(`${p.durationHours} Hours Coverage`);
+  if (p.durationUnit === "days" && p.durationDays) {
+    lines.push(`${p.durationDays} Day${p.durationDays > 1 ? "s" : ""} Coverage`);
+  } else if (p.durationHours) {
+    lines.push(`${p.durationHours} Hours Coverage`);
+  }
   if (p.photoEditCount) lines.push(`${p.photoEditCount} Photo${p.photoEditCount > 1 ? "s" : ""} Edited`);
   if (p.trailerCount || p.fullVideoCount) {
     lines.push([
@@ -89,14 +94,14 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
   const isEdit = !!editing;
   const blank: {
     name: string; description: string; category: string; basePrice: string; currency: string;
-    priceIsNegotiable: boolean; durationHours: string; deliveryDays: string;
+    priceIsNegotiable: boolean; durationHours: string; durationDays: string; durationUnit: "hours" | "days"; deliveryDays: string;
     deliverablesDescription: string; isActive: boolean; isVisibleInPortal: boolean;
     eventTypesIncluded: string[]; staffing: StaffingLine[];
     photoEditCount: string; trailerCount: string; fullVideoCount: string;
     ritualsIncluded: string[]; deliveryMethod: string;
   } = {
     name: "", description: "", category: "", basePrice: "", currency: "BDT",
-    priceIsNegotiable: true, durationHours: "", deliveryDays: "",
+    priceIsNegotiable: true, durationHours: "", durationDays: "", durationUnit: "hours", deliveryDays: "",
     deliverablesDescription: "", isActive: true, isVisibleInPortal: false,
     eventTypesIncluded: [], staffing: [],
     photoEditCount: "", trailerCount: "", fullVideoCount: "",
@@ -116,6 +121,8 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
           category: editing.category ?? "", basePrice: String(editing.basePrice),
           currency: editing.currency, priceIsNegotiable: editing.priceIsNegotiable,
           durationHours: editing.durationHours ? String(editing.durationHours) : "",
+          durationDays: editing.durationDays ? String(editing.durationDays) : "",
+          durationUnit: editing.durationUnit ?? "hours",
           deliveryDays: editing.deliveryDays ? String(editing.deliveryDays) : "",
           deliverablesDescription: editing.deliverablesDescription ?? "",
           isActive: editing.isActive, isVisibleInPortal: editing.isVisibleInPortal,
@@ -181,7 +188,9 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
       basePrice: form.basePrice ? parseFloat(form.basePrice) : 0,
       currency: form.currency,
       priceIsNegotiable: form.priceIsNegotiable,
-      durationHours: form.durationHours ? parseFloat(form.durationHours) : undefined,
+      durationUnit: form.durationUnit,
+      durationHours: form.durationUnit === "hours" && form.durationHours ? parseFloat(form.durationHours) : undefined,
+      durationDays: form.durationUnit === "days" && form.durationDays ? parseInt(form.durationDays) : undefined,
       deliveryDays: form.deliveryDays ? parseInt(form.deliveryDays) : undefined,
       deliverablesDescription: form.deliverablesDescription || undefined,
       eventTypesIncluded: form.eventTypesIncluded.length ? form.eventTypesIncluded : undefined,
@@ -251,8 +260,26 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Duration (hours) <span className="text-slate-400 font-normal">(optional)</span></Label>
-              <Input type="number" min="0" step="0.5" placeholder="e.g. 8" value={form.durationHours} onChange={set("durationHours")} className="h-11 border-slate-200" />
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-slate-700">Duration <span className="text-slate-400 font-normal">(optional)</span></Label>
+                <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                  {(["hours", "days"] as const).map(unit => (
+                    <button key={unit} type="button" onClick={() => setForm(prev => ({ ...prev, durationUnit: unit }))}
+                      className={cn("px-3 py-1 text-xs font-medium transition-colors capitalize",
+                        form.durationUnit === unit ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50")}>
+                      {unit}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {form.durationUnit === "days" ? (
+                <Input type="number" min="0" step="1" placeholder="e.g. 2" value={form.durationDays} onChange={set("durationDays")} className="h-11 border-slate-200" />
+              ) : (
+                <Input type="number" min="0" step="0.5" placeholder="e.g. 8" value={form.durationHours} onChange={set("durationHours")} className="h-11 border-slate-200" />
+              )}
+              <p className="text-[11px] text-slate-400">
+                {form.durationUnit === "days" ? "Use Days for out-of-town / destination programs" : "Use Hours for in-town / studio coverage"}
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -376,7 +403,9 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
                 <ul className="space-y-1 mt-1">
                   {summaryLines({
                     staffing: form.staffing,
+                    durationUnit: form.durationUnit,
                     durationHours: form.durationHours ? Number(form.durationHours) : undefined,
+                    durationDays: form.durationDays ? Number(form.durationDays) : undefined,
                     photoEditCount: form.photoEditCount ? Number(form.photoEditCount) : undefined,
                     trailerCount: form.trailerCount ? Number(form.trailerCount) : undefined,
                     fullVideoCount: form.fullVideoCount ? Number(form.fullVideoCount) : undefined,
@@ -521,11 +550,15 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
           {fmt(pkg.basePrice)}
           {pkg.priceIsNegotiable && <span className="text-[10px] text-slate-400 font-normal ml-0.5">negotiable</span>}
         </div>
-        {pkg.durationHours && (
+        {pkg.durationUnit === "days" && pkg.durationDays ? (
+          <div className="flex items-center gap-1 text-xs text-slate-400">
+            <Clock className="w-3 h-3" />{pkg.durationDays} Day{pkg.durationDays > 1 ? "s" : ""}
+          </div>
+        ) : pkg.durationHours ? (
           <div className="flex items-center gap-1 text-xs text-slate-400">
             <Clock className="w-3 h-3" />{pkg.durationHours}h
           </div>
-        )}
+        ) : null}
         {pkg.deliveryDays && (
           <div className="flex items-center gap-1 text-xs text-slate-400">
             <CheckCircle2 className="w-3 h-3" />{pkg.deliveryDays}d delivery

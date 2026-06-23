@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Loader2, Search, Check, AlertTriangle,
   User, CalendarDays, DollarSign, BarChart2,
-  ChevronRight, Clock, Tag, ArrowRight, Users,
+  ChevronRight, Clock, Tag, ArrowRight,
   TrendingUp, Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,16 +55,6 @@ export function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
     internalNotes: b.internalNotes ?? "",
     editorAssignments: [] as EditorDraft[],
   };
-}
-
-function groupMembersByRole(members: TeamMember[], order: string[]) {
-  const groups = order
-    .map(role => ({ role, members: members.filter(m => m.memberRoles.includes(role)) }))
-    .filter(g => g.members.length > 0);
-  const known = new Set(order);
-  const other = members.filter(m => !m.memberRoles.some(r => known.has(r)));
-  if (other.length > 0) groups.push({ role: "other", members: other });
-  return groups;
 }
 
 interface BusyInfo {
@@ -163,6 +153,7 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
   editingBookingId?: string;
 }) {
   const [busyMap, setBusyMap] = useState<Record<string, BusyInfo>>({});
+  const [freelancerInput, setFreelancerInput] = useState<Record<string, string>>({});
 
   async function fetchBusy(dayId: string, date: string) {
     if (!date) { setBusyMap(m => { const n = { ...m }; delete n[dayId]; return n; }); return; }
@@ -188,19 +179,42 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
   function addShift(dayId: string, label: string) {
     const day = data.eventDays.find(d => d.id === dayId);
     if (!day || day.shifts.find(s => s.label === label)) return;
-    updateDay(dayId, { shifts: [...day.shifts, { id: uid(), label, memberIds: [] }] });
+    updateDay(dayId, { shifts: [...day.shifts, { id: uid(), label, assignments: [] }] });
   }
   function removeShift(dayId: string, shiftId: string) {
     const day = data.eventDays.find(d => d.id === dayId)!;
     updateDay(dayId, { shifts: day.shifts.filter(s => s.id !== shiftId) });
   }
-  function toggleMember(dayId: string, shiftId: string, memberId: string) {
+  function toggleMember(dayId: string, shiftId: string, memberId: string, role: string) {
     const day = data.eventDays.find(d => d.id === dayId)!;
     updateDay(dayId, {
-      shifts: day.shifts.map(s => s.id === shiftId ? {
-        ...s,
-        memberIds: s.memberIds.includes(memberId) ? s.memberIds.filter(id => id !== memberId) : [...s.memberIds, memberId],
-      } : s),
+      shifts: day.shifts.map(s => {
+        if (s.id !== shiftId) return s;
+        const exists = s.assignments.find(a => a.id === memberId && a.role === role);
+        return {
+          ...s,
+          assignments: exists
+            ? s.assignments.filter(a => !(a.id === memberId && a.role === role))
+            : [...s.assignments, { id: memberId, role }],
+        };
+      }),
+    });
+  }
+  function addFreelancer(dayId: string, shiftId: string, role: string, name: string) {
+    if (!name.trim()) return;
+    const day = data.eventDays.find(d => d.id === dayId)!;
+    updateDay(dayId, {
+      shifts: day.shifts.map(s => s.id === shiftId
+        ? { ...s, assignments: [...s.assignments, { id: `fl_${uid()}`, role, name: name.trim() }] }
+        : s),
+    });
+  }
+  function removeFreelancer(dayId: string, shiftId: string, freelancerId: string) {
+    const day = data.eventDays.find(d => d.id === dayId)!;
+    updateDay(dayId, {
+      shifts: day.shifts.map(s => s.id === shiftId
+        ? { ...s, assignments: s.assignments.filter(a => a.id !== freelancerId) }
+        : s),
     });
   }
 
@@ -274,56 +288,92 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
                           <div className="flex items-center gap-2">
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
                             <span className="text-xs font-semibold text-slate-700">{shift.label}</span>
-                            {shift.memberIds.length > 0 && (
-                              <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-medium">{shift.memberIds.length} assigned</span>
+                            {shift.assignments.length > 0 && (
+                              <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-medium">{shift.assignments.length} assigned</span>
                             )}
                           </div>
                           <button onClick={() => removeShift(day.id, shift.id)} className="text-slate-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
                         </div>
-                        {teamMembers.length > 0 ? (
-                          <div className="space-y-2">
-                            {groupMembersByRole(teamMembers, SHOOT_ROLE_ORDER).map(group => (
-                              <div key={group.role}>
-                                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
-                                  {ROLE_LABELS[group.role] ?? "Other"}
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {group.members.map(m => {
-                                    const selected = shift.memberIds.includes(m.id);
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {SHOOT_ROLE_ORDER.map(role => {
+                            const RoleIcon = ROLE_ICONS[role]?.icon ?? Tag;
+                            const roleMembers = teamMembers.filter(m => m.memberRoles.includes(role));
+                            const roleFreelancers = shift.assignments.filter(a => a.role === role && a.name);
+                            const inputKey = `${shift.id}:${role}`;
+                            return (
+                              <div key={role} className="bg-white rounded-lg border border-slate-200 p-2">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <RoleIcon className="w-3 h-3 text-slate-400" />
+                                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{ROLE_LABELS[role]}(S)</p>
+                                </div>
+                                <div className="space-y-0.5 max-h-28 overflow-y-auto">
+                                  {roleMembers.length === 0 && roleFreelancers.length === 0 && (
+                                    <p className="text-[10px] text-slate-300 px-1">No one tagged</p>
+                                  )}
+                                  {roleMembers.map(m => {
+                                    const selected = !!shift.assignments.find(a => a.id === m.id && a.role === role);
                                     const isBusy = !selected && (busy?.busyMemberIds?.includes(m.id) ?? false);
                                     const busyDetail = busy?.busyDetails?.[m.id];
-                                    const RoleIcon = ROLE_ICONS[m.memberRoles[0]]?.icon ?? Tag;
                                     return (
-                                      <div key={m.id} className="relative group">
-                                        <button type="button" onClick={() => toggleMember(day.id, shift.id, m.id)}
-                                          title={isBusy ? `Busy: ${busyDetail?.bookingNumber ?? ""} — ${busyDetail?.shiftLabel ?? ""}` : undefined}
-                                          className={cn("flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-xs font-medium transition-all",
-                                            selected
-                                              ? "bg-indigo-600 text-white border-indigo-600"
-                                              : isBusy
-                                              ? "bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-500"
-                                              : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300")}>
-                                          <RoleIcon className="w-3 h-3" />
-                                          {m.firstName} {m.lastName ?? ""}
-                                          {selected && <Check className="w-3 h-3" />}
-                                          {isBusy && <AlertTriangle className="w-3 h-3 text-amber-500" />}
-                                        </button>
-                                        {isBusy && busyDetail && (
-                                          <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:flex flex-col bg-slate-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap z-10 shadow-xl">
-                                            <span className="font-semibold">{busyDetail.bookingNumber}</span>
-                                            {busyDetail.eventName && <span className="text-slate-300">{busyDetail.eventName}</span>}
-                                            <span className="text-amber-300">{busyDetail.shiftLabel}</span>
-                                          </div>
-                                        )}
-                                      </div>
+                                      <label key={m.id}
+                                        title={isBusy ? `Busy: ${busyDetail?.bookingNumber ?? ""} — ${busyDetail?.shiftLabel ?? ""}` : undefined}
+                                        className={cn("flex items-center gap-1.5 text-xs px-1 py-1 rounded cursor-pointer",
+                                          isBusy ? "text-amber-700 bg-amber-50" : "text-slate-600 hover:bg-slate-50")}>
+                                        <input type="checkbox" checked={selected}
+                                          onChange={() => toggleMember(day.id, shift.id, m.id, role)}
+                                          className="w-3.5 h-3.5 rounded accent-indigo-600 flex-shrink-0" />
+                                        <span className="truncate">{m.firstName} {m.lastName ?? ""}</span>
+                                        {isBusy && <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                                      </label>
                                     );
                                   })}
+                                  {roleFreelancers.map(f => (
+                                    <div key={f.id} className="flex items-center justify-between gap-1 text-xs px-1 py-1 rounded bg-violet-50 text-violet-700">
+                                      <span className="truncate">{f.name} <span className="text-violet-400">(Freelancer)</span></span>
+                                      <button onClick={() => removeFreelancer(day.id, shift.id, f.id)} className="text-violet-400 hover:text-red-500 flex-shrink-0">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-1 mt-1.5">
+                                  <input value={freelancerInput[inputKey] ?? ""}
+                                    onChange={e => setFreelancerInput(p => ({ ...p, [inputKey]: e.target.value }))}
+                                    onKeyDown={e => {
+                                      if (e.key !== "Enter") return;
+                                      addFreelancer(day.id, shift.id, role, freelancerInput[inputKey] ?? "");
+                                      setFreelancerInput(p => ({ ...p, [inputKey]: "" }));
+                                    }}
+                                    placeholder="+ Freelancer..."
+                                    className="flex-1 h-6 px-1.5 text-[11px] border border-slate-200 rounded focus:outline-none focus:border-indigo-400 min-w-0" />
+                                  <button onClick={() => {
+                                    addFreelancer(day.id, shift.id, role, freelancerInput[inputKey] ?? "");
+                                    setFreelancerInput(p => ({ ...p, [inputKey]: "" }));
+                                  }} className="w-6 h-6 flex items-center justify-center rounded bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 flex-shrink-0">
+                                    <Plus className="w-3 h-3" />
+                                  </button>
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
+                        </div>
+
+                        {shift.assignments.length > 0 && (
+                          <div className="mt-2.5 pt-2.5 border-t border-slate-200 space-y-1">
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Assigned Crew</p>
+                            {shift.assignments.map(a => {
+                              const member = teamMembers.find(m => m.id === a.id);
+                              const name = a.name ?? (member ? `${member.firstName} ${member.lastName ?? ""}`.trim() : "Unknown");
+                              return (
+                                <div key={`${a.id}_${a.role}`} className="flex items-center gap-1.5 text-xs">
+                                  <span className="font-medium text-slate-700">{ROLE_LABELS[a.role] ?? a.role}:</span>
+                                  <span className="text-slate-600">{name}</span>
+                                  {a.name && <span className="text-[10px] text-violet-400">(Freelancer)</span>}
+                                </div>
+                              );
+                            })}
                           </div>
-                        ) : (
-                          <p className="text-xs text-slate-400">No team members — add them in the Team section first</p>
                         )}
                       </div>
                     ))}
@@ -383,11 +433,12 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
 }
 
 // ─── Step 3: Package & Financial ─────────────────────────────────────────────
-function Step3Financial({ data, onChange, packages, isEdit }: {
+function Step3Financial({ data, onChange, packages, isEdit, teamMembers }: {
   data: ReturnType<typeof blankWizard>;
   onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
   packages: Package[];
   isEdit?: boolean;
+  teamMembers: TeamMember[];
 }) {
   const total = parseFloat(data.totalAmount) || 0;
   const disc = parseFloat(data.discountAmount) || 0;
@@ -396,6 +447,29 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
   const due = net - adv;
   const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
   const sym = SYMS[data.currency] ?? data.currency;
+
+  // Auto-add a cost entry for any crew assigned in Event Days that doesn't have one yet
+  useEffect(() => {
+    const allAssignments = data.eventDays.flatMap(d => d.shifts.flatMap(s => s.assignments));
+    const existingIds = new Set(data.costEntries.map(e => e.memberId).filter(Boolean));
+    const seen = new Set<string>();
+    const toAdd: CostEntry[] = [];
+    for (const a of allAssignments) {
+      if (existingIds.has(a.id) || seen.has(a.id)) continue;
+      seen.add(a.id);
+      const member = teamMembers.find(m => m.id === a.id);
+      const name = a.name ?? (member ? `${member.firstName} ${member.lastName ?? ""}`.trim() : "");
+      toAdd.push({ id: uid(), role: a.role, memberId: a.id, memberName: name, totalBill: 0, paidAmount: 0 });
+    }
+    if (toAdd.length > 0) onChange({ costEntries: [...data.costEntries, ...toAdd] });
+  }, [data.eventDays]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function updateCrewEntry(id: string, updates: Partial<CostEntry>) {
+    onChange({ costEntries: data.costEntries.map(e => e.id === id ? { ...e, ...updates } : e) });
+  }
+  function removeCrewEntry(id: string) {
+    onChange({ costEntries: data.costEntries.filter(e => e.id !== id) });
+  }
 
   return (
     <div className="space-y-4">
@@ -469,15 +543,65 @@ function Step3Financial({ data, onChange, packages, isEdit }: {
           </div>
         </div>
       </div>
+
+      {data.costEntries.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <Label className="text-xs font-medium text-slate-600">Team Payments — Bill, Paid &amp; Due per person</Label>
+          <div className="space-y-2">
+            {data.costEntries.map(entry => {
+              const bill = parseFloat(String(entry.totalBill)) || 0;
+              const paid = parseFloat(String(entry.paidAmount ?? 0)) || 0;
+              const crewDue = bill - paid;
+              return (
+                <div key={entry.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input value={entry.memberName} onChange={e => updateCrewEntry(entry.id, { memberName: e.target.value })}
+                      placeholder="Name"
+                      className="flex-1 h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs font-medium focus:outline-none focus:border-indigo-400" />
+                    <span className="text-[10px] text-slate-400 px-1.5 whitespace-nowrap">{ROLE_LABELS[entry.role] ?? entry.role.replace(/_/g, " ")}</span>
+                    <button onClick={() => removeCrewEntry(entry.id)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <p className="text-[10px] text-slate-400 mb-0.5">Bill</p>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
+                        <input type="number" min="0" value={entry.totalBill || ""}
+                          onChange={e => updateCrewEntry(entry.id, { totalBill: parseFloat(e.target.value) || 0 })}
+                          placeholder="0" className="w-full h-8 pl-5 pr-1 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 mb-0.5">Paid</p>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
+                        <input type="number" min="0" value={entry.paidAmount || ""}
+                          onChange={e => updateCrewEntry(entry.id, { paidAmount: parseFloat(e.target.value) || 0 })}
+                          placeholder="0" className="w-full h-8 pl-5 pr-1 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 mb-0.5">Due</p>
+                      <div className={cn("h-8 px-2 flex items-center rounded-lg border text-xs font-semibold",
+                        crewDue > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
+                        {formatCurrency(crewDue, data.currency)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Step 4: Cost Entries + Profit ───────────────────────────────────────────
-function Step4Costs({ data, onChange, teamMembers }: {
+function Step4Costs({ data, onChange }: {
   data: ReturnType<typeof blankWizard>;
   onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
-  teamMembers: TeamMember[];
 }) {
   const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
   const sym = SYMS[data.currency] ?? data.currency;
@@ -491,95 +615,17 @@ function Step4Costs({ data, onChange, teamMembers }: {
   const profit = net - totalCost;
   const margin = net > 0 ? Math.round((profit / net) * 100) : 0;
 
-  // Only show members assigned in event days shifts
-  const assignedMemberIds = new Set(
-    data.eventDays.flatMap(d => d.shifts.flatMap(s => s.memberIds))
-  );
-  const assignedMembers = assignedMemberIds.size > 0
-    ? teamMembers.filter(m => assignedMemberIds.has(m.id))
-    : teamMembers;
-
-  function addEntry() {
-    onChange({ costEntries: [...data.costEntries, { id: uid(), role: "", memberId: "", memberName: "", totalBill: 0, note: "" }] });
-  }
-  function removeEntry(id: string) {
-    onChange({ costEntries: data.costEntries.filter(e => e.id !== id) });
-  }
-  function updateEntry(id: string, updates: Record<string, string | number>) {
-    onChange({ costEntries: data.costEntries.map(e => e.id === id ? { ...e, ...updates } : e) });
-  }
-  function pickMember(entryId: string, member: TeamMember) {
-    const role = member.memberRoles[0] ?? "";
-    const rateEntry = member.roleRates?.find(r => r.roleId === role);
-    // Single update call to avoid stale-closure overwrite bug
-    updateEntry(entryId, {
-      memberId: member.id,
-      memberName: `${member.firstName} ${member.lastName ?? ""}`.trim(),
-      role,
-      ...(rateEntry?.rate ? { totalBill: Number(rateEntry.rate) } : {}),
-    });
-  }
-
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium text-slate-600">Team Cost Entries</Label>
-          <button onClick={addEntry} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-            <Plus className="w-3.5 h-3.5" />Add Entry
-          </button>
+      {data.costEntries.length > 0 && (
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <div className="flex items-center justify-between mb-1.5">
+            <Label className="text-xs font-medium text-slate-600">Team Cost ({data.costEntries.length} people)</Label>
+            <span className="text-sm font-bold text-slate-800">{formatCurrency(teamBill, data.currency)}</span>
+          </div>
+          <p className="text-[11px] text-slate-400">Edit individual bill / paid / due amounts in the Financial step.</p>
         </div>
-
-        {data.costEntries.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl">
-            <Users className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-            <p className="text-xs text-slate-400">No cost entries — add team member bills</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {data.costEntries.map(entry => (
-              <div key={entry.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={entry.memberId ?? ""}
-                    onChange={e => {
-                      const m = assignedMembers.find(t => t.id === e.target.value);
-                      if (m) pickMember(entry.id, m);
-                      else updateEntry(entry.id, { memberId: e.target.value, memberName: "", role: "" });
-                    }}
-                    className="flex-1 h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400">
-                    <option value="">Select member...</option>
-                    {assignedMembers.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName ?? ""}{m.memberRoles[0] ? ` — ${m.memberRoles[0].replace(/_/g, " ")}` : ""}
-                      </option>
-                    ))}
-                    <option value="__custom__">Other / Freelancer</option>
-                  </select>
-                  <div className="relative w-28">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
-                    <input type="number" min="0" value={entry.totalBill || ""}
-                      onChange={e => updateEntry(entry.id, { totalBill: parseFloat(e.target.value) || 0 })}
-                      placeholder="0"
-                      className="w-full h-9 pl-5 pr-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400" />
-                  </div>
-                  <button onClick={() => removeEntry(entry.id)} className="text-slate-300 hover:text-red-400 flex-shrink-0">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                {(!entry.memberId || entry.memberId === "__custom__") && (
-                  <input value={entry.memberName} onChange={e => updateEntry(entry.id, { memberName: e.target.value })}
-                    placeholder="Name / Role (e.g. Freelance Photographer)"
-                    className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
-                )}
-                <input value={entry.note ?? ""} onChange={e => updateEntry(entry.id, { note: e.target.value })}
-                  placeholder="Note (e.g. with setup, 2 days coverage...)"
-                  className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400" />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {[
@@ -789,8 +835,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
           {error && <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
           {step === 0 && <Step1Client data={data} onChange={onChange} />}
           {step === 1 && <Step2EventDays data={data} onChange={onChange} teamMembers={teamMembers} editingBookingId={initialBooking?.id} />}
-          {step === 2 && <Step3Financial data={data} onChange={onChange} packages={packages} isEdit={isEdit} />}
-          {step === 3 && <Step4Costs data={data} onChange={onChange} teamMembers={teamMembers} />}
+          {step === 2 && <Step3Financial data={data} onChange={onChange} packages={packages} isEdit={isEdit} teamMembers={teamMembers} />}
+          {step === 3 && <Step4Costs data={data} onChange={onChange} />}
         </div>
 
         <div className="px-5 py-4 border-t border-slate-200 flex gap-3">

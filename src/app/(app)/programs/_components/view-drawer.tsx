@@ -617,7 +617,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
                   {day.shifts.map(s => (
                     <div key={s.id} className="ml-7 mt-1.5 flex items-center gap-1.5 flex-wrap">
                       <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{s.label}</span>
-                      <span className="text-[10px] text-slate-400">{s.memberIds.length} members</span>
+                      <span className="text-[10px] text-slate-400">{s.assignments.length} members</span>
                     </div>
                   ))}
                 </div>

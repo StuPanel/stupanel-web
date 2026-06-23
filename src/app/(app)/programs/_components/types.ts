@@ -23,10 +23,16 @@ export interface TeamMember {
   roleRates?: { roleId: string; rate: number; rateType: string; note?: string }[];
 }
 
+export interface ShiftAssignment {
+  id: string;       // real team member id, or a synthetic "fl_..." id for freelancers
+  role: string;      // photographer | cinematographer | drone_pilot | assistant
+  name?: string;      // set only for freelancers (real members resolve their name via teamMembers)
+}
+
 export interface Shift {
   id: string;
   label: string;
-  memberIds: string[];
+  assignments: ShiftAssignment[];
 }
 
 export interface EventDay {
@@ -51,6 +57,7 @@ export interface CostEntry {
   memberId?: string;
   memberName: string;
   totalBill: number;
+  paidAmount?: number;
   note?: string;
 }
 

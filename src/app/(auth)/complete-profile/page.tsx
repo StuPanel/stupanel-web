@@ -49,14 +49,13 @@ export default function CompleteProfilePage() {
     setError("");
 
     if (!form.companyName.trim()) { setError("Studio name is required."); return; }
-    if (form.password && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (form.password && form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
+    if (!form.password || form.password.length < 6) { setError("Please set a password (min 6 characters)."); return; }
+    if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
 
     setLoading(true);
     try {
-      const body: Record<string, string> = { companyName: form.companyName.trim() };
+      const body: Record<string, string> = { companyName: form.companyName.trim(), password: form.password };
       if (form.phone.trim()) body.phone = form.phone.trim();
-      if (form.password) body.password = form.password;
 
       const res = await apiFetch(`${API}/auth/complete-profile`, {
         method: "PATCH",
@@ -139,8 +138,9 @@ export default function CompleteProfilePage() {
         {/* Password */}
         <div className="space-y-1.5">
           <Label className="text-slate-700 text-sm font-medium">
-            Set Password <span className="text-slate-400 font-normal">(optional — lets you login with email later)</span>
+            Set Password *
           </Label>
+          <p className="text-xs text-slate-400 -mt-1">Required — so you can also log in with email if Google sign-in isn&apos;t available.</p>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
@@ -149,6 +149,7 @@ export default function CompleteProfilePage() {
               onChange={set("password")}
               placeholder="Min. 6 characters"
               className="pl-10 pr-10 h-11 border-slate-200"
+              required
             />
             <button type="button" onClick={() => setShowPassword(v => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -157,35 +158,29 @@ export default function CompleteProfilePage() {
           </div>
         </div>
 
-        {form.password && (
-          <div className="space-y-1.5">
-            <Label className="text-slate-700 text-sm font-medium">Confirm Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type={showConfirm ? "text" : "password"}
-                value={form.confirmPassword}
-                onChange={set("confirmPassword")}
-                placeholder="Repeat password"
-                className="pl-10 pr-10 h-11 border-slate-200"
-              />
-              <button type="button" onClick={() => setShowConfirm(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
+        <div className="space-y-1.5">
+          <Label className="text-slate-700 text-sm font-medium">Confirm Password *</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              type={showConfirm ? "text" : "password"}
+              value={form.confirmPassword}
+              onChange={set("confirmPassword")}
+              placeholder="Repeat password"
+              className="pl-10 pr-10 h-11 border-slate-200"
+              required
+            />
+            <button type="button" onClick={() => setShowConfirm(v => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
-        )}
+        </div>
 
         <Button type="submit" disabled={loading}
           className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold mt-2">
           {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : "Continue to Setup"}
         </Button>
-
-        <button type="button" onClick={() => { window.location.href = "/onboarding"; }}
-          className="w-full text-center text-sm text-slate-400 hover:text-slate-600 transition-colors pt-1">
-          Skip for now
-        </button>
       </form>
     </>
   );

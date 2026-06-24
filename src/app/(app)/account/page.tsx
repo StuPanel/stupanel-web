@@ -24,6 +24,7 @@ interface Profile {
   avatarUrl?: string;
   role: string;
   isOwner: boolean;
+  hasPassword: boolean;
 }
 
 export default function MyAccountPage() {
@@ -92,18 +93,21 @@ export default function MyAccountPage() {
     e.preventDefault();
     setPwErr(""); setPwOk(false);
     if (newPw !== confirmPw) { setPwErr("New passwords do not match"); return; }
-    if (newPw.length < 6) { setPwErr("Password must be at least 6 characters"); return; }
+    if (newPw.length < 8) { setPwErr("Password must be at least 8 characters"); return; }
     setPwSaving(true);
+    const body: Record<string, string> = { newPassword: newPw };
+    if (profile?.hasPassword) body.currentPassword = currentPw;
     const res = await apiFetch(`${API}/profile/change-password`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      body: JSON.stringify(body),
     });
     const d = await res.json();
     if (!res.ok) { setPwErr(d.message ?? "Failed to change password"); }
     else {
       setPwOk(true);
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setProfile(prev => prev ? { ...prev, hasPassword: true } : prev);
       setTimeout(() => setPwOk(false), 3000);
     }
     setPwSaving(false);
@@ -194,26 +198,35 @@ export default function MyAccountPage() {
         </Button>
       </form>
 
-      {/* Change password */}
+      {/* Change / set password */}
       <form onSubmit={changePassword} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-slate-400" />Change Password
-        </p>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Current Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input type={showCurrent ? "text" : "password"}
-              value={currentPw} onChange={e => setCurrentPw(e.target.value)}
-              placeholder="Enter current password" required
-              className="h-9 text-sm pl-9 pr-9" />
-            <button type="button" onClick={() => setShowCurrent(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+        <div>
+          <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-slate-400" />{profile?.hasPassword ? "Change Password" : "Set Password"}
+          </p>
+          {!profile?.hasPassword && (
+            <p className="text-xs text-slate-400 mt-1">
+              You signed up with Google and don&apos;t have a password yet — set one so you can also log in with your email.
+            </p>
+          )}
         </div>
+
+        {profile?.hasPassword && (
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-600">Current Password *</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Input type={showCurrent ? "text" : "password"}
+                value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                placeholder="Enter current password" required
+                className="h-9 text-sm pl-9 pr-9" />
+              <button type="button" onClick={() => setShowCurrent(p => !p)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">New Password *</Label>
@@ -221,7 +234,7 @@ export default function MyAccountPage() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <Input type={showNew ? "text" : "password"}
               value={newPw} onChange={e => setNewPw(e.target.value)}
-              placeholder="Min. 6 characters" required
+              placeholder="Min. 8 characters" required
               className="h-9 text-sm pl-9 pr-9" />
             <button type="button" onClick={() => setShowNew(p => !p)}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -257,7 +270,7 @@ export default function MyAccountPage() {
           {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
            pwOk ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> :
            <ShieldCheck className="w-3.5 h-3.5" />}
-          {pwOk ? "Password Changed!" : "Change Password"}
+          {pwOk ? (profile?.hasPassword ? "Password Changed!" : "Password Set!") : (profile?.hasPassword ? "Change Password" : "Set Password")}
         </Button>
       </form>
     </div>

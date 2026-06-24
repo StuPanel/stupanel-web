@@ -114,7 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Email verification banner */}
         {!emailVerified && <VerificationBanner email={userEmail} />}
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 

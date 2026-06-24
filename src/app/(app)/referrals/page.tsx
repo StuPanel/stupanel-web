@@ -44,7 +44,7 @@ export default function ReferralsPage() {
   );
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -55,7 +55,7 @@ export default function ReferralsPage() {
       </div>
 
       {!loading && groups.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-4">
             <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1"><Handshake className="w-3.5 h-3.5" /> Referrers</div>
             <p className="text-xl font-bold text-slate-900">{groups.length}</p>
@@ -96,25 +96,28 @@ export default function ReferralsPage() {
               <div key={g.key} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setExpanded(isOpen ? null : g.key)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50/60 text-left"
+                  className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 hover:bg-slate-50/60 text-left"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold flex-shrink-0">
                       {g.name[0]?.toUpperCase() ?? "?"}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-slate-900 text-sm">{g.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-slate-900 text-sm truncate">{g.name}</p>
                         {g.referrerClientId && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-0.5">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-0.5 flex-shrink-0">
                             <User className="w-2.5 h-2.5" /> Client
                           </span>
                         )}
                       </div>
                       {g.phone && <p className="text-xs text-slate-400">{g.phone}</p>}
                     </div>
+                    <div className="sm:hidden flex-shrink-0">
+                      {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4 sm:gap-6 pl-[3.25rem] sm:pl-0">
                     <div className="text-right">
                       <p className="text-sm font-bold text-slate-900">{g.clientCount}</p>
                       <p className="text-[10px] text-slate-400">Clients</p>
@@ -123,19 +126,21 @@ export default function ReferralsPage() {
                       <p className="text-sm font-bold text-slate-900">{g.bookingCount}</p>
                       <p className="text-[10px] text-slate-400">Programs</p>
                     </div>
-                    <div className="text-right min-w-[90px]">
+                    <div className="text-right">
                       <p className="text-sm font-bold text-emerald-600">{formatCurrency(g.revenue, "BDT")}</p>
                       <p className="text-[10px] text-slate-400">Revenue</p>
                     </div>
-                    {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    <div className="hidden sm:block flex-shrink-0">
+                      {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </div>
                   </div>
                 </button>
                 {isOpen && (
                   <div className="border-t border-slate-100 divide-y divide-slate-50">
                     {g.clients.map(c => (
-                      <div key={c.id} className="flex items-center justify-between px-5 py-2.5 pl-[4.25rem]">
-                        <p className="text-sm text-slate-700">{c.name}</p>
-                        <p className="text-xs text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> {fmtDate(c.createdAt)}</p>
+                      <div key={c.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 pl-12 sm:pl-[4.25rem]">
+                        <p className="text-sm text-slate-700 truncate">{c.name}</p>
+                        <p className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" /> {fmtDate(c.createdAt)}</p>
                       </div>
                     ))}
                   </div>

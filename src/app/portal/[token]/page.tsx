@@ -4,12 +4,13 @@ import { useState, useEffect, use } from "react";
 import {
   Loader2, Camera, Calendar, FileText, CreditCard, Receipt,
   Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink,
-  Package, Image as ImageIcon, Lock, Download, Link2,
+  Package, Image as ImageIcon, Lock, Download, Link2, MessageCircle,
   FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
+import { PortalChat } from "./_components/portal-chat";
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
 function num(n: number | string | null | undefined) {
   return Number(n || 0).toLocaleString();
@@ -112,7 +113,7 @@ interface PortalData {
   }[];
 }
 
-type Tab = "bookings" | "quotes" | "invoices" | "payments";
+type Tab = "bookings" | "quotes" | "invoices" | "payments" | "messages";
 
 // ─── Delivery Section per Booking ────────────────────────────────────────────
 function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingId }: {
@@ -463,6 +464,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
     { id: "quotes",    label: "Quotes",    icon: FileText,  count: data.quotes.length },
     { id: "invoices",  label: "Invoices",  icon: Receipt,   count: data.invoices.length },
     { id: "payments",  label: "Payments",  icon: CreditCard,count: data.payments.length },
+    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0 },
   ];
 
   const totalDue = data.invoices.reduce((s, i) => s + Number(i.balanceDue), 0);
@@ -765,6 +767,11 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
               </div>
             ))}
           </div>
+        )}
+
+        {/* MESSAGES */}
+        {tab === "messages" && (
+          <PortalChat token={token} brand={brand} companyName={data.company.name} />
         )}
       </div>
 

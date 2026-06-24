@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
   LayoutDashboard, Camera, LogOut, Menu, X, ChevronRight, UserCircle, Video,
-  Wallet, CalendarDays,
+  Wallet, CalendarDays, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -19,6 +19,7 @@ const navItems = [
   { label: "Editing",     href: "/member/editing",   icon: Video },
   { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays },
   { label: "My Earnings", href: "/member/earnings",  icon: Wallet },
+  { label: "Chat",        href: "/member/chat",      icon: MessageCircle },
   { label: "My Profile",  href: "/member/profile",   icon: UserCircle },
 ];
 
@@ -27,6 +28,17 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const [profile, setProfile] = useState<{ firstName?: string; lastName?: string; memberRoles?: string[] } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+
+  useEffect(() => {
+    const load = () => apiFetch(`${API}/member/admin-chat/unread`)
+      .then(r => r.ok ? r.json() : 0)
+      .then(n => setChatUnread(typeof n === "number" ? n : 0))
+      .catch(() => {});
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -98,6 +110,11 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
                 )}>
                 <item.icon className={cn("w-4 h-4 flex-shrink-0", active ? "text-indigo-600" : "text-slate-400")} />
                 <span className="flex-1">{item.label}</span>
+                {item.href === "/member/chat" && chatUnread > 0 && !active && (
+                  <span className="h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {chatUnread > 9 ? "9+" : chatUnread}
+                  </span>
+                )}
                 {active && <ChevronRight className="w-3 h-3 text-indigo-400" />}
               </Link>
             );

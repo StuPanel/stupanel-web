@@ -311,22 +311,35 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                 <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52" sideOffset={8}>
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{user?.company?.name ?? ""}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2">
-                <User className="w-4 h-4" /> Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2">
-                <Settings className="w-4 h-4" /> Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-red-600 focus:text-red-600 focus:bg-red-50">
-                <LogOut className="w-4 h-4" /> Logout
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden" sideOffset={8}>
+              {/* User identity header */}
+              <div className="bg-indigo-50 px-4 py-3 flex items-center gap-3">
+                <Avatar className="w-10 h-10 flex-shrink-0">
+                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
+                  <AvatarFallback className="bg-indigo-200 text-indigo-700 text-sm font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
+                  <span className="inline-block bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5">
+                    {roleLabel}
+                  </span>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">{user?.company?.name ?? ""}</p>
+                </div>
+              </div>
+              <div className="p-1">
+                <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-md">
+                  <User className="w-4 h-4 text-indigo-500" /> Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-md">
+                  <Settings className="w-4 h-4 text-slate-500" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-1" />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-md text-red-600 focus:text-red-600 focus:bg-red-50">
+                  <LogOut className="w-4 h-4" /> Log out
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

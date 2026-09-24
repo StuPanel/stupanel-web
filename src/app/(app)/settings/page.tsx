@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "invoice" | "tax" | "social" | "notifications" | "security" | "integrations";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "security" | "integrations";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -391,6 +391,94 @@ function QuotationTab({ data }: { data: any }) {
         <Button disabled={saving} onClick={() => save({ defaultTerms, defaultValidityDays, defaultAdvancePercent }, "Quotation defaults saved!")}
           className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Defaults</>}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ─── Booking Tab ──────────────────────────────────────────────────────────────
+const BOOKING_STATUSES = [
+  { value: "inquiry",          label: "Inquiry",           desc: "Client has enquired, not yet confirmed" },
+  { value: "quote_sent",       label: "Quote Sent",        desc: "Quotation has been sent to client" },
+  { value: "confirmed",        label: "Confirmed",         desc: "Booking is confirmed and locked in" },
+  { value: "advance_received", label: "Advance Received",  desc: "Advance payment has been collected" },
+];
+
+function BookingTab({ data }: { data: any }) {
+  const [f, setF] = useState({
+    defaultBookingStatus:      data.defaultBookingStatus      ?? "inquiry",
+    defaultCancellationPolicy: data.defaultCancellationPolicy ?? "",
+    bookingReminderDays:       Number(data.bookingReminderDays ?? 3),
+  });
+  const { saving, toast, setToast, save } = useSave();
+
+  return (
+    <>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <SectionHead icon={CalendarDays} title="Booking Defaults" sub="Pre-filled settings applied whenever a new booking is created" />
+      <div className="space-y-6 max-w-lg">
+
+        {/* Default Status */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">New Booking Status</p>
+          <p className="text-xs text-slate-500 mb-3">When a new booking is created without a specific status, this is used automatically.</p>
+          <div className="space-y-2">
+            {BOOKING_STATUSES.map(s => (
+              <label key={s.value}
+                className={cn(
+                  "flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all",
+                  f.defaultBookingStatus === s.value
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-slate-200 hover:border-slate-300 bg-white"
+                )}>
+                <input type="radio" name="bookingStatus" value={s.value}
+                  checked={f.defaultBookingStatus === s.value}
+                  onChange={() => setF(p => ({ ...p, defaultBookingStatus: s.value }))}
+                  className="accent-indigo-600" />
+                <div className="flex-1">
+                  <p className={cn("text-sm font-semibold", f.defaultBookingStatus === s.value ? "text-indigo-700" : "text-slate-700")}>{s.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{s.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Cancellation Policy */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Default Cancellation Policy</p>
+          <Field label="Cancellation Policy" hint="Pre-filled in every new booking — clients can see this in their portal">
+            <textarea
+              value={f.defaultCancellationPolicy}
+              onChange={e => setF(p => ({ ...p, defaultCancellationPolicy: e.target.value }))}
+              rows={4}
+              placeholder={`e.g.\n1. Cancellation within 7 days of booking date forfeits the advance.\n2. Rescheduling allowed once with 14 days notice.\n3. Refunds processed within 7 business days.`}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+            />
+          </Field>
+        </div>
+
+        {/* Reminder Days */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Event Reminder</p>
+          <Field label="Remind Before Event" hint={`Studio gets an alert ${f.bookingReminderDays} day(s) before the event date`}>
+            <div className="relative">
+              <Bell className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="number" min={1} max={90}
+                value={f.bookingReminderDays}
+                onChange={e => setF(p => ({ ...p, bookingReminderDays: Number(e.target.value) || 3 }))}
+                className="w-full h-11 pl-9 pr-14 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
+            </div>
+          </Field>
+        </div>
+
+        <Button disabled={saving} onClick={() => save(f, "Booking defaults saved!")}
+          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Booking Defaults</>}
         </Button>
       </div>
     </>
@@ -1185,6 +1273,7 @@ export default function SettingsPage() {
     { id: "branding",     label: "Branding",     icon: Palette    },
     { id: "payment",      label: "Payment",      icon: CreditCard },
     { id: "quotation",    label: "Quotation",    icon: FileText   },
+    { id: "booking",      label: "Booking",      icon: CalendarDays },
     { id: "invoice",      label: "Invoice",      icon: Receipt    },
     { id: "tax",          label: "Tax",          icon: Percent    },
     { id: "social",         label: "Social",         icon: Globe      },
@@ -1255,6 +1344,7 @@ export default function SettingsPage() {
           {tab === "branding"     && <BrandingTab    data={data} />}
           {tab === "payment"      && <PaymentTab     data={data} />}
           {tab === "quotation"    && <QuotationTab   data={data} />}
+          {tab === "booking"      && <BookingTab     data={data} />}
           {tab === "invoice"      && <InvoiceTab     data={data} />}
           {tab === "tax"          && <TaxTab         data={data} />}
           {tab === "social"         && <SocialTab         data={data} />}

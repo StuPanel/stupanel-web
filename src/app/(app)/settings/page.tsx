@@ -450,13 +450,25 @@ function TaxTab({ data }: { data: any }) {
 // ─── Social Media Tab ──────────────────────────────────────────────────────────
 function SocialTab({ data }: { data: any }) {
   const [f, setF] = useState({
-    facebookUrl: data.facebookUrl ?? "", instagramUrl: data.instagramUrl ?? "",
-    youtubeUrl: data.youtubeUrl ?? "", tiktokUrl: data.tiktokUrl ?? "",
+    website:      data.website      ?? "",
+    facebookUrl:  data.facebookUrl  ?? "",
+    instagramUrl: data.instagramUrl ?? "",
+    youtubeUrl:   data.youtubeUrl   ?? "",
+    tiktokUrl:    data.tiktokUrl    ?? "",
   });
+  const [otherLinks, setOtherLinks] = useState<{ label: string; url: string }[]>(
+    Array.isArray(data.otherLinks) ? data.otherLinks : []
+  );
   const { saving, toast, setToast, save } = useSave();
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
 
-  const fields: { key: string; label: string; placeholder: string; color: string }[] = [
+  function addLink() { setOtherLinks(p => [...p, { label: "", url: "" }]); }
+  function removeLink(i: number) { setOtherLinks(p => p.filter((_, idx) => idx !== i)); }
+  function updateLink(i: number, field: "label" | "url", val: string) {
+    setOtherLinks(p => p.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
+  }
+
+  const socialFields: { key: string; label: string; placeholder: string; color: string }[] = [
     { key: "facebookUrl",  label: "Facebook",  placeholder: "https://facebook.com/yourstudio",  color: "text-blue-600"  },
     { key: "instagramUrl", label: "Instagram", placeholder: "https://instagram.com/yourstudio", color: "text-pink-600"  },
     { key: "youtubeUrl",   label: "YouTube",   placeholder: "https://youtube.com/@yourstudio",  color: "text-red-600"   },
@@ -466,20 +478,79 @@ function SocialTab({ data }: { data: any }) {
   return (
     <>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Globe} title="Social Media" sub="Links shown on client-facing pages and quote footers" />
-      <div className="space-y-4 max-w-lg">
-        {fields.map(({ key, label, placeholder, color }) => (
-          <Field key={key} label={label}>
-            <div className="relative">
-              <ExternalLink className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4", color)} />
-              <Input value={(f as any)[key]} onChange={set(key)} placeholder={placeholder}
-                className="h-11 pl-9 border-slate-200" />
-            </div>
-          </Field>
-        ))}
-        <Button disabled={saving} onClick={() => save(f, "Social links saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6 mt-2">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Social Links</>}
+      <SectionHead icon={Globe} title="Social Media & Links" sub="Links shown on client-facing pages and quote footers" />
+      <div className="space-y-6 max-w-lg">
+
+        {/* Website */}
+        <Field label="Website">
+          <div className="relative">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
+            <Input value={f.website} onChange={set("website")}
+              placeholder="https://yourstudio.com"
+              className="h-11 pl-9 border-slate-200" />
+          </div>
+        </Field>
+
+        {/* Social profiles */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Social Profiles</p>
+          <div className="space-y-4">
+            {socialFields.map(({ key, label, placeholder, color }) => (
+              <Field key={key} label={label}>
+                <div className="relative">
+                  <ExternalLink className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4", color)} />
+                  <Input value={(f as any)[key]} onChange={set(key)} placeholder={placeholder}
+                    className="h-11 pl-9 border-slate-200" />
+                </div>
+              </Field>
+            ))}
+          </div>
+        </div>
+
+        {/* Other links */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Other Links</p>
+          <div className="space-y-2">
+            {otherLinks.map((link, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  value={link.label}
+                  onChange={e => updateLink(i, "label", e.target.value)}
+                  placeholder="Label (e.g. Portfolio)"
+                  className="h-10 text-sm w-36 flex-shrink-0 border-slate-200"
+                />
+                <div className="relative flex-1">
+                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Input
+                    value={link.url}
+                    onChange={e => updateLink(i, "url", e.target.value)}
+                    placeholder="https://..."
+                    className="h-10 text-sm pl-8 border-slate-200"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeLink(i)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addLink}
+              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-1 py-1.5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Link
+            </button>
+          </div>
+        </div>
+
+        <Button disabled={saving} onClick={() => save({ ...f, otherLinks }, "Social links saved!")}
+          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Social & Links</>}
         </Button>
       </div>
     </>

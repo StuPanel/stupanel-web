@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
+import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
@@ -113,6 +114,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const [terms, setTerms] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [companyData, setCompanyData] = useState<any>({});
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
   const afterDisc = Math.max(0, subtotal - discountAmount);
@@ -128,6 +130,12 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       if (d.defaultTaxPercent) setTaxPercent(Number(d.defaultTaxPercent));
       if (d.defaultTerms) setTerms(d.defaultTerms);
       if (d.currency) setCurrency(d.currency);
+      if (d.invoiceDueDays) {
+        const dd = new Date();
+        dd.setDate(dd.getDate() + Number(d.invoiceDueDays));
+        setDueDate(dd.toISOString().slice(0, 10));
+      }
+      setCompanyData(d);
     }).catch(() => {});
   }, []);
 
@@ -158,15 +166,70 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
     finally { setSaving(false); }
   }
 
+  // ── Live preview data ──────────────────────────────────────────────────────
+  const linkedBooking = bookings.find(b => b.id === selectedBookingId) as any;
+  const previewData: InvoicePreviewData = {
+    company: {
+      name: companyData?.name || "Your Studio",
+      email: companyData?.email,
+      phone: companyData?.phone,
+      address: companyData?.address,
+      city: companyData?.city,
+      logoUrl: companyData?.logoUrl,
+      primaryColor: companyData?.primaryColor,
+      invoiceHeaderStyle: companyData?.invoiceHeaderStyle,
+      invoiceShowPayment: companyData?.invoiceShowPayment,
+      invoiceShowLogo: companyData?.invoiceShowLogo,
+      invoiceShowSignature: companyData?.invoiceShowSignature,
+      invoiceSignatureText: companyData?.invoiceSignatureText,
+      invoiceFooter: companyData?.invoiceFooter,
+      bankName: companyData?.bankName,
+      bankBranch: companyData?.bankBranch,
+      bankAccountName: companyData?.bankAccountName,
+      bankAccountNumber: companyData?.bankAccountNumber,
+      bkashNumber: companyData?.bkashNumber,
+      nagadNumber: companyData?.nagadNumber,
+    },
+    invoiceNumber: `${companyData?.invoicePrefix || "INV"}-###`,
+    issueDate,
+    dueDate: dueDate || undefined,
+    currency,
+    clientName: selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName ?? ""}`.trim() : "Client Name",
+    clientPhone: selectedClient?.phone,
+    clientEmail: selectedClient?.email,
+    bookingName: linkedBooking?.eventName,
+    bookingRef: linkedBooking?.bookingNumber,
+    items: items.filter(i => i.name.trim()).length
+      ? items.filter(i => i.name.trim()).map(i => ({ name: i.name, description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, total: i.total }))
+      : [{ name: "Photography Service", quantity: 1, unitPrice: 0, total: 0 }],
+    subtotal,
+    discountAmount,
+    taxLabel,
+    taxPercent,
+    taxAmount: Math.round(taxAmt * 100) / 100,
+    grandTotal: Math.round(grand * 100) / 100,
+    paidAmount: 0,
+    balanceDue: Math.round(grand * 100) / 100,
+    notes: notes || undefined,
+    termsConditions: terms || undefined,
+  };
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white shadow-2xl flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900 text-lg">New Invoice</h2>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100"><X className="w-5 h-5 text-slate-500" /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-stretch justify-end">
+        <div className="w-full max-w-[1140px] bg-white shadow-2xl flex">
+
+          {/* ── LEFT: Form panel ── */}
+          <div className="w-full lg:w-[440px] flex-shrink-0 flex flex-col border-r border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg">New Invoice</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Preview updates live on the right</p>
+              </div>
+              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100"><X className="w-5 h-5 text-slate-500" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</p>}
 
           {/* Client */}
@@ -288,15 +351,31 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 resize-none" />
             </div>
           </div>
-        </div>
+            </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200 text-slate-600">Cancel</Button>
-          <Button disabled={saving} onClick={save} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : <><FileText className="w-4 h-4" />Create Invoice</>}
-          </Button>
-        </div>
-      </div>
+            {/* Footer buttons */}
+            <div className="px-6 py-4 border-t border-slate-200 flex gap-3 flex-shrink-0">
+              <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200 text-slate-600">Cancel</Button>
+              <Button disabled={saving} onClick={save} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : <><FileText className="w-4 h-4" />Create Invoice</>}
+              </Button>
+            </div>
+          </div>
+
+          {/* ── RIGHT: Live preview ── */}
+          <div className="hidden lg:flex flex-1 flex-col bg-slate-100 overflow-hidden">
+            <div className="px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-200 bg-white">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Live Preview</p>
+            </div>
+            <div className="flex-1 overflow-y-auto py-6 px-4">
+              <div className="max-w-[680px] mx-auto rounded-xl overflow-hidden shadow-lg">
+                <InvoicePreview data={previewData} />
+              </div>
+            </div>
+          </div>
+
+        </div>{/* /max-w-[1140px] */}
+      </div>{/* /fixed inset-0 z-50 */}
     </>
   );
 }

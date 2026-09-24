@@ -400,11 +400,15 @@ function QuotationTab({ data }: { data: any }) {
 // ─── Invoice Tab ──────────────────────────────────────────────────────────────
 function InvoiceTab({ data }: { data: any }) {
   const [f, setF] = useState({
-    invoicePrefix:       data.invoicePrefix      ?? "INV",
-    invoiceStartNumber:  Number(data.invoiceStartNumber ?? 1),
-    invoiceDueDays:      Number(data.invoiceDueDays     ?? 7),
-    invoiceFooter:       data.invoiceFooter      ?? "",
-    invoiceShowPayment:  data.invoiceShowPayment  ?? true,
+    invoicePrefix:        data.invoicePrefix        ?? "INV",
+    invoiceStartNumber:   Number(data.invoiceStartNumber ?? 1),
+    invoiceDueDays:       Number(data.invoiceDueDays     ?? 7),
+    invoiceFooter:        data.invoiceFooter        ?? "",
+    invoiceShowPayment:   data.invoiceShowPayment   ?? true,
+    invoiceHeaderStyle:   data.invoiceHeaderStyle   ?? "dark",
+    invoiceShowLogo:      data.invoiceShowLogo      ?? true,
+    invoiceShowSignature: data.invoiceShowSignature ?? true,
+    invoiceSignatureText: data.invoiceSignatureText ?? "Thank you for your business!",
   });
   const { saving, toast, setToast, save } = useSave();
   const set = (k: string) => (e: React.ChangeEvent<any>) => setF(p => ({ ...p, [k]: e.target.value }));
@@ -491,6 +495,77 @@ function InvoiceTab({ data }: { data: any }) {
                 onChange={() => setF(p => ({ ...p, invoiceShowPayment: !p.invoiceShowPayment }))}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Invoice Design */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Design</p>
+          <div className="space-y-4">
+
+            {/* Header Style */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-600">Header Style</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "dark",  label: "Dark",  bg: "#0F172A", text: "#fff" },
+                  { value: "brand", label: "Brand", bg: data.primaryColor || "#4F46E5", text: "#fff" },
+                  { value: "light", label: "Light", bg: "#F8FAFC", text: "#0F172A" },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setF(p => ({ ...p, invoiceHeaderStyle: opt.value }))}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                      f.invoiceHeaderStyle === opt.value
+                        ? "border-indigo-500 ring-2 ring-indigo-100"
+                        : "border-slate-200 hover:border-slate-300"
+                    )}
+                  >
+                    <div className="w-full h-8 rounded-lg flex items-center justify-center text-[10px] font-bold"
+                      style={{ backgroundColor: opt.bg, color: opt.text }}>
+                      INVOICE
+                    </div>
+                    <span className="text-xs font-medium text-slate-600">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Show company logo</p>
+                <p className="text-xs text-slate-400 mt-0.5">Display your studio logo in the invoice header</p>
+              </div>
+              <Toggle
+                on={f.invoiceShowLogo}
+                onChange={() => setF(p => ({ ...p, invoiceShowLogo: !p.invoiceShowLogo }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Show thank-you signature</p>
+                <p className="text-xs text-slate-400 mt-0.5">Display a handwritten-style thank you note at the bottom</p>
+              </div>
+              <Toggle
+                on={f.invoiceShowSignature}
+                onChange={() => setF(p => ({ ...p, invoiceShowSignature: !p.invoiceShowSignature }))}
+              />
+            </div>
+
+            {f.invoiceShowSignature && (
+              <Field label="Signature Text" hint="Shown in cursive at the bottom of the invoice">
+                <Input
+                  value={f.invoiceSignatureText}
+                  onChange={set("invoiceSignatureText")}
+                  placeholder="Thank you for your business!"
+                  maxLength={200}
+                  className="h-11 border-slate-200"
+                />
+              </Field>
+            )}
           </div>
         </div>
 

@@ -8,7 +8,7 @@ import {
   Link2, Globe, Phone, MapPin, Palette, Percent, CalendarDays,
   CreditCard, Smartphone, ExternalLink, Video,
   Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
-  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt,
+  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt, Monitor,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "security" | "integrations";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -826,6 +826,94 @@ function SocialTab({ data }: { data: any }) {
   );
 }
 
+// ─── Client Portal Tab ────────────────────────────────────────────────────────
+function ClientPortalTab({ data }: { data: any }) {
+  const [f, setF] = useState({
+    portalWelcomeMessage: data.portalWelcomeMessage ?? "",
+    portalShowQuotes:     data.portalShowQuotes     ?? true,
+    portalShowInvoices:   data.portalShowInvoices   ?? true,
+    portalShowPayments:   data.portalShowPayments   ?? true,
+    portalShowMessages:   data.portalShowMessages   ?? true,
+  });
+  const { saving, toast, setToast, save } = useSave();
+
+  const PORTAL_TABS = [
+    { key: "portalShowQuotes",   label: "Quotes tab",    hint: "Client can view all quotations sent to them" },
+    { key: "portalShowInvoices", label: "Invoices tab",  hint: "Client can view and open their invoices" },
+    { key: "portalShowPayments", label: "Payments tab",  hint: "Client can see their full payment history" },
+    { key: "portalShowMessages", label: "Messages tab",  hint: "Client can chat directly with the studio" },
+  ] as const;
+
+  return (
+    <>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <SectionHead icon={Monitor} title="Client Portal Settings" sub="Customize what clients see when they open their portal link" />
+      <div className="space-y-6 max-w-lg">
+
+        {/* Welcome Message */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Welcome Message</p>
+          <Field label="Greeting Text" hint="Shown at the top of the portal — leave blank to use the default greeting">
+            <textarea
+              value={f.portalWelcomeMessage}
+              onChange={e => setF(p => ({ ...p, portalWelcomeMessage: e.target.value }))}
+              rows={3}
+              maxLength={300}
+              placeholder={`e.g. Welcome to ${data.name ?? "our studio"}'s client portal! Here you'll find your bookings, invoices, and delivered photos.`}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+            />
+            <p className="text-[11px] text-slate-400 mt-1 text-right">{f.portalWelcomeMessage.length}/300</p>
+          </Field>
+        </div>
+
+        {/* Tab Visibility */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tab Visibility</p>
+          <p className="text-xs text-slate-500 mb-3">Bookings tab is always shown. Toggle the rest on or off.</p>
+          <div className="space-y-2">
+            {/* Bookings — always on, not toggleable */}
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl opacity-60">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Bookings tab</p>
+                <p className="text-xs text-slate-400 mt-0.5">Always visible — clients can always see their bookings</p>
+              </div>
+              <div className="w-11 h-6 rounded-full bg-indigo-600 relative flex-shrink-0">
+                <span className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white shadow-sm" />
+              </div>
+            </div>
+            {PORTAL_TABS.map(({ key, label, hint }) => (
+              <div key={key} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">{label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{hint}</p>
+                </div>
+                <Toggle
+                  on={f[key]}
+                  onChange={() => setF(p => ({ ...p, [key]: !p[key] }))}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Preview Note */}
+        <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+          <Monitor className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-indigo-700">Changes apply immediately</p>
+            <p className="text-xs text-indigo-600 mt-0.5">After saving, every client portal link will reflect the new settings instantly — no need to regenerate links.</p>
+          </div>
+        </div>
+
+        <Button disabled={saving} onClick={() => save(f, "Portal settings saved!")}
+          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Portal Settings</>}
+        </Button>
+      </div>
+    </>
+  );
+}
+
 // ─── Security Tab ──────────────────────────────────────────────────────────────
 function SecurityTab({ data }: { data: any }) {
   const [resetEmail, setResetEmail] = useState(data.resetEmail ?? data.email ?? "");
@@ -1278,6 +1366,7 @@ export default function SettingsPage() {
     { id: "tax",          label: "Tax",          icon: Percent    },
     { id: "social",         label: "Social",         icon: Globe      },
     { id: "notifications",  label: "Notifications",  icon: Bell       },
+    { id: "portal",         label: "Client Portal",  icon: Monitor    },
     { id: "security",       label: "Security",       icon: Shield     },
     { id: "integrations", label: "Integrations", icon: HardDrive  },
   ];
@@ -1349,6 +1438,7 @@ export default function SettingsPage() {
           {tab === "tax"          && <TaxTab         data={data} />}
           {tab === "social"         && <SocialTab         data={data} />}
           {tab === "notifications"  && <NotificationsTab  data={data} />}
+          {tab === "portal"         && <ClientPortalTab   data={data} />}
           {tab === "security"       && <SecurityTab       data={data} />}
           {tab === "integrations" && <IntegrationsTab />}
         </div>

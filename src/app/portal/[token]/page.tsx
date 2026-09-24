@@ -87,6 +87,11 @@ interface PortalData {
   company: {
     name: string; email?: string; phone?: string; address?: string;
     city?: string; logoUrl?: string; primaryColor?: string; currency: string;
+    portalWelcomeMessage?: string;
+    portalShowQuotes?: boolean;
+    portalShowInvoices?: boolean;
+    portalShowPayments?: boolean;
+    portalShowMessages?: boolean;
   };
   bookings: {
     id: string; bookingNumber: string; eventName?: string;
@@ -459,13 +464,14 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const brand = data.company.primaryColor || "#4F46E5";
   const c = sym(data.company.currency);
 
-  const tabs: { id: Tab; label: string; icon: React.ElementType; count: number }[] = [
-    { id: "bookings",  label: "Bookings",  icon: Calendar,  count: data.bookings.length },
-    { id: "quotes",    label: "Quotes",    icon: FileText,  count: data.quotes.length },
-    { id: "invoices",  label: "Invoices",  icon: Receipt,   count: data.invoices.length },
-    { id: "payments",  label: "Payments",  icon: CreditCard,count: data.payments.length },
-    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0 },
+  const allTabs: { id: Tab; label: string; icon: React.ElementType; count: number; enabled: boolean }[] = [
+    { id: "bookings",  label: "Bookings",  icon: Calendar,      count: data.bookings.length, enabled: true },
+    { id: "quotes",    label: "Quotes",    icon: FileText,      count: data.quotes.length,   enabled: data.company.portalShowQuotes   !== false },
+    { id: "invoices",  label: "Invoices",  icon: Receipt,       count: data.invoices.length, enabled: data.company.portalShowInvoices !== false },
+    { id: "payments",  label: "Payments",  icon: CreditCard,    count: data.payments.length, enabled: data.company.portalShowPayments !== false },
+    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0,                    enabled: data.company.portalShowMessages !== false },
   ];
+  const tabs = allTabs.filter(t => t.enabled);
 
   const totalDue = data.invoices.reduce((s, i) => s + Number(i.balanceDue), 0);
   const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -511,6 +517,13 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
               </div>
             </div>
           </div>
+
+          {/* Custom welcome message */}
+          {data.company.portalWelcomeMessage && (
+            <div className="mt-3 px-4 py-3 bg-white/15 rounded-xl">
+              <p className="text-sm text-white/90 leading-relaxed">{data.company.portalWelcomeMessage}</p>
+            </div>
+          )}
         </div>
 
         {/* Summary Cards */}

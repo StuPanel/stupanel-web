@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "security" | "integrations";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "notifications" | "security" | "integrations";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -627,6 +627,168 @@ function SecurityTab({ data }: { data: any }) {
   );
 }
 
+// ─── Notifications Tab ────────────────────────────────────────────────────────
+
+type NotifPrefs = {
+  studio: {
+    onNewBooking: boolean;
+    onBookingConfirmed: boolean;
+    onBookingCancelled: boolean;
+    onPaymentReceived: boolean;
+    onInvoicePaid: boolean;
+    onNewClient: boolean;
+    onDeliveryUploaded: boolean;
+  };
+  client: {
+    sendBookingConfirmation: boolean;
+    sendInvoiceEmail: boolean;
+    sendPaymentReceipt: boolean;
+    sendDeliveryReady: boolean;
+    sendQuoteEmail: boolean;
+  };
+};
+
+const DEFAULT_NOTIF_PREFS: NotifPrefs = {
+  studio: {
+    onNewBooking: true,
+    onBookingConfirmed: true,
+    onBookingCancelled: true,
+    onPaymentReceived: true,
+    onInvoicePaid: true,
+    onNewClient: false,
+    onDeliveryUploaded: false,
+  },
+  client: {
+    sendBookingConfirmation: true,
+    sendInvoiceEmail: true,
+    sendPaymentReceipt: true,
+    sendDeliveryReady: true,
+    sendQuoteEmail: true,
+  },
+};
+
+function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onChange}
+      className={cn(
+        "relative inline-flex w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 flex-shrink-0",
+        on ? "bg-indigo-600" : "bg-slate-200"
+      )}
+    >
+      <span className={cn(
+        "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200",
+        on ? "translate-x-[22px]" : "translate-x-0.5"
+      )} />
+    </button>
+  );
+}
+
+function NotifRow({ label, hint, on, onToggle }: { label: string; hint: string; on: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-700">{label}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{hint}</p>
+      </div>
+      <Toggle on={on} onChange={onToggle} />
+    </div>
+  );
+}
+
+function NotificationsTab({ data }: { data: any }) {
+  const raw = data?.notificationPrefs;
+  const initial: NotifPrefs = {
+    studio: { ...DEFAULT_NOTIF_PREFS.studio, ...(raw?.studio ?? {}) },
+    client: { ...DEFAULT_NOTIF_PREFS.client, ...(raw?.client ?? {}) },
+  };
+  const [prefs, setPrefs] = useState<NotifPrefs>(initial);
+  const { saving, toast, setToast, save } = useSave();
+
+  const toggleStudio = (key: keyof NotifPrefs["studio"]) =>
+    setPrefs(p => ({ ...p, studio: { ...p.studio, [key]: !p.studio[key] } }));
+
+  const toggleClient = (key: keyof NotifPrefs["client"]) =>
+    setPrefs(p => ({ ...p, client: { ...p.client, [key]: !p.client[key] } }));
+
+  const studioRows: { key: keyof NotifPrefs["studio"]; label: string; hint: string }[] = [
+    { key: "onNewBooking",       label: "New booking created",        hint: "Alert when a new program is added to the system" },
+    { key: "onBookingConfirmed", label: "Booking confirmed",          hint: "When a program's status changes to Confirmed" },
+    { key: "onBookingCancelled", label: "Booking cancelled",          hint: "When a booking is cancelled or rejected" },
+    { key: "onPaymentReceived",  label: "Payment received",           hint: "When a client records or makes a payment" },
+    { key: "onInvoicePaid",      label: "Invoice fully paid",         hint: "When an invoice balance reaches zero" },
+    { key: "onNewClient",        label: "New client added",           hint: "When a new client profile is created" },
+    { key: "onDeliveryUploaded", label: "Delivery files uploaded",    hint: "When gallery delivery is ready for a program" },
+  ];
+
+  const clientRows: { key: keyof NotifPrefs["client"]; label: string; hint: string }[] = [
+    { key: "sendBookingConfirmation", label: "Booking confirmation",  hint: "Emailed to client when their booking is confirmed" },
+    { key: "sendInvoiceEmail",        label: "Invoice sent",          hint: "Notify client when a new invoice is issued" },
+    { key: "sendPaymentReceipt",      label: "Payment receipt",       hint: "Send receipt to client after payment" },
+    { key: "sendDeliveryReady",       label: "Delivery ready",        hint: "Notify client when gallery files are ready to view" },
+    { key: "sendQuoteEmail",          label: "Quotation sent",        hint: "Email client when a quote is shared with them" },
+  ];
+
+  return (
+    <>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <SectionHead icon={Bell} title="Notification Preferences" sub="Control which email alerts are sent to you and your clients" />
+
+      {/* Studio Notifications */}
+      <div className="mb-6">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Your Notifications</p>
+        <p className="text-xs text-slate-500 mb-3">Email alerts sent to your studio email when these events happen</p>
+        <div className="bg-slate-50 rounded-xl px-4">
+          {studioRows.map(row => (
+            <NotifRow
+              key={row.key}
+              label={row.label}
+              hint={row.hint}
+              on={prefs.studio[row.key]}
+              onToggle={() => toggleStudio(row.key)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Client Notifications */}
+      <div className="mb-6">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client Notifications</p>
+        <p className="text-xs text-slate-500 mb-3">Automatic emails sent to your clients when these events occur</p>
+        <div className="bg-slate-50 rounded-xl px-4">
+          {clientRows.map(row => (
+            <NotifRow
+              key={row.key}
+              label={row.label}
+              hint={row.hint}
+              on={prefs.client[row.key]}
+              onToggle={() => toggleClient(row.key)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Info note */}
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 flex gap-3">
+        <Bell className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-indigo-700">Notifications use your studio email</p>
+          <p className="text-xs text-indigo-500 mt-0.5">Studio alerts go to your registered email. You can change it in the Studio tab.</p>
+        </div>
+      </div>
+
+      <form onSubmit={e => { e.preventDefault(); save({ notificationPrefs: prefs }, "Notification preferences saved!"); }}>
+        <Button type="submit" disabled={saving} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Preferences</>}
+        </Button>
+      </form>
+    </>
+  );
+}
+
 // ─── Integrations Tab ──────────────────────────────────────────────────────────
 interface DriveAccount {
   id: string;
@@ -843,8 +1005,9 @@ export default function SettingsPage() {
     { id: "payment",      label: "Payment",      icon: CreditCard },
     { id: "quotation",    label: "Quotation",    icon: FileText   },
     { id: "tax",          label: "Tax",          icon: Percent    },
-    { id: "social",       label: "Social",       icon: Globe      },
-    { id: "security",     label: "Security",     icon: Shield     },
+    { id: "social",         label: "Social",         icon: Globe      },
+    { id: "notifications",  label: "Notifications",  icon: Bell       },
+    { id: "security",       label: "Security",       icon: Shield     },
     { id: "integrations", label: "Integrations", icon: HardDrive  },
   ];
 
@@ -911,8 +1074,9 @@ export default function SettingsPage() {
           {tab === "payment"      && <PaymentTab     data={data} />}
           {tab === "quotation"    && <QuotationTab   data={data} />}
           {tab === "tax"          && <TaxTab         data={data} />}
-          {tab === "social"       && <SocialTab      data={data} />}
-          {tab === "security"     && <SecurityTab    data={data} />}
+          {tab === "social"         && <SocialTab         data={data} />}
+          {tab === "notifications"  && <NotificationsTab  data={data} />}
+          {tab === "security"       && <SecurityTab       data={data} />}
           {tab === "integrations" && <IntegrationsTab />}
         </div>
 

@@ -63,10 +63,22 @@ function VerificationBanner({ email }: { email: string }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
   const [emailVerified, setEmailVerified] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const pathname = usePathname();
+
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("sidebar_collapsed") === "true");
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed(prev => {
+      localStorage.setItem("sidebar_collapsed", String(!prev));
+      return !prev;
+    });
+  }
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -93,8 +105,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-full flex bg-slate-50">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 z-30">
-        <AppSidebar />
+      <div className={cn(
+        "hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 z-30 transition-all duration-300",
+        collapsed ? "lg:w-16" : "lg:w-64"
+      )}>
+        <AppSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -108,7 +123,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-full">
+      <div className={cn(
+        "flex-1 flex flex-col min-h-full transition-all duration-300",
+        collapsed ? "lg:ml-16" : "lg:ml-64"
+      )}>
         <AppHeader onMenuClick={() => setSidebarOpen(true)} />
 
         {/* Email verification banner */}

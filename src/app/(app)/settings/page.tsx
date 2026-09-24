@@ -8,7 +8,7 @@ import {
   Link2, Globe, Phone, MapPin, Palette, Percent, CalendarDays,
   CreditCard, Smartphone, ExternalLink, Video,
   Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
-  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw,
+  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "tax" | "social" | "notifications" | "security" | "integrations";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "invoice" | "tax" | "social" | "notifications" | "security" | "integrations";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -391,6 +391,112 @@ function QuotationTab({ data }: { data: any }) {
         <Button disabled={saving} onClick={() => save({ defaultTerms, defaultValidityDays, defaultAdvancePercent }, "Quotation defaults saved!")}
           className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Defaults</>}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ─── Invoice Tab ──────────────────────────────────────────────────────────────
+function InvoiceTab({ data }: { data: any }) {
+  const [f, setF] = useState({
+    invoicePrefix:       data.invoicePrefix      ?? "INV",
+    invoiceStartNumber:  Number(data.invoiceStartNumber ?? 1),
+    invoiceDueDays:      Number(data.invoiceDueDays     ?? 7),
+    invoiceFooter:       data.invoiceFooter      ?? "",
+    invoiceShowPayment:  data.invoiceShowPayment  ?? true,
+  });
+  const { saving, toast, setToast, save } = useSave();
+  const set = (k: string) => (e: React.ChangeEvent<any>) => setF(p => ({ ...p, [k]: e.target.value }));
+
+  const pad = (n: number) => String(n).padStart(3, "0");
+  const pfx = f.invoicePrefix.trim() || "INV";
+  const preview = `${pfx}-${pad(f.invoiceStartNumber)}, ${pfx}-${pad(f.invoiceStartNumber + 1)}, ${pfx}-${pad(f.invoiceStartNumber + 2)}…`;
+
+  return (
+    <>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <SectionHead icon={Receipt} title="Invoice Defaults" sub="Configure how invoices are numbered and displayed to clients" />
+      <div className="space-y-6 max-w-lg">
+
+        {/* Invoice Numbering */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Numbering</p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <Field label="Prefix" hint="e.g. INV, SP, STUDIO">
+              <Input
+                value={f.invoicePrefix}
+                onChange={set("invoicePrefix")}
+                placeholder="INV"
+                maxLength={20}
+                className="h-11 border-slate-200 font-mono tracking-wider"
+              />
+            </Field>
+            <Field label="Starting Number" hint="First invoice number">
+              <input
+                type="number" min={1} max={999999}
+                value={f.invoiceStartNumber}
+                onChange={e => setF(p => ({ ...p, invoiceStartNumber: Number(e.target.value) || 1 }))}
+                className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:border-indigo-400 bg-white"
+              />
+            </Field>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Hash className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <div>
+              <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide">Preview</p>
+              <p className="text-sm font-mono text-indigo-800 mt-0.5">{preview}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Due */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Payment Due</p>
+          <Field label="Default Due Days" hint={`Client must pay within ${f.invoiceDueDays} day(s) of invoice date`}>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="number" min={1} max={365}
+                value={f.invoiceDueDays}
+                onChange={e => setF(p => ({ ...p, invoiceDueDays: Number(e.target.value) || 7 }))}
+                className="w-full h-11 pl-9 pr-14 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
+            </div>
+          </Field>
+        </div>
+
+        {/* Invoice Content */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Content</p>
+          <div className="space-y-4">
+            <Field label="Footer Text" hint="Printed at the bottom of every invoice — optional">
+              <textarea
+                value={f.invoiceFooter}
+                onChange={set("invoiceFooter")}
+                rows={3}
+                placeholder="e.g. Thank you for your business! Payment within due date is appreciated."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+              />
+            </Field>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Show payment details on invoice</p>
+                <p className="text-xs text-slate-400 mt-0.5">Display bank account, bKash, Nagad info so clients know how to pay</p>
+              </div>
+              <Toggle
+                on={f.invoiceShowPayment}
+                onChange={() => setF(p => ({ ...p, invoiceShowPayment: !p.invoiceShowPayment }))}
+              />
+            </div>
+          </div>
+        </div>
+
+        <Button disabled={saving} onClick={() => save(f, "Invoice defaults saved!")}
+          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Invoice Defaults</>}
         </Button>
       </div>
     </>
@@ -1004,6 +1110,7 @@ export default function SettingsPage() {
     { id: "branding",     label: "Branding",     icon: Palette    },
     { id: "payment",      label: "Payment",      icon: CreditCard },
     { id: "quotation",    label: "Quotation",    icon: FileText   },
+    { id: "invoice",      label: "Invoice",      icon: Receipt    },
     { id: "tax",          label: "Tax",          icon: Percent    },
     { id: "social",         label: "Social",         icon: Globe      },
     { id: "notifications",  label: "Notifications",  icon: Bell       },
@@ -1073,6 +1180,7 @@ export default function SettingsPage() {
           {tab === "branding"     && <BrandingTab    data={data} />}
           {tab === "payment"      && <PaymentTab     data={data} />}
           {tab === "quotation"    && <QuotationTab   data={data} />}
+          {tab === "invoice"      && <InvoiceTab     data={data} />}
           {tab === "tax"          && <TaxTab         data={data} />}
           {tab === "social"         && <SocialTab         data={data} />}
           {tab === "notifications"  && <NotificationsTab  data={data} />}

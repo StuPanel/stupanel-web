@@ -146,11 +146,11 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
   }, [grand]);
 
   useEffect(() => {
-    fetch(`${API}/clients?limit=100`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setClients(d.data ?? []));
-    fetch(`${API}/packages?limit=100`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setPrograms(Array.isArray(d) ? d : (d.data ?? [])));
+    apiFetch(`${API}/clients?limit=100`).then(r => r.json()).then(d => setClients(d.data ?? []));
+    apiFetch(`${API}/packages?limit=100`).then(r => r.json()).then(d => setPrograms(Array.isArray(d) ? d : (d.data ?? [])));
     // fetch company defaults for new quotes only
     if (!isEdit) {
-      fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => {
+      apiFetch(`${API}/companies/me`).then(r => r.json()).then(d => {
         if (d.defaultTerms) setTerms(d.defaultTerms);
         if (d.defaultValidityDays) {
           const dt = new Date();
@@ -396,7 +396,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   useEffect(() => {
     if (!quote) return;
     setLoading(true);
-    fetch(`${API}/quotes/${quote.id}`, { headers: { "Content-Type": "application/json" } })
+    apiFetch(`${API}/quotes/${quote.id}`)
       .then(r => r.json()).then(setDetail).finally(() => setLoading(false));
   }, [quote]);
 

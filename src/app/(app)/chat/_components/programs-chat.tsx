@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { apiFetch } from "@/lib/api";
 import { io, Socket } from "socket.io-client";
 import {
   MessageCircle, Send, Camera, Loader2, Search, ChevronLeft,
@@ -63,9 +64,10 @@ export function ProgramsChat() {
       setMyId(payload.sub);
     } catch {}
 
-    fetch(`${API}/chat/bookings`, { headers: { "Content-Type": "application/json" } })
+    apiFetch(`${API}/chat/bookings`)
       .then(r => r.ok ? r.json() : [])
       .then(d => setBookings(Array.isArray(d) ? d : []))
+      .catch(() => [])
       .finally(() => setLoading(false));
 
     const sock = io(`${WS_URL}/chat`, {

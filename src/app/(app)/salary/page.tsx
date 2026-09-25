@@ -38,13 +38,18 @@ export default function SalaryPage() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [s, m] = await Promise.all([
-      fetch(`${API}/salary?year=${yearFilter}${monthFilter ? "&month=" + monthFilter : ""}`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/salary/team-members`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
-    ]);
-    setSlips(Array.isArray(s) ? s : []);
-    setMembers(Array.isArray(m) ? m : []);
-    setLoading(false);
+    try {
+      const [s, m] = await Promise.all([
+        apiFetch(`${API}/salary?year=${yearFilter}${monthFilter ? "&month=" + monthFilter : ""}`).then(r => r.ok ? r.json() : []),
+        apiFetch(`${API}/salary/team-members`).then(r => r.ok ? r.json() : []),
+      ]);
+      setSlips(Array.isArray(s) ? s : []);
+      setMembers(Array.isArray(m) ? m : []);
+    } catch {
+      setToast({ msg: "Failed to load salary data", ok: false });
+    } finally {
+      setLoading(false);
+    }
   }, [yearFilter, monthFilter]);
 
   useEffect(() => { loadAll(); }, [loadAll]);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
   Loader2, Camera, CalendarDays, Clock,
@@ -10,8 +11,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 
-function getToken() { return localStorage.getItem("access_token") ?? ""; }
-function authHeaders() { return { Authorization: `Bearer ${getToken()}` }; }
+
 
 const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> = {
   inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600",   dot: "bg-slate-400" },
@@ -68,8 +68,8 @@ export default function MemberDashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/member/dashboard`, { headers: authHeaders() }).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/member/earnings`, { headers: authHeaders() }).then(r => r.ok ? r.json() : null),
+      apiFetch(`${API}/member/dashboard`).then(r => r.ok ? r.json() : null),
+      apiFetch(`${API}/member/earnings`).then(r => r.ok ? r.json() : null),
     ]).then(([dash, earn]) => {
       if (dash) setData(dash);
       if (earn?.stats) setEarnings(earn.stats);

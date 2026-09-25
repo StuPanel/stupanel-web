@@ -77,11 +77,13 @@ export default function ReportsPage() {
   const [statusBreakdown, setStatusBreakdown] = useState<StatusItem[]>([]);
   const [teamEarnings, setTeamEarnings] = useState<TeamEarning[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [chartMetric, setChartMetric] = useState<"revenue" | "profit" | "programs">("revenue");
   const [costsOpen, setCostsOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const [s, m, tc, sb, te] = await Promise.all([
         apiFetch(`${API}/dashboard/reports/summary?year=${year}`).then(r => r.json()),
@@ -95,6 +97,8 @@ export default function ReportsPage() {
       setTopClients(Array.isArray(tc) ? tc : []);
       setStatusBreakdown(Array.isArray(sb) ? sb : []);
       setTeamEarnings(Array.isArray(te) ? te : []);
+    } catch {
+      setError(true);
     } finally { setLoading(false); }
   }, [year]);
 
@@ -103,6 +107,13 @@ export default function ReportsPage() {
   if (loading) return (
     <div className="flex items-center justify-center py-24">
       <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3">
+      <p className="text-slate-500">Failed to load reports. Please try again.</p>
+      <button onClick={fetchAll} className="text-sm text-indigo-600 underline">Retry</button>
     </div>
   );
 

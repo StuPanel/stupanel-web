@@ -123,9 +123,9 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const s = sym(currency);
 
   useEffect(() => {
-    fetch(`${API}/clients?limit=200`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setClients(d.data ?? []));
-    fetch(`${API}/bookings?limit=200`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => setBookings(d.data ?? []));
-    fetch(`${API}/companies/me`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()).then(d => {
+    apiFetch(`${API}/clients?limit=200`).then(r => r.json()).then(d => setClients(d.data ?? []));
+    apiFetch(`${API}/bookings?limit=200`).then(r => r.json()).then(d => setBookings(d.data ?? []));
+    apiFetch(`${API}/companies/me`).then(r => r.json()).then(d => {
       if (d.taxLabel) setTaxLabel(d.taxLabel);
       if (d.defaultTaxPercent) setTaxPercent(Number(d.defaultTaxPercent));
       if (d.defaultTerms) setTerms(d.defaultTerms);

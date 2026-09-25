@@ -78,18 +78,20 @@ export default function SupportPage() {
 
   const loadTickets = useCallback(async (p = 1, st = statusFilter) => {
     setLoading(true);
-    const q = new URLSearchParams({ page: String(p), ...(st && { status: st }) });
-    const [ticketRes, statsRes] = await Promise.all([
-      fetch(`${API}/support/tickets?${q}`, { headers: { "Content-Type": "application/json" } }),
-      fetch(`${API}/support/stats`, { headers: { "Content-Type": "application/json" } }),
-    ]);
-    const d = await ticketRes.json();
-    setTickets(d.items ?? []);
-    setTotal(d.total ?? 0);
-    setPages(d.pages ?? 1);
-    setPage(p);
-    if (statsRes.ok) setStats(await statsRes.json());
-    setLoading(false);
+    try {
+      const q = new URLSearchParams({ page: String(p), ...(st && { status: st }) });
+      const [ticketRes, statsRes] = await Promise.all([
+        apiFetch(`${API}/support/tickets?${q}`),
+        apiFetch(`${API}/support/stats`),
+      ]);
+      const d = await ticketRes.json();
+      setTickets(d.items ?? []);
+      setTotal(d.total ?? 0);
+      setPages(d.pages ?? 1);
+      setPage(p);
+      if (statsRes.ok) setStats(await statsRes.json());
+    } catch { /* non-fatal */ }
+    finally { setLoading(false); }
   }, [statusFilter]);
 
   useEffect(() => { loadTickets(); }, []);

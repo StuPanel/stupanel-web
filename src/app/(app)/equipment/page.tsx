@@ -47,13 +47,18 @@ export default function EquipmentPage() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [eq, st] = await Promise.all([
-      fetch(`${API}/equipment?search=${search}&status=${statusFilter}`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/equipment/stats`, { headers: { "Content-Type": "application/json" } }).then(r => r.ok ? r.json() : null),
-    ]);
-    setItems(Array.isArray(eq) ? eq : []);
-    setStats(st);
-    setLoading(false);
+    try {
+      const [eq, st] = await Promise.all([
+        apiFetch(`${API}/equipment?search=${search}&status=${statusFilter}`).then(r => r.ok ? r.json() : []),
+        apiFetch(`${API}/equipment/stats`).then(r => r.ok ? r.json() : null),
+      ]);
+      setItems(Array.isArray(eq) ? eq : []);
+      setStats(st);
+    } catch {
+      setToast({ msg: "Failed to load equipment data", ok: false });
+    } finally {
+      setLoading(false);
+    }
   }, [search, statusFilter]);
 
   useEffect(() => { loadAll(); }, [loadAll]);

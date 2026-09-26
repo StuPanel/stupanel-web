@@ -2,13 +2,14 @@
 
 import { apiFetch } from "@/lib/api";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Building2, FileText, Loader2, CheckCircle2, Camera,
   Link2, Globe, Phone, MapPin, Palette, Percent, CalendarDays,
   CreditCard, Smartphone, ExternalLink, Video,
   Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
   HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt, Monitor,
+  Upload, X, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,16 +192,210 @@ function StudioTab({ data }: { data: any }) {
   );
 }
 
+// ─── Logo Crop Modal ───────────────────────────────────────────────────────────
+const CANVAS_DISPLAY = 300;
+const CROP_OUTPUT = 400;
+
+function LogoCropModal({ src, onSave, onClose }: {
+  src: string;
+  onSave: (blob: Blob) => void;
+  onClose: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [minScale, setMinScale] = useState(1);
+  const dragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => {
+      const s = Math.max(CANVAS_DISPLAY / image.width, CANVAS_DISPLAY / image.height);
+      setMinScale(s);
+      setScale(s);
+      setOffset({ x: (CANVAS_DISPLAY - image.width * s) / 2, y: (CANVAS_DISPLAY - image.height * s) / 2 });
+      setImg(image);
+    };
+    image.src = src;
+  }, [src]);
+
+  const draw = useCallback(() => {
+    if (!canvasRef.current || !img) return;
+    const ctx = canvasRef.current.getContext('2d')!;
+    ctx.clearRect(0, 0, CANVAS_DISPLAY, CANVAS_DISPLAY);
+    ctx.drawImage(img, offset.x, offset.y, img.width * scale, img.height * scale);
+  }, [img, offset, scale]);
+
+  useEffect(() => { draw(); }, [draw]);
+
+  function clampOffset(ox: number, oy: number, sc: number) {
+    if (!img) return { x: ox, y: oy };
+    const w = img.width * sc, h = img.height * sc;
+    return {
+      x: Math.min(0, Math.max(CANVAS_DISPLAY - w, ox)),
+      y: Math.min(0, Math.max(CANVAS_DISPLAY - h, oy)),
+    };
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    dragging.current = true;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragging.current) return;
+    const dx = e.clientX - lastPos.current.x, dy = e.clientY - lastPos.current.y;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, scale));
+  }
+  function onPointerUp() { dragging.current = false; }
+
+  function zoom(delta: number) {
+    setScale(prev => {
+      const next = Math.min(4, Math.max(minScale, prev + delta));
+      setOffset(o => clampOffset(o.x, o.y, next));
+      return next;
+    });
+  }
+
+  function handleWheel(e: React.WheelEvent) {
+    e.preventDefault();
+    zoom(e.deltaY < 0 ? 0.1 : -0.1);
+  }
+
+  function useCrop() {
+    if (!canvasRef.current || !img) return;
+    const out = document.createElement('canvas');
+    out.width = CROP_OUTPUT; out.height = CROP_OUTPUT;
+    const ctx = out.getContext('2d')!;
+    const ratio = CROP_OUTPUT / CANVAS_DISPLAY;
+    ctx.drawImage(img, offset.x * ratio, offset.y * ratio, img.width * scale * ratio, img.height * scale * ratio);
+    out.toBlob(blob => { if (blob) onSave(blob); }, 'image/jpeg', 0.92);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <p className="font-bold text-slate-900 text-sm">Position Logo</p>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-slate-500 text-center">Drag to reposition · Scroll or use buttons to zoom</p>
+
+          {/* Canvas with circle overlay */}
+          <div className="relative mx-auto" style={{ width: CANVAS_DISPLAY, height: CANVAS_DISPLAY }}>
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_DISPLAY} height={CANVAS_DISPLAY}
+              className="rounded-xl cursor-grab active:cursor-grabbing touch-none"
+              style={{ display: 'block', userSelect: 'none' }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onWheel={handleWheel}
+            />
+            {/* Circle crop guide overlay */}
+            <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
+              <div className="absolute inset-0 bg-black/40" style={{
+                WebkitMaskImage: 'radial-gradient(circle 138px at center, transparent 100%, black 100%)',
+                maskImage: 'radial-gradient(circle 138px at center, transparent 100%, black 100%)',
+              }} />
+              <div className="absolute inset-0" style={{
+                borderRadius: '50%',
+                left: 12, top: 12, right: 12, bottom: 12,
+                position: 'absolute',
+                border: '2px solid rgba(255,255,255,0.6)',
+              }} />
+            </div>
+          </div>
+
+          {/* Zoom controls */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => zoom(-0.15)} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50">
+              <ZoomOut className="w-4 h-4 text-slate-600" />
+            </button>
+            <input type="range" min={Math.round(minScale * 100)} max={400} value={Math.round(scale * 100)}
+              onChange={e => { const s = Number(e.target.value) / 100; setScale(s); setOffset(o => clampOffset(o.x, o.y, s)); }}
+              className="flex-1 accent-indigo-600" />
+            <button onClick={() => zoom(0.15)} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50">
+              <ZoomIn className="w-4 h-4 text-slate-600" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3">
+          <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={useCrop}
+            className="flex-1 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+            Use This Crop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Branding Tab ──────────────────────────────────────────────────────────────
 function BrandingTab({ data }: { data: any }) {
   const [logoUrl, setLogoUrl] = useState(data.logoUrl ?? "");
   const [primaryColor, setPrimaryColor] = useState(data.primaryColor ?? "#4F46E5");
   const [logoErr, setLogoErr] = useState(false);
+  const [logoMode, setLogoMode] = useState<"url" | "upload">("url");
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { saving, toast, setToast, save } = useSave();
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = "";
+    if (!file) return;
+    if (file.size > 1 * 1024 * 1024) {
+      setUploadErr("ফাইল সাইজ ১ MB-এর বেশি। ছোট ছবি বেছে নিন।");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setUploadErr("শুধু JPG, PNG, WebP ফাইল সাপোর্টেড।");
+      return;
+    }
+    setUploadErr("");
+    const reader = new FileReader();
+    reader.onload = ev => { if (ev.target?.result) setCropSrc(ev.target.result as string); };
+    reader.readAsDataURL(file);
+  }
+
+  async function onCropSave(blob: Blob) {
+    setCropSrc(null);
+    setUploading(true);
+    setUploadErr("");
+    try {
+      const form = new FormData();
+      form.append("file", blob, "logo.jpg");
+      const res = await apiFetch(`${API}/companies/logo`, { method: "POST", body: form });
+      if (!res.ok) throw new Error((await res.json()).message ?? "Upload failed");
+      const { url } = await res.json();
+      setLogoUrl(url);
+      setLogoErr(false);
+    } catch (err: unknown) {
+      setUploadErr(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      {cropSrc && <LogoCropModal src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
+
       <SectionHead icon={Palette} title="Branding" sub="Logo and colors shown on quotes, invoices and client pages" />
       <div className="space-y-6 max-w-lg">
 
@@ -208,18 +403,57 @@ function BrandingTab({ data }: { data: any }) {
         <div className="space-y-3">
           <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Studio Logo</Label>
           <div className="flex items-start gap-4">
-            <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0 overflow-hidden">
-              {logoUrl && !logoErr
-                ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
-                : <Camera className="w-9 h-9 text-slate-300" />}
+            {/* Preview */}
+            <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0 overflow-hidden relative">
+              {uploading
+                ? <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+                : logoUrl && !logoErr
+                  ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" onError={() => setLogoErr(true)} />
+                  : <Camera className="w-9 h-9 text-slate-300" />
+              }
             </div>
-            <div className="flex-1 space-y-2">
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input value={logoUrl} onChange={e => { setLogoUrl(e.target.value); setLogoErr(false); }}
-                  placeholder="https://… paste image URL" className="h-10 pl-9 border-slate-200 text-sm" />
+
+            <div className="flex-1 space-y-3">
+              {/* Mode toggle */}
+              <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+                <button onClick={() => setLogoMode("upload")}
+                  className={cn("flex-1 py-2 flex items-center justify-center gap-1.5 transition-colors",
+                    logoMode === "upload" ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
+                  <Upload className="w-3.5 h-3.5" /> Upload
+                </button>
+                <button onClick={() => setLogoMode("url")}
+                  className={cn("flex-1 py-2 flex items-center justify-center gap-1.5 transition-colors",
+                    logoMode === "url" ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
+                  <Link2 className="w-3.5 h-3.5" /> Paste URL
+                </button>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">Paste a direct image URL (PNG/JPG/SVG). Recommended: 200×200px, transparent background.</p>
+
+              {logoMode === "upload" ? (
+                <>
+                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+                    className="hidden" onChange={onFileChange} />
+                  <button onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-10 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors">
+                    <Upload className="w-4 h-4" /> ছবি বেছে নিন
+                  </button>
+                  <p className="text-[11px] text-slate-400">JPG / PNG / WebP · সর্বোচ্চ ১ MB</p>
+                </>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input value={logoUrl} onChange={e => { setLogoUrl(e.target.value); setLogoErr(false); }}
+                      placeholder="https://… paste image URL" className="h-10 pl-9 border-slate-200 text-sm" />
+                  </div>
+                  <p className="text-[11px] text-slate-400">PNG/JPG/SVG direct URL · ২০০×২০০px, transparent background</p>
+                </>
+              )}
+
+              {uploadErr && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{uploadErr}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -243,9 +477,9 @@ function BrandingTab({ data }: { data: any }) {
         <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Live Preview</p>
           <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100">
-            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center bg-slate-50">
+            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0">
               {logoUrl && !logoErr
-                ? <img src={logoUrl} alt="" className="w-full h-full object-contain p-1" />
+                ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
                 : <Camera className="w-5 h-5 text-slate-300" />}
             </div>
             <div>
@@ -258,7 +492,7 @@ function BrandingTab({ data }: { data: any }) {
           </div>
         </div>
 
-        <Button disabled={saving} onClick={() => save({ logoUrl: logoUrl || undefined, primaryColor }, "Branding saved!")}
+        <Button disabled={saving || uploading} onClick={() => save({ logoUrl: logoUrl || undefined, primaryColor }, "Branding saved!")}
           className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Branding</>}
         </Button>

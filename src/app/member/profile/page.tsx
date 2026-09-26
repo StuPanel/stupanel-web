@@ -9,12 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-
-function getToken() { return localStorage.getItem("access_token") ?? ""; }
-function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
-}
+import { apiFetch, API_URL as API } from "@/lib/api";
 
 interface Profile {
   id: string;
@@ -51,7 +46,7 @@ export default function MemberProfilePage() {
   const [pwErr, setPwErr]             = useState("");
 
   useEffect(() => {
-    fetch(`${API}/member/profile`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {
@@ -69,9 +64,9 @@ export default function MemberProfilePage() {
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaveErr(""); setSavedOk(false); setSaving(true);
-    const res = await fetch(`${API}/member/profile`, {
+    const res = await apiFetch(`${API}/member/profile`, {
       method: "PATCH",
-      headers: authHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim() || undefined, phone: phone.trim() || undefined, bio: bio.trim() || undefined }),
     });
     const d = await res.json();
@@ -86,9 +81,9 @@ export default function MemberProfilePage() {
     if (newPw !== confirmPw) { setPwErr("New passwords do not match"); return; }
     if (newPw.length < 6) { setPwErr("New password must be at least 6 characters"); return; }
     setPwSaving(true);
-    const res = await fetch(`${API}/member/change-password`, {
+    const res = await apiFetch(`${API}/member/change-password`, {
       method: "PATCH",
-      headers: authHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
     });
     const d = await res.json();

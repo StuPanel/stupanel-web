@@ -7,11 +7,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
+import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
-
-function getToken() { return localStorage.getItem("access_token") ?? ""; }
-function authHeaders() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
 
 const STATUS_CFG: Record<string, { label: string; color: string }> = {
   inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600" },
@@ -61,7 +58,7 @@ export default function MemberProgramsPage() {
     setLoading(true);
     const qs = new URLSearchParams({ page: String(page), limit: "15" });
     if (statusFilter !== "all") qs.set("status", statusFilter);
-    const res = await fetch(`${API}/member/programs?${qs}`, { headers: authHeaders() });
+    const res = await apiFetch(`${API}/member/programs?${qs}`);
     if (res.ok) {
       const d = await res.json();
       setBookings(d.data ?? []);
@@ -74,9 +71,9 @@ export default function MemberProgramsPage() {
 
   async function updateStatus(bookingId: string, newStatus: string) {
     setUpdatingId(bookingId);
-    const res = await fetch(`${API}/member/programs/${bookingId}/status`, {
+    const res = await apiFetch(`${API}/member/programs/${bookingId}/status`, {
       method: "PATCH",
-      headers: authHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
     if (res.ok) {

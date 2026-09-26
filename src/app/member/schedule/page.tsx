@@ -3,11 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, CalendarDays, MapPin, Phone, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-
-function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` };
-}
+import { apiFetch, API_URL as API } from "@/lib/api";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -67,7 +63,7 @@ export default function SchedulePage() {
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
 
   useEffect(() => {
-    fetch(`${API}/member/schedule`, { headers: authHeaders() })
+    apiFetch(`${API}/member/schedule`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setEvents(d.events ?? []); })
       .catch(() => {})

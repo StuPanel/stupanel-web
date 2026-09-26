@@ -1,3 +1,5 @@
+import { setAccessTokenCookie, clearAccessTokenCookie } from "./auth-cookie";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
@@ -21,6 +23,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
     if (!refreshRes.ok) throw new Error();
     const { accessToken } = await refreshRes.json();
     localStorage.setItem("access_token", accessToken);
+    setAccessTokenCookie(accessToken);
 
     return fetch(input, {
       ...init,
@@ -29,6 +32,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
   } catch {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
+    clearAccessTokenCookie();
     window.location.href = "/login";
     return res;
   }

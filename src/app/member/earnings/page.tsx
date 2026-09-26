@@ -3,12 +3,8 @@
 import { useState, useEffect } from "react";
 import { Loader2, Wallet, TrendingUp, Clock, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
+import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
-
-function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` };
-}
 
 function fmtMonth(month: number, year: number) {
   const dt = new Date(year, month - 1, 1);
@@ -44,7 +40,7 @@ export default function EarningsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/member/earnings`, { headers: authHeaders() })
+    apiFetch(`${API}/member/earnings`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) { setStats(d.stats); setSlips(d.salarySlips); setPrograms(d.programs); }

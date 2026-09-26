@@ -25,7 +25,7 @@ export function WhatsAppModal({ booking, onClose }: {
   useEffect(() => {
     if (!booking) return;
     setPhone(booking.client?.phone ?? "");
-    fetch(`${API}/wa-templates`, { headers: { "Content-Type": "application/json" } })
+    apiFetch(`${API}/wa-templates`)
       .then(r => r.json()).then(d => { setTemplates(Array.isArray(d) ? d : []); })
       .catch(() => {}).finally(() => setLoadingTpl(false));
   }, [booking]);

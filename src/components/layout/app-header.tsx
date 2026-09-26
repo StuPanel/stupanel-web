@@ -23,6 +23,9 @@ interface UserProfile {
   company: { name: string };
 }
 
+// module-level cache so logo persists across re-mounts within the same session
+let _cachedLogoUrl = "";
+
 interface SearchResult {
   id: string;
   label: string;
@@ -40,6 +43,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   
   const [user, setUser] = useState<UserProfile | null>(null);
   const [hasUnread, setHasUnread] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState(_cachedLogoUrl);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -74,10 +78,31 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       .then(data => { if (data?.firstName) setUser(data); })
       .catch(() => {});
 
+    // Load company logo (only if not already cached)
+    if (!_cachedLogoUrl) {
+      apiFetch(`${API}/companies/me`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.logoUrl) {
+            _cachedLogoUrl = d.logoUrl;
+            setCompanyLogo(d.logoUrl);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Listen for logo updates from Branding settings
+    function onBrandingUpdate(e: Event) {
+      const logo = (e as CustomEvent).detail?.logoUrl;
+      if (logo) { _cachedLogoUrl = logo; setCompanyLogo(logo); }
+    }
+    window.addEventListener("branding-updated", onBrandingUpdate);
+
     checkUnread();
     window.addEventListener("notif-seen-updated", checkUnread);
     const interval = setInterval(checkUnread, 60000);
     return () => {
+      window.removeEventListener("branding-updated", onBrandingUpdate);
       window.removeEventListener("notif-seen-updated", checkUnread);
       clearInterval(interval);
     };
@@ -314,12 +339,19 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden" sideOffset={8}>
               {/* User identity header */}
               <div className="bg-indigo-50 px-4 py-3 flex items-center gap-3">
-                <Avatar className="w-10 h-10 flex-shrink-0">
-                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                  <AvatarFallback className="bg-indigo-200 text-indigo-700 text-sm font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+                {/* Company logo or user avatar */}
+                {companyLogo ? (
+                  <div className="w-10 h-10 rounded-lg bg-white border border-indigo-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
+                  </div>
+                ) : (
+                  <Avatar className="w-10 h-10 flex-shrink-0">
+                    {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
+                    <AvatarFallback className="bg-indigo-200 text-indigo-700 text-sm font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
                   <span className="inline-block bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5">

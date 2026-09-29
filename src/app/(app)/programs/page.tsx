@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Loader2, Search, X, CalendarDays } from "lucide-react";
+import { Plus, Search, X, CalendarDays } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,12 @@ import { ProgramDrawer } from "./_components/program-drawer";
 import { ViewDrawer } from "./_components/view-drawer";
 import type { Booking, Package, TeamMember } from "./_components/types";
 
+// Module-level cache: packages/team/company rarely change, no need to re-fetch on every filter/page change
+let _cachedPackages: Package[] = [];
+let _cachedTeam: TeamMember[] = [];
+let _cachedR2Enabled = false;
+let _staticLoaded = false;
+
 export default function ProgramsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -23,9 +30,9 @@ export default function ProgramsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [r2Enabled, setR2Enabled] = useState(false);
+  const [packages, setPackages] = useState<Package[]>(_cachedPackages);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(_cachedTeam);
+  const [r2Enabled, setR2Enabled] = useState(_cachedR2Enabled);
 
   const [newOpen, setNewOpen] = useState(false);
   const [viewTarget, setViewTarget] = useState<Booking | null>(null);
@@ -38,16 +45,28 @@ export default function ProgramsPage() {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      const [bRes, pkgRes, tmRes, compRes] = await Promise.all([
-        apiFetch(`${API}/bookings?${params}`),
+
+      // Only fetch static data once per session
+      const staticFetches = _staticLoaded ? [] : [
         apiFetch(`${API}/packages`),
         apiFetch(`${API}/team`),
         apiFetch(`${API}/companies/me`),
+      ];
+
+      const [bRes, ...staticRes] = await Promise.all([
+        apiFetch(`${API}/bookings?${params}`),
+        ...staticFetches,
       ]);
+
       if (bRes.ok) { const d = await bRes.json(); setBookings(d.data ?? []); setMeta(d.meta); }
-      if (pkgRes.ok) { const d = await pkgRes.json(); setPackages(d.data ?? d ?? []); }
-      if (tmRes.ok) { setTeamMembers(await tmRes.json()); }
-      if (compRes.ok) { const d = await compRes.json(); setR2Enabled(!!d.r2Enabled); }
+
+      if (!_staticLoaded && staticRes.length === 3) {
+        const [pkgRes, tmRes, compRes] = staticRes;
+        if (pkgRes.ok) { const d = await pkgRes.json(); _cachedPackages = d.data ?? d ?? []; setPackages(_cachedPackages); }
+        if (tmRes.ok) { _cachedTeam = await tmRes.json(); setTeamMembers(_cachedTeam); }
+        if (compRes.ok) { const d = await compRes.json(); _cachedR2Enabled = !!d.r2Enabled; setR2Enabled(_cachedR2Enabled); }
+        _staticLoaded = true;
+      }
     } finally { setLoading(false); }
   }, [page, search, statusFilter]);
 
@@ -116,7 +135,7 @@ export default function ProgramsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <TableSkeleton rows={6} />
       ) : bookings.length === 0 ? (
         <div className="text-center py-16">
           <CalendarDays className="w-12 h-12 text-slate-200 mx-auto mb-3" />

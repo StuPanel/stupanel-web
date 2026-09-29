@@ -10,6 +10,7 @@ import {
   Edit3, Trash2, Eye, ChevronLeft, ChevronRight, LayoutGrid, List,
   Link2, Check,
 } from "lucide-react";
+import { CardGridSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -676,9 +677,7 @@ export default function ClientsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-        </div>
+        <CardGridSkeleton cards={6} />
       ) : clients.length === 0 ? (
         <div className="text-center py-16">
           <User className="w-12 h-12 text-slate-200 mx-auto mb-3" />

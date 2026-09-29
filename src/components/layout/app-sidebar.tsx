@@ -32,10 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch, API_URL as API } from "@/lib/api";
-
-// module-level cache — persists across sidebar re-mounts in the same session
-let _cachedSidebarLogo = "";
-let _cachedCompanyName = "";
+import { useAuth } from "@/context/auth-context";
 
 const navigation = [
   {
@@ -97,12 +94,12 @@ function calcTrialDays(trialEndsAt: string | null): number | null {
 
 export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
+  const { companyLogo, companyName } = useAuth();
   const [trialDays, setTrialDays] = useState<number | null>(null);
   const [subStatus, setSubStatus] = useState<string>("trialing");
   const [chatUnread, setChatUnread] = useState(0);
-  const [companyLogo, setCompanyLogo] = useState(_cachedSidebarLogo);
-  const [companyName, setCompanyName] = useState(_cachedCompanyName);
 
+  // Subscription info — fetch once on mount
   useEffect(() => {
     apiFetch(`${API}/companies/me`)
       .then(r => r.ok ? r.json() : null)
@@ -110,37 +107,29 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         if (d) {
           setTrialDays(calcTrialDays(d.trialEndsAt));
           setSubStatus(d.subscriptionStatus ?? "trialing");
-          if (d.logoUrl) {
-            _cachedSidebarLogo = d.logoUrl;
-            setCompanyLogo(d.logoUrl);
-          }
-          if (d.name) {
-            _cachedCompanyName = d.name;
-            setCompanyName(d.name);
-          }
         }
       })
       .catch(() => {});
-
-    function onBrandingUpdate(e: Event) {
-      const logo = (e as CustomEvent).detail?.logoUrl;
-      if (logo) { _cachedSidebarLogo = logo; setCompanyLogo(logo); }
-    }
-    window.addEventListener("branding-updated", onBrandingUpdate);
-    return () => window.removeEventListener("branding-updated", onBrandingUpdate);
   }, []);
 
+  // Chat unread — poll only when tab is visible
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
-    const load = () =>
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/chat/bookings`, { headers: { Authorization: `Bearer ${token}` } })
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch(`${API}/chat/bookings`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : [])
         .then((d: any[]) => Array.isArray(d) ? setChatUnread(d.reduce((s, b) => s + (b.unreadCount ?? 0), 0)) : null)
         .catch(() => {});
+    };
     load();
-    const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    document.addEventListener("visibilitychange", load);
+    const interval = setInterval(load, 60000);
+    return () => {
+      document.removeEventListener("visibilitychange", load);
+      clearInterval(interval);
+    };
   }, []);
 
   return (

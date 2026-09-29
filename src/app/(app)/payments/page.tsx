@@ -8,6 +8,7 @@ import {
   Edit3, Trash2, ChevronLeft, ChevronRight, Banknote, Smartphone,
   Building2, CheckCircle2, TrendingUp, Calendar, FileText,
 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -659,9 +660,7 @@ export default function PaymentsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-        </div>
+        <TableSkeleton rows={6} />
       ) : payments.length === 0 ? (
         <div className="text-center py-16">
           <CreditCard className="w-12 h-12 text-slate-200 mx-auto mb-3" />

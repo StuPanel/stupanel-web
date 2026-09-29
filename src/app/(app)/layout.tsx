@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
-import { LayoutDashboard, Camera, Users, CreditCard, UserCog, MailWarning, X, Loader2 } from "lucide-react";
+import { LayoutDashboard, Camera, Users, CreditCard, UserCog, MailWarning, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
+import { AuthProvider, useAuth } from "@/context/auth-context";
 
 
 const mobileNav = [
@@ -32,7 +31,8 @@ function VerificationBanner({ email }: { email: string }) {
   async function resend() {
     setSending(true);
     try {
-      await apiFetch(`${API}/auth/resend-verification`, { method: "POST" });
+      const { apiFetch, API_URL } = await import("@/lib/api");
+      await apiFetch(`${API_URL}/auth/resend-verification`, { method: "POST" });
       setSent(true);
     } catch { /* silent */ }
     setSending(false);
@@ -49,7 +49,7 @@ function VerificationBanner({ email }: { email: string }) {
       ) : (
         <button onClick={resend} disabled={sending}
           className="text-sm font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 flex items-center gap-1 disabled:opacity-60">
-          {sending && <Loader2 className="w-3 h-3 animate-spin" />}
+          {sending && <span className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin inline-block" />}
           Resend email
         </button>
       )}
@@ -60,13 +60,49 @@ function VerificationBanner({ email }: { email: string }) {
   );
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// Layout skeleton shown while auth loads
+function AppLayoutSkeleton({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className="h-full flex bg-slate-50">
+      <div className={cn("hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 z-30", collapsed ? "lg:w-16" : "lg:w-64")}>
+        <div className="flex flex-col w-full h-full bg-white border-r border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-200 animate-pulse flex-shrink-0" />
+            {!collapsed && <div className="flex-1 space-y-1.5"><div className="h-3.5 bg-slate-200 rounded animate-pulse w-24" /><div className="h-2.5 bg-slate-100 rounded animate-pulse w-32" /></div>}
+          </div>
+          <div className="flex-1 p-3 space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className={cn("h-9 rounded-lg bg-slate-100 animate-pulse", i % 3 === 0 && "opacity-60")} />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className={cn("flex-1 flex flex-col", collapsed ? "lg:ml-16" : "lg:ml-64")}>
+        <div className="h-16 bg-white border-b border-slate-200 flex items-center px-6 gap-4">
+          <div className="h-9 w-72 bg-slate-100 rounded-md animate-pulse" />
+          <div className="flex-1" />
+          <div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />
+          <div className="w-28 h-9 rounded-lg bg-slate-100 animate-pulse" />
+        </div>
+        <main className="flex-1 p-6">
+          <div className="space-y-4">
+            <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
+            </div>
+            <div className="h-64 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { user, ready, emailVerified } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(true);
-  const [userEmail, setUserEmail] = useState("");
   const pathname = usePathname();
 
   useEffect(() => {
@@ -80,27 +116,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   }
 
+  // Auth guard — runs after AuthProvider has resolved
   useEffect(() => {
+    if (!ready) return;
     const token = localStorage.getItem("access_token");
     const role = localStorage.getItem("user_role");
     if (!token) { router.replace("/login"); return; }
     if (role === "staff") { router.replace("/member/dashboard"); return; }
+    if (!user) {
+      // auth/me failed (bad token)
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user_role");
+      router.replace("/login");
+    }
+  }, [ready, user, router]);
 
-    apiFetch(`${API}/auth/me`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        setEmailVerified(data.emailVerified ?? true);
-        setUserEmail(data.email ?? "");
-        setReady(true);
-      })
-      .catch(() => {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user_role");
-        router.replace("/login");
-      });
-  }, [router]);
-
-  if (!ready) return null;
+  if (!ready) return <AppLayoutSkeleton collapsed={collapsed} />;
 
   return (
     <div className="h-full flex bg-slate-50">
@@ -130,7 +161,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppHeader onMenuClick={() => setSidebarOpen(true)} />
 
         {/* Email verification banner */}
-        {!emailVerified && <VerificationBanner email={userEmail} />}
+        {!emailVerified && <VerificationBanner email={user?.email ?? ""} />}
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
           <ErrorBoundary>{children}</ErrorBoundary>
@@ -156,5 +187,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
     </div>
+  );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </AuthProvider>
   );
 }

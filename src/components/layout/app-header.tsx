@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, API_URL as API } from "@/lib/api";
+import { useAuth } from "@/context/auth-context";
 import {
   Bell, Search, ChevronDown, Menu, Settings, User, LogOut, ShieldAlert,
   Camera, Users, FileText, X, Loader2,
@@ -23,9 +24,6 @@ interface UserProfile {
   company: { name: string };
 }
 
-// module-level cache so logo persists across re-mounts within the same session
-let _cachedLogoUrl = "";
-
 interface SearchResult {
   id: string;
   label: string;
@@ -40,10 +38,8 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
-  
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user, companyLogo } = useAuth();
   const [hasUnread, setHasUnread] = useState(false);
-  const [companyLogo, setCompanyLogo] = useState(_cachedLogoUrl);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -73,36 +69,22 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
-    apiFetch(`${API}/auth/me`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.firstName) setUser(data); })
-      .catch(() => {});
 
-    // Load company logo (only if not already cached)
-    if (!_cachedLogoUrl) {
-      apiFetch(`${API}/companies/me`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          if (d?.logoUrl) {
-            _cachedLogoUrl = d.logoUrl;
-            setCompanyLogo(d.logoUrl);
-          }
-        })
-        .catch(() => {});
-    }
-
-    // Listen for logo updates from Branding settings
-    function onBrandingUpdate(e: Event) {
-      const logo = (e as CustomEvent).detail?.logoUrl;
-      if (logo) { _cachedLogoUrl = logo; setCompanyLogo(logo); }
-    }
-    window.addEventListener("branding-updated", onBrandingUpdate);
-
+    // Initial notification check
     checkUnread();
+
+    // Poll only when tab is visible, every 2 minutes
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") checkUnread();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("notif-seen-updated", checkUnread);
-    const interval = setInterval(checkUnread, 60000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") checkUnread();
+    }, 120000);
+
     return () => {
-      window.removeEventListener("branding-updated", onBrandingUpdate);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("notif-seen-updated", checkUnread);
       clearInterval(interval);
     };

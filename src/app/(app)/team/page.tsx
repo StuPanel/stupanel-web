@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
 import { formatCurrency } from "@/lib/format";
+import { CardGridSkeleton } from "@/components/ui/page-skeleton";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -714,7 +715,7 @@ export default function TeamPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <CardGridSkeleton cards={6} />
       ) : members.length === 0 ? (
         <div className="text-center py-16">
           <Shield className="w-12 h-12 text-slate-200 mx-auto mb-3" />

@@ -8,6 +8,7 @@ import {
   FileText, Link2, Copy, MoreVertical, AlertCircle, Zap,
   DollarSign, Clock, TrendingUp, ChevronRight,
 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -643,7 +644,7 @@ export default function InvoicesPage() {
 
       {/* List */}
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <TableSkeleton rows={6} />
       ) : invoices.length === 0 ? (
         <div className="text-center py-16">
           <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />

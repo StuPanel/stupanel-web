@@ -11,10 +11,9 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
+
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
-function num(n: number | string | null | undefined) {
-  return Number(n || 0).toLocaleString();
-}
+function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
 function fmtBytes(n: number): string {
   if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
   if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
@@ -27,13 +26,42 @@ function fileIcon(mimeType: string) {
   return File;
 }
 
-const BOOKING_STATUS: Record<string, { label: string; color: string }> = {
-  inquiry:    { label: "Inquiry",    color: "bg-slate-100 text-slate-600" },
-  confirmed:  { label: "Confirmed",  color: "bg-blue-100 text-blue-700" },
-  in_progress:{ label: "In Progress",color: "bg-amber-100 text-amber-700" },
-  completed:  { label: "Completed",  color: "bg-emerald-100 text-emerald-700" },
-  cancelled:  { label: "Cancelled",  color: "bg-red-100 text-red-600" },
-  on_hold:    { label: "On Hold",    color: "bg-orange-100 text-orange-700" },
+// Fallback if backend hasn't sent deliveryStatus yet
+function getDeliveryStatus(b: { status: string; delivery?: any; deliveryStatus?: string }): string {
+  if (b.deliveryStatus) return b.deliveryStatus;
+  const s = b.status;
+  const hasD = !!b.delivery;
+  if (['cancelled', 'refunded'].includes(s)) return 'cancelled';
+  if (['completed', 'delivered'].includes(s) || hasD) return 'delivered';
+  if (s === 'ready_for_delivery') return 'ready';
+  if (['in_progress', 'editing'].includes(s)) return 'in_progress';
+  return 'not_started';
+}
+
+function groupByMonth(bookings: PortalData["bookings"]): [string, PortalData["bookings"]][] {
+  const sorted = [...bookings].sort((a, b) => {
+    if (!a.eventDate && !b.eventDate) return 0;
+    if (!a.eventDate) return 1;
+    if (!b.eventDate) return -1;
+    return new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime();
+  });
+  const map = new Map<string, typeof sorted>();
+  for (const b of sorted) {
+    const key = b.eventDate
+      ? new Date(b.eventDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      : "No Date";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(b);
+  }
+  return [...map.entries()];
+}
+
+const DELIVERY_STATUS: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  not_started: { label: "Not Started",  color: "bg-slate-100 text-slate-500",    icon: Clock },
+  in_progress: { label: "In Progress",  color: "bg-blue-100 text-blue-700",      icon: Loader2 },
+  ready:       { label: "Ready",        color: "bg-amber-100 text-amber-700",    icon: Package },
+  delivered:   { label: "Delivered",    color: "bg-emerald-100 text-emerald-700",icon: CheckCircle },
+  cancelled:   { label: "Cancelled",    color: "bg-red-100 text-red-500",        icon: XCircle },
 };
 
 const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
@@ -59,45 +87,30 @@ interface R2File {
   id: string; fileName: string; mimeType: string;
   fileSize: number; viewUrl: string | null; downloadUrl: string | null; folderName?: string | null;
 }
-
 interface ManualLink { id: string; title: string; url: string }
-
 interface DriveFile {
-  id: string; fileName: string;
-  mimeType: string; fileSize: number;
-  folderName: string | null;
-  viewUrl: string | null; downloadUrl: string | null;
+  id: string; fileName: string; mimeType: string; fileSize: number;
+  folderName: string | null; viewUrl: string | null; downloadUrl: string | null;
 }
-
 interface BookingDelivery {
-  fullyPaid: boolean;
-  dueAmount: number;
-  r2Files: R2File[];
-  driveFiles?: DriveFile[];
-  links: ManualLink[];
-  driveFolderUrl: string | null;
-  note: string | null;
+  fullyPaid: boolean; dueAmount: number;
+  r2Files: R2File[]; driveFiles?: DriveFile[];
+  links: ManualLink[]; driveFolderUrl: string | null; note: string | null;
 }
-
 interface PortalData {
-  client: {
-    firstName: string; lastName?: string;
-    email?: string; phone?: string; avatarUrl?: string;
-  };
+  client: { firstName: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string };
   company: {
     name: string; email?: string; phone?: string; address?: string;
     city?: string; logoUrl?: string; primaryColor?: string; currency: string;
     portalWelcomeMessage?: string;
-    portalShowQuotes?: boolean;
-    portalShowInvoices?: boolean;
-    portalShowPayments?: boolean;
-    portalShowMessages?: boolean;
+    portalShowQuotes?: boolean; portalShowInvoices?: boolean;
+    portalShowPayments?: boolean; portalShowMessages?: boolean;
   };
   bookings: {
     id: string; bookingNumber: string; eventName?: string;
-    eventDate?: string; status: string; grandTotal: number;
-    paidAmount: number; currency: string; eventLocation?: string;
-    deliveryLink?: string;
+    eventDate?: string; status: string; deliveryStatus?: string;
+    grandTotal: number; paidAmount: number; currency: string;
+    eventLocation?: string; deliveryLink?: string;
     delivery?: BookingDelivery | null;
   }[];
   quotes: {
@@ -108,8 +121,7 @@ interface PortalData {
   invoices: {
     id: string; invoiceNumber: string; status: string;
     grandTotal: number; paidAmount: number; balanceDue: number;
-    currency: string; issueDate: string; dueDate?: string;
-    publicToken: string;
+    currency: string; issueDate: string; dueDate?: string; publicToken: string;
   }[];
   payments: {
     id: string; amount: number; currency: string;
@@ -118,9 +130,9 @@ interface PortalData {
   }[];
 }
 
-type Tab = "bookings" | "quotes" | "invoices" | "payments" | "messages";
+type Tab = "programs" | "quotes" | "invoices" | "payments" | "messages";
 
-// ─── Delivery Section per Booking ────────────────────────────────────────────
+// ─── Delivery Section (unchanged logic) ──────────────────────────────────────
 function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingId }: {
   delivery: BookingDelivery; dueAmount: number; currency: string; brand: string;
   token: string; bookingId: string;
@@ -131,11 +143,8 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   const driveFiles: DriveFile[] = delivery.driveFiles ?? [];
   const hasContent = delivery.r2Files.length > 0 || delivery.links.length > 0 || driveFiles.length > 0 || !!delivery.driveFolderUrl;
 
-  function isFolderExpanded(key: string) { return expandedFolders[key] ?? false; } // default collapsed in portal
-  function toggleFolder(key: string) {
-    setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) }));
-  }
-
+  function isFolderExpanded(key: string) { return expandedFolders[key] ?? false; }
+  function toggleFolder(key: string) { setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) })); }
   function downloadZipUrl(folderName?: string) {
     const base = `${API}/public/portal/${token}/download-zip?bookingId=${bookingId}`;
     return folderName ? `${base}&folderName=${encodeURIComponent(folderName)}` : base;
@@ -212,7 +221,6 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             <p className="text-xs text-teal-700 italic bg-teal-100 px-3 py-2 rounded-lg">{delivery.note}</p>
           )}
 
-          {/* Manual Links */}
           {delivery.links.length > 0 && (
             <div className="space-y-2">
               {delivery.links.map(l => (
@@ -231,7 +239,6 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             </div>
           )}
 
-          {/* Drive Files — collapsible folders (same as R2) */}
           {driveFiles.length > 0 && (() => {
             const groups: Record<string, DriveFile[]> = {};
             for (const f of driveFiles) {
@@ -240,7 +247,6 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
               groups[key].push(f);
             }
             const groupEntries = Object.entries(groups);
-
             return (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -254,15 +260,13 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                         <ExternalLink className="w-3 h-3" />Open Drive
                       </a>
                     )}
-                    <a
-                      href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}`}
+                    <a href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}`}
                       className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white transition-opacity hover:opacity-90"
                       style={{ backgroundColor: brand }}>
                       <Download className="w-3 h-3" />Download All
                     </a>
                   </div>
                 </div>
-
                 {groupEntries.map(([folderKey, files]) => {
                   const isOpen = isFolderExpanded(`drive-${folderKey}`);
                   return (
@@ -273,8 +277,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                           <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
                           <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length})</span>
                         </button>
-                        <a
-                          href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}&folderName=${encodeURIComponent(folderKey)}`}
+                        <a href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}&folderName=${encodeURIComponent(folderKey)}`}
                           title="Download folder as ZIP"
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors flex-shrink-0"
                           onClick={e => e.stopPropagation()}>
@@ -284,30 +287,27 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                           {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       </div>
-
-                      <div
-                        style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : "0", transition: "max-height 0.35s ease" }}
-                        className="overflow-hidden">
+                      <div style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : "0", transition: "max-height 0.35s ease" }} className="overflow-hidden">
                         <div className="px-3 pb-3 border-t border-green-50 pt-2 space-y-2">
                           {files.map(f => {
                             const Icon = fileIcon(f.mimeType);
                             return (
                               <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-green-100">
                                 <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-green-300 transition-colors" title="View in Drive">
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-green-300 transition-colors">
                                   <Icon className="w-4 h-4 text-slate-400" />
                                 </a>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
                                   <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)}</p>
                                 </div>
-                                {f.downloadUrl ? (
+                                {f.downloadUrl && (
                                   <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90 flex-shrink-0"
                                     style={{ backgroundColor: brand }}>
                                     <Download className="w-3 h-3" />
                                   </a>
-                                ) : null}
+                                )}
                               </div>
                             );
                           })}
@@ -320,7 +320,6 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             );
           })()}
 
-          {/* Drive Folder link fallback — only if no individual files loaded */}
           {delivery.driveFolderUrl && driveFiles.length === 0 && !delivery.links.some(l => l.url === delivery.driveFolderUrl) && (
             <a href={delivery.driveFolderUrl} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 transition-colors group">
@@ -335,7 +334,6 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             </a>
           )}
 
-          {/* R2 Files — all in folders, collapsible */}
           {delivery.r2Files.length > 0 && (() => {
             const groups: Record<string, R2File[]> = {};
             for (const f of delivery.r2Files) {
@@ -344,36 +342,29 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
               groups[key].push(f);
             }
             const groupEntries = Object.entries(groups);
-
             return (
               <div className="space-y-3">
-                {/* Files header + Download All */}
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide">
                     Files ({delivery.r2Files.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                   </p>
-                  <a
-                    href={downloadZipUrl()}
+                  <a href={downloadZipUrl()}
                     className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white transition-opacity hover:opacity-90"
                     style={{ backgroundColor: brand }}>
                     <Download className="w-3 h-3" />Download All
                   </a>
                 </div>
-
                 {groupEntries.map(([folderKey, files]) => {
                   const isOpen = isFolderExpanded(folderKey);
                   return (
                     <div key={folderKey} className="border border-teal-100 rounded-xl overflow-hidden bg-white">
-                      {/* Folder header */}
                       <div className="flex items-center gap-2 px-3 py-2.5">
                         <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                           <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                           <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
                           <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length})</span>
                         </button>
-                        <a
-                          href={downloadZipUrl(folderKey)}
-                          title="Download folder as ZIP"
+                        <a href={downloadZipUrl(folderKey)} title="Download folder as ZIP"
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
                           onClick={e => e.stopPropagation()}>
                           <Download className="w-3.5 h-3.5" />
@@ -382,18 +373,14 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                           {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       </div>
-
-                      {/* Smooth animated files list */}
-                      <div
-                        style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : '0', transition: 'max-height 0.35s ease' }}
-                        className="overflow-hidden">
+                      <div style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : "0", transition: "max-height 0.35s ease" }} className="overflow-hidden">
                         <div className="px-3 pb-3 border-t border-teal-50 pt-2 space-y-2">
                           {files.map(f => {
                             const Icon = fileIcon(f.mimeType);
                             return (
                               <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-teal-100">
-                                <a href={f.viewUrl || f.downloadUrl || '#'} target="_blank" rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-teal-300 transition-colors" title="View">
+                                <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-teal-300 transition-colors">
                                   <Icon className="w-4 h-4 text-slate-400" />
                                 </a>
                                 <div className="flex-1 min-w-0">
@@ -428,12 +415,153 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   );
 }
 
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
+  return (
+    <div className="bg-white/15 rounded-2xl p-3.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Icon className="w-3.5 h-3.5 text-white/75" />
+        <p className="text-[11px] font-medium text-white/70 leading-none">{label}</p>
+      </div>
+      <p className="text-2xl font-extrabold text-white leading-none">{value}</p>
+    </div>
+  );
+}
+
+// ─── Delivery Status Badge ────────────────────────────────────────────────────
+function DeliveryStatusBadge({ status }: { status: string }) {
+  const ds = DELIVERY_STATUS[status] ?? DELIVERY_STATUS.not_started;
+  const Icon = ds.icon;
+  return (
+    <span className={cn("flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0", ds.color)}>
+      <Icon className={cn("w-3 h-3", status === "in_progress" && "animate-spin")} />
+      {ds.label}
+    </span>
+  );
+}
+
+// ─── Payment Progress Bar ─────────────────────────────────────────────────────
+function PaymentBar({ grandTotal, paidAmount, currency, brand }: {
+  grandTotal: number; paidAmount: number; currency: string; brand: string;
+}) {
+  const cs = sym(currency);
+  const gt = Number(grandTotal);
+  const paid = Number(paidAmount);
+  const bal = Math.max(0, gt - paid);
+  const pct = gt > 0 ? Math.min(100, (paid / gt) * 100) : 0;
+  const fullyPaid = bal <= 0 && gt > 0;
+
+  if (gt === 0) return null;
+
+  return (
+    <div className="mt-2.5">
+      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: fullyPaid ? "#10b981" : brand }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-slate-500">
+          {cs}{num(gt)} total
+          {paid > 0 && <span className="text-emerald-600 ml-1.5">· {cs}{num(paid)} paid</span>}
+        </span>
+        {fullyPaid ? (
+          <span className="flex items-center gap-1 font-bold text-emerald-600">
+            <CheckCircle className="w-3 h-3" />Fully Paid
+          </span>
+        ) : (
+          <span className="font-bold text-red-600">{cs}{num(bal)} due</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Booking Card ─────────────────────────────────────────────────────────────
+function BookingCard({ b, brand, token }: { b: PortalData["bookings"][0]; brand: string; token: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const bal = Math.max(0, Number(b.grandTotal) - Number(b.paidAmount));
+  const ds = getDeliveryStatus(b);
+  const hasExpandable = !!b.delivery || !!b.deliveryLink;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div
+        className={cn("p-4", hasExpandable && "cursor-pointer select-none")}
+        onClick={hasExpandable ? () => setExpanded(e => !e) : undefined}
+      >
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-slate-900 truncate text-[15px]">{b.eventName || "Program"}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+              <span className="text-[11px] text-slate-400 font-mono">{b.bookingNumber}</span>
+              {b.eventLocation && (
+                <span className="text-[11px] text-slate-400 flex items-center gap-0.5">
+                  <MapPin className="w-2.5 h-2.5" />{b.eventLocation}
+                </span>
+              )}
+            </div>
+          </div>
+          <DeliveryStatusBadge status={ds} />
+        </div>
+
+        {/* Date */}
+        {b.eventDate && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1.5">
+            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />{fmtDate(b.eventDate)}
+          </div>
+        )}
+
+        {/* Payment bar */}
+        <PaymentBar grandTotal={b.grandTotal} paidAmount={b.paidAmount} currency={b.currency} brand={brand} />
+
+        {/* Expand hint */}
+        {hasExpandable && (
+          <div className="flex justify-end mt-2 pt-2 border-t border-slate-50">
+            <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+              {expanded
+                ? <><ChevronUp className="w-3.5 h-3.5" />Hide delivery</>
+                : <><ChevronDown className="w-3.5 h-3.5" />View delivery</>
+              }
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Expanded delivery */}
+      {expanded && (
+        <div className="px-4 pb-4 -mt-1">
+          {b.delivery ? (
+            <DeliverySection
+              delivery={b.delivery}
+              dueAmount={bal}
+              currency={b.currency}
+              brand={brand}
+              token={token}
+              bookingId={b.id}
+            />
+          ) : b.deliveryLink ? (
+            <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white w-full transition-opacity hover:opacity-90"
+              style={{ backgroundColor: brand }}>
+              <ImageIcon className="w-4 h-4" />View Delivery
+            </a>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClientPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<Tab>("bookings");
+  const [tab, setTab] = useState<Tab>("programs");
 
   useEffect(() => {
     fetch(`${API}/public/portal/${token}`)
@@ -464,233 +592,167 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const brand = data.company.primaryColor || "#4F46E5";
   const c = sym(data.company.currency);
 
+  // Stats computed from bookings
+  const totalPrograms = data.bookings.length;
+  const completedPrograms = data.bookings.filter(b => ["completed", "delivered"].includes(b.status)).length;
+  const readyDeliveries = data.bookings.filter(b => b.delivery !== null && b.delivery !== undefined).length;
+  const totalDue = data.bookings.reduce((s, b) => s + Math.max(0, Number(b.grandTotal) - Number(b.paidAmount)), 0);
+  const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
+
   const allTabs: { id: Tab; label: string; icon: React.ElementType; count: number; enabled: boolean }[] = [
-    { id: "bookings",  label: "Bookings",  icon: Calendar,      count: data.bookings.length, enabled: true },
-    { id: "quotes",    label: "Quotes",    icon: FileText,      count: data.quotes.length,   enabled: data.company.portalShowQuotes   !== false },
-    { id: "invoices",  label: "Invoices",  icon: Receipt,       count: data.invoices.length, enabled: data.company.portalShowInvoices !== false },
-    { id: "payments",  label: "Payments",  icon: CreditCard,    count: data.payments.length, enabled: data.company.portalShowPayments !== false },
-    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0,                    enabled: data.company.portalShowMessages !== false },
+    { id: "programs",  label: "Programs",  icon: Camera,        count: totalPrograms,         enabled: true },
+    { id: "quotes",    label: "Quotes",    icon: FileText,      count: data.quotes.length,    enabled: data.company.portalShowQuotes   !== false },
+    { id: "invoices",  label: "Invoices",  icon: Receipt,       count: data.invoices.length,  enabled: data.company.portalShowInvoices !== false },
+    { id: "payments",  label: "Payments",  icon: CreditCard,    count: data.payments.length,  enabled: data.company.portalShowPayments !== false },
+    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0,                     enabled: data.company.portalShowMessages !== false },
   ];
   const tabs = allTabs.filter(t => t.enabled);
 
-  const totalDue = data.invoices.reduce((s, i) => s + Number(i.balanceDue), 0);
-  const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="text-white" style={{ backgroundColor: brand }}>
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-3 mb-4">
+
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div style={{ backgroundColor: brand }}>
+        <div className="max-w-3xl mx-auto px-4 pt-6 pb-5">
+
+          {/* Company row */}
+          <div className="flex items-center gap-3 mb-5">
             {data.company.logoUrl ? (
-              <img src={data.company.logoUrl} alt="" className="w-10 h-10 rounded-xl object-contain bg-white/20 p-1" />
+              <div className="w-10 h-10 rounded-xl bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
+                <img src={data.company.logoUrl} alt="" className="w-full h-full object-contain p-1" />
+              </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                 <Camera className="w-5 h-5 text-white" />
               </div>
             )}
             <div>
-              <p className="font-bold text-base leading-none">{data.company.name}</p>
-              <p className="text-xs text-white/70 mt-0.5">Client Portal</p>
+              <p className="font-bold text-white text-base leading-none">{data.company.name}</p>
+              <p className="text-xs text-white/60 mt-0.5">Client Portal</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
-              {data.client.firstName[0]}
+          {/* Welcome greeting */}
+          <div className="mb-5">
+            <h1 className="text-2xl font-extrabold text-white leading-tight">
+              Welcome back, {data.client.firstName}!
+            </h1>
+            <div className="flex flex-wrap gap-3 mt-1.5">
+              {data.client.phone && (
+                <span className="text-xs text-white/60 flex items-center gap-1">
+                  <Phone className="w-3 h-3" />{data.client.phone}
+                </span>
+              )}
+              {data.client.email && (
+                <span className="text-xs text-white/60 flex items-center gap-1">
+                  <Mail className="w-3 h-3" />{data.client.email}
+                </span>
+              )}
             </div>
-            <div>
-              <p className="font-semibold text-base">
-                {data.client.firstName} {data.client.lastName ?? ""}
-              </p>
-              <div className="flex flex-wrap gap-3 mt-0.5">
-                {data.client.phone && (
-                  <span className="text-xs text-white/70 flex items-center gap-1">
-                    <Phone className="w-3 h-3" />{data.client.phone}
-                  </span>
-                )}
-                {data.client.email && (
-                  <span className="text-xs text-white/70 flex items-center gap-1">
-                    <Mail className="w-3 h-3" />{data.client.email}
-                  </span>
-                )}
-              </div>
-            </div>
+          </div>
+
+          {/* 4 stat cards — 2×2 on mobile, 4-col on md+ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <StatCard label="Total Programs"  value={totalPrograms}       icon={Camera} />
+            <StatCard label="Completed"       value={completedPrograms}   icon={CheckCircle} />
+            <StatCard label="Deliveries"      value={readyDeliveries}     icon={Package} />
+            <StatCard label="Balance Due"     value={`${c}${num(totalDue)}`} icon={CreditCard} />
           </div>
 
           {/* Custom welcome message */}
           {data.company.portalWelcomeMessage && (
-            <div className="mt-3 px-4 py-3 bg-white/15 rounded-xl">
-              <p className="text-sm text-white/90 leading-relaxed">{data.company.portalWelcomeMessage}</p>
+            <div className="mt-4 px-4 py-3 bg-white/15 rounded-xl">
+              <p className="text-sm text-white/85 leading-relaxed">{data.company.portalWelcomeMessage}</p>
             </div>
           )}
         </div>
 
-        {/* Summary Cards */}
-        <div className="max-w-3xl mx-auto px-4 pb-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/15 rounded-xl p-3">
-              <p className="text-xs text-white/70">Total Bookings</p>
-              <p className="text-2xl font-bold">{data.bookings.length}</p>
-            </div>
-            <div className="bg-white/15 rounded-xl p-3">
-              <p className="text-xs text-white/70">Balance Due</p>
-              <p className="text-2xl font-bold">{c}{num(totalDue)}</p>
-            </div>
+        {/* Tab bar — overlaps into white */}
+        <div className="max-w-3xl mx-auto px-4 pb-0">
+          <div className="flex gap-1 bg-white rounded-t-2xl shadow-sm border-x border-t border-slate-200 p-1">
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all",
+                  tab === t.id ? "text-white shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                )}
+                style={tab === t.id ? { backgroundColor: brand } : {}}
+              >
+                <t.icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t.label}</span>
+                {t.count > 0 && (
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                    tab === t.id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
+                  )}>{t.count}</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="flex gap-1 bg-white rounded-xl shadow-sm border border-slate-200 p-1 -mt-3 relative z-10">
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all",
-                tab === t.id ? "text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-              style={tab === t.id ? { backgroundColor: brand } : {}}
-            >
-              <t.icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.label}</span>
-              {t.count > 0 && (
-                <span className={cn(
-                  "text-xs px-1.5 py-0.5 rounded-full font-bold",
-                  tab === t.id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
-                )}>{t.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ── Content ─────────────────────────────────────────── */}
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12">
 
-      {/* Content */}
-      <div className="max-w-3xl mx-auto px-4 py-4 pb-12">
-
-        {/* BOOKINGS */}
-        {tab === "bookings" && (
-          <div className="space-y-3">
-            {data.bookings.length === 0 && (
-              <EmptyState icon={Calendar} text="No bookings yet" />
-            )}
-            {data.bookings.map(b => {
-              const st = BOOKING_STATUS[b.status] ?? { label: b.status, color: "bg-slate-100 text-slate-600" };
-              const bal = Number(b.grandTotal) - Number(b.paidAmount);
-              const cs = sym(b.currency);
-              return (
-                <div key={b.id} className="bg-white rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div>
-                      <p className="font-bold text-slate-900">{b.eventName || "Event"}</p>
-                      <p className="text-xs text-slate-400 font-mono">{b.bookingNumber}</p>
-                    </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0", st.color)}>
-                      {st.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-sm text-slate-500 mb-3">
-                    {b.eventDate && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />{fmtDate(b.eventDate)}
-                      </span>
-                    )}
-                    {b.eventLocation && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" />{b.eventLocation}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div className="text-sm">
-                      <span className="text-slate-400">Total: </span>
-                      <span className="font-semibold text-slate-800">{cs}{num(b.grandTotal)}</span>
-                      {Number(b.paidAmount) > 0 && (
-                        <span className="text-emerald-600 ml-2">· Paid {cs}{num(b.paidAmount)}</span>
-                      )}
-                    </div>
-                    {bal > 0 && (
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-lg">
-                        Due {cs}{num(bal)}
-                      </span>
-                    )}
-                    {bal <= 0 && Number(b.grandTotal) > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                        <CheckCircle className="w-3.5 h-3.5" />Fully Paid
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Delivery Section */}
-                  {b.delivery && (
-                    <DeliverySection
-                      delivery={b.delivery}
-                      dueAmount={bal > 0 ? bal : 0}
-                      currency={b.currency}
-                      brand={brand}
-                      token={token}
-                      bookingId={b.id}
-                    />
-                  )}
-
-                  {/* Legacy single link (fallback) */}
-                  {!b.delivery && b.deliveryLink && (
-                    <a
-                      href={b.deliveryLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-white w-full transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: brand }}
-                    >
-                      <ImageIcon className="w-4 h-4" />View Delivery
-                    </a>
-                  )}
+        {/* PROGRAMS TAB */}
+        {tab === "programs" && (
+          <div className="space-y-6">
+            {data.bookings.length === 0 && <EmptyState icon={Camera} text="No programs yet" />}
+            {groupByMonth(data.bookings).map(([month, bkgs]) => (
+              <div key={month}>
+                {/* Month header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    {month}
+                  </p>
+                  <span className="text-[11px] bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-bold flex-shrink-0">
+                    {bkgs.length}
+                  </span>
+                  <div className="flex-1 h-px bg-slate-200" />
                 </div>
-              );
-            })}
+                <div className="space-y-3">
+                  {bkgs.map(b => (
+                    <BookingCard key={b.id} b={b} brand={brand} token={token} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* QUOTES */}
+        {/* QUOTES TAB */}
         {tab === "quotes" && (
           <div className="space-y-3">
-            {data.quotes.length === 0 && (
-              <EmptyState icon={FileText} text="No quotes yet" />
-            )}
+            {data.quotes.length === 0 && <EmptyState icon={FileText} text="No quotes yet" />}
             {data.quotes.map(q => {
               const st = QUOTE_STATUS[q.status] ?? { label: q.status, color: "bg-slate-100 text-slate-600" };
               const cs = sym(q.currency);
               const expired = q.validUntil && new Date(q.validUntil) < new Date();
               return (
-                <div key={q.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div key={q.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <p className="font-bold text-slate-900">{q.quoteNumber}</p>
                       <p className="text-xs text-slate-400">{fmtDate(q.createdAt)}</p>
                     </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>
-                      {st.label}
-                    </span>
+                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>{st.label}</span>
                   </div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="font-bold text-lg text-slate-900">{cs}{num(q.grandTotal)}</p>
+                    <p className="font-bold text-xl text-slate-900">{cs}{num(q.grandTotal)}</p>
                     {q.validUntil && (
-                      <p className={cn("text-xs", expired ? "text-red-500" : "text-slate-400")}>
-                        <Clock className="w-3 h-3 inline mr-1" />
+                      <p className={cn("text-xs flex items-center gap-1", expired ? "text-red-500" : "text-slate-400")}>
+                        <Clock className="w-3 h-3" />
                         {expired ? "Expired" : `Valid until ${fmtDate(q.validUntil)}`}
                       </p>
                     )}
                   </div>
                   {q.publicToken && (
-                    <a
-                      href={`/q/${q.publicToken}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold border transition-colors hover:bg-slate-50"
-                      style={{ borderColor: brand, color: brand }}
-                    >
+                    <a href={`/q/${q.publicToken}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors hover:bg-slate-50"
+                      style={{ borderColor: brand, color: brand }}>
                       <ExternalLink className="w-4 h-4" />View Quote
                     </a>
                   )}
@@ -700,25 +762,21 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
           </div>
         )}
 
-        {/* INVOICES */}
+        {/* INVOICES TAB */}
         {tab === "invoices" && (
           <div className="space-y-3">
-            {data.invoices.length === 0 && (
-              <EmptyState icon={Receipt} text="No invoices yet" />
-            )}
+            {data.invoices.length === 0 && <EmptyState icon={Receipt} text="No invoices yet" />}
             {data.invoices.map(inv => {
               const st = INV_STATUS[inv.status] ?? { label: inv.status, color: "bg-slate-100 text-slate-600" };
               const cs = sym(inv.currency);
               return (
-                <div key={inv.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div key={inv.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <p className="font-bold text-slate-900">{inv.invoiceNumber}</p>
-                      <p className="text-xs text-slate-400">Issued: {fmtDate(inv.issueDate)}</p>
+                      <p className="text-xs text-slate-400">Issued: {fmtDate(inv.issueDate)}{inv.dueDate && ` · Due: ${fmtDate(inv.dueDate)}`}</p>
                     </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>
-                      {st.label}
-                    </span>
+                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>{st.label}</span>
                   </div>
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-sm">
@@ -729,7 +787,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                       )}
                     </div>
                     {Number(inv.balanceDue) > 0 ? (
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-lg">
+                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-lg">
                         Due {cs}{num(inv.balanceDue)}
                       </span>
                     ) : (
@@ -738,13 +796,9 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                       </span>
                     )}
                   </div>
-                  <a
-                    href={`/inv/${inv.publicToken}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold border transition-colors hover:bg-slate-50"
-                    style={{ borderColor: brand, color: brand }}
-                  >
+                  <a href={`/inv/${inv.publicToken}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors hover:bg-slate-50"
+                    style={{ borderColor: brand, color: brand }}>
                     <ExternalLink className="w-4 h-4" />View Invoice
                   </a>
                 </div>
@@ -753,36 +807,46 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
           </div>
         )}
 
-        {/* PAYMENTS */}
+        {/* PAYMENTS TAB */}
         {tab === "payments" && (
           <div className="space-y-3">
-            {data.payments.length === 0 && (
-              <EmptyState icon={CreditCard} text="No payment records yet" />
-            )}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-2">
-              <p className="text-xs text-slate-400 uppercase font-semibold mb-1">Total Paid</p>
-              <p className="text-2xl font-extrabold" style={{ color: brand }}>{c}{num(totalPaid)}</p>
+            {/* Summary card */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-0.5">Total Paid</p>
+                <p className="text-2xl font-extrabold" style={{ color: brand }}>{c}{num(totalPaid)}</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand + "15" }}>
+                <CheckCircle className="w-6 h-6" style={{ color: brand }} />
+              </div>
             </div>
+            {data.payments.length === 0 && <EmptyState icon={CreditCard} text="No payment records yet" />}
             {data.payments.map(p => (
-              <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4">
+              <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-900">{sym(p.currency)}{num(p.amount)}</p>
+                    <p className="font-bold text-slate-900 text-base">{sym(p.currency)}{num(p.amount)}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {fmtDate(p.paymentDate)}
-                      {p.paymentMethod && <span className="ml-2 capitalize">{p.paymentMethod.replace(/_/g, " ")}</span>}
+                      {p.paymentMethod && (
+                        <span className="ml-2 bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-medium capitalize">
+                          {p.paymentMethod.replace(/_/g, " ")}
+                        </span>
+                      )}
                     </p>
-                    {p.referenceNumber && <p className="text-xs text-slate-400">Ref: {p.referenceNumber}</p>}
+                    {p.referenceNumber && <p className="text-xs text-slate-400 mt-0.5">Ref: {p.referenceNumber}</p>}
                   </div>
-                  <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  </div>
                 </div>
-                {p.notes && <p className="text-xs text-slate-500 mt-2 italic">{p.notes}</p>}
+                {p.notes && <p className="text-xs text-slate-500 mt-2 italic border-t border-slate-50 pt-2">{p.notes}</p>}
               </div>
             ))}
           </div>
         )}
 
-        {/* MESSAGES */}
+        {/* MESSAGES TAB */}
         {tab === "messages" && (
           <PortalChat token={token} brand={brand} companyName={data.company.name} />
         )}
@@ -793,7 +857,9 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
         <p className="text-xs text-slate-400">
           Powered by <span className="font-semibold text-slate-600">StuPanel</span>
           {data.company.phone && (
-            <span className="ml-3">· <a href={`tel:${data.company.phone}`} className="hover:text-slate-800">{data.company.phone}</a></span>
+            <span className="ml-3">
+              · <a href={`tel:${data.company.phone}`} className="hover:text-slate-800">{data.company.phone}</a>
+            </span>
           )}
         </p>
       </div>
@@ -803,7 +869,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
 
 function EmptyState({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
   return (
-    <div className="text-center py-12">
+    <div className="text-center py-14">
       <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
         <Icon className="w-6 h-6 text-slate-300" />
       </div>

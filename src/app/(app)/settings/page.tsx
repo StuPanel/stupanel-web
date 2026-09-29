@@ -429,9 +429,15 @@ function BrandingTab({ data }: { data: any }) {
       const res = await apiFetch(`${API}/companies/logo`, { method: "POST", body: form });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "Upload failed");
       const { url } = await res.json();
+      // Auto-save logoUrl to DB immediately so it persists without needing "Save Branding"
+      const saveRes = await apiFetch(`${API}/companies/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: url }),
+      });
+      if (!saveRes.ok) throw new Error("Logo uploaded but failed to save — please click Save Branding");
       setLogoUrl(url);
       setLogoErr(false);
-      // Notify header to update immediately
       window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: url, primaryColor } }));
     } catch (err: unknown) {
       setUploadErr(err instanceof Error ? err.message : "Upload failed");

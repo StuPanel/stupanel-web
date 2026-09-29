@@ -31,6 +31,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { apiFetch, API_URL as API } from "@/lib/api";
+
+// module-level cache — persists across sidebar re-mounts in the same session
+let _cachedSidebarLogo = "";
+let _cachedCompanyName = "";
 
 const navigation = [
   {
@@ -95,21 +100,34 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   const [trialDays, setTrialDays] = useState<number | null>(null);
   const [subStatus, setSubStatus] = useState<string>("trialing");
   const [chatUnread, setChatUnread] = useState(0);
+  const [companyLogo, setCompanyLogo] = useState(_cachedSidebarLogo);
+  const [companyName, setCompanyName] = useState(_cachedCompanyName);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/companies/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch(`${API}/companies/me`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {
           setTrialDays(calcTrialDays(d.trialEndsAt));
           setSubStatus(d.subscriptionStatus ?? "trialing");
+          if (d.logoUrl) {
+            _cachedSidebarLogo = d.logoUrl;
+            setCompanyLogo(d.logoUrl);
+          }
+          if (d.name) {
+            _cachedCompanyName = d.name;
+            setCompanyName(d.name);
+          }
         }
       })
       .catch(() => {});
+
+    function onBrandingUpdate(e: Event) {
+      const logo = (e as CustomEvent).detail?.logoUrl;
+      if (logo) { _cachedSidebarLogo = logo; setCompanyLogo(logo); }
+    }
+    window.addEventListener("branding-updated", onBrandingUpdate);
+    return () => window.removeEventListener("branding-updated", onBrandingUpdate);
   }, []);
 
   useEffect(() => {
@@ -133,12 +151,20 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         collapsed ? "flex-col items-center px-0 py-3 gap-1" : "items-center justify-between px-6 py-5"
       )}>
         <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <Camera className="w-5 h-5 text-white" />
-          </div>
+          {companyLogo ? (
+            <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+              <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
+              <Camera className="w-5 h-5 text-white" />
+            </div>
+          )}
           {!collapsed && (
             <div>
-              <p className="font-bold text-slate-900 text-sm leading-none">StuPanel</p>
+              <p className="font-bold text-slate-900 text-sm leading-none">
+                {companyName || "StuPanel"}
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">Studio Management</p>
             </div>
           )}

@@ -27,8 +27,12 @@ export interface InvoiceCompany {
 export interface InvoicePreviewItem {
   name: string;
   description?: string;
+  category?: string;
+  unit?: string;
   quantity: number;
   unitPrice: number;
+  discountType?: string;
+  discountValue?: number;
   total: number;
 }
 
@@ -217,10 +221,22 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
                   {String(i + 1).padStart(2, "0")}
                 </td>
                 <td style={cell()}>
+                  {item.category && (
+                    <span style={{ display: "inline-block", marginBottom: 3, padding: "1px 7px", borderRadius: 99, fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: 0.6, backgroundColor: accent + "1A", color: accent }}>
+                      {item.category}
+                    </span>
+                  )}
                   <p style={{ margin: 0, fontWeight: 600, color: "#1E293B" }}>{item.name}</p>
                   {item.description && <p style={{ margin: "2px 0 0", fontSize: 10, color: "#94A3B8" }}>{item.description}</p>}
+                  {item.discountType && item.discountType !== "none" && item.discountValue ? (
+                    <p style={{ margin: "2px 0 0", fontSize: 10, color: "#F59E0B" }}>
+                      Discount: {item.discountType === "percent" ? `${item.discountValue}%` : money(item.discountValue, s)} off
+                    </p>
+                  ) : null}
                 </td>
-                <td style={{ ...cell({ textAlign: "center", color: "#475569" }) }}>{item.quantity}</td>
+                <td style={{ ...cell({ textAlign: "center", color: "#475569" }) }}>
+                  {item.quantity}{item.unit ? ` ${item.unit}` : ""}
+                </td>
                 <td style={{ ...cell({ textAlign: "right", color: "#475569", fontFamily: "monospace" }) }}>{money(Number(item.unitPrice), s)}</td>
                 <td style={{ ...cell({ textAlign: "right", fontWeight: 700, color: "#1E293B", fontFamily: "monospace" }) }}>{money(Number(item.total), s)}</td>
               </tr>

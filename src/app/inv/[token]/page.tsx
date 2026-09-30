@@ -5,6 +5,14 @@ import { Loader2, Printer } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmt(d?: string): string {
+  if (!d) return "";
+  const dt = new Date(d);
+  return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+}
+function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
+
 export default function PublicInvoicePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [data, setData] = useState<any>(null);
@@ -51,8 +59,12 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
     items: (data.items ?? []).map((i: any) => ({
       name: i.name,
       description: i.description,
+      category: i.category,
+      unit: i.unit,
       quantity: Number(i.quantity),
       unitPrice: Number(i.unitPrice),
+      discountType: i.discountType,
+      discountValue: i.discountValue ? Number(i.discountValue) : undefined,
       total: Number(i.total),
     })),
     subtotal: Number(data.subtotal),
@@ -91,8 +103,37 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
 
       {/* Page background */}
       <div className="no-print min-h-screen bg-slate-200 py-8 px-4">
-        <div className="max-w-[850px] mx-auto rounded-2xl overflow-hidden shadow-2xl">
-          <InvoicePreview data={previewData} />
+        <div className="max-w-[850px] mx-auto space-y-4">
+          <div className="rounded-2xl overflow-hidden shadow-2xl">
+            <InvoicePreview data={previewData} />
+          </div>
+
+          {/* Payment History (public visible) */}
+          {(data.payments ?? []).length > 0 && (
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100" style={{ borderLeft: `4px solid ${brandColor}` }}>
+                <p className="font-bold text-slate-800">Payment History</p>
+                <p className="text-xs text-slate-400 mt-0.5">{(data.payments ?? []).length} payment(s) recorded</p>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {(data.payments ?? []).map((pay: any) => (
+                  <div key={pay.id} className="px-6 py-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-slate-800 capitalize text-sm">{pay.paymentMethod.replace("_", " ")}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{fmt(pay.paymentDate)}{pay.referenceNumber ? ` · Ref: ${pay.referenceNumber}` : ""}</p>
+                    </div>
+                    <p className="font-bold text-emerald-700">{sym(data.currency)}{Number(pay.amount).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-sm text-slate-500 font-medium">Total Paid</span>
+                <span className="font-bold text-emerald-700">
+                  {sym(data.currency)}{(data.payments ?? []).reduce((a: number, p: any) => a + Number(p.amount), 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

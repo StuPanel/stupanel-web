@@ -9,7 +9,7 @@ import {
   CreditCard, Smartphone, ExternalLink, Video,
   Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
   HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt, Monitor,
-  Upload, X, ZoomIn, ZoomOut, ChevronDown,
+  Upload, X, ZoomIn, ZoomOut, ChevronDown, BookOpen, Search, Edit2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations";
+type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations" | "catalog";
 
 const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
 2. Remaining balance due on the event day.
@@ -1491,6 +1491,187 @@ function NotificationsTab({ data }: { data: any }) {
   );
 }
 
+// ─── Service Catalog Tab ──────────────────────────────────────────────────────
+const CATALOG_UNITS = ["service", "hour", "day", "piece", "album", "copy", "session", "package", "item", "GB"];
+const CATALOG_CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album", "Printing", "Other"];
+
+interface CatalogItem { id: string; name: string; description?: string; category?: string; unit: string; defaultPrice: number; currency: string; isActive: boolean; sortOrder: number; }
+
+function CatalogTab() {
+  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", description: "", category: "", unit: "service", defaultPrice: 0, currency: "BDT", isActive: true, sortOrder: 0 });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+
+  useEffect(() => { load(); }, []);
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 2500); return () => clearTimeout(t); } }, [toast]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await apiFetch(`${API}/service-catalog?limit=200`);
+      const d = await r.json();
+      setItems(d.data ?? []);
+    } finally { setLoading(false); }
+  }
+
+  function openCreate() {
+    setEditingId(null);
+    setForm({ name: "", description: "", category: "", unit: "service", defaultPrice: 0, currency: "BDT", isActive: true, sortOrder: 0 });
+    setError(""); setShowForm(true);
+  }
+
+  function openEdit(item: CatalogItem) {
+    setEditingId(item.id);
+    setForm({ name: item.name, description: item.description ?? "", category: item.category ?? "", unit: item.unit, defaultPrice: item.defaultPrice, currency: item.currency, isActive: item.isActive, sortOrder: item.sortOrder });
+    setError(""); setShowForm(true);
+  }
+
+  async function save() {
+    if (!form.name.trim()) { setError("Name required."); return; }
+    setSaving(true); setError("");
+    try {
+      const url = editingId ? `${API}/service-catalog/${editingId}` : `${API}/service-catalog`;
+      const method = editingId ? "PATCH" : "POST";
+      const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const d = await r.json();
+      if (!r.ok) { setError(d.message || "Failed."); return; }
+      setToast(editingId ? "Updated!" : "Added!");
+      setShowForm(false); load();
+    } catch { setError("Something went wrong."); }
+    finally { setSaving(false); }
+  }
+
+  async function remove(id: string, name: string) {
+    if (!confirm(`Remove "${name}" from catalog?`)) return;
+    await apiFetch(`${API}/service-catalog/${id}`, { method: "DELETE" });
+    setToast("Removed."); load();
+  }
+
+  const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || (i.category ?? "").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="space-y-5">
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold bg-emerald-600 text-white flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />{toast}
+        </div>
+      )}
+      <div>
+        <h3 className="text-base font-bold text-slate-900">Service Catalog</h3>
+        <p className="text-xs text-slate-400 mt-0.5">Reusable services that auto-fill invoice line items</p>
+      </div>
+
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search catalog…"
+            className="w-full h-9 pl-8 pr-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+        </div>
+        <Button onClick={openCreate} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 h-9">
+          <Plus className="w-3.5 h-3.5" />Add Service
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-sm text-slate-800">{editingId ? "Edit Service" : "New Service"}</p>
+            <button onClick={() => setShowForm(false)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200"><X className="w-3.5 h-3.5 text-slate-500" /></button>
+          </div>
+          {error && <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded-lg">{error}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-slate-500">Name *</Label>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Wedding Photography"
+                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-slate-500">Description</Label>
+              <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description"
+                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Category</Label>
+              <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} list="settings-cat-list" placeholder="Category"
+                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+              <datalist id="settings-cat-list">{CATALOG_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Unit</Label>
+              <select value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                {CATALOG_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Default Price</Label>
+              <input type="number" min="0" value={form.defaultPrice} onChange={e => setForm(f => ({ ...f, defaultPrice: Number(e.target.value) }))}
+                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Currency</Label>
+              <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                {["BDT","USD","INR","GBP"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" onClick={() => setShowForm(false)} className="flex-1 h-9 border-slate-200 text-slate-600 text-xs">Cancel</Button>
+            <Button disabled={saving} onClick={save} className="flex-1 h-9 bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              {editingId ? "Update" : "Add"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 font-medium">No catalog items yet</p>
+          <p className="text-xs text-slate-300 mt-1">Add your common services to speed up invoicing</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 overflow-hidden">
+          {filtered.map((item, i) => (
+            <div key={item.id} className={cn("flex items-center gap-3 px-4 py-3", i > 0 && "border-t border-slate-100")}>
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-4 h-4 text-indigo-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {item.category && <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">{item.category}</span>}
+                  <p className="font-semibold text-sm text-slate-800">{item.name}</p>
+                </div>
+                {item.description && <p className="text-xs text-slate-400 truncate">{item.description}</p>}
+                <p className="text-xs text-slate-400">{item.unit} · {item.currency}</p>
+              </div>
+              <p className="font-bold text-slate-900 text-sm flex-shrink-0">{Number(item.defaultPrice).toLocaleString()}</p>
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => openEdit(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600">
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => remove(item.id, item.name)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Integrations Tab ──────────────────────────────────────────────────────────
 interface DriveAccount {
   id: string;
@@ -1708,6 +1889,7 @@ export default function SettingsPage() {
     { id: "quotation",    label: "Quotation",    icon: FileText   },
     { id: "booking",      label: "Booking",      icon: CalendarDays },
     { id: "invoice",      label: "Invoice",      icon: Receipt    },
+    { id: "catalog",      label: "Catalog",      icon: BookOpen   },
     { id: "tax",          label: "Tax",          icon: Percent    },
     { id: "social",         label: "Social",         icon: Globe      },
     { id: "notifications",  label: "Notifications",  icon: Bell       },
@@ -1782,6 +1964,7 @@ export default function SettingsPage() {
           {tab === "quotation"    && <QuotationTab   data={data} />}
           {tab === "booking"      && <BookingTab     data={data} />}
           {tab === "invoice"      && <InvoiceTab     data={data} />}
+          {tab === "catalog"      && <CatalogTab />}
           {tab === "tax"          && <TaxTab         data={data} />}
           {tab === "social"         && <SocialTab         data={data} />}
           {tab === "notifications"  && <NotificationsTab  data={data} />}

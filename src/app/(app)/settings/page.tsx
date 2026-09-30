@@ -1723,14 +1723,15 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto overflow-x-hidden">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Studio Settings</h1>
         <p className="text-xs text-slate-400 mt-0.5">Configure your studio profile, payment info, quotation defaults and security</p>
       </div>
 
       {/* Mobile: horizontal scrollable tab strip */}
-      <div className="md:hidden flex overflow-x-auto gap-1.5 pb-3 mb-4">
+      <div className="md:hidden w-full overflow-x-auto pb-3 mb-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-1.5 w-max">
         {tabs.map(t => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -1747,6 +1748,7 @@ export default function SettingsPage() {
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* Desktop: two-column layout */}

@@ -142,7 +142,7 @@ function StudioTab({ data }: { data: any }) {
         <Field label="Studio Name *">
           <Input value={f.name} onChange={set("name")} placeholder="My Photography Studio" className="h-11 border-slate-200" required />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Phone">
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -163,14 +163,14 @@ function StudioTab({ data }: { data: any }) {
               className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
           </div>
         </Field>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([ ["city","City","Dhaka"], ["state","State","(optional)"], ["country","Country","Bangladesh"] ] as [string,string,string][]).map(([k,l,p]) => (
             <Field key={k} label={l}>
               <Input value={(f as any)[k]} onChange={set(k)} placeholder={p} className="h-10 border-slate-200 text-sm" />
             </Field>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Currency">
             <select value={f.currency} onChange={set("currency")}
               className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
@@ -635,7 +635,7 @@ function PaymentTab({ data }: { data: any }) {
             <Landmark className="w-4 h-4 text-indigo-500" />
             <p className="text-sm font-semibold text-slate-700">Bank Transfer</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Bank Name">
               <Input value={f.bankName} onChange={set("bankName")} placeholder="Bank name" className="h-10 border-slate-200 text-sm bg-white" />
             </Field>
@@ -646,7 +646,7 @@ function PaymentTab({ data }: { data: any }) {
           <Field label="Account Holder Name">
             <Input value={f.bankAccountName} onChange={set("bankAccountName")} placeholder="Faisal Ahmed Photography" className="h-10 border-slate-200 text-sm bg-white" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Account Number">
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -665,7 +665,7 @@ function PaymentTab({ data }: { data: any }) {
             <Smartphone className="w-4 h-4 text-indigo-500" />
             <p className="text-sm font-semibold text-slate-700">Mobile Banking</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {([
               ["bkashNumber",  "bKash",  "Mobile number", "text-pink-600"   ],
               ["nagadNumber",  "Nagad",  "Mobile number", "text-orange-600" ],
@@ -708,7 +708,7 @@ function QuotationTab({ data }: { data: any }) {
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <SectionHead icon={FileText} title="Quotation Defaults" sub="Auto-filled when creating a new quotation — override per quote anytime" />
       <div className="space-y-5 max-w-lg">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Validity Days" hint={`Quote expires ${defaultValidityDays} days after creation`}>
             <div className="relative">
               <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -859,7 +859,7 @@ function InvoiceTab({ data }: { data: any }) {
         {/* Invoice Numbering */}
         <div>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Numbering</p>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <Field label="Prefix" hint="e.g. INV, SP, STUDIO">
               <Input
                 value={f.invoicePrefix}
@@ -1022,7 +1022,7 @@ function TaxTab({ data }: { data: any }) {
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <SectionHead icon={Percent} title="Tax Settings" sub="Default tax applied on quotations and invoices" />
       <div className="space-y-5 max-w-lg">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Tax Label" hint="Shown on quote (e.g. VAT, GST, Tax)">
             <Input value={taxLabel} onChange={e => setTaxLabel(e.target.value)} placeholder="VAT"
               maxLength={20} className="h-11 border-slate-200" />
@@ -1723,8 +1723,8 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
+    <div className="max-w-4xl mx-auto overflow-x-hidden">
+      <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Studio Settings</h1>
         <p className="text-xs text-slate-400 mt-0.5">Configure your studio profile, payment info, quotation defaults and security</p>
       </div>
@@ -1773,7 +1773,7 @@ export default function SettingsPage() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
           {tab === "studio"       && <StudioTab      data={data} />}
           {tab === "branding"     && <BrandingTab    data={data} />}
           {tab === "payment"      && <PaymentTab     data={data} />}

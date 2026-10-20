@@ -87,7 +87,7 @@ interface R2File {
   id: string; fileName: string; mimeType: string;
   fileSize: number; viewUrl: string | null; downloadUrl: string | null; folderName?: string | null;
 }
-interface ManualLink { id: string; title: string; url: string }
+interface ManualLink { id: string; title: string; url: string | null }
 interface DriveFile {
   id: string; fileName: string; mimeType: string; fileSize: number;
   folderName: string | null; viewUrl: string | null; downloadUrl: string | null;
@@ -95,7 +95,7 @@ interface DriveFile {
 interface BookingDelivery {
   fullyPaid: boolean; dueAmount: number;
   r2Files: R2File[]; driveFiles?: DriveFile[];
-  links: ManualLink[]; driveFolderUrl: string | null; note: string | null;
+  links: ManualLink[]; driveFolderUrl: string | null; driveFolderLocked?: boolean; note: string | null;
 }
 interface PortalData {
   client: { firstName: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string };
@@ -141,7 +141,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const cs = sym(currency);
   const driveFiles: DriveFile[] = delivery.driveFiles ?? [];
-  const hasContent = delivery.r2Files.length > 0 || delivery.links.length > 0 || driveFiles.length > 0 || !!delivery.driveFolderUrl;
+  const hasContent = delivery.r2Files.length > 0 || delivery.links.length > 0 || driveFiles.length > 0 || !!delivery.driveFolderUrl || !!delivery.driveFolderLocked;
 
   function isFolderExpanded(key: string) { return expandedFolders[key] ?? false; }
   function toggleFolder(key: string) { setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) })); }
@@ -184,7 +184,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 <Link2 className="w-3 h-3" />{delivery.links.length} link{delivery.links.length > 1 ? "s" : ""}
               </span>
             )}
-            {delivery.driveFolderUrl && driveFiles.length === 0 && (
+            {(delivery.driveFolderUrl || delivery.driveFolderLocked) && driveFiles.length === 0 && (
               <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
                 <Link2 className="w-3 h-3" />Drive folder
               </span>
@@ -223,8 +223,8 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
 
           {delivery.links.length > 0 && (
             <div className="space-y-2">
-              {delivery.links.map(l => (
-                <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
+              {delivery.links.filter(l => !!l.url).map(l => (
+                <a key={l.id} href={l.url ?? undefined} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 transition-colors group">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand + "20" }}>
                     <Link2 className="w-4 h-4" style={{ color: brand }} />

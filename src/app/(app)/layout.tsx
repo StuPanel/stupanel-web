@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
+import { BillingBanner } from "@/components/billing/billing-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 
@@ -162,6 +163,9 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Email verification banner */}
         {!emailVerified && <VerificationBanner email={user?.email ?? ""} />}
+
+        {/* Trial / plan ending / view-only banner */}
+        <BillingBanner />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
           <ErrorBoundary>{children}</ErrorBoundary>

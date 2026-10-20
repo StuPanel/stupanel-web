@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight, ShieldCheck,
   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert,
+  HardDrive, Mail, ShieldAlert, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,7 @@ const navGroups = [
     items: [
       { label: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard },
       { label: "Revenue",    href: "/admin/revenue",   icon: BarChart2 },
+      { label: "Payments",   href: "/admin/billing",   icon: Wallet },
     ],
   },
   {

@@ -73,6 +73,7 @@ const navigation = [
       { name: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
       { name: "Notifications", href: "/notifications", icon: Bell },
       { name: "Support", href: "/support", icon: LifeBuoy },
+      { name: "Plan & Billing", href: "/billing", icon: Crown },
       { name: "Settings", href: "/settings", icon: Settings },
       { name: "My Account", href: "/account", icon: CircleUserRound },
     ],
@@ -270,9 +271,10 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
             {trialDays !== null && trialDays <= 7 && trialDays > 0 && (
               <p className="text-xs text-red-200 mb-1">Trial ending soon!</p>
             )}
-            <button className="w-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium py-1.5 rounded-md transition-colors mt-1">
+            <Link href="/billing" onClick={onClose}
+              className="block text-center w-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium py-1.5 rounded-md transition-colors mt-1">
               Upgrade Plan
-            </button>
+            </Link>
           </div>
         )}
       </div>

@@ -98,7 +98,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
   } = data;
 
   const s = sym(currency);
-  const accent = company.primaryColor || "#4F46E5";
+  const accent = company.primaryColor || "#7D5CEF";
   const style  = company.invoiceHeaderStyle || "dark";
 
   const headerBg   = style === "brand" ? accent : style === "light" ? "#F8FAFC" : "#0F172A";

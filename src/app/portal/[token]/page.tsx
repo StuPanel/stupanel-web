@@ -589,7 +589,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
     </div>
   );
 
-  const brand = data.company.primaryColor || "#4F46E5";
+  const brand = data.company.primaryColor || "#7D5CEF";
   const c = sym(data.company.currency);
 
   // Stats computed from bookings

@@ -395,7 +395,7 @@ function PlacementPreview({ label, children }: { label: string; children: React.
 // ─── Branding Tab ──────────────────────────────────────────────────────────────
 function BrandingTab({ data }: { data: any }) {
   const [logoUrl, setLogoUrl] = useState(data.logoUrl ?? "");
-  const [primaryColor, setPrimaryColor] = useState(data.primaryColor ?? "#4F46E5");
+  const [primaryColor, setPrimaryColor] = useState(data.primaryColor ?? "#7D5CEF");
   const [logoErr, setLogoErr] = useState(false);
   const [logoMode, setLogoMode] = useState<"url" | "upload">("upload");
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -528,7 +528,7 @@ function BrandingTab({ data }: { data: any }) {
               className="w-12 h-12 rounded-xl border border-slate-200 cursor-pointer p-1 bg-white" />
             <div className="flex-1">
               <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
-                placeholder="#4F46E5" maxLength={7} className="h-11 border-slate-200 font-mono" />
+                placeholder="#7D5CEF" maxLength={7} className="h-11 border-slate-200 font-mono" />
             </div>
             <div className="w-11 h-11 rounded-xl border border-slate-200 flex-shrink-0" style={{ backgroundColor: primaryColor }} />
           </div>
@@ -942,7 +942,7 @@ function InvoiceTab({ data }: { data: any }) {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: "dark",  label: "Dark",  bg: "#0F172A", text: "#fff" },
-                  { value: "brand", label: "Brand", bg: data.primaryColor || "#4F46E5", text: "#fff" },
+                  { value: "brand", label: "Brand", bg: data.primaryColor || "#7D5CEF", text: "#fff" },
                   { value: "light", label: "Light", bg: "#F8FAFC", text: "#0F172A" },
                 ].map(opt => (
                   <button

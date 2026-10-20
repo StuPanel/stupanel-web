@@ -4,34 +4,34 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: 248 250 252;
-  --foreground: 15 23 42;
+  --radius: 0.75rem;
+  --background: 245 243 250;
+  --foreground: 23 21 31;
   --card: 255 255 255;
-  --card-foreground: 15 23 42;
+  --card-foreground: 23 21 31;
   --popover: 255 255 255;
-  --popover-foreground: 15 23 42;
-  --primary: 99 102 241;
+  --popover-foreground: 23 21 31;
+  --primary: 125 92 239;
   --primary-foreground: 255 255 255;
-  --secondary: 241 245 249;
-  --secondary-foreground: 15 23 42;
-  --muted: 248 250 252;
-  --muted-foreground: 100 116 139;
-  --accent: 238 242 255;
-  --accent-foreground: 79 70 229;
-  --destructive: 239 68 68;
+  --secondary: 238 235 244;
+  --secondary-foreground: 23 21 31;
+  --muted: 245 243 250;
+  --muted-foreground: 107 102 128;
+  --accent: 238 232 253;
+  --accent-foreground: 91 63 208;
+  --destructive: 194 48 79;
   --destructive-foreground: 255 255 255;
-  --border: 226 232 240;
-  --input: 226 232 240;
-  --ring: 99 102 241;
+  --border: 227 223 236;
+  --input: 227 223 236;
+  --ring: 125 92 239;
   --sidebar-background: 255 255 255;
-  --sidebar-foreground: 51 65 85;
-  --sidebar-primary: 99 102 241;
+  --sidebar-foreground: 74 70 88;
+  --sidebar-primary: 125 92 239;
   --sidebar-primary-foreground: 255 255 255;
-  --sidebar-accent: 238 242 255;
-  --sidebar-accent-foreground: 79 70 229;
-  --sidebar-border: 226 232 240;
-  --sidebar-ring: 99 102 241;
+  --sidebar-accent: 238 232 253;
+  --sidebar-accent-foreground: 91 63 208;
+  --sidebar-border: 227 223 236;
+  --sidebar-ring: 125 92 239;
 }
 
 @theme inline {
@@ -51,12 +51,85 @@
   --color-border: oklch(from rgb(var(--border)) l c h);
   --color-input: oklch(from rgb(var(--input)) l c h);
   --color-ring: oklch(from rgb(var(--ring)) l c h);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ── StuPanel brand palette (violet theme, locked 2026-10-20) ──────────────
+   The app was built with Tailwind's indigo / slate classes. Instead of editing
+   ~5,000 class names, we remap those palettes to the brand colours here, so
+   every existing page picks up the new theme at once. New code should prefer
+   the semantic tokens (primary, muted-foreground, border…). */
+@theme {
+  --color-indigo-50:  #F6F3FE;
+  --color-indigo-100: #EEE8FD;
+  --color-indigo-200: #DED4FB;
+  --color-indigo-300: #CFC2F8;
+  --color-indigo-400: #B29DF8;
+  --color-indigo-500: #9478F3;
+  --color-indigo-600: #7D5CEF;
+  --color-indigo-700: #6143CF;
+  --color-indigo-800: #4E35B4;
+  --color-indigo-900: #3B2788;
+  --color-indigo-950: #241755;
+
+  --color-violet-50:  #F6F3FE;
+  --color-violet-100: #EEE8FD;
+  --color-violet-200: #DED4FB;
+  --color-violet-300: #CFC2F8;
+  --color-violet-400: #B29DF8;
+  --color-violet-500: #9478F3;
+  --color-violet-600: #7D5CEF;
+  --color-violet-700: #6143CF;
+  --color-violet-800: #4E35B4;
+  --color-violet-900: #3B2788;
+  --color-violet-950: #241755;
+
+  --color-purple-50:  #F6F3FE;
+  --color-purple-100: #EEE8FD;
+  --color-purple-200: #DED4FB;
+  --color-purple-300: #CFC2F8;
+  --color-purple-400: #B29DF8;
+  --color-purple-500: #8A68F1;
+  --color-purple-600: #6E4FE0;
+  --color-purple-700: #5B3FD0;
+  --color-purple-800: #4A33AA;
+  --color-purple-900: #382680;
+  --color-purple-950: #221650;
+
+  /* Neutrals with a faint lilac tint */
+  --color-slate-50:  #F5F3FA;
+  --color-slate-100: #EEEBF4;
+  --color-slate-200: #E3DFEC;
+  --color-slate-300: #CCC7D8;
+  --color-slate-400: #9C97AC;
+  --color-slate-500: #6B6680;
+  --color-slate-600: #4A4658;
+  --color-slate-700: #353142;
+  --color-slate-800: #232030;
+  --color-slate-900: #17151F;
+  --color-slate-950: #0F0D15;
+
+  --color-gray-50:  #F5F3FA;
+  --color-gray-100: #EEEBF4;
+  --color-gray-200: #E3DFEC;
+  --color-gray-300: #CCC7D8;
+  --color-gray-400: #9C97AC;
+  --color-gray-500: #6B6680;
+  --color-gray-600: #4A4658;
+  --color-gray-700: #353142;
+  --color-gray-800: #232030;
+  --color-gray-900: #17151F;
+  --color-gray-950: #0F0D15;
+
+  /* Brand motion: one easing everywhere */
+  --ease-brand: cubic-bezier(.2, .8, .2, 1);
+  --default-transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+  --default-transition-duration: 180ms;
 }
 
 * {
@@ -69,6 +142,10 @@ body {
   font-family: var(--font-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+::selection { background: #CFC2F8; color: #17151F; }
+
+:focus-visible { outline: 2px solid #7D5CEF; outline-offset: 2px; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

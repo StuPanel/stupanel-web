@@ -93,7 +93,7 @@ export function FloatingUploadPanel() {
                     <div className="h-full rounded-full transition-all duration-200"
                       style={{
                         width: `${u.progress}%`,
-                        backgroundColor: u.type === "drive" ? "#22c55e" : "#6366f1",
+                        backgroundColor: u.type === "drive" ? "#22c55e" : "#7D5CEF",
                       }} />
                   </div>
                 )}

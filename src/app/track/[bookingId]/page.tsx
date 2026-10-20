@@ -45,7 +45,7 @@ export default function TrackPage() {
     </div>
   );
 
-  const accent = data.studio.primaryColor ?? "#4F46E5";
+  const accent = data.studio.primaryColor ?? "#7D5CEF";
   const steps = data.steps ?? [];
   const currentStep = steps.find(s => s.current);
   const doneCount = steps.filter(s => s.done).length;

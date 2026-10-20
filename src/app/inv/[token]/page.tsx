@@ -41,7 +41,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
     </div>
   );
 
-  const brandColor = data.company?.primaryColor || "#4F46E5";
+  const brandColor = data.company?.primaryColor || "#7D5CEF";
 
   const previewData: InvoicePreviewData = {
     company: data.company,

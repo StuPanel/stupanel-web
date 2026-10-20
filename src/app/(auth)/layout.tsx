@@ -9,9 +9,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/3 left-1/4 w-96 h-96 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)", filter: "blur(60px)" }} />
+            style={{ background: "radial-gradient(circle, #7D5CEF 0%, transparent 70%)", filter: "blur(60px)" }} />
           <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full opacity-15"
-            style={{ background: "radial-gradient(circle, #818cf8 0%, transparent 70%)", filter: "blur(50px)" }} />
+            style={{ background: "radial-gradient(circle, #B29DF8 0%, transparent 70%)", filter: "blur(50px)" }} />
         </div>
 
         {/* Subtle dot grid */}

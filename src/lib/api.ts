@@ -5,6 +5,15 @@ export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
 const BASE = API_URL;
 
+/** Fired when the API refuses a change because the studio's plan has ended (view-only mode). */
+export const READ_ONLY_EVENT = "stupanel:read-only";
+
+function notifyIfReadOnly(res: Response) {
+  res.clone().json()
+    .then((b) => { if (b?.message === "SUBSCRIPTION_READ_ONLY") window.dispatchEvent(new Event(READ_ONLY_EVENT)); })
+    .catch(() => {});
+}
+
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("access_token") ?? "";
 
@@ -13,6 +22,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
     headers: { Authorization: `Bearer ${token}`, ...init?.headers },
   });
 
+  if (res.status === 403) notifyIfReadOnly(res);
   if (res.status !== 401) return res;
 
   try {

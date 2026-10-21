@@ -119,8 +119,8 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-5">
       {toast && (
-        <div className={cn("fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-2",
-          toast.ok ? "bg-emerald-600 text-white" : "bg-red-600 text-white")}>
+        <div className={cn("sp-toast",
+          toast.ok ? "" : "sp-toast--err")}>
           {toast.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           {toast.msg}
         </div>
@@ -276,7 +276,7 @@ export default function ExpensesPage() {
 
       {/* Create Wallet Modal */}
       {walletModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="sp-backdrop z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Wallet</h2>
@@ -311,7 +311,7 @@ export default function ExpensesPage() {
 
       {/* Add Transaction Modal */}
       {txModal && selWallet && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="sp-backdrop z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Transaction</h2>

@@ -208,8 +208,8 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white shadow-2xl flex flex-col">
+      <div className="sp-backdrop z-40" onClick={onClose} />
+      <div className="sp-drawer z-50 max-w-2xl flex flex-col">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Quote" : "New Quote"}</h2>
@@ -437,8 +437,8 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
+      <div className="sp-backdrop z-40" onClick={onClose} />
+      <div className="sp-drawer z-50 max-w-lg flex flex-col">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-slate-900">{q.quoteNumber}</h2>

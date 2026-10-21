@@ -66,7 +66,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
+      <div className="sp-backdrop z-50" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">

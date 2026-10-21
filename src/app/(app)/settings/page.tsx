@@ -62,8 +62,8 @@ function Toast({ msg, type, onDone }: { msg: string; type: "success" | "error"; 
   useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t); }, [onDone]);
   return (
     <div className={cn(
-      "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-2",
-      type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white",
+      "sp-toast",
+      type === "success" ? "" : "sp-toast--err",
     )}>
       {type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
       {msg}

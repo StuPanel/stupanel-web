@@ -113,7 +113,7 @@ function AddPaymentModal({ memberId, onClose, onSaved }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-60" onClick={onClose} />
+      <div className="sp-backdrop z-60" onClick={onClose} />
       <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
           <div className="flex items-center justify-between mb-5">
@@ -246,8 +246,8 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
+      <div className="sp-backdrop z-40" onClick={onClose} />
+      <div className="sp-drawer z-50 max-w-lg flex flex-col">
 
         {/* ── Top bar ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">

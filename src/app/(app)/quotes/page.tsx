@@ -791,7 +791,7 @@ export default function QuotesPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : quotes.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <FileText className="sp-empty-icon" />
           <p className="font-semibold text-slate-600 mb-1">No quotes yet</p>
           <p className="text-sm text-slate-400 mb-4">Create your first quotation to share with clients</p>
           <Button onClick={() => setShowCreate(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm"><Plus className="w-4 h-4" />Create Quote</Button>

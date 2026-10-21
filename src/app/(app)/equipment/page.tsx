@@ -166,12 +166,58 @@ export default function EquipmentPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Wrench className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Wrench className="sp-empty-icon" />
           <p className="text-slate-500 font-medium">No equipment yet</p>
           <p className="text-sm text-slate-400 mt-1">Add cameras, lenses, drones and other gear</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <>
+        {/* Phones: one card per item */}
+        <div className="sm:hidden space-y-3">
+          {items.map(item => {
+            const sc = STATUS_CFG[item.status] ?? STATUS_CFG.available;
+            const activeAssignment = item.assignments?.[0];
+            return (
+              <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 truncate">{item.name}</p>
+                    {(item.brand || item.model) && (
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">{[item.brand, item.model].filter(Boolean).join(" · ")}</p>
+                    )}
+                  </div>
+                  <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0", sc.color)}>
+                    <span className={cn("w-1.5 h-1.5 rounded-full", sc.dot)} />
+                    {sc.label}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <p className="text-slate-500">Category</p>
+                    <p className="font-medium text-slate-800 capitalize mt-0.5">{item.category}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <p className="text-slate-500">Value</p>
+                    <p className="font-medium text-slate-800 mt-0.5">{fmt(item.currentValue ?? item.purchasePrice)}</p>
+                  </div>
+                </div>
+                {activeAssignment && (
+                  <p className="mt-2 text-xs text-slate-600">In use: <span className="font-medium text-violet-700">{activeAssignment.booking.eventName || activeAssignment.booking.bookingNumber}</span></p>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => openEdit(item)} className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 flex items-center justify-center gap-1.5">
+                    <Edit2 className="w-4 h-4" /> Edit
+                  </button>
+                  <button onClick={() => deleteItem(item.id)} className="h-10 w-10 rounded-xl border border-slate-200 text-red-500 flex items-center justify-center" aria-label="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden sm:block bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -234,12 +280,13 @@ export default function EquipmentPage() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       {/* Add/Edit Modal */}
       {modal && (
         <div className="sp-backdrop z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="sp-modal w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">{modal === "edit" ? "Edit Equipment" : "Add Equipment"}</h2>
               <button onClick={() => setModal(null)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">

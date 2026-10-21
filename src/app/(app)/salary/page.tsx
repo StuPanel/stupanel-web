@@ -158,7 +158,7 @@ export default function SalaryPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : slips.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Banknote className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Banknote className="sp-empty-icon" />
           <p className="text-slate-500 font-medium">No salary slips yet</p>
           <p className="text-sm text-slate-400 mt-1">Generate slips for your team members</p>
         </div>
@@ -237,7 +237,7 @@ export default function SalaryPage() {
       {/* Generate Modal */}
       {modal && (
         <div className="sp-backdrop z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="sp-modal w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Generate Salary Slip</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">

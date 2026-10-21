@@ -95,7 +95,7 @@ export default function MemberChatPage() {
           <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
         ) : messages.length === 0 ? (
           <div className="text-center py-16">
-            <MessageCircle className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+            <MessageCircle className="sp-empty-icon" />
             <p className="text-sm text-slate-400">No messages yet</p>
             <p className="text-xs text-slate-300 mt-1">Say hi to your studio admin</p>
           </div>

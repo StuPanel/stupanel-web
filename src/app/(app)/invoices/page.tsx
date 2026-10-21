@@ -116,7 +116,7 @@ function CatalogModal({ onSelect, onClose, currency }: {
     <>
       <div className="sp-backdrop z-60" onClick={onClose} />
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+        <div className="w-full max-w-lg sp-modal flex flex-col max-h-[80vh]">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-900">Service Catalog</h3>
@@ -997,7 +997,7 @@ export default function InvoicesPage() {
         <TableSkeleton rows={6} />
       ) : invoices.length === 0 ? (
         <div className="text-center py-16">
-          <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <FileText className="sp-empty-icon" />
           <p className="text-slate-400 font-medium">No invoices yet</p>
           <p className="text-xs text-slate-400 mt-1">Create your first invoice or generate from a booking</p>
           <Button onClick={() => setCreateOpen(true)} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">

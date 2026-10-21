@@ -84,7 +84,7 @@ export default function ReferralsPage() {
         <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Handshake className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Handshake className="sp-empty-icon" />
           <p className="text-slate-500 font-medium">{groups.length === 0 ? "No referrals tracked yet" : "No matching referrer"}</p>
           <p className="text-sm text-slate-400 mt-1">Set a client's Source to &quot;Referral&quot; and name who referred them to start tracking.</p>
         </div>

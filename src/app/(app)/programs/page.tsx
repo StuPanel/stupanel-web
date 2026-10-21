@@ -138,7 +138,7 @@ export default function ProgramsPage() {
         <TableSkeleton rows={6} />
       ) : bookings.length === 0 ? (
         <div className="text-center py-16">
-          <CalendarDays className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <CalendarDays className="sp-empty-icon" />
           <p className="text-slate-400 text-sm font-medium">No programs yet</p>
           <Button onClick={() => setNewOpen(true)} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
             <Plus className="w-4 h-4" />New Program

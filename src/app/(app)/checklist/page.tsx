@@ -179,7 +179,7 @@ export default function ChecklistPage() {
             <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
           ) : templates.length === 0 ? (
             <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-              <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+              <ClipboardList className="sp-empty-icon" />
               <p className="text-slate-500 font-medium">No template tasks yet</p>
               <p className="text-sm text-slate-400 mt-1 mb-4">Add tasks and they'll auto-populate every program</p>
               <button onClick={seedDefaults} disabled={seeding}
@@ -267,7 +267,7 @@ export default function ChecklistPage() {
 
           {!selectedBookingId ? (
             <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-              <Camera className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+              <Camera className="sp-empty-icon" />
               <p className="text-slate-500 font-medium">Select a program above</p>
               <p className="text-sm text-slate-400 mt-1">to view and manage its checklist</p>
             </div>

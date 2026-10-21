@@ -266,7 +266,7 @@ export default function WhatsAppPage() {
       {/* Empty */}
       {!loading && templates.length === 0 && !showForm && (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <MessageCircle className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <MessageCircle className="sp-empty-icon" />
           <p className="font-semibold text-slate-600 mb-1">No templates yet</p>
           <p className="text-sm text-slate-400 mb-4">Create your first WhatsApp message template</p>
           <div className="flex items-center justify-center gap-2">

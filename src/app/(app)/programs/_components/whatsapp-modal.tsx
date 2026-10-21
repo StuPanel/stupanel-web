@@ -56,7 +56,7 @@ export function WhatsAppModal({ booking, onClose }: {
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="sp-modal w-full max-w-md max-h-[90vh] flex flex-col">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
               <MessageCircle className="w-4 h-4 text-green-600" />

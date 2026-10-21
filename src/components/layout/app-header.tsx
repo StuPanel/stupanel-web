@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/layout/app-sidebar";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import {
-  Bell, Search, ChevronDown, Menu, Settings, User, LogOut, ShieldAlert,
-  Camera, Users, FileText, X, Loader2,
+  Bell, Search, ChevronDown, Settings, User, LogOut, ShieldAlert,
+  Camera, Users, FileText, X, Loader2, Crown,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -47,6 +49,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(-1);
+  const [mobileSearch, setMobileSearch] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,6 +174,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
   function navigate(r: SearchResult) {
     setOpen(false);
+    setMobileSearch(false);
     setQuery("");
     setResults([]);
     router.push(r.href);
@@ -186,7 +190,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const typeIcon = (type: SearchResult["type"]) => {
     if (type === "booking") return <Camera className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />;
     if (type === "client") return <Users className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />;
-    return <FileText className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />;
+    return <FileText className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />;
   };
 
   const typeLabel = (type: SearchResult["type"]) => {
@@ -214,148 +218,161 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   return (
     <>
       {user?.impersonatedBy && (
-        <div className="bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-2">
+        <div className="lg:mt-3 lg:rounded-xl bg-[#C2304F] text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-2">
           <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-          <span>⚠️ You are viewing this studio as a Super Admin. All actions are logged.</span>
+          <span>You are viewing this studio as a Super Admin. All actions are logged.</span>
         </div>
       )}
 
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <Menu className="w-5 h-5 text-slate-600" />
-          </button>
+      <header className="sticky top-0 z-20 bg-slate-50/85 backdrop-blur-md supports-[backdrop-filter]:bg-slate-50/70">
+        <div className="relative h-16 flex items-center justify-between gap-3 px-3 sm:px-4 lg:px-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Mobile: brand */}
+            <Link href="/dashboard" className="lg:hidden flex items-center gap-2 min-w-0">
+              <BrandMark size={30} />
+              <span className="font-extrabold text-[16px] tracking-tight text-slate-900 truncate">StuPanel</span>
+            </Link>
 
-          {/* Search box */}
-          <div className="relative hidden sm:block w-64 lg:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onFocus={() => { if (results.length > 0) setOpen(true); }}
-              placeholder="Search programs, clients…"
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white transition-colors h-9"
-            />
-            {searching && (
-              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 animate-spin" />
-            )}
-            {query && !searching && (
-              <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            {/* Dropdown results */}
-            {open && (
-              <div
-                ref={dropdownRef}
-                className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
-              >
-                {results.length === 0 && !searching && (
-                  <div className="px-4 py-6 text-center text-sm text-slate-400">
-                    No results found
-                  </div>
+            {/* Search box (desktop inline, mobile as a drop-down row) */}
+            <div className={cn(
+              "lg:relative lg:block lg:w-80 xl:w-96",
+              mobileSearch ? "absolute left-3 right-3 top-[60px] sm:left-4 sm:right-4 z-30" : "hidden"
+            )}>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => { if (results.length > 0) setOpen(true); }}
+                  placeholder="Search programs, clients, invoices…"
+                  className="w-full h-10 pl-10 pr-9 bg-white border border-slate-200 rounded-xl text-sm shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15 focus:border-violet-400 transition-shadow"
+                />
+                {searching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-500 animate-spin" />
                 )}
-                {results.length > 0 && (
-                  <ul className="py-1 max-h-72 overflow-y-auto">
-                    {results.map((r, i) => (
-                      <li key={r.id + r.type}>
-                        <button
-                          onMouseEnter={() => setSelected(i)}
-                          onClick={() => navigate(r)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                            selected === i ? "bg-indigo-50" : "hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                            {typeIcon(r.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{r.label}</p>
-                            {r.sub && <p className="text-xs text-slate-400 truncate">{r.sub}</p>}
-                          </div>
-                          <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0">
-                            {typeLabel(r.type)}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                {query && !searching && (
+                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search">
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <button className="sm:hidden p-2 rounded-lg hover:bg-slate-100">
-            <Search className="w-5 h-5 text-slate-500" />
-          </button>
-
-          <Button variant="ghost" size="sm" className="relative w-9 h-9 p-0" onClick={() => router.push("/notifications")}>
-            <Bell className="w-4 h-4 text-slate-500" />
-            {hasUnread && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />}
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 hover:bg-slate-100 rounded-lg px-2 py-1.5 transition-colors">
-                <Avatar className="w-8 h-8">
-                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                  <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-left hidden md:block">
-                  <p className="text-sm font-medium text-slate-900 leading-none">{displayName}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{roleLabel}</p>
+              {/* Dropdown results */}
+              {open && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(22,20,29,0.35)] border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200"
+                >
+                  {results.length === 0 && !searching && (
+                    <div className="px-4 py-8 text-center text-sm text-slate-400">No results found</div>
+                  )}
+                  {results.length > 0 && (
+                    <ul className="p-1.5 max-h-80 overflow-y-auto">
+                      {results.map((r, i) => (
+                        <li key={r.id + r.type}>
+                          <button
+                            onMouseEnter={() => setSelected(i)}
+                            onClick={() => navigate(r)}
+                            className={cn("w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors",
+                              selected === i ? "bg-violet-50" : "hover:bg-slate-50")}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              {typeIcon(r.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">{r.label}</p>
+                              {r.sub && <p className="text-xs text-slate-400 truncate">{r.sub}</p>}
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                              {typeLabel(r.type)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden" sideOffset={8}>
-              {/* User identity header */}
-              <div className="bg-indigo-50 px-4 py-3 flex items-center gap-3">
-                {/* Company logo or user avatar */}
-                {companyLogo ? (
-                  <div className="w-10 h-10 rounded-lg bg-white border border-indigo-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                    <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
-                  </div>
-                ) : (
-                  <Avatar className="w-10 h-10 flex-shrink-0">
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => { setMobileSearch(v => !v); setTimeout(() => inputRef.current?.focus(), 50); }}
+              className={cn("lg:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                mobileSearch ? "bg-violet-50 text-violet-700" : "bg-white border border-slate-200 text-slate-600")}
+              aria-label="Search"
+            >
+              {mobileSearch ? <X className="w-[18px] h-[18px]" /> : <Search className="w-[18px] h-[18px]" />}
+            </button>
+
+            <button
+              onClick={() => router.push("/notifications")}
+              className="relative w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-violet-700 hover:border-violet-200 transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell className="w-[18px] h-[18px]" />
+              {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 bg-violet-600 rounded-full ring-2 ring-white" />}
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-xl lg:bg-white lg:border lg:border-slate-200 lg:pl-1 lg:pr-2.5 h-10 hover:border-violet-200 transition-colors">
+                  <Avatar className="w-8 h-8">
                     {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                    <AvatarFallback className="bg-indigo-200 text-indigo-700 text-sm font-bold">
+                    <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-bold">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                  <span className="inline-block bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5">
-                    {roleLabel}
-                  </span>
-                  <p className="text-xs text-slate-500 truncate mt-0.5">{user?.company?.name ?? ""}</p>
+                  <div className="text-left hidden lg:block">
+                    <p className="text-[13px] font-semibold text-slate-900 leading-none">{displayName}</p>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-none">{roleLabel}</p>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-slate-400 hidden lg:block" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden rounded-2xl" sideOffset={8}>
+                <div className="bg-violet-50 px-4 py-3 flex items-center gap-3">
+                  {companyLogo ? (
+                    <div className="w-10 h-10 rounded-xl bg-white border border-violet-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
+                    </div>
+                  ) : (
+                    <Avatar className="w-10 h-10 flex-shrink-0">
+                      {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
+                      <AvatarFallback className="bg-violet-200 text-violet-800 text-sm font-bold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
+                    <span className="inline-block bg-white text-violet-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 border border-violet-100">
+                      {roleLabel}
+                    </span>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{user?.company?.name ?? ""}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="p-1">
-                <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-md">
-                  <User className="w-4 h-4 text-indigo-500" /> Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-md">
-                  <Settings className="w-4 h-4 text-slate-500" /> Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="my-1" />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-md text-red-600 focus:text-red-600 focus:bg-red-50">
-                  <LogOut className="w-4 h-4" /> Log out
-                </DropdownMenuItem>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <div className="p-1.5">
+                  <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
+                    <User className="w-4 h-4 text-violet-600" /> Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2 rounded-lg">
+                    <Crown className="w-4 h-4 text-violet-600" /> Plan &amp; Billing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
+                    <Settings className="w-4 h-4 text-slate-500" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-lg text-[#C2304F] focus:text-[#C2304F] focus:bg-rose-50">
+                    <LogOut className="w-4 h-4" /> Log out
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
     </>

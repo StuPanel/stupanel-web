@@ -1,40 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
-  LayoutDashboard,
-  CalendarDays,
-  Users,
-  Camera,
-  CreditCard,
-  Package,
-  ImageIcon,
-  BarChart3,
-  Settings,
-  Bell,
-  Crown,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  UserCog,
-  MessageCircle,
-  FileText,
-  CircleUserRound,
-  LifeBuoy,
-  ClipboardList,
-  Wrench,
-  Banknote,
-  Wallet,
-  Handshake,
+  LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
+  Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
+  CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Handshake, Receipt,
+  MessageSquareText, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { apiFetch, API_URL as API } from "@/lib/api";
+import { API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
+import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
 
-const navigation = [
+export const navigation = [
   {
     title: "Main",
     items: [
@@ -50,8 +31,8 @@ const navigation = [
       { name: "Clients", href: "/clients", icon: Users },
       { name: "Referrals", href: "/referrals", icon: Handshake },
       { name: "Quotes", href: "/quotes", icon: FileText },
-      { name: "Invoices", href: "/invoices", icon: CreditCard },
-      { name: "Payments", href: "/payments", icon: BarChart3 },
+      { name: "Invoices", href: "/invoices", icon: Receipt },
+      { name: "Payments", href: "/payments", icon: CreditCard },
       { name: "Team", href: "/team", icon: UserCog },
       { name: "Packages", href: "/packages", icon: Package },
       { name: "Delivery", href: "/delivery", icon: ImageIcon },
@@ -70,7 +51,7 @@ const navigation = [
     title: "Manage",
     items: [
       { name: "Reports", href: "/reports", icon: BarChart3 },
-      { name: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
+      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText },
       { name: "Notifications", href: "/notifications", icon: Bell },
       { name: "Support", href: "/support", icon: LifeBuoy },
       { name: "Plan & Billing", href: "/billing", icon: Crown },
@@ -87,30 +68,27 @@ interface AppSidebarProps {
   onToggle?: () => void;
 }
 
-function calcTrialDays(trialEndsAt: string | null): number | null {
-  if (!trialEndsAt) return null;
-  const diff = new Date(trialEndsAt).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+export function BrandMark({ size = 32, className }: { size?: number; className?: string }) {
+  return (
+    <Image
+      src="/brand/stupanel-icon-128.png"
+      alt="StuPanel"
+      width={size}
+      height={size}
+      className={cn("object-contain flex-shrink-0", className)}
+      priority
+    />
+  );
 }
 
 export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
   const { companyLogo, companyName } = useAuth();
-  const [trialDays, setTrialDays] = useState<number | null>(null);
-  const [subStatus, setSubStatus] = useState<string>("trialing");
+  const [access, setAccess] = useState<BillingAccess | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
 
-  // Subscription info — fetch once on mount
   useEffect(() => {
-    apiFetch(`${API}/companies/me`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d) {
-          setTrialDays(calcTrialDays(d.trialEndsAt));
-          setSubStatus(d.subscriptionStatus ?? "trialing");
-        }
-      })
-      .catch(() => {});
+    loadBillingStatus().then((d) => { if (d) setAccess(d.access); });
   }, []);
 
   // Chat unread — poll only when tab is visible
@@ -121,7 +99,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       if (document.visibilityState !== "visible") return;
       fetch(`${API}/chat/bookings`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : [])
-        .then((d: any[]) => Array.isArray(d) ? setChatUnread(d.reduce((s, b) => s + (b.unreadCount ?? 0), 0)) : null)
+        .then((d: { unreadCount?: number }[]) => Array.isArray(d) ? setChatUnread(d.reduce((s, b) => s + (b.unreadCount ?? 0), 0)) : null)
         .catch(() => {});
     };
     load();
@@ -133,62 +111,59 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
     };
   }, []);
 
+  const wide = !collapsed;
+
   return (
-    <aside className="flex flex-col w-full h-full bg-white border-r border-slate-200 overflow-hidden">
-      {/* Logo + Toggle */}
-      <div className={cn(
-        "flex border-b border-slate-200 flex-shrink-0",
-        collapsed ? "flex-col items-center px-0 py-3 gap-1" : "items-center justify-between px-6 py-5"
-      )}>
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          {companyLogo ? (
-            <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
-              <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
-            </div>
-          ) : (
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-          )}
-          {!collapsed && (
-            <div>
-              <p className="font-bold text-slate-900 text-sm leading-none">
-                {companyName || "StuPanel"}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">Studio Management</p>
-            </div>
-          )}
-        </div>
-        {/* Desktop collapse toggle */}
+    <aside className={cn(
+      "flex flex-col w-full h-full bg-white overflow-hidden",
+      isMobile ? "" : "rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]"
+    )}>
+      {/* Brand */}
+      <div className={cn("flex items-center flex-shrink-0 pt-4 pb-3", wide ? "px-4 justify-between" : "flex-col gap-2 px-2")}>
+        <Link href="/dashboard" onClick={isMobile ? onClose : undefined} className="flex items-center gap-2.5 min-w-0">
+          <BrandMark size={34} />
+          {wide && <span className="font-extrabold text-[17px] tracking-tight text-slate-900">StuPanel</span>}
+        </Link>
         {!isMobile && (
           <button
             onClick={onToggle}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-700 hover:bg-violet-50 transition-colors"
           >
-            {collapsed
-              ? <ChevronRight className="w-4 h-4" />
-              : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
           </button>
         )}
-        {/* Mobile close */}
         {isMobile && (
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100">
+          <button onClick={onClose} className="p-2 -mr-1 rounded-lg hover:bg-slate-100" aria-label="Close menu">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         )}
       </div>
 
+      {/* Studio identity */}
+      <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
+        <div className={cn("flex items-center rounded-xl bg-slate-50 border border-slate-100", wide ? "gap-2.5 p-2" : "p-1.5")}>
+          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+            {companyLogo
+              ? <img src={companyLogo} alt="" className="w-full h-full object-contain p-0.5" />
+              : <span className="text-xs font-bold text-violet-700">{(companyName || "S").slice(0, 1).toUpperCase()}</span>}
+          </div>
+          {wide && (
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{companyName || "Your studio"}</p>
+              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Studio workspace</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Navigation */}
-      <nav className={cn("flex-1 overflow-y-auto py-4 space-y-6", collapsed ? "px-1.5" : "px-3")}>
+      <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-4", wide ? "px-3" : "px-2")}>
         {navigation.map((group) => (
           <div key={group.title}>
-            {!collapsed && (
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">
-                {group.title}
-              </p>
-            )}
-            {collapsed && <div className="h-px bg-slate-100 mx-1 mb-2" />}
+            {wide
+              ? <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em] px-2.5 mb-1.5">{group.title}</p>
+              : <div className="h-px bg-slate-100 mx-2 mb-2" />}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -199,24 +174,26 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
                       title={collapsed ? item.name : undefined}
                       onClick={isMobile ? onClose : undefined}
                       className={cn(
-                        "flex items-center py-2.5 rounded-lg text-sm font-medium transition-all relative",
-                        collapsed ? "justify-center px-2" : "gap-3 px-3",
-                        isActive
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        "group relative flex items-center rounded-xl text-sm font-medium transition-colors",
+                        wide ? "gap-3 px-2.5 py-2" : "justify-center p-2.5",
+                        isActive ? "bg-violet-50 text-violet-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
-                      <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive ? "text-indigo-600" : "text-slate-400")} />
-                      {!collapsed && <span className="flex-1">{item.name}</span>}
-                      {/* Unread: count badge when expanded, red dot when collapsed */}
+                      {isActive && wide && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-violet-600" />}
+                      <span className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
+                        isActive ? "bg-violet-600 text-white shadow-sm shadow-violet-600/30" : "text-slate-400 group-hover:text-violet-600"
+                      )}>
+                        <item.icon className="w-[17px] h-[17px]" />
+                      </span>
+                      {wide && <span className="flex-1 truncate">{item.name}</span>}
                       {item.href === "/chat" && chatUnread > 0 && !isActive && (
-                        collapsed
-                          ? <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
-                          : <span className="h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        wide
+                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center">
                               {chatUnread > 9 ? "9+" : chatUnread}
                             </span>
+                          : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-600 ring-2 ring-white" />
                       )}
-                      {isActive && !collapsed && <ChevronRight className="w-3 h-3 text-indigo-400" />}
                     </Link>
                   </li>
                 );
@@ -226,58 +203,51 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         ))}
       </nav>
 
-      {/* Trial / Plan Card */}
-      <div className="p-3 border-t border-slate-200 flex-shrink-0">
-        {collapsed ? (
-          /* Icon-only plan indicator */
-          <div className="flex justify-center">
-            <div
-              title={subStatus === "active" ? "Active Plan" : `Trial: ${trialDays ?? "—"}d left`}
-              className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center cursor-default",
-                subStatus === "active" ? "bg-emerald-100" : "bg-indigo-100"
-              )}
-            >
-              <Crown className={cn("w-4 h-4", subStatus === "active" ? "text-emerald-600" : "text-indigo-500")} />
-            </div>
-          </div>
-        ) : subStatus === "active" ? (
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg p-3 text-white">
-            <div className="flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5 text-yellow-300" />
-              <span className="text-xs font-semibold">Active Plan</span>
-            </div>
-            <p className="text-xs text-emerald-100 mt-1">Your subscription is active</p>
-          </div>
-        ) : (
-          <div className={cn(
-            "rounded-lg p-3 text-white",
-            trialDays !== null && trialDays <= 7
-              ? "bg-gradient-to-br from-red-500 to-orange-600"
-              : "bg-gradient-to-br from-indigo-500 to-purple-600"
-          )}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5">
-                <Crown className="w-3.5 h-3.5 text-yellow-300" />
-                <span className="text-xs font-semibold">Free Trial</span>
-              </div>
-              <span className={cn(
-                "text-xs font-bold",
-                trialDays !== null && trialDays <= 7 ? "text-red-200" : "text-indigo-200"
-              )}>
-                {trialDays === null ? "—" : trialDays === 0 ? "Expired!" : `${trialDays}d left`}
-              </span>
-            </div>
-            {trialDays !== null && trialDays <= 7 && trialDays > 0 && (
-              <p className="text-xs text-red-200 mb-1">Trial ending soon!</p>
-            )}
-            <Link href="/billing" onClick={onClose}
-              className="block text-center w-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium py-1.5 rounded-md transition-colors mt-1">
-              Upgrade Plan
-            </Link>
-          </div>
-        )}
+      {/* Plan card */}
+      <div className={cn("flex-shrink-0 border-t border-slate-100", wide ? "p-3" : "p-2 flex justify-center")}>
+        <PlanCard access={access} collapsed={!!collapsed} onNavigate={isMobile ? onClose : undefined} />
       </div>
     </aside>
+  );
+}
+
+function PlanCard({ access, collapsed, onNavigate }: { access: BillingAccess | null; collapsed: boolean; onNavigate?: () => void }) {
+  const mode = access?.mode ?? "trial";
+  const days = access?.daysLeft ?? null;
+  const ended = mode === "grace" || mode === "read_only";
+
+  const title = mode === "full" ? "Plan active" : mode === "trial" ? "Free trial" : mode === "grace" ? "Plan ended" : "View-only";
+  const sub = mode === "full"
+    ? (access?.periodEndsAt ? `Renews ${new Date(access.periodEndsAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Thanks for being with us")
+    : mode === "trial"
+      ? (days !== null ? `${Math.max(0, days)} day${days === 1 ? "" : "s"} left` : "Explore everything")
+      : mode === "grace" ? "Pay now to keep working" : "Renew to make changes";
+
+  if (collapsed) {
+    return (
+      <Link href="/billing" onClick={onNavigate} title={`${title} · ${sub}`}
+        className={cn("w-10 h-10 rounded-xl flex items-center justify-center",
+          ended ? "bg-rose-50 text-[#C2304F]" : "bg-violet-50 text-violet-700")}>
+        <Crown className="w-4 h-4" />
+      </Link>
+    );
+  }
+
+  return (
+    <Link href="/billing" onClick={onNavigate}
+      className={cn("block rounded-xl p-3 text-white relative overflow-hidden transition-transform hover:-translate-y-0.5",
+        ended ? "bg-gradient-to-br from-[#C2304F] to-[#8A1F37]" : "bg-gradient-to-br from-violet-600 to-[#4E35B4]")}>
+      <Sparkles className="absolute -right-2 -top-2 w-14 h-14 text-white/10" />
+      <div className="flex items-center gap-1.5">
+        <Crown className="w-3.5 h-3.5" />
+        <span className="text-xs font-semibold">{title}</span>
+      </div>
+      <p className="text-xs text-white/80 mt-0.5">{sub}</p>
+      {mode !== "full" && (
+        <span className="mt-2 block text-center w-full bg-white/20 hover:bg-white/25 text-white text-xs font-semibold py-1.5 rounded-lg">
+          {ended ? "Renew plan" : "Choose a plan"}
+        </span>
+      )}
+    </Link>
   );
 }

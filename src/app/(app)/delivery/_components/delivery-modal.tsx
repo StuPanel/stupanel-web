@@ -396,7 +396,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="sp-modal w-full max-w-lg flex flex-col max-h-[90vh]">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="font-bold text-slate-900">Delivery Details</h3>

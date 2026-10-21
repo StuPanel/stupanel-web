@@ -427,7 +427,7 @@ function ResetPassDialog({ member, onClose, onDone }: { member: Member | null; o
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="sp-modal w-full max-w-sm p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
               <KeyRound className="w-5 h-5 text-amber-600" />
@@ -475,7 +475,7 @@ function DeleteDialog({ member, onClose, onDeleted }: { member: Member | null; o
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div className="sp-modal w-full max-w-sm p-6 text-center">
           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-7 h-7 text-red-500" />
           </div>
@@ -718,7 +718,7 @@ export default function TeamPage() {
         <CardGridSkeleton cards={6} />
       ) : members.length === 0 ? (
         <div className="text-center py-16">
-          <Shield className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Shield className="sp-empty-icon" />
           <p className="text-slate-400 text-sm font-medium">No team members yet</p>
           <p className="text-slate-300 text-xs mt-1">Add photographers, editors and cinematographers</p>
           <Button onClick={openAdd} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
@@ -727,7 +727,7 @@ export default function TeamPage() {
         </div>
       ) : filteredMembers.length === 0 ? (
         <div className="text-center py-12">
-          <Search className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <Search className="sp-empty-icon" />
           <p className="text-slate-400 text-sm">No members match your search</p>
           <button onClick={() => { setSearch(""); setRoleFilter("all"); }} className="mt-2 text-xs text-indigo-500 hover:text-indigo-600">Clear filters</button>
         </div>

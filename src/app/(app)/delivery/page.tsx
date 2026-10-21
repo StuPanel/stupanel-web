@@ -102,7 +102,7 @@ export default function DeliveryPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : bookings.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Package className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Package className="sp-empty-icon" />
           <p className="text-slate-400 text-sm font-medium">No programs found</p>
         </div>
       ) : (

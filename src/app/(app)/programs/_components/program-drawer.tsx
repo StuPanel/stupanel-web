@@ -252,7 +252,7 @@ function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
 
       {data.eventDays.length === 0 ? (
         <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl">
-          <CalendarDays className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <CalendarDays className="sp-empty-icon" />
           <p className="text-slate-400 text-sm font-medium">No event days added</p>
           <p className="text-slate-300 text-xs mt-1">Add each day of the event (Holud, Wedding, Reception...)</p>
           <button onClick={addDay} className="mt-3 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-sm font-medium mx-auto">

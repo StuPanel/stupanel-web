@@ -162,7 +162,7 @@ export default function ExpensesPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : wallets.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Wallet className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Wallet className="sp-empty-icon" />
           <p className="text-slate-500 font-medium">No wallets yet</p>
           <p className="text-sm text-slate-400 mt-1">Add Cash, bKash, Bank accounts to track expenses</p>
         </div>
@@ -198,7 +198,7 @@ export default function ExpensesPage() {
           <div className="lg:col-span-2">
             {!selWallet ? (
               <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-                <Wallet className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                <Wallet className="sp-empty-icon" />
                 <p className="text-slate-400 text-sm">Select a wallet to view transactions</p>
               </div>
             ) : (
@@ -277,7 +277,7 @@ export default function ExpensesPage() {
       {/* Create Wallet Modal */}
       {walletModal && (
         <div className="sp-backdrop z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm">
+          <div className="sp-modal w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Wallet</h2>
               <button onClick={() => setWalletModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
       {/* Add Transaction Modal */}
       {txModal && selWallet && (
         <div className="sp-backdrop z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm">
+          <div className="sp-modal w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Transaction</h2>
               <button onClick={() => setTxModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>

@@ -499,7 +499,7 @@ function DeleteDialog({ pkg, onClose, onDeleted }: { pkg: Pkg | null; onClose: (
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div className="sp-modal w-full max-w-sm p-6 text-center">
           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-7 h-7 text-red-500" />
           </div>
@@ -634,7 +634,7 @@ export default function PackagesPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : packages.length === 0 ? (
         <div className="text-center py-16">
-          <Package className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+          <Package className="sp-empty-icon" />
           <p className="text-slate-400 text-sm font-medium">No packages yet</p>
           <p className="text-slate-300 text-xs mt-1">Create service packages to attach to bookings</p>
           <Button onClick={openNew} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">

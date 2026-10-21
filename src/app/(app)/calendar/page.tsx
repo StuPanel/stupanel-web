@@ -270,7 +270,7 @@ export default function CalendarPage() {
       {/* Empty state */}
       {!loading && bookings.length === 0 && (
         <div className="text-center py-8">
-          <CalendarDays className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+          <CalendarDays className="sp-empty-icon" />
           <p className="text-slate-400 text-sm">No programs this month</p>
           <Link href="/programs" className="inline-block mt-3 text-xs px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
             Add Programs

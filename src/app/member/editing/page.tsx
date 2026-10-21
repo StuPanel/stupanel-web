@@ -85,7 +85,7 @@ export default function EditingPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
       ) : assignments.length === 0 ? (
         <div className="text-center py-16">
-          <Video className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <Video className="sp-empty-icon" />
           <p className="text-sm text-slate-400">No editing assignments yet</p>
         </div>
       ) : (

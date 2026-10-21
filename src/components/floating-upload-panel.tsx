@@ -28,7 +28,7 @@ export function FloatingUploadPanel() {
     : Math.round(uploads.reduce((s, u) => s + u.progress, 0) / uploads.length);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed bottom-4 right-4 z-50 w-80 sp-modal border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
         <div className="flex items-center gap-2">

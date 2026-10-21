@@ -106,7 +106,7 @@ export function DeleteDialog({ booking, onClose, onDeleted }: {
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div className="sp-modal w-full max-w-sm p-6 text-center">
           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-7 h-7 text-red-500" />
           </div>

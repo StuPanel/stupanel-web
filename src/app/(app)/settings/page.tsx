@@ -315,7 +315,7 @@ function LogoCropModal({ src, onSave, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="sp-modal w-full max-w-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <p className="font-bold text-slate-900 text-sm">লোগো পজিশন করুন</p>
@@ -1636,7 +1636,7 @@ function CatalogTab() {
         <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+          <BookOpen className="sp-empty-icon" />
           <p className="text-sm text-slate-400 font-medium">No catalog items yet</p>
           <p className="text-xs text-slate-300 mt-1">Add your common services to speed up invoicing</p>
         </div>

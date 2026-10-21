@@ -23,7 +23,19 @@ function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" :
 
 const UNITS = ["service", "hour", "day", "piece", "album", "copy", "session", "package", "item", "GB"];
 const CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album", "Printing", "Other"];
-const PAYMENT_METHODS = ["cash", "bank_transfer", "mobile_banking", "bkash", "nagad", "card", "cheque", "other"];
+// Values must match the API's PaymentMethodType enum (bKash/Nagad/Rocket are "mobile_banking").
+const PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "mobile_banking", label: "bKash / Nagad / Rocket" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "credit_card", label: "Card" },
+  { value: "cheque", label: "Cheque" },
+  { value: "other", label: "Other" },
+];
+const METHOD_LABEL: Record<string, string> = {
+  cash: "Cash", mobile_banking: "bKash / Nagad / Rocket", bank_transfer: "Bank transfer",
+  credit_card: "Card", debit_card: "Card", cheque: "Cheque", online_gateway: "Online", other: "Other",
+};
 
 const STATUS: Record<string, { label: string; badge: string; dot: string }> = {
   draft:          { label: "Draft",         badge: "bg-slate-100 text-slate-600",   dot: "bg-slate-400"   },
@@ -279,7 +291,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
         }),
       });
       const d = await r.json();
-      if (!r.ok) { setError(d.message || "Failed."); return; }
+      if (!r.ok) { setError((Array.isArray(d.message) ? d.message[0] : d.message) || "Failed."); return; }
       onDone();
     } catch { setError("Something went wrong."); }
     finally { setSaving(false); }
@@ -307,7 +319,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
           <Label className="text-xs text-slate-500">Method *</Label>
           <select value={method} onChange={e => setMethod(e.target.value)}
             className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace("_", " ")}</option>)}
+            {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="space-y-1">
@@ -826,7 +838,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
                   {payments.map((pay, i) => (
                     <div key={pay.id} className={cn("px-4 py-3 flex items-center justify-between gap-2", i > 0 && "border-t border-slate-100")}>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800 capitalize">{pay.paymentMethod.replace("_", " ")}</p>
+                        <p className="text-sm font-semibold text-slate-800 capitalize">{METHOD_LABEL[pay.paymentMethod] ?? pay.paymentMethod.replace("_", " ")}</p>
                         <p className="text-xs text-slate-400">{fmtDate(pay.paymentDate)}{pay.referenceNumber ? ` · ${pay.referenceNumber}` : ""}</p>
                       </div>
                       <p className="font-bold text-sm text-emerald-700">+{c}{Number(pay.amount).toLocaleString()}</p>

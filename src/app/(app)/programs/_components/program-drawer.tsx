@@ -27,7 +27,7 @@ export function blankWizard() {
     eventDays: [] as EventDay[],
     eventName: "",
     packageId: "", currency: "BDT",
-    totalAmount: "", discountAmount: "", advanceAmount: "",
+    totalAmount: "", discountAmount: "", advanceAmount: "", advanceMethod: "cash",
     costEntries: [] as CostEntry[],
     transportCost: "", otherCost: "", albumCost: "", equipCost: "",
     internalNotes: "",
@@ -59,7 +59,7 @@ export function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
     currency: b.currency ?? "BDT",
     totalAmount: String(Number(b.totalAmount) || ""),
     discountAmount: String(Number(b.discountAmount) || ""),
-    advanceAmount: String(Number(b.advanceAmount) || ""),
+    advanceAmount: String(Number(b.advanceAmount) || ""), advanceMethod: "cash",
     costEntries: (b.costEntries as CostEntry[]) ?? [],
     transportCost: String(Number(b.transportCost) || ""),
     otherCost: String(Number(b.otherCost) || ""),
@@ -562,6 +562,29 @@ function Step3Financial({ data, onChange, packages, isEdit, teamMembers }: {
         </div>
       </div>
 
+      {!isEdit && (parseFloat(data.advanceAmount) || 0) > 0 && (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-slate-600">Advance paid by</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "cash", l: "Cash" },
+              { v: "mobile_banking", l: "bKash / Nagad / Rocket" },
+              { v: "bank_transfer", l: "Bank" },
+              { v: "other", l: "Other" },
+            ].map(o => (
+              <button key={o.v} type="button" onClick={() => onChange({ advanceMethod: o.v })}
+                className={cn("h-9 px-3.5 rounded-full border text-sm font-medium transition-colors",
+                  (data.advanceMethod || "cash") === o.v
+                    ? "bg-violet-600 border-violet-600 text-white"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-violet-300")}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500">Saved as the first payment of this program.</p>
+        </div>
+      )}
+
       {data.costEntries.length > 0 && (
         <div className="space-y-2 pt-2">
           <Label className="text-xs font-medium text-slate-600">Team Payments — Bill, Paid &amp; Due per person</Label>
@@ -790,6 +813,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         totalAmount: parseFloat(data.totalAmount) || 0,
         discountAmount: parseFloat(data.discountAmount) || 0,
         advanceAmount: isEdit ? undefined : (parseFloat(data.advanceAmount) || 0),
+        advanceMethod: isEdit || !(parseFloat(data.advanceAmount) > 0) ? undefined : (data.advanceMethod || "cash"),
         transportCost: parseFloat(data.transportCost) || 0,
         otherCost: parseFloat(data.otherCost) || 0,
         albumCost: parseFloat(data.albumCost) || 0,

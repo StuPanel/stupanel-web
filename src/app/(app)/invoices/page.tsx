@@ -86,8 +86,8 @@ interface Invoice {
 function Toast({ msg, type, onDone }: { msg: string; type: "success"|"error"; onDone: () => void }) {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
   return (
-    <div className={cn("fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-2",
-      type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white")}>
+    <div className={cn("sp-toast",
+      type === "success" ? "" : "sp-toast--err")}>
       {type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
       {msg}
     </div>
@@ -114,7 +114,7 @@ function CatalogModal({ onSelect, onClose, currency }: {
   const s = sym(currency);
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-60" onClick={onClose} />
+      <div className="sp-backdrop z-60" onClick={onClose} />
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -474,7 +474,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   return (
     <>
       {catalogOpen && <CatalogModal currency={currency} onSelect={addFromCatalog} onClose={() => setCatalogOpen(false)} />}
-      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-stretch justify-end">
         <div className="w-full max-w-[1140px] bg-white shadow-2xl flex">
 
@@ -708,8 +708,8 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
   return (
     <>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
+      <div className="sp-backdrop z-40" onClick={onClose} />
+      <div className="sp-drawer z-50 max-w-lg flex flex-col">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <div>
             <div className="flex items-center gap-2">

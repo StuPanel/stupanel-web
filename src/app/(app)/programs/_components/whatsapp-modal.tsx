@@ -54,7 +54,7 @@ export function WhatsAppModal({ booking, onClose }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">

@@ -182,8 +182,8 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   if (!open) return null;
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+      <div className="sp-backdrop z-40" onClick={onClose} />
+      <div className="sp-drawer z-50 max-w-md flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Member" : "Add Team Member"}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
@@ -425,7 +425,7 @@ function ResetPassDialog({ member, onClose, onDone }: { member: Member | null; o
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -473,7 +473,7 @@ function DeleteDialog({ member, onClose, onDeleted }: { member: Member | null; o
   }
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">

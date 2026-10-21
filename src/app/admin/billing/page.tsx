@@ -101,27 +101,27 @@ export default function AdminBillingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 md:p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Subscription Payments</h1>
-        <p className="text-sm text-slate-500 mt-1">Check the money in your bKash / Nagad / Rocket app, then confirm. Confirming activates the studio&apos;s plan automatically.</p>
+        <h1 className="text-2xl font-bold text-white">Subscription Payments</h1>
+        <p className="text-sm text-slate-400 mt-1">Check the money in your bKash / Nagad / Rocket app, then confirm. Confirming activates the studio&apos;s plan automatically.</p>
       </div>
 
       {msg && (
-        <div className={cn("rounded-lg px-4 py-2.5 text-sm font-medium", msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>{msg.text}</div>
+        <div className={cn("rounded-lg px-4 py-2.5 text-sm font-medium", msg.ok ? "bg-emerald-950/50 text-emerald-300" : "bg-red-950/50 text-red-300")}>{msg.text}</div>
       )}
 
       {/* Payment numbers */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="font-semibold text-slate-900">Payment numbers</p>
-        <p className="text-xs text-slate-500 mt-0.5">Shown to studios on their billing page. Leave empty to hide a method.</p>
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+        <p className="font-semibold text-white">Payment numbers</p>
+        <p className="text-xs text-slate-400 mt-0.5">Shown to studios on their billing page. Leave empty to hide a method.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {NUMBER_KEYS.map(({ method, key }) => (
             <label key={key} className="block">
-              <span className="text-xs font-medium text-slate-600">{METHOD_LABEL[method]} number</span>
+              <span className="text-xs font-medium text-slate-300">{METHOD_LABEL[method]} number</span>
               <input value={numbers[key] ?? ""} onChange={(e) => setNumbers((n) => ({ ...n, [key]: e.target.value }))}
                 placeholder="01XXXXXXXXX" inputMode="tel"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500" />
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500" />
             </label>
           ))}
         </div>
@@ -133,12 +133,12 @@ export default function AdminBillingPage() {
       </div>
 
       {/* Requests */}
-      <div className="rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center gap-1 border-b border-slate-200 px-3 pt-3">
+      <div className="rounded-xl border border-slate-700 bg-slate-800">
+        <div className="flex items-center gap-1 border-b border-slate-700 px-3 pt-3">
           {(["pending", "all"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={cn("px-4 py-2 text-sm font-medium border-b-2 -mb-px",
-                tab === t ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700")}>
+                tab === t ? "border-violet-500 text-violet-300" : "border-transparent text-slate-400 hover:text-white")}>
               {t === "pending" ? "Waiting" : "All"}
             </button>
           ))}
@@ -147,33 +147,33 @@ export default function AdminBillingPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-violet-600" /></div>
         ) : rows.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-500">{tab === "pending" ? "No payments waiting." : "No payments yet."}</p>
+          <p className="py-16 text-center text-sm text-slate-400">{tab === "pending" ? "No payments waiting." : "No payments yet."}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-slate-700">
             {rows.map((r) => (
               <li key={r.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-slate-900">{r.company.name}</p>
+                    <p className="font-semibold text-white">{r.company.name}</p>
                     <span className="text-xs text-slate-400">{r.number}</span>
-                    {r.state === "approved" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="w-3.5 h-3.5" />Confirmed</span>}
-                    {r.state === "rejected" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600"><XCircle className="w-3.5 h-3.5" />Rejected</span>}
-                    {r.state === "pending" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-violet-700"><Clock className="w-3.5 h-3.5" />Waiting</span>}
+                    {r.state === "approved" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />Confirmed</span>}
+                    {r.state === "rejected" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400"><XCircle className="w-3.5 h-3.5" />Rejected</span>}
+                    {r.state === "pending" && <span className="inline-flex items-center gap-1 text-xs font-semibold text-violet-300"><Clock className="w-3.5 h-3.5" />Waiting</span>}
                   </div>
-                  <p className="text-sm text-slate-700 mt-1">
+                  <p className="text-sm text-slate-300 mt-1">
                     <span className="font-semibold">৳{r.amount.toLocaleString("en-IN")}</span> · {METHOD_LABEL[r.method]} · TrxID <span className="font-mono font-semibold">{r.trxId}</span> · from <span className="font-mono">{r.senderNumber}</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-0.5">
                     {r.planName} · {r.interval === "yearly" ? "Yearly" : "Monthly"} · submitted {fmt(r.submittedAt)}
                     {r.company.phone ? ` · ${r.company.phone}` : ""}{r.company.email ? ` · ${r.company.email}` : ""}
                   </p>
-                  {r.state === "rejected" && r.rejectReason && <p className="text-xs text-red-600 mt-0.5">Reason: {r.rejectReason}</p>}
-                  {r.state === "approved" && <p className="text-xs text-emerald-700 mt-0.5">Active until {fmt(r.periodEnd)}</p>}
+                  {r.state === "rejected" && r.rejectReason && <p className="text-xs text-red-400 mt-0.5">Reason: {r.rejectReason}</p>}
+                  {r.state === "approved" && <p className="text-xs text-emerald-400 mt-0.5">Active until {fmt(r.periodEnd)}</p>}
                 </div>
                 {r.state === "pending" && (
                   <div className="flex gap-2">
                     <button onClick={() => { setRejecting(r); setReason(""); }} disabled={busy === r.id}
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60">
+                      className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 disabled:opacity-60">
                       Reject
                     </button>
                     <button onClick={() => approve(r)} disabled={busy === r.id}
@@ -191,17 +191,17 @@ export default function AdminBillingPage() {
       {rejecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setRejecting(null)} />
-          <div className="relative w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+          <div className="relative w-full max-w-md rounded-xl bg-slate-900 p-5 shadow-xl">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-slate-900">Reject payment from {rejecting.company.name}</p>
-              <button onClick={() => setRejecting(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+              <p className="font-semibold text-white">Reject payment from {rejecting.company.name}</p>
+              <button onClick={() => setRejecting(null)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-500 mt-1">The studio will see this reason.</p>
+            <p className="text-xs text-slate-400 mt-1">The studio will see this reason.</p>
             <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
               placeholder="e.g. No payment found with this TrxID"
-              className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+              className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-800 text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setRejecting(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600">Cancel</button>
+              <button onClick={() => setRejecting(null)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300">Cancel</button>
               <button onClick={reject} disabled={reason.trim().length < 3 || busy === rejecting.id}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">Reject</button>
             </div>

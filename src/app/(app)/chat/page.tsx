@@ -18,7 +18,7 @@ export default function ChatPage() {
   const [tab, setTab] = useState<Tab>("programs");
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+    <div className="h-[calc(100dvh-11rem)] lg:h-[calc(100vh-6.5rem)] flex flex-col rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-1 px-3 pt-3 border-b border-slate-100 flex-shrink-0">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}

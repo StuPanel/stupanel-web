@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { BrandMark } from "@/components/layout/app-sidebar";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -85,10 +86,8 @@ export default function OnboardingPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <Camera className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-slate-900">StuPanel</span>
+          <BrandMark size={32} />
+          <span className="font-extrabold tracking-tight text-slate-900">StuPanel</span>
         </div>
 
         {/* Step indicator */}

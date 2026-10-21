@@ -5,11 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
-  Settings, LogOut, Menu, X, ChevronRight, ShieldCheck,
-  ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
+  Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
   HardDrive, Mail, ShieldAlert, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/layout/app-sidebar";
 
 function getAdminToken() {
   return typeof window !== "undefined" ? sessionStorage.getItem("admin_token") ?? "" : "";
@@ -84,9 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4 text-white" />
-            </div>
+            <BrandMark size={34} />
             <div>
               <p className="font-bold text-white text-sm leading-none">StuPanel</p>
               <p className="text-xs text-slate-500 mt-0.5">Admin Panel</p>

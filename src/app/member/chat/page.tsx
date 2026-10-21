@@ -79,7 +79,7 @@ export default function MemberChatPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] lg:h-screen flex flex-col bg-white">
+    <div className="h-[calc(100dvh-10.5rem)] lg:h-[calc(100vh-2.25rem)] flex flex-col bg-white lg:rounded-2xl lg:border lg:border-slate-200 overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 bg-white flex-shrink-0">
         <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
           <Shield className="w-4 h-4 text-white" />

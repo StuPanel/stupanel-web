@@ -25,25 +25,41 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
   if (res.status === 403) notifyIfReadOnly(res);
   if (res.status !== 401) return res;
 
-  try {
-    const refreshRes = await fetch(`${BASE}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!refreshRes.ok) throw new Error();
-    const { accessToken } = await refreshRes.json();
-    localStorage.setItem("access_token", accessToken);
-    setAccessTokenCookie(accessToken);
-
-    return fetch(input, {
-      ...init,
-      headers: { Authorization: `Bearer ${accessToken}`, ...init?.headers },
-    });
-  } catch {
+  // Many requests can hit 401 at the same moment; refresh only once and share it.
+  const accessToken = await refreshOnce();
+  if (!accessToken) {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
     clearAccessTokenCookie();
     window.location.href = "/login";
     return res;
   }
+  return fetch(input, {
+    ...init,
+    headers: { Authorization: `Bearer ${accessToken}`, ...init?.headers },
+  });
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+function refreshOnce(): Promise<string | null> {
+  if (!refreshing) {
+    refreshing = (async () => {
+      try {
+        const refreshRes = await fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" });
+        if (!refreshRes.ok) return null;
+        const { accessToken } = await refreshRes.json();
+        if (!accessToken) return null;
+        localStorage.setItem("access_token", accessToken);
+        setAccessTokenCookie(accessToken);
+        return accessToken as string;
+      } catch {
+        return null;
+      } finally {
+        // allow a new refresh later (after this one settles)
+        setTimeout(() => { refreshing = null; }, 0);
+      }
+    })();
+  }
+  return refreshing;
 }

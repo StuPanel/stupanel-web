@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Loader2, CalendarDays, MapPin, Clock } from 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { localDateStr } from "@/lib/format";
 
 
 interface Booking {
@@ -107,8 +108,8 @@ export default function CalendarPage() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     // Fetch all bookings for the visible month range (plus buffer)
-    const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-    const endDate   = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    const startDate = localDateStr(new Date(year, month, 1));
+    const endDate   = localDateStr(new Date(year, month + 1, 0));
     try {
       const res = await apiFetch(`${API}/bookings?limit=200&startDate=${startDate}&endDate=${endDate}`, { headers: { "Content-Type": "application/json" } });
       if (res.ok) {

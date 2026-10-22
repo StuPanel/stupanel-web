@@ -60,3 +60,15 @@ export function fmtMonthYear(d: string | Date | undefined | null): string {
   if (isNaN(dt.getTime())) return "—";
   return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(dt);
 }
+
+/**
+ * "YYYY-MM-DD" in the viewer's own time zone (for <input type="date"> defaults
+ * and date filters). `toISOString()` uses UTC, which in Bangladesh gives
+ * yesterday's date between midnight and 6 AM.
+ */
+export function localDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}

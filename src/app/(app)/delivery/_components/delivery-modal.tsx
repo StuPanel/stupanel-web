@@ -347,7 +347,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
           else reject(new Error(`Upload failed: ${xhr.status}`));
         };
-        xhr.onerror = () => reject(new Error("Network error — check R2 CORS settings"));
+        xhr.onerror = () => reject(new Error("Upload stopped — check your internet and try again"));
         xhr.onabort = () => reject(new Error("Cancelled"));
         xhr.send(file);
       });
@@ -372,7 +372,6 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
       updateItem({ progress: 100, done: true });
       uploadStore.update(uid, { progress: 100, done: true });
-      await loadFiles();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed";
       updateItem({ error: msg });
@@ -380,9 +379,26 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     }
   }
 
-  function handleFiles(files: FileList | null) {
-    if (!files) return;
-    for (let i = 0; i < files.length; i++) uploadFile(files[i]);
+  // Upload a few files at a time instead of all at once: hundreds of parallel
+  // uploads freeze the browser and can fail. The first file goes alone so the
+  // program's delivery record exists before the rest are saved.
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const queue = Array.from(files);
+    const first = queue.shift()!;
+    await uploadFile(first);
+    const PARALLEL = 3;
+    let done = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(PARALLEL, queue.length) }, async () => {
+        for (let f = queue.shift(); f; f = queue.shift()) {
+          await uploadFile(f);
+          // refresh the list now and then, not after every single file
+          if (++done % 20 === 0) loadFiles();
+        }
+      }),
+    );
+    await loadFiles();
   }
 
   async function deleteFile(fileId: string) {
@@ -411,7 +427,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
             {([
               ["drive", "Drive Auto"],
               ["link", "Manual Links"],
-              ["files", "R2 Storage"],
+              ["files", "Upload Files"],
             ] as const).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",
@@ -437,7 +453,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                 <div className="flex items-start gap-2.5 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
                   <HardDrive className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-blue-700">Cloudflare R2 Cloud Storage</p>
+                    <p className="text-xs font-semibold text-blue-700">StuPanel Cloud Storage</p>
                     <p className="text-[11px] text-blue-500 mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
                   </div>
                 </div>
@@ -573,7 +589,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
                       <p className="text-sm font-semibold text-red-700">Delete folder "{deletingFolder}"?</p>
                     </div>
-                    <p className="text-xs text-red-600">All files in this folder will be permanently deleted from R2 cloud. This cannot be undone.</p>
+                    <p className="text-xs text-red-600">All files in this folder will be permanently deleted. This cannot be undone.</p>
                     <div className="flex gap-2">
                       <button onClick={() => setDeletingFolder(null)} className="flex-1 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
                       <button onClick={() => confirmDeleteFolder(deletingFolder)} className="flex-1 h-8 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700">Delete All Files</button>

@@ -79,10 +79,10 @@ const PAYMENT_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, localDateStr } from "@/lib/format";
 function fmt(n: number, cur = "BDT") { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
-function today() { return new Date().toISOString().split("T")[0]; }
+function today() { return localDateStr(); }
 
 // ─── Record Payment Drawer ────────────────────────────────────────────────
 

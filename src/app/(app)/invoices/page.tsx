@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency } from "@/lib/format";
+import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
@@ -266,7 +266,7 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
 function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () => void; onClose: () => void }) {
   const [amount, setAmount] = useState<number | "">("");
   const [method, setMethod] = useState("cash");
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(localDateStr());
   const [ref, setRef] = useState("");
   const [txn, setTxn] = useState("");
   const [notes, setNotes] = useState("");
@@ -357,8 +357,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState("");
   const [currency, setCurrency] = useState("BDT");
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0,10));
-  const [dueDate, setDueDate] = useState(() => { const d = new Date(); d.setDate(d.getDate()+7); return d.toISOString().slice(0,10); });
+  const [issueDate, setIssueDate] = useState(localDateStr());
+  const [dueDate, setDueDate] = useState(() => { const d = new Date(); d.setDate(d.getDate()+7); return localDateStr(d); });
   const [items, setItems] = useState<InvoiceItem[]>([{ id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0, total: 0 }]);
   const [taxLabel, setTaxLabel] = useState("VAT");
   const [taxPercent, setTaxPercent] = useState(0);
@@ -387,7 +387,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       if (d.invoiceDueDays) {
         const dd = new Date();
         dd.setDate(dd.getDate() + Number(d.invoiceDueDays));
-        setDueDate(dd.toISOString().slice(0, 10));
+        setDueDate(localDateStr(dd));
       }
       setCompanyData(d);
     }).catch(() => {});

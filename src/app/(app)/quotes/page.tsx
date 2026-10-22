@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency } from "@/lib/format";
+import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -155,7 +155,7 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
         if (d.defaultValidityDays) {
           const dt = new Date();
           dt.setDate(dt.getDate() + Number(d.defaultValidityDays));
-          setValidUntil(dt.toISOString().slice(0, 10));
+          setValidUntil(localDateStr(dt));
         }
         if (d.defaultAdvancePercent) {
           const pct = Number(d.defaultAdvancePercent);

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { formatCurrency, fmtDate } from "@/lib/format";
+import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
 
 
@@ -41,7 +41,7 @@ export default function ExpensesPage() {
   const [walletModal, setWalletModal] = useState(false);
   const [txModal, setTxModal] = useState(false);
   const [walletForm, setWalletForm] = useState({ name: "", type: "cash", balance: "" });
-  const [txForm, setTxForm] = useState({ type: "debit", amount: "", description: "", category: "misc", date: new Date().toISOString().slice(0,10) });
+  const [txForm, setTxForm] = useState({ type: "debit", amount: "", description: "", category: "misc", date: localDateStr() });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [txFilter, setTxFilter] = useState("");
@@ -96,7 +96,7 @@ export default function ExpensesPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...txForm, amount: Number(txForm.amount) }),
     });
-    if (r.ok) { setToast({ msg: "Transaction added!", ok: true }); setTxModal(false); loadWallets(); loadTxs(); setTxForm({ type: "debit", amount: "", description: "", category: "misc", date: new Date().toISOString().slice(0,10) }); }
+    if (r.ok) { setToast({ msg: "Transaction added!", ok: true }); setTxModal(false); loadWallets(); loadTxs(); setTxForm({ type: "debit", amount: "", description: "", category: "misc", date: localDateStr() }); }
     else setToast({ msg: "Failed.", ok: false });
     setSaving(false);
   }

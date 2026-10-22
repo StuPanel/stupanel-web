@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { PAYMENT_METHODS } from "./constants";
 import type { Booking } from "./types";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, localDateStr } from "@/lib/format";
 
 export function PaymentModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -18,7 +18,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 }) {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localDateStr());
   const [ref, setRef] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
       const due = Number(booking.grandTotal) - Number(booking.paidAmount);
       setAmount(due > 0 ? String(due) : "");
       setMethod("cash"); setRef(""); setNote(""); setError("");
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(localDateStr());
     }
   }, [booking]);
 

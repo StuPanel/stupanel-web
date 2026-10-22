@@ -548,15 +548,20 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-slate-900">{b.eventName ?? b.bookingNumber}</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
-              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
+        <div className="px-5 py-4 border-b border-slate-200 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-bold text-slate-900 leading-snug break-words">{b.eventName ?? b.bookingNumber}</h2>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
+                <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
+              </div>
             </div>
+            <button onClick={onClose} aria-label="Close" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100">
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {due > 0 && (
               <button onClick={() => setPaymentOpen(true)}
                 className="h-8 px-3 rounded-lg border border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1.5">
@@ -586,9 +591,6 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
             )}
             <button onClick={onEdit} className="h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
               <Edit3 className="w-3.5 h-3.5" />Edit
-            </button>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
             </button>
           </div>
         </div>

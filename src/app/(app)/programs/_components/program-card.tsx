@@ -153,7 +153,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
             className="text-xs text-slate-500 hover:text-indigo-600 underline">Reopen</button>
         </div>
       ) : (
-        <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+        <div className="grid grid-cols-4 gap-1 sm:flex sm:items-center sm:gap-0.5 sm:overflow-x-auto sm:pb-1">
           {STATUS_PIPELINE.map((s, i) => {
             const sc = STATUS_CFG[s];
             const idx = STATUS_PIPELINE.indexOf(current);
@@ -162,7 +162,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
             return (
               <button key={s} onClick={() => changeStatus(s)}
                 disabled={loading !== null}
-                className={cn("flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all",
+                className={cn("flex-shrink-0 flex flex-col items-center justify-start gap-1 px-1 sm:px-2 py-1.5 rounded-lg transition-all min-w-0",
                   active ? "bg-indigo-600" : done ? "bg-indigo-100 hover:bg-indigo-200" : "bg-slate-100 hover:bg-slate-200")}>
                 <div className={cn("w-4 h-4 rounded-full flex items-center justify-center",
                   active ? "bg-white" : done ? "bg-indigo-500" : "bg-slate-300")}>
@@ -182,7 +182,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
       )}
       {!isCancelled && (
         <div className="flex gap-2 mt-1">
-          <button onClick={() => changeStatus("cancelled")}
+          <button onClick={() => { if (window.confirm("Cancel this program?")) changeStatus("cancelled"); }}
             className="text-xs text-red-500 hover:text-red-700 underline">Mark Cancelled</button>
           {current !== "completed" && (
             <button onClick={() => changeStatus("completed")}

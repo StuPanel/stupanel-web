@@ -536,7 +536,7 @@ function StatsRow({ stats, currency = "BDT" }: { stats: Stats; currency?: string
         {topMethod ? (
           <>
             <p className="text-base font-bold text-slate-900 mt-1 capitalize">{METHOD_CONFIG[topMethod.method as PaymentMethod]?.label ?? topMethod.method}</p>
-            <p className="text-xs text-slate-400 mt-1">{topMethod.count} payments</p>
+            <p className="text-xs text-slate-400 mt-1">{topMethod.count} {topMethod.count === 1 ? "payment" : "payments"}</p>
           </>
         ) : (
           <p className="text-slate-300 text-sm mt-1">—</p>
@@ -638,7 +638,7 @@ export default function PaymentsPage() {
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search booking, client, reference..."
+          <Input placeholder="Search payments…"
             value={search} onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm bg-white border-slate-200" />
         </div>

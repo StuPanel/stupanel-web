@@ -140,7 +140,7 @@ export default function SupportPage() {
   // ── NEW TICKET VIEW ────────────────────────────────────────────────────────
   if (view === "new") {
     return (
-      <div className="p-6 md:p-8 max-w-2xl space-y-5">
+      <div className="max-w-2xl space-y-5">
         <button onClick={() => setView("list")}
           className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
@@ -211,7 +211,7 @@ export default function SupportPage() {
     const isClosed = selected.status === "closed";
 
     return (
-      <div className="p-6 md:p-8 max-w-2xl space-y-4">
+      <div className="max-w-2xl space-y-4">
         <button onClick={() => { setView("list"); setSelected(null); loadTickets(); }}
           className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
@@ -303,7 +303,7 @@ export default function SupportPage() {
 
   // ── LIST VIEW ──────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 md:p-8 space-y-5">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Support</h1>

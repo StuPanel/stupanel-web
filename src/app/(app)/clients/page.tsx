@@ -637,7 +637,7 @@ export default function ClientsPage() {
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search by name, phone, email..."
+          <Input placeholder="Search name, phone…"
             value={search} onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm bg-white border-slate-200" />
         </div>

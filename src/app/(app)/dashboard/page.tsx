@@ -170,7 +170,7 @@ export default function DashboardPage() {
       bg: "bg-emerald-50",
     },
     {
-      title: "Pending Payments",
+      title: "Pending Due",
       value: fmtFull(stats.pendingAmount),
       isAmount: true,
       change: null,
@@ -369,7 +369,7 @@ export default function DashboardPage() {
                 })}
               </div>
             )}
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mt-4 pt-3 border-t border-slate-100">
               <div>
                 <p className={cn("text-xl font-bold text-slate-900 transition-all", !showAmounts ? "blur-sm select-none" : "")}>
                   {showAmounts ? fmtFull(chartTotal) : "••••••"}
@@ -380,11 +380,11 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
-                    <span className="text-xs text-slate-500">Current month</span>
+                    <span className="text-xs text-slate-500 whitespace-nowrap">Current month</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />
-                    <span className="text-xs text-slate-500">Other months</span>
+                    <span className="text-xs text-slate-500 whitespace-nowrap">Other months</span>
                   </div>
                 </div>
               )}

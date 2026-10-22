@@ -52,7 +52,7 @@
   --color-input: oklch(from rgb(var(--input)) l c h);
   --color-ring: oklch(from rgb(var(--ring)) l c h);
   --font-sans: var(--font-jakarta);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

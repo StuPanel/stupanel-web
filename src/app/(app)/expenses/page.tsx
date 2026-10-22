@@ -136,7 +136,7 @@ export default function ExpensesPage() {
           <p className="text-xs text-slate-400 mt-0.5">Track cash, bKash, bank and other accounts</p>
         </div>
         <button onClick={() => setWalletModal(true)}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
+          className="shrink-0 whitespace-nowrap flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
           <Plus className="w-4 h-4" />Add Wallet
         </button>
       </div>

@@ -110,7 +110,7 @@ function TemplateForm({ initial, onSave, onCancel }: {
           <div className="flex flex-wrap gap-1.5 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
             {PLACEHOLDERS.map(p => (
               <button key={p.key} onClick={() => insertPlaceholder(p.key)}
-                className="h-6 px-2 rounded-full bg-white border border-indigo-200 text-[10px] font-mono text-indigo-700 hover:bg-indigo-100 transition-colors">
+                className="h-6 px-2 rounded-full bg-white border border-indigo-200 text-xs font-mono text-indigo-700 hover:bg-indigo-100 transition-colors">
                 {p.key}
               </button>
             ))}
@@ -129,7 +129,7 @@ function TemplateForm({ initial, onSave, onCancel }: {
           placeholder={`Assalamu Alaikum {{clientName}} bhai/apu,\n\nApnar booking confirm hoyeche! 🎉\n\nBooking: {{bookingNumber}}\nEvent: {{eventName}}\nDate: {{eventDate}}\nLocation: {{eventLocation}}\nPackage: {{package}}\n\nTotal: {{totalAmount}}\nPaid: {{paidAmount}}\nDue: {{dueAmount}}\n\nThank you for choosing {{companyName}}! 🙏`}
           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 resize-y font-mono leading-relaxed"
         />
-        <p className="text-[10px] text-slate-400 flex items-center gap-1">
+        <p className="text-xs text-slate-400 flex items-center gap-1">
           <Info className="w-3 h-3" />{body.length} characters · Variables will be auto-filled when sending
         </p>
       </div>
@@ -286,7 +286,7 @@ export default function WhatsAppPage() {
         return (
           <div key={cat} className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold", cc.color)}>{cc.label}</span>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", cc.color)}>{cc.label}</span>
               <span className="text-xs text-slate-400">· {items.length}</span>
             </div>
             {items.map(t => (
@@ -321,7 +321,7 @@ export default function WhatsAppPage() {
                   return (
                     <div className="flex flex-wrap gap-1 mt-2.5">
                       {found.map(p => (
-                        <span key={p.key} className="h-5 px-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-[9px] font-mono text-indigo-500">
+                        <span key={p.key} className="h-5 px-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-xs font-mono text-indigo-500">
                           {p.key}
                         </span>
                       ))}

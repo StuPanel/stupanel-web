@@ -142,7 +142,7 @@ function R2Modal({ studio, onClose, onSaved }: {
                       <button key={v} onClick={() => setLimitGb(v)} className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors", limitGb === v ? "bg-indigo-600 border-indigo-500 text-white" : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-white")}>{v} GB</button>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500">≈ ${(parseFloat(limitGb) * 0.015).toFixed(3)}/month max R2 cost</p>
+                  <p className="text-xs text-slate-500">≈ ${(parseFloat(limitGb) * 0.015).toFixed(3)}/month max R2 cost</p>
                 </div>
 
                 {/* Per-file size limit */}
@@ -171,17 +171,17 @@ function R2Modal({ studio, onClose, onSaved }: {
                             active ? "bg-indigo-600/20 border-indigo-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600")}>
                           <div className={cn("mt-0.5 w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors",
                             active ? "bg-indigo-600 border-indigo-500" : "border-slate-600")}>
-                            {active && <span className="text-[9px] text-white font-bold">✓</span>}
+                            {active && <span className="text-xs text-white font-bold">✓</span>}
                           </div>
                           <div>
                             <p className="text-xs font-semibold leading-none">{t.label}</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">{t.desc}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{t.desc}</p>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {allowedTypes.length === FILE_TYPES.length ? "All types allowed" : `${allowedTypes.length} of ${FILE_TYPES.length} types allowed`}
                   </p>
                 </div>
@@ -582,7 +582,7 @@ export default function AdminStudiosPage() {
                               <p className="text-xs text-slate-500">/{studio.slug}</p>
                             </div>
                             {isOwnStudio && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold whitespace-nowrap">
                                 Platform Owner
                               </span>
                             )}

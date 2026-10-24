@@ -222,11 +222,11 @@ export default function EditorWorkspacePage() {
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100 px-0">
               <div className="px-4 py-4 text-center">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Editing</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Editing</p>
                 <p className="font-bold text-slate-800 text-sm">{fmtDate(assignment.editingDeadline)}</p>
               </div>
               <div className="px-4 py-4 text-center">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Delivery</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Delivery</p>
                 <p className="font-bold text-slate-800 text-sm">{fmtDate(assignment.deliveryDeadline)}</p>
               </div>
             </div>
@@ -241,7 +241,7 @@ export default function EditorWorkspacePage() {
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <p className="text-[10px] text-slate-500 mb-1">Deliverable Type</p>
+                <p className="text-xs text-slate-500 mb-1">Deliverable Type</p>
                 <select value={submitForm.deliverableType} onChange={e => setSubmitForm(f => ({ ...f, deliverableType: e.target.value }))}
                   className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                   {DELIVERABLE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -254,21 +254,21 @@ export default function EditorWorkspacePage() {
                 { key: "wetransferLink", label: "WeTransfer", placeholder: "https://we.tl/..." },
               ].map(({ key, label, placeholder }) => (
                 <div key={key}>
-                  <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+                  <p className="text-xs text-slate-500 mb-1">{label}</p>
                   <input value={(submitForm as any)[key]} onChange={e => setSubmitForm(f => ({ ...f, [key]: e.target.value }))}
                     placeholder={placeholder} className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
               ))}
               {isRevision && (
                 <div>
-                  <p className="text-[10px] text-slate-500 mb-1">Revision Notes</p>
+                  <p className="text-xs text-slate-500 mb-1">Revision Notes</p>
                   <textarea value={submitForm.revisionNotes} onChange={e => setSubmitForm(f => ({ ...f, revisionNotes: e.target.value }))}
                     placeholder="What was changed in this revision..." rows={2}
                     className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
               )}
               <div>
-                <p className="text-[10px] text-slate-500 mb-1">Notes</p>
+                <p className="text-xs text-slate-500 mb-1">Notes</p>
                 <textarea value={submitForm.notes} onChange={e => setSubmitForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Any notes for the studio..." rows={2}
                   className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -359,7 +359,7 @@ export default function EditorWorkspacePage() {
                     <span className="text-sm font-semibold text-slate-800">
                       #{submissions.length - i} — {DELIVERABLE_TYPES.find(t => t.value === s.deliverableType)?.label ?? s.deliverableType}
                     </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       s.reviewStatus === "approved" ? "bg-emerald-100 text-emerald-700" :
                       s.reviewStatus === "revision_requested" ? "bg-red-100 text-red-700" :
                       "bg-amber-100 text-amber-700"
@@ -367,7 +367,7 @@ export default function EditorWorkspacePage() {
                       {s.reviewStatus.replace(/_/g, " ")}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400">{fmtTime(s.submittedAt)}</p>
+                  <p className="text-xs text-slate-400">{fmtTime(s.submittedAt)}</p>
                   {(s.deliveryLink || s.driveLink || s.dropboxLink || s.wetransferLink) && (
                     <div className="flex gap-2 flex-wrap">
                       {s.deliveryLink && <a href={s.deliveryLink} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />Link</a>}
@@ -397,7 +397,7 @@ export default function EditorWorkspacePage() {
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${msg.isStudio ? "bg-slate-100 text-slate-800 rounded-tl-sm" : "bg-indigo-600 text-white rounded-tr-sm"}`}>
                   {msg.content}
                 </div>
-                <span className="text-[10px] text-slate-400">{msg.senderName ? `${msg.senderName} · ` : ""}{fmtTime(msg.createdAt)}</span>
+                <span className="text-xs text-slate-400">{msg.senderName ? `${msg.senderName} · ` : ""}{fmtTime(msg.createdAt)}</span>
               </div>
             ))}
           </div>

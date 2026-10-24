@@ -112,7 +112,7 @@ export default function NotificationsPage() {
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             Notifications
             {highCount > 0 && (
-              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
                 {highCount}
               </span>
             )}
@@ -206,7 +206,7 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-slate-900">{n.title}</p>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
-                    <span className="inline-block mt-1.5 text-[10px] font-mono text-slate-400 bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>
+                    <span className="inline-block mt-1.5 text-xs font-mono text-slate-400 bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>
                   </div>
 
                   {/* Actions */}
@@ -217,7 +217,7 @@ export default function NotificationsPage() {
                       View <ChevronRight className="w-3 h-3" />
                     </button>
                     <button onClick={() => dismiss(n.id)}
-                      className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors px-1">
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors px-1">
                       Dismiss
                     </button>
                   </div>

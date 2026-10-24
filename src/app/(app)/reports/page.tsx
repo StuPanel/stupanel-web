@@ -22,10 +22,10 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled", refunded: "Refunded",
 };
 const STATUS_COLOR: Record<string, string> = {
-  inquiry: "bg-slate-400", quote_sent: "bg-blue-400", confirmed: "bg-indigo-500",
-  advance_received: "bg-violet-500", in_progress: "bg-amber-500", editing: "bg-orange-500",
-  ready_for_delivery: "bg-cyan-500", delivered: "bg-teal-500", completed: "bg-emerald-500",
-  cancelled: "bg-red-400", refunded: "bg-rose-400",
+  inquiry: "bg-[#C2304F]", quote_sent: "bg-[#9E3A8C]", confirmed: "bg-[#7D5CEF]",
+  advance_received: "bg-[#5B3FD0]", in_progress: "bg-[#126B66]", editing: "bg-[#1F5C99]",
+  ready_for_delivery: "bg-[#7D5CEF]", delivered: "bg-[#4A4658]", completed: "bg-[#1F8A5B]",
+  cancelled: "bg-[#8A2E2E]", refunded: "bg-[#8A2E2E]",
 };
 
 function fmt(n: number, currency = "BDT") { return formatCurrencyCompact(n, currency); }
@@ -201,7 +201,7 @@ export default function ReportsPage() {
                       <span className="text-xs text-slate-400">{label}</span>
                     </div>
                     <p className="font-bold text-white text-sm">{fmtFull(value)}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       {summary.totalCost > 0 ? Math.round((value / summary.totalCost) * 100) : 0}% of costs
                     </p>
                   </div>
@@ -239,7 +239,7 @@ export default function ReportsPage() {
                       : chartMetric === "profit" ? "bg-emerald-300 group-hover:bg-emerald-400"
                       : "bg-indigo-200 group-hover:bg-indigo-400")}
                       style={{ height: `${h}%` }} />
-                    <span className="text-[10px] text-slate-400">{MONTHS_SHORT[i][0]}</span>
+                    <span className="text-xs text-slate-400">{MONTHS_SHORT[i][0]}</span>
                   </div>
                 );
               })}
@@ -320,7 +320,7 @@ export default function ReportsPage() {
                           {tc.client.firstName} {tc.client.lastName ?? ""}
                         </p>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                          <span className="text-[10px] text-slate-400">{tc.programs}p</span>
+                          <span className="text-xs text-slate-400">{tc.programs}p</span>
                           <span className="text-xs font-bold text-slate-900">{fmtFull(tc.revenue)}</span>
                         </div>
                       </div>
@@ -353,7 +353,7 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-semibold text-slate-800">{te.memberName}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-400">{te.programs} program{te.programs > 1 ? "s" : ""}</span>
+                        <span className="text-xs text-slate-400">{te.programs} program{te.programs > 1 ? "s" : ""}</span>
                         <span className="text-xs font-bold text-slate-900">{fmtFull(te.totalEarned)}</span>
                       </div>
                     </div>

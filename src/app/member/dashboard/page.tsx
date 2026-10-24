@@ -14,14 +14,14 @@ import { fmtDate } from "@/lib/format";
 
 
 const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> = {
-  inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600",   dot: "bg-slate-400" },
-  confirmed:          { label: "Confirmed",    color: "bg-blue-100 text-blue-700",     dot: "bg-blue-500" },
-  advance_received:   { label: "Advance Paid", color: "bg-cyan-100 text-cyan-700",     dot: "bg-cyan-500" },
-  in_progress:        { label: "Shooting",     color: "bg-amber-100 text-amber-700",   dot: "bg-amber-500" },
-  editing:            { label: "Editing",      color: "bg-purple-100 text-purple-700", dot: "bg-purple-500" },
-  ready_for_delivery: { label: "Ready",        color: "bg-indigo-100 text-indigo-700", dot: "bg-indigo-500" },
-  completed:          { label: "Completed",    color: "bg-emerald-100 text-emerald-700",dot:"bg-emerald-500" },
-  cancelled:          { label: "Cancelled",    color: "bg-red-100 text-red-600",       dot: "bg-red-500" },
+  inquiry:            { label: "Inquiry",      color: "bg-[#FDECEF] text-[#C2304F]",   dot: "bg-[#C2304F]" },
+  confirmed:          { label: "Confirmed",    color: "bg-[#EEE8FD] text-[#5B3FD0]",     dot: "bg-[#7D5CEF]" },
+  advance_received:   { label: "Advance Paid", color: "bg-[#EEE8FD] text-[#5B3FD0]",     dot: "bg-[#5B3FD0]" },
+  in_progress:        { label: "Shooting",     color: "bg-[#E0F2F1] text-[#126B66]",   dot: "bg-[#126B66]" },
+  editing:            { label: "Editing",      color: "bg-[#E6F0FB] text-[#1F5C99]", dot: "bg-[#1F5C99]" },
+  ready_for_delivery: { label: "Ready",        color: "bg-[#7D5CEF] text-white", dot: "bg-[#7D5CEF]" },
+  completed:          { label: "Completed",    color: "bg-[#EEEDF2] text-[#4A4658]",dot:"bg-[#1F8A5B]" },
+  cancelled:          { label: "Cancelled",    color: "bg-[#F3E3E3] text-[#8A2E2E]",       dot: "bg-[#8A2E2E]" },
 };
 
 function daysUntil(d: string | null | undefined): number | null {
@@ -110,7 +110,7 @@ export default function MemberDashboardPage() {
             nextDays <= 3 ? "bg-amber-100 text-amber-700" :
             "bg-indigo-100 text-indigo-700")}>
             <span className="text-xl leading-none">{nextDays === 0 ? "!" : nextDays}</span>
-            <span className="text-[9px] uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
+            <span className="text-xs uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-xs font-semibold mb-0.5",

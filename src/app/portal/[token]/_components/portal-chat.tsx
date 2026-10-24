@@ -88,7 +88,7 @@ export function PortalChat({ token, brand, companyName }: { token: string; brand
             <div key={date} className="space-y-2">
               <div className="flex items-center gap-3 my-2">
                 <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-[10px] font-medium text-slate-400 px-2">{date}</span>
+                <span className="text-xs font-medium text-slate-400 px-2">{date}</span>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
@@ -103,7 +103,7 @@ export function PortalChat({ token, brand, companyName }: { token: string; brand
                         style={isMe ? { backgroundColor: brand } : {}}>
                         {msg.content}
                       </div>
-                      <div className={cn("flex items-center gap-1 mt-1 text-[10px]", isMe ? "flex-row-reverse" : "flex-row")}>
+                      <div className={cn("flex items-center gap-1 mt-1 text-xs", isMe ? "flex-row-reverse" : "flex-row")}>
                         <span className="text-slate-400">{fmtTime(msg.createdAt)}</span>
                         {isMe && (
                           msg.readAt

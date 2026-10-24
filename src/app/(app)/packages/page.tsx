@@ -290,7 +290,7 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
               ) : (
                 <Input type="number" min="0" step="0.5" placeholder="e.g. 8" value={form.durationHours} onChange={set("durationHours")} className="h-11 border-slate-200" />
               )}
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 {form.durationUnit === "days" ? "Use Days for out-of-town / destination programs" : "Use Hours for in-town / studio coverage"}
               </p>
             </div>
@@ -360,15 +360,15 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-slate-500">Photo Edits</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.photoEditCount} onChange={set("photoEditCount")} className="h-9 text-sm border-slate-200" />
+                  <Input type="number" min="0" placeholder="0" value={form.photoEditCount} onChange={set("photoEditCount")} className="h-11 text-sm border-slate-200" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-slate-500">Trailer</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.trailerCount} onChange={set("trailerCount")} className="h-9 text-sm border-slate-200" />
+                  <Input type="number" min="0" placeholder="0" value={form.trailerCount} onChange={set("trailerCount")} className="h-11 text-sm border-slate-200" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-slate-500">Full Video</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.fullVideoCount} onChange={set("fullVideoCount")} className="h-9 text-sm border-slate-200" />
+                  <Input type="number" min="0" placeholder="0" value={form.fullVideoCount} onChange={set("fullVideoCount")} className="h-11 text-sm border-slate-200" />
                 </div>
               </div>
 
@@ -411,12 +411,12 @@ function PackageDrawer({ open, onClose, onSaved, editing }: {
                 <p className="font-bold text-slate-900 text-sm">{form.name || "Package Name"}</p>
                 <p className="text-sm font-bold text-emerald-600">
                   {formatCurrency(form.basePrice ? Number(form.basePrice) : 0, form.currency)}
-                  {form.priceIsNegotiable && <span className="text-[10px] text-slate-400 font-normal ml-1">negotiable</span>}
+                  {form.priceIsNegotiable && <span className="text-xs text-slate-400 font-normal ml-1">negotiable</span>}
                 </p>
                 {form.eventTypesIncluded.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {form.eventTypesIncluded.map(v => (
-                      <span key={v} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
+                      <span key={v} className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
                         {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
                       </span>
                     ))}
@@ -528,8 +528,8 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-slate-900 text-sm">{pkg.name}</h3>
-            {!pkg.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactive</span>}
-            {pkg.isVisibleInPortal && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">Portal</span>}
+            {!pkg.isActive && <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactive</span>}
+            {pkg.isVisibleInPortal && <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">Portal</span>}
           </div>
           {pkg.category && <span className="text-xs text-slate-400">{pkg.category}</span>}
         </div>
@@ -551,7 +551,7 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
           {pkg.eventTypesIncluded && pkg.eventTypesIncluded.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-1">
               {pkg.eventTypesIncluded.map(v => (
-                <span key={v} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">
+                <span key={v} className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">
                   {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
                 </span>
               ))}
@@ -570,7 +570,7 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
         <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
           <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
           {fmt(pkg.basePrice)}
-          {pkg.priceIsNegotiable && <span className="text-[10px] text-slate-400 font-normal ml-0.5">negotiable</span>}
+          {pkg.priceIsNegotiable && <span className="text-xs text-slate-400 font-normal ml-0.5">negotiable</span>}
         </div>
         {pkg.durationUnit === "days" && pkg.durationDays ? (
           <div className="flex items-center gap-1 text-xs text-slate-400">

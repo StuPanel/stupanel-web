@@ -53,13 +53,13 @@ const DEFAULT_ROLES = [
 
 const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> = {
   draft:              { label: "Draft",       dot: "bg-slate-400",   badge: "bg-slate-100 text-slate-600" },
-  confirmed:          { label: "Confirmed",   dot: "bg-blue-400",    badge: "bg-blue-100 text-blue-700" },
-  in_progress:        { label: "Shooting",    dot: "bg-amber-400",   badge: "bg-amber-100 text-amber-700" },
-  editing:            { label: "Editing",     dot: "bg-purple-400",  badge: "bg-purple-100 text-purple-700" },
-  ready_for_delivery: { label: "Ready",       dot: "bg-indigo-400",  badge: "bg-indigo-100 text-indigo-700" },
-  delivered:          { label: "Delivered",   dot: "bg-teal-400",    badge: "bg-teal-100 text-teal-700" },
-  completed:          { label: "Completed",   dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700" },
-  cancelled:          { label: "Cancelled",   dot: "bg-red-400",     badge: "bg-red-100 text-red-700" },
+  confirmed:          { label: "Confirmed",   dot: "bg-[#7D5CEF]",    badge: "bg-[#EEE8FD] text-[#5B3FD0]" },
+  in_progress:        { label: "Shooting",    dot: "bg-[#126B66]",   badge: "bg-[#E0F2F1] text-[#126B66]" },
+  editing:            { label: "Editing",     dot: "bg-[#1F5C99]",  badge: "bg-[#E6F0FB] text-[#1F5C99]" },
+  ready_for_delivery: { label: "Ready",       dot: "bg-[#7D5CEF]",  badge: "bg-[#7D5CEF] text-white" },
+  delivered:          { label: "Delivered",   dot: "bg-[#4A4658]",    badge: "bg-[#EEEDF2] text-[#4A4658]" },
+  completed:          { label: "Completed",   dot: "bg-[#1F8A5B]", badge: "bg-[#EEEDF2] text-[#4A4658]" },
+  cancelled:          { label: "Cancelled",   dot: "bg-[#8A2E2E]",     badge: "bg-[#F3E3E3] text-[#8A2E2E]" },
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -267,8 +267,8 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{member.memberId}</span>
-                  <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-semibold",
+                  <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{member.memberId}</span>
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
                     member.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
                     {member.isActive ? "Active" : "Inactive"}
                   </span>
@@ -286,7 +286,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                   <span className="text-sm text-slate-700">{member.phone}</span>
                   <a href={`https://wa.me/${member.phone.replace(/\D/g,"").replace(/^0/,"88")}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200 font-medium hover:bg-green-100">
+                    className="text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200 font-medium hover:bg-green-100">
                     WhatsApp
                   </a>
                 </div>
@@ -310,7 +310,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                   const rc = roleConfig(rid, customRoles);
                   const Icon = rc.icon;
                   return (
-                    <span key={rid} className={cn("flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-medium", rc.color)}>
+                    <span key={rid} className={cn("flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium", rc.color)}>
                       <Icon className="w-3 h-3" />{rc.label}
                     </span>
                   );
@@ -345,33 +345,33 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
             <>
               {/* ── Stats Cards ── */}
               <div className="px-5 py-4 border-b border-slate-100">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Overview</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Overview</p>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">Total Programs</span>
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Total Programs</span>
                     </div>
                     <p className="text-2xl font-bold text-slate-900">{stats?.totalPrograms ?? 0}</p>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       <Clock className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">This Month</span>
+                      <span className="text-xs font-semibold text-slate-400 uppercase">This Month</span>
                     </div>
                     <p className="text-2xl font-bold text-slate-900">{stats?.thisMonthPrograms ?? 0}</p>
                   </div>
                   <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
                     <div className="flex items-center gap-2 mb-1">
                       <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-[10px] font-semibold text-emerald-500 uppercase">Lifetime Earned</span>
+                      <span className="text-xs font-semibold text-emerald-500 uppercase">Lifetime Earned</span>
                     </div>
                     <p className="text-xl font-bold text-emerald-700">{formatCurrency(stats?.lifetimeEarned ?? 0)}</p>
                   </div>
                   <div className={cn("rounded-xl p-3 border", (stats?.pendingAmount ?? 0) > 0 ? "bg-amber-50 border-amber-100" : "bg-slate-50 border-slate-100")}>
                     <div className="flex items-center gap-2 mb-1">
                       <Wallet className={cn("w-3.5 h-3.5", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")} />
-                      <span className={cn("text-[10px] font-semibold uppercase", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")}>Pending</span>
+                      <span className={cn("text-xs font-semibold uppercase", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")}>Pending</span>
                     </div>
                     <p className={cn("text-xl font-bold", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-700" : "text-slate-500")}>
                       {formatCurrency(stats?.pendingAmount ?? 0)}
@@ -409,14 +409,14 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                               <p className="text-sm font-semibold text-slate-900 truncate">{p.eventName ?? p.bookingNumber}</p>
                               <p className="text-xs text-slate-400 mt-0.5">{p.clientName} · {fmtDate(p.eventDate)}</p>
                               {p.role && (
-                                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium capitalize">
+                                <span className="inline-block mt-1 text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium capitalize">
                                   {p.role.replace(/_/g," ")}
                                 </span>
                               )}
                             </div>
                             <div className="text-right shrink-0">
                               <p className="text-sm font-bold text-emerald-700">{formatCurrency(Number(p.totalBill))}</p>
-                              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block", sc.badge)}>{sc.label}</span>
+                              <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block", sc.badge)}>{sc.label}</span>
                             </div>
                           </div>
                         </div>
@@ -452,9 +452,9 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                             <p className="text-base font-bold text-emerald-700">{formatCurrency(Number(s.netSalary))}</p>
                             <div className="flex items-center gap-1 justify-end mt-0.5">
                               <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                              <span className="text-[10px] text-emerald-600 font-medium">Paid</span>
+                              <span className="text-xs text-emerald-600 font-medium">Paid</span>
                             </div>
-                            {s.paidAt && <p className="text-[10px] text-slate-400 mt-0.5">{fmtDate(s.paidAt)}</p>}
+                            {s.paidAt && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(s.paidAt)}</p>}
                           </div>
                         </div>
                       </div>
@@ -474,7 +474,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
               {(member.roleRates?.length ?? 0) > 0 && (
                 <div className="px-5 py-4 border-t border-slate-100">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Rate Card</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rate Card</p>
                     <button onClick={() => onEdit(member)}
                       className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
                       <Edit3 className="w-3 h-3" />Edit
@@ -510,12 +510,12 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Admin Notes</p>
-                    <span className="text-[10px] text-slate-300">(private, member can&apos;t see)</span>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin Notes</p>
+                    <span className="text-xs text-slate-300">(private, member can&apos;t see)</span>
                   </div>
                   {savingNotes && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
                   {notesSaved && (
-                    <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+                    <span className="flex items-center gap-1 text-xs text-emerald-600">
                       <CheckCircle2 className="w-3 h-3" />Saved
                     </span>
                   )}

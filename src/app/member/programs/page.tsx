@@ -11,14 +11,14 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 
 const STATUS_CFG: Record<string, { label: string; color: string }> = {
-  inquiry:            { label: "Inquiry",      color: "bg-slate-100 text-slate-600" },
-  confirmed:          { label: "Confirmed",    color: "bg-blue-100 text-blue-700" },
-  advance_received:   { label: "Advance Paid", color: "bg-cyan-100 text-cyan-700" },
-  in_progress:        { label: "Shooting",     color: "bg-amber-100 text-amber-700" },
-  editing:            { label: "Editing",      color: "bg-purple-100 text-purple-700" },
-  ready_for_delivery: { label: "Ready",        color: "bg-indigo-100 text-indigo-700" },
-  completed:          { label: "Completed",    color: "bg-emerald-100 text-emerald-700" },
-  cancelled:          { label: "Cancelled",    color: "bg-red-100 text-red-600" },
+  inquiry:            { label: "Inquiry",      color: "bg-[#FDECEF] text-[#C2304F]" },
+  confirmed:          { label: "Confirmed",    color: "bg-[#EEE8FD] text-[#5B3FD0]" },
+  advance_received:   { label: "Advance Paid", color: "bg-[#EEE8FD] text-[#5B3FD0]" },
+  in_progress:        { label: "Shooting",     color: "bg-[#E0F2F1] text-[#126B66]" },
+  editing:            { label: "Editing",      color: "bg-[#E6F0FB] text-[#1F5C99]" },
+  ready_for_delivery: { label: "Ready",        color: "bg-[#7D5CEF] text-white" },
+  completed:          { label: "Completed",    color: "bg-[#EEEDF2] text-[#4A4658]" },
+  cancelled:          { label: "Cancelled",    color: "bg-[#F3E3E3] text-[#8A2E2E]" },
 };
 
 const NEXT_TRANSITIONS: Record<string, string> = {
@@ -157,7 +157,7 @@ export default function MemberProgramsPage() {
                 {/* Bottom action row */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
                   <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-[10px]">
+                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
                       {b.client.firstName[0]}
                     </div>
                     {b.client.firstName} {b.client.lastName ?? ""}

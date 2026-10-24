@@ -404,7 +404,7 @@ function PaymentRow({
     <tr className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
       <td className="py-3 px-4">
         <p className="text-sm font-semibold text-slate-900">{fmt(payment.amount, payment.currency)}</p>
-        <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium mt-1", S.bg, S.text)}>
+        <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium mt-1", S.bg, S.text)}>
           {S.label}
         </span>
       </td>
@@ -425,7 +425,7 @@ function PaymentRow({
           <Calendar className="w-3.5 h-3.5" />{dateStr}
         </div>
         {payment.referenceNumber && (
-          <p className="text-[10px] text-slate-400 mt-0.5">Ref: {payment.referenceNumber}</p>
+          <p className="text-xs text-slate-400 mt-0.5">Ref: {payment.referenceNumber}</p>
         )}
       </td>
       <td className="py-3 px-4 hidden lg:table-cell">
@@ -474,7 +474,7 @@ function PaymentCard({
             <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium", M.bg, M.text)}>
               <MIcon className="w-3 h-3" />{M.label}
             </span>
-            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", S.bg, S.text)}>
+            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", S.bg, S.text)}>
               {S.label}
             </span>
           </div>

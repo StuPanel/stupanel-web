@@ -147,7 +147,7 @@ export default function AdminFeatureFlagsPage() {
                     {flag.allowedPlans.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">
                         {flag.allowedPlans.map(p => (
-                          <span key={p} className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">{p}</span>
+                          <span key={p} className="text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">{p}</span>
                         ))}
                       </div>
                     ) : (

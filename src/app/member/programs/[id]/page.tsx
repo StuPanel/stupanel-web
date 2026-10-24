@@ -153,7 +153,7 @@ export default function ProgramHubPage() {
               <a href={wa(hub.client.phone)} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-emerald-600 hover:underline">
                 <Phone className="w-3.5 h-3.5" />{hub.client.phone}
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">WhatsApp</span>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">WhatsApp</span>
               </a>
             )}
             {hub.client.email && (
@@ -211,14 +211,14 @@ export default function ProgramHubPage() {
                   <div key={a.id} className="px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-slate-800">{a.user.firstName} {a.user.lastName ?? ""}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.role === "photo_editor" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.role === "photo_editor" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
                         {a.role === "photo_editor" ? "Photo Editor" : "Video Editor"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${asc.cls}`}>{asc.label}</span>
-                      {a.editingDeadline && <span className="text-[10px] text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
-                      {a.deliveryDeadline && <span className="text-[10px] text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${asc.cls}`}>{asc.label}</span>
+                      {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
+                      {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
                     </div>
                     {lastSub?.deliveryLink && (
                       <a href={lastSub.deliveryLink} target="_blank" rel="noopener noreferrer"

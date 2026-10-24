@@ -185,7 +185,7 @@ export default function SalaryPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-lg font-extrabold text-slate-900">{fmt(net)}</p>
-                        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-0.5",
+                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full inline-block mt-0.5",
                           isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
                           {isPaid ? "PAID" : "DRAFT"}
                         </span>

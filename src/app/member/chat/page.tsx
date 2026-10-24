@@ -104,7 +104,7 @@ export default function MemberChatPage() {
             <div key={date} className="space-y-2">
               <div className="flex items-center gap-3 my-2">
                 <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-[10px] font-medium text-slate-400 px-2">{date}</span>
+                <span className="text-xs font-medium text-slate-400 px-2">{date}</span>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
@@ -117,7 +117,7 @@ export default function MemberChatPage() {
                         isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm shadow-sm")}>
                         {msg.content}
                       </div>
-                      <div className={cn("flex items-center gap-1 mt-1 text-[10px]", isMe ? "flex-row-reverse" : "flex-row")}>
+                      <div className={cn("flex items-center gap-1 mt-1 text-xs", isMe ? "flex-row-reverse" : "flex-row")}>
                         <span className="text-slate-400">{fmtTime(msg.createdAt)}</span>
                         {isMe && (
                           msg.readAt

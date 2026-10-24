@@ -203,12 +203,12 @@ export default function AdminSecurityPage() {
                             <XCircle className="w-3.5 h-3.5" />Failed
                           </span>
                         )}
-                        {log.failureReason && <p className="text-[10px] text-slate-500 mt-0.5">{log.failureReason}</p>}
+                        {log.failureReason && <p className="text-xs text-slate-500 mt-0.5">{log.failureReason}</p>}
                       </td>
                       <td className="px-4 py-3 text-slate-200 text-xs font-mono">{log.emailAttempted}</td>
                       <td className="px-4 py-3">
                         <code className="text-xs text-slate-300 font-mono">{log.ipAddress ?? "—"}</code>
-                        {log.country && <p className="text-[10px] text-slate-500">{log.city ? `${log.city}, ` : ""}{log.country}</p>}
+                        {log.country && <p className="text-xs text-slate-500">{log.city ? `${log.city}, ` : ""}{log.country}</p>}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {log.deviceType ?? "—"}

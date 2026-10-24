@@ -12,14 +12,14 @@ function fmtMonth(month: number, year: number) {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  inquiry: "bg-slate-100 text-slate-600",
-  confirmed: "bg-blue-100 text-blue-700",
-  advance_received: "bg-cyan-100 text-cyan-700",
-  in_progress: "bg-amber-100 text-amber-700",
-  editing: "bg-purple-100 text-purple-700",
-  ready_for_delivery: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-red-100 text-red-600",
+  inquiry: "bg-[#FDECEF] text-[#C2304F]",
+  confirmed: "bg-[#EEE8FD] text-[#5B3FD0]",
+  advance_received: "bg-[#EEE8FD] text-[#5B3FD0]",
+  in_progress: "bg-[#E0F2F1] text-[#126B66]",
+  editing: "bg-[#E6F0FB] text-[#1F5C99]",
+  ready_for_delivery: "bg-[#7D5CEF] text-white",
+  completed: "bg-[#EEEDF2] text-[#4A4658]",
+  cancelled: "bg-[#F3E3E3] text-[#8A2E2E]",
 };
 const STATUS_LABEL: Record<string, string> = {
   inquiry: "Inquiry", confirmed: "Confirmed", advance_received: "Advance Paid",

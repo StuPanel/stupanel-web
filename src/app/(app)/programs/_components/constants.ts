@@ -9,17 +9,17 @@ export const EVENT_TYPES = [
 ];
 
 export const STATUS_CFG: Record<string, { label: string; badge: string; dot: string }> = {
-  inquiry:            { label: "Inquiry",       badge: "bg-slate-100 text-slate-600",     dot: "bg-slate-400" },
-  quote_sent:         { label: "Quote Sent",     badge: "bg-blue-100 text-blue-700",       dot: "bg-blue-400" },
-  confirmed:          { label: "Confirmed",      badge: "bg-indigo-100 text-indigo-700",   dot: "bg-indigo-500" },
-  advance_received:   { label: "Advance Rcvd",   badge: "bg-violet-100 text-violet-700",   dot: "bg-violet-500" },
-  in_progress:        { label: "Shooting",       badge: "bg-amber-100 text-amber-700",     dot: "bg-amber-500" },
-  editing:            { label: "Editing",        badge: "bg-orange-100 text-orange-700",   dot: "bg-orange-400" },
-  ready_for_delivery: { label: "Ready",          badge: "bg-cyan-100 text-cyan-700",       dot: "bg-cyan-500" },
-  delivered:          { label: "Delivered",      badge: "bg-teal-100 text-teal-700",       dot: "bg-teal-500" },
-  completed:          { label: "Completed",      badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  cancelled:          { label: "Cancelled",      badge: "bg-red-100 text-red-600",         dot: "bg-red-400" },
-  refunded:           { label: "Refunded",       badge: "bg-rose-100 text-rose-600",       dot: "bg-rose-400" },
+  inquiry:            { label: "Inquiry",       badge: "bg-[#FDECEF] text-[#C2304F]",     dot: "bg-[#C2304F]" },
+  quote_sent:         { label: "Quote Sent",     badge: "bg-[#FBF2FA] text-[#9E3A8C]",       dot: "bg-[#9E3A8C]" },
+  confirmed:          { label: "Confirmed",      badge: "bg-[#EEE8FD] text-[#5B3FD0]",   dot: "bg-[#7D5CEF]" },
+  advance_received:   { label: "Advance Rcvd",   badge: "bg-[#EEE8FD] text-[#5B3FD0]",   dot: "bg-[#5B3FD0]" },
+  in_progress:        { label: "Shooting",       badge: "bg-[#E0F2F1] text-[#126B66]",     dot: "bg-[#126B66]" },
+  editing:            { label: "Editing",        badge: "bg-[#E6F0FB] text-[#1F5C99]",   dot: "bg-[#1F5C99]" },
+  ready_for_delivery: { label: "Ready",          badge: "bg-[#7D5CEF] text-white",       dot: "bg-[#7D5CEF]" },
+  delivered:          { label: "Delivered",      badge: "bg-[#EEEDF2] text-[#4A4658]",       dot: "bg-[#4A4658]" },
+  completed:          { label: "Completed",      badge: "bg-[#EEEDF2] text-[#4A4658]", dot: "bg-[#1F8A5B]" },
+  cancelled:          { label: "Cancelled",      badge: "bg-[#F3E3E3] text-[#8A2E2E]",         dot: "bg-[#8A2E2E]" },
+  refunded:           { label: "Refunded",       badge: "bg-[#F3E3E3] text-[#8A2E2E]",       dot: "bg-[#8A2E2E]" },
 };
 
 export const STATUS_PIPELINE = [

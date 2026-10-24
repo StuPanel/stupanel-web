@@ -434,12 +434,12 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   tab === key ? "border-b-2 border-indigo-600 text-indigo-600" : "text-slate-400 hover:text-slate-600")}>
                 {label}
                 {key === "link" && links.filter(l => l.url).length > 0 && (
-                  <span className="ml-1 text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                  <span className="ml-1 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
                     {links.filter(l => l.url).length}
                   </span>
                 )}
                 {key === "drive" && driveFolderUrl && (
-                  <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">✓</span>
+                  <span className="ml-1 text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">✓</span>
                 )}
               </button>
             ))}
@@ -454,7 +454,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   <HardDrive className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-blue-700">StuPanel Cloud Storage</p>
-                    <p className="text-[11px] text-blue-500 mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
+                    <p className="text-xs text-blue-500 mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
                   </div>
                 </div>
 
@@ -462,7 +462,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   const existingFolders = [...new Set(r2Files.map(f => f.folderName).filter(Boolean))] as string[];
                   return (
                     <div className="space-y-2">
-                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => { setTargetFolder(""); setShowNewFolder(false); }}
@@ -517,7 +517,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                         </div>
                       )}
                       {(targetFolder || !showNewFolder) && (
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-xs text-slate-400">
                           Files will upload to: <span className="font-semibold text-indigo-600">{targetFolder || "Other Files"}</span>
                         </p>
                       )}
@@ -616,7 +616,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                         <button
                           onClick={() => downloadZip()}
                           disabled={zipDownloading === "all"}
-                          className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors">
+                          className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors">
                           {zipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                           Download All
                         </button>
@@ -629,7 +629,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                                 <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                                 <span className="text-xs font-semibold text-slate-700 truncate">{folderKey}</span>
-                                <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length})</span>
+                                <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
                               </button>
                               <button onClick={() => downloadZip(folderKey)} disabled={zipDownloading === folderKey} title="Download folder as ZIP"
                                 className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-600 disabled:opacity-50 transition-colors flex-shrink-0">
@@ -657,7 +657,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                       </a>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                        <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
+                                        <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
                                       </div>
                                       <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
                                         className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 transition-colors flex-shrink-0" title="Download">
@@ -690,7 +690,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   <HardDrive className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-green-700">Google Drive Auto-Upload</p>
-                    <p className="text-[11px] text-green-600 mt-0.5">Upload files directly to Google Drive. Client can access after full payment.</p>
+                    <p className="text-xs text-green-600 mt-0.5">Upload files directly to Google Drive. Client can access after full payment.</p>
                   </div>
                 </div>
 
@@ -717,12 +717,12 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-[11px] text-indigo-600 hover:underline font-medium">
+                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium">
                           <ExternalLink className="w-3 h-3" />Open
                         </a>
                         <span className="text-slate-300">·</span>
                         <button onClick={createDriveFolder} disabled={driveLoading}
-                          className="text-[11px] text-slate-400 hover:text-indigo-600 font-medium disabled:opacity-50">
+                          className="text-xs text-slate-400 hover:text-indigo-600 font-medium disabled:opacity-50">
                           {driveLoading ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "New"}
                         </button>
                       </div>
@@ -732,7 +732,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       const driveFolders = [...new Set(driveFiles.filter(f => f.folderName).map(f => f.folderName as string))];
                       return (
                         <div className="space-y-2">
-                          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
                           <div className="flex flex-wrap gap-1.5">
                             <button
                               onClick={() => { setDriveTargetFolder(""); setDriveShowNewFolder(false); }}
@@ -784,7 +784,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                 className="h-8 px-3 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700">Create</button>
                             </div>
                           )}
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-xs text-slate-400">
                             Files will upload to: <span className="font-semibold text-green-600">{driveTargetFolder || "Other Files"}</span>
                           </p>
                         </div>
@@ -881,7 +881,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             <button
                               onClick={() => downloadDriveZip()}
                               disabled={driveZipDownloading === "all"}
-                              className="flex items-center gap-1 text-[11px] font-semibold text-green-600 hover:text-green-700 disabled:opacity-50 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors">
+                              className="flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 disabled:opacity-50 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors">
                               {driveZipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                               Download All
                             </button>
@@ -894,7 +894,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                   <button onClick={() => toggleDriveFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                                     <FolderOpen className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                                     <span className="text-xs font-semibold text-slate-700 truncate">{folderKey}</span>
-                                    <span className="text-[10px] text-slate-400 flex-shrink-0">({files.length})</span>
+                                    <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
                                   </button>
                                   <button onClick={() => downloadDriveZip(folderKey)} disabled={driveZipDownloading === folderKey} title="Download folder as ZIP"
                                     className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-green-200 text-green-600 disabled:opacity-50 transition-colors flex-shrink-0">
@@ -922,7 +922,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                           </a>
                                           <div className="flex-1 min-w-0">
                                             <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                            <p className="text-[10px] text-slate-400">{fmtBytes(f.fileSize)}</p>
+                                            <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)}</p>
                                           </div>
                                           {f.downloadUrl && (
                                             <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
@@ -961,7 +961,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   <Globe className="w-3.5 h-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-emerald-700">External Link Delivery</p>
-                    <p className="text-[11px] text-emerald-600 mt-0.5">Add Google Drive, Dropbox, WeTransfer or any URL. Client can access these from their portal after full payment.</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">Add Google Drive, Dropbox, WeTransfer or any URL. Client can access these from their portal after full payment.</p>
                   </div>
                 </div>
 

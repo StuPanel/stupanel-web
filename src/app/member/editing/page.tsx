@@ -102,7 +102,7 @@ export default function EditingPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-semibold text-slate-900 text-sm">{a.booking.eventName ?? a.booking.bookingNumber}</span>
-                      <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold", asc.color)}>{asc.label}</span>
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", asc.color)}>{asc.label}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400">
                       <span className={cn("px-1.5 py-0.5 rounded font-medium", a.role === "photo_editor" ? "bg-indigo-50 text-indigo-600" : "bg-purple-50 text-purple-600")}>
@@ -114,7 +114,7 @@ export default function EditingPage() {
                       )}
                     </div>
                     {(a.editingDeadline || a.deliveryDeadline) && (
-                      <div className="flex gap-3 mt-1.5 text-[10px] text-slate-400">
+                      <div className="flex gap-3 mt-1.5 text-xs text-slate-400">
                         {a.editingDeadline && <span>✏️ {fmtDate(a.editingDeadline)}</span>}
                         {a.deliveryDeadline && <span>📦 {fmtDate(a.deliveryDeadline)}</span>}
                       </div>

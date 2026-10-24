@@ -443,7 +443,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
           <div>
             <h2 className="font-bold text-slate-900">{q.quoteNumber}</h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
                 <StatusIcon className="w-2.5 h-2.5" />{sc.label}
               </span>
               <span className="text-xs text-slate-400">v{q.version} · {q.viewCount} views</span>
@@ -636,11 +636,11 @@ function QuoteCard({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
+            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
               <StatusIcon className="w-2.5 h-2.5" />{sc.label}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{q.quoteNumber}</span>
-            {q.viewCount > 0 && <span className="text-[10px] text-violet-500 flex items-center gap-0.5"><Eye className="w-2.5 h-2.5" />{q.viewCount}</span>}
+            <span className="text-xs text-slate-400 font-mono">{q.quoteNumber}</span>
+            {q.viewCount > 0 && <span className="text-xs text-violet-500 flex items-center gap-0.5"><Eye className="w-2.5 h-2.5" />{q.viewCount}</span>}
           </div>
           <p className="font-bold text-slate-900 text-sm truncate">{q.client.firstName} {q.client.lastName ?? ""}</p>
           {q.eventType && <p className="text-xs text-slate-500">{q.eventType}{q.venue && ` · ${q.venue}`}</p>}
@@ -670,7 +670,7 @@ function QuoteCard({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
         </div>
         <div className="text-right">
           <p className="font-bold text-slate-900 text-sm">{sym}{Number(q.grandTotal).toLocaleString()}</p>
-          {Number(q.advanceRequired) > 0 && <p className="text-[10px] text-orange-500">Adv: {sym}{Number(q.advanceRequired).toLocaleString()}</p>}
+          {Number(q.advanceRequired) > 0 && <p className="text-xs text-orange-500">Adv: {sym}{Number(q.advanceRequired).toLocaleString()}</p>}
         </div>
       </div>
     </div>
@@ -761,7 +761,7 @@ export default function QuotesPage() {
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {stats.map(s => (
           <div key={s.label} className={cn("rounded-2xl p-3 border border-slate-200 shadow-sm", s.bg)}>
-            <p className="text-[10px] text-slate-500">{s.label}</p>
+            <p className="text-xs text-slate-500">{s.label}</p>
             <p className={cn("text-2xl font-extrabold mt-0.5", s.color)}>{s.value}</p>
           </div>
         ))}

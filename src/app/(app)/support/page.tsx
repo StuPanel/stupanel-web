@@ -393,7 +393,7 @@ export default function SupportPage() {
                           {ticket.subject}
                         </span>
                         {hasUnread && (
-                          <span className="flex-shrink-0 text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                          <span className="flex-shrink-0 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
                             NEW REPLY
                           </span>
                         )}

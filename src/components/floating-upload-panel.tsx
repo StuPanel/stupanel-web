@@ -86,7 +86,7 @@ export function FloatingUploadPanel() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-slate-800 truncate">{u.fileName}</p>
                 {u.bookingName && (
-                  <p className="text-[10px] text-slate-400 truncate">{u.bookingName}{u.folderName ? ` › ${u.folderName}` : ""}</p>
+                  <p className="text-xs text-slate-400 truncate">{u.bookingName}{u.folderName ? ` › ${u.folderName}` : ""}</p>
                 )}
                 {!u.done && !u.error && (
                   <div className="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden">
@@ -97,11 +97,11 @@ export function FloatingUploadPanel() {
                       }} />
                   </div>
                 )}
-                {u.error && <p className="text-[10px] text-red-500 mt-0.5 truncate">{u.error}</p>}
+                {u.error && <p className="text-xs text-red-500 mt-0.5 truncate">{u.error}</p>}
               </div>
               {!u.done && !u.error && !u.cancelled && (
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <span className="text-[10px] font-semibold text-slate-400">{u.progress}%</span>
+                  <span className="text-xs font-semibold text-slate-400">{u.progress}%</span>
                   <button
                     onClick={() => uploadStore.cancel(u.id)}
                     title="Cancel upload"

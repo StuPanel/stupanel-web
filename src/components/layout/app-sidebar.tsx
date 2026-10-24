@@ -151,7 +151,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
           {wide && (
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{companyName || "Your studio"}</p>
-              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Studio workspace</p>
+              <p className="text-xs text-slate-500 leading-tight mt-0.5">Studio workspace</p>
             </div>
           )}
         </div>
@@ -162,7 +162,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         {navigation.map((group) => (
           <div key={group.title}>
             {wide
-              ? <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.08em] px-2.5 mb-1.5">{group.title}</p>
+              ? <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.08em] px-2.5 mb-1.5">{group.title}</p>
               : <div className="h-px bg-slate-100 mx-2 mb-2" />}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
@@ -189,7 +189,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
                       {wide && <span className="flex-1 truncate">{item.name}</span>}
                       {item.href === "/chat" && chatUnread > 0 && !isActive && (
                         wide
-                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center">
+                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
                               {chatUnread > 9 ? "9+" : chatUnread}
                             </span>
                           : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-600 ring-2 ring-white" />

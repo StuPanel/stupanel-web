@@ -20,13 +20,13 @@ export function fileIcon(mimeType: string) {
 }
 
 export const DEL_STATUS: Record<string, { label: string; badge: string; dot: string; icon: typeof Clock }> = {
-  confirmed:          { label: "Not Started",  badge: "bg-slate-100 text-slate-600",   dot: "bg-slate-300",   icon: Clock },
-  advance_received:   { label: "Not Started",  badge: "bg-slate-100 text-slate-600",   dot: "bg-slate-300",   icon: Clock },
-  in_progress:        { label: "Shooting",     badge: "bg-amber-100 text-amber-700",   dot: "bg-amber-400",   icon: Clock },
-  editing:            { label: "Editing",      badge: "bg-orange-100 text-orange-700", dot: "bg-orange-400",  icon: Clock },
-  ready_for_delivery: { label: "Ready",        badge: "bg-indigo-100 text-indigo-700", dot: "bg-indigo-500",  icon: Send  },
-  delivered:          { label: "Delivered",    badge: "bg-teal-100 text-teal-700",     dot: "bg-teal-500",    icon: CheckCircle2 },
-  completed:          { label: "Completed",    badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500", icon: CheckCircle2 },
+  confirmed:          { label: "Not Started",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   dot: "bg-[#7D5CEF]",   icon: Clock },
+  advance_received:   { label: "Not Started",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   dot: "bg-[#5B3FD0]",   icon: Clock },
+  in_progress:        { label: "Shooting",     badge: "bg-[#E0F2F1] text-[#126B66]",   dot: "bg-[#126B66]",   icon: Clock },
+  editing:            { label: "Editing",      badge: "bg-[#E6F0FB] text-[#1F5C99]", dot: "bg-[#1F5C99]",  icon: Clock },
+  ready_for_delivery: { label: "Ready",        badge: "bg-[#7D5CEF] text-white", dot: "bg-[#7D5CEF]",  icon: Send  },
+  delivered:          { label: "Delivered",    badge: "bg-[#EEEDF2] text-[#4A4658]",     dot: "bg-[#4A4658]",    icon: CheckCircle2 },
+  completed:          { label: "Completed",    badge: "bg-[#EEEDF2] text-[#4A4658]", dot: "bg-[#1F8A5B]", icon: CheckCircle2 },
 };
 
 export const FILTER_TABS = [

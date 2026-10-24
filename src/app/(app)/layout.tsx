@@ -193,7 +193,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                   className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
                     isActive ? "bg-violet-50 text-violet-700" : "text-slate-500 active:bg-slate-50")}>
                   <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 2} />
-                  <span className={cn("text-[11px] leading-none", isActive ? "font-semibold" : "font-medium")}>{item.name}</span>
+                  <span className={cn("text-xs leading-none", isActive ? "font-semibold" : "font-medium")}>{item.name}</span>
                 </Link>
               );
             })}
@@ -201,7 +201,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
               className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
                 moreActive ? "bg-violet-50 text-violet-700" : "text-slate-500 active:bg-slate-50")}>
               <LayoutGrid className="w-5 h-5" strokeWidth={moreActive ? 2.4 : 2} />
-              <span className={cn("text-[11px] leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
+              <span className={cn("text-xs leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
             </button>
           </div>
         </nav>

@@ -78,7 +78,7 @@ export function ReferrerInput({ clientId, name, onChange }: ReferrerInputProps) 
         )}
       </div>
       {clientId && (
-        <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+        <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
           <User className="w-3 h-3" /> Linked to an existing client
         </p>
       )}
@@ -96,9 +96,9 @@ export function ReferrerInput({ clientId, name, onChange }: ReferrerInputProps) 
             >
               <span className="truncate">{s.name}</span>
               {s.type === "client" ? (
-                <span className="text-[10px] text-emerald-600 flex-shrink-0">Client{s.phone ? ` · ${s.phone}` : ""}</span>
+                <span className="text-xs text-emerald-600 flex-shrink-0">Client{s.phone ? ` · ${s.phone}` : ""}</span>
               ) : (
-                <span className="text-[10px] text-slate-400 flex-shrink-0">Previously used</span>
+                <span className="text-xs text-slate-400 flex-shrink-0">Previously used</span>
               )}
             </button>
           ))}

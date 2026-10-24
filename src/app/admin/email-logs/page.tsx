@@ -134,7 +134,7 @@ export default function AdminEmailLogsPage() {
                       </td>
                       <td className="px-4 py-3">
                         {log.templateId ? (
-                          <code className="text-[10px] bg-slate-900 text-indigo-300 px-1.5 py-0.5 rounded font-mono">{log.templateId}</code>
+                          <code className="text-xs bg-slate-900 text-indigo-300 px-1.5 py-0.5 rounded font-mono">{log.templateId}</code>
                         ) : <span className="text-slate-600">—</span>}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-400">{log.company?.name ?? "System"}</td>

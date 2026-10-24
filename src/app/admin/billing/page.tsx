@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, CheckCircle2, Clock, Loader2, Save, X, XCircle } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { askConfirm } from "@/components/feedback";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -67,7 +68,7 @@ export default function AdminBillingPage() {
   }
 
   async function approve(r: Req) {
-    if (!confirm(`Confirm ${METHOD_LABEL[r.method]} payment ${r.trxId} of ৳${r.amount} from ${r.company.name}?\n\nOnly confirm after checking the money arrived in your account.`)) return;
+    if (!(await askConfirm({ message: `Confirm ${METHOD_LABEL[r.method]} payment ${r.trxId} of ৳${r.amount} from ${r.company.name}?\n\nOnly confirm after checking the money arrived in your account.`, title: "Confirm payment?", confirmLabel: "Yes, confirm" }))) return;
     setBusy(r.id);
     const res = await fetch(`${API}/admin/billing/requests/${r.id}/approve`, { method: "POST", headers: authH() });
     const b = await res.json().catch(() => ({}));

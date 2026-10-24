@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
+import { askConfirm, notify } from "@/components/feedback";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -420,7 +421,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
     const d = await r.json();
     setConverting(false);
     if (r.ok) { onRefresh(); setDetail(prev => prev ? { ...prev, status: "converted" } : prev); }
-    else alert(d.message);
+    else notify(d.message, { error: true });
   }
 
   function copyLink() {
@@ -713,7 +714,7 @@ export default function QuotesPage() {
   }
 
   async function deleteQuote(q: Quote) {
-    if (!confirm(`Delete ${q.quoteNumber}?`)) return;
+    if (!(await askConfirm({ message: `Delete ${q.quoteNumber}?`, danger: true }))) return;
     await apiFetch(`${API}/quotes/${q.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     load();
   }

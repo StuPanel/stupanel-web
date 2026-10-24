@@ -16,6 +16,7 @@ import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
+import { notify } from "@/components/feedback";
 
 export function DeliveryModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -114,14 +115,14 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     try {
       const qs = folderName ? `?folderName=${encodeURIComponent(folderName)}` : "";
       const res = await apiFetch(`${API}/deliveries/${booking!.id}/download-zip${qs}`);
-      if (!res.ok) { alert("Download failed"); return; }
+      if (!res.ok) { notify("Download failed", { error: true }); return; }
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = folderName ? `${folderName}.zip` : `delivery.zip`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(a.href);
-    } catch { alert("Download failed"); }
+    } catch { notify("Download failed", { error: true }); }
     finally { setZipDownloading(null); }
   }
 
@@ -129,9 +130,9 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     setDeletingFolder(null);
     try {
       const res = await apiFetch(`${API}/deliveries/${booking!.id}/folder/${encodeURIComponent(folderName)}`, { method: "DELETE" });
-      if (!res.ok) { alert("Delete failed"); return; }
+      if (!res.ok) { notify("Delete failed", { error: true }); return; }
       setR2Files(prev => prev.filter(f => f.folderName !== folderName));
-    } catch { alert("Delete failed"); }
+    } catch { notify("Delete failed", { error: true }); }
   }
 
   async function loadDriveFiles() {
@@ -165,14 +166,14 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     try {
       const qs = folderName ? `?folderName=${encodeURIComponent(folderName)}` : "";
       const res = await apiFetch(`${API}/google-drive/download-zip/${booking!.id}${qs}`);
-      if (!res.ok) { alert("Download failed"); return; }
+      if (!res.ok) { notify("Download failed", { error: true }); return; }
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = folderName ? `${folderName}.zip` : `drive-delivery.zip`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(a.href);
-    } catch { alert("Download failed"); }
+    } catch { notify("Download failed", { error: true }); }
     finally { setDriveZipDownloading(null); }
   }
 
@@ -180,13 +181,13 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     setDriveDeletingFolder(null);
     try {
       const res = await apiFetch(`${API}/google-drive/folder/${booking!.id}/${encodeURIComponent(folderName)}`, { method: "DELETE" });
-      if (!res.ok) { alert("Delete failed"); return; }
+      if (!res.ok) { notify("Delete failed", { error: true }); return; }
       if (folderName === "Other Files") {
         setDriveFiles(prev => prev.filter(f => f.folderName !== null));
       } else {
         setDriveFiles(prev => prev.filter(f => f.folderName !== folderName));
       }
-    } catch { alert("Delete failed"); }
+    } catch { notify("Delete failed", { error: true }); }
   }
 
   async function deleteDriveFileItem(fileId: string) {

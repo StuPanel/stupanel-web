@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
+import { notify } from "@/components/feedback";
 
 type Workspace = {
   assignment: {
@@ -109,7 +110,7 @@ export default function EditorWorkspacePage() {
     setSubmitting(true);
     try {
       const hasLink = submitForm.deliveryLink || submitForm.driveLink || submitForm.dropboxLink || submitForm.wetransferLink;
-      if (!hasLink) { alert("Please add at least one delivery link"); setSubmitting(false); return; }
+      if (!hasLink) { notify("Please add at least one delivery link", { error: true }); setSubmitting(false); return; }
       await apiFetch(`${API}/member/editing/${id}/submit`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submitForm),

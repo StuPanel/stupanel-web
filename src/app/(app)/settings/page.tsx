@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { askConfirm } from "@/components/feedback";
 
 
 type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations" | "catalog";
@@ -1548,7 +1549,7 @@ function CatalogTab() {
   }
 
   async function remove(id: string, name: string) {
-    if (!confirm(`Remove "${name}" from catalog?`)) return;
+    if (!(await askConfirm({ message: `Remove "${name}" from catalog?`, confirmLabel: "Remove", danger: true }))) return;
     await apiFetch(`${API}/service-catalog/${id}`, { method: "DELETE" });
     setToast("Removed."); load();
   }
@@ -1724,7 +1725,7 @@ function IntegrationsTab() {
   }
 
   async function disconnect(id: string, email: string) {
-    if (!confirm(`Disconnect ${email}?`)) return;
+    if (!(await askConfirm({ message: `Disconnect ${email}?`, confirmLabel: "Disconnect", danger: true }))) return;
     setActionId(id);
     try {
       const r = await apiFetch(`${API}/google-drive/accounts/${id}`, { method: "DELETE" });

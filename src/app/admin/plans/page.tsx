@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { askConfirm } from "@/components/feedback";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -106,7 +107,7 @@ export default function AdminPlansPage() {
   }
 
   async function deletePlan(id: string) {
-    if (!confirm("Delete this plan? Studios using it won't be affected.")) return;
+    if (!(await askConfirm({ message: "Delete this plan? Studios using it won't be affected.", danger: true }))) return;
     setDeleteId(id);
     await fetch(`${API}/admin/plans/${id}`, { method: "DELETE", headers: authH() });
     setDeleteId(null);

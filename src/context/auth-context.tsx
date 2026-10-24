@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (compRes.ok) {
         const comp = await compRes.json();
-        if (comp.logoUrl) setCompanyLogo(comp.logoUrl);
+        setCompanyLogo(comp.logoUrl ?? "");
         if (comp.name)   setCompanyName(comp.name);
       }
     } catch {
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Update logo from branding settings page
     function onBranding(e: Event) {
       const d = (e as CustomEvent).detail;
-      if (d?.logoUrl)     setCompanyLogo(d.logoUrl);
+      if (d && "logoUrl" in d) setCompanyLogo(d.logoUrl ?? ""); // null/"" = logo removed
       if (d?.companyName) setCompanyName(d.companyName);
     }
     window.addEventListener("branding-updated", onBranding);

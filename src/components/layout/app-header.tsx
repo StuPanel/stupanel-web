@@ -16,6 +16,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StudioLogo } from "@/components/studio-logo";
+import { safeLogo } from "@/lib/brand";
 
 interface UserProfile {
   firstName: string;
@@ -40,7 +42,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
-  const { user, companyLogo } = useAuth();
+  const { user, companyLogo, companyName } = useAuth();
   const [hasUnread, setHasUnread] = useState(false);
 
   // Search state
@@ -335,10 +337,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden rounded-2xl" sideOffset={8}>
                 <div className="bg-violet-50 px-4 py-3 flex items-center gap-3">
-                  {companyLogo ? (
-                    <div className="w-10 h-10 rounded-xl bg-white border border-violet-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      <img src={companyLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
-                    </div>
+                  {safeLogo(companyLogo) ? (
+                    <StudioLogo url={companyLogo} name={companyName} size={40} />
                   ) : (
                     <Avatar className="w-10 h-10 flex-shrink-0">
                       {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}

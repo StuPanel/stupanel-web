@@ -11,6 +11,7 @@ import { EditableSelect } from "@/components/ui/editable-select";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
 
 
 interface StaffingLine { role: string; level: string; count: number; }
@@ -594,6 +595,7 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PackagesPage() {
   const [packages, setPackages] = useState<Pkg[]>([]);
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [editTarget, setEditTarget] = useState<Pkg | null>(null);
@@ -630,8 +632,10 @@ export default function PackagesPage() {
         </Button>
       </div>
 
+      {packages.length > 0 && <SearchPill value={q} onChange={setQ} placeholder="Search packages…" />}
+
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : packages.length === 0 ? (
         <div className="text-center py-16">
           <Package className="sp-empty-icon" />
@@ -643,7 +647,10 @@ export default function PackagesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {packages.map(p => (
+          {packages.filter(p => matches(q, p.name, p.category, p.description)).length === 0 && (
+            <p className="sm:col-span-2 text-center text-sm text-[#6B6680] py-10">No packages match &ldquo;{q}&rdquo;</p>
+          )}
+          {packages.filter(p => matches(q, p.name, p.category, p.description)).map(p => (
             <PackageCard key={p.id} pkg={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} onToggle={toggle} />
           ))}
         </div>

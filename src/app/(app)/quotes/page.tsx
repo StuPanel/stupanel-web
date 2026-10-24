@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
+import { ListSkeleton } from "@/components/list-ui";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -789,7 +790,7 @@ export default function QuotesPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : quotes.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
           <FileText className="sp-empty-icon" />

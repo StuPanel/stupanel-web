@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
 import { askConfirm } from "@/components/feedback";
+import { ListSkeleton } from "@/components/list-ui";
 
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
@@ -164,7 +165,7 @@ export default function EquipmentPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : items.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
           <Wrench className="sp-empty-icon" />
@@ -286,8 +287,8 @@ export default function EquipmentPage() {
 
       {/* Add/Edit Modal */}
       {modal && (
-        <div className="sp-backdrop z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="sp-modal w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div className="sp-drawer pointer-events-auto sm:max-w-lg flex flex-col overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">{modal === "edit" ? "Edit Equipment" : "Add Equipment"}</h2>
               <button onClick={() => setModal(null)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">

@@ -16,7 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { askConfirm } from "@/components/feedback";
+import { askConfirm, notify } from "@/components/feedback";
+import { StudioLogo } from "@/components/studio-logo";
+import { BRAND, safeLogo } from "@/lib/brand";
 
 
 type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations" | "catalog";
@@ -394,24 +396,21 @@ function PlacementPreview({ label, children }: { label: string; children: React.
 }
 
 // ─── Branding Tab ──────────────────────────────────────────────────────────────
+// Logo is upload-only (no pasted links) and saves as soon as it is uploaded.
+// Every studio uses the one StuPanel colour, so there is no colour picker.
 function BrandingTab({ data }: { data: any }) {
-  const [logoUrl, setLogoUrl] = useState(data.logoUrl ?? "");
-  const [primaryColor, setPrimaryColor] = useState(data.primaryColor ?? "#7D5CEF");
-  const [logoErr, setLogoErr] = useState(false);
-  const [logoMode, setLogoMode] = useState<"url" | "upload">("upload");
+  const [logoUrl, setLogoUrl] = useState<string>(safeLogo(data.logoUrl) ?? "");
   const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
   const [uploadErr, setUploadErr] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { saving, toast, setToast, save } = useSave();
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!fileInputRef.current) return;
-    fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
-      setUploadErr("শুধু JPG, PNG, WebP ফাইল সাপোর্টেড।");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setUploadErr("শুধু JPG, PNG বা WebP ছবি দিন।");
       return;
     }
     setUploadErr("");
@@ -420,9 +419,23 @@ function BrandingTab({ data }: { data: any }) {
     reader.readAsDataURL(file);
   }
 
+  async function saveLogo(url: string | null) {
+    const r = await apiFetch(`${API}/companies/me`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logoUrl: url ?? "" }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(Array.isArray(d.message) ? d.message[0] : (d.message || "Could not save the logo"));
+    }
+    setLogoUrl(url ?? "");
+    window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: url } }));
+  }
+
   async function onCropSave(blob: Blob) {
     setCropSrc(null);
-    setUploading(true);
+    setBusy("upload");
     setUploadErr("");
     try {
       const form = new FormData();
@@ -430,184 +443,109 @@ function BrandingTab({ data }: { data: any }) {
       const res = await apiFetch(`${API}/companies/logo`, { method: "POST", body: form });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "Upload failed");
       const { url } = await res.json();
-      // Auto-save logoUrl to DB immediately so it persists without needing "Save Branding"
-      const saveRes = await apiFetch(`${API}/companies/me`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl: url }),
-      });
-      if (!saveRes.ok) throw new Error("Logo uploaded but failed to save — please click Save Branding");
-      setLogoUrl(url);
-      setLogoErr(false);
-      window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: url, primaryColor } }));
+      await saveLogo(url);
+      notify("Logo saved");
     } catch (err: unknown) {
       setUploadErr(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setUploading(false);
+      setBusy(null);
     }
   }
 
-  function handleSave() {
-    save({ logoUrl: logoUrl || undefined, primaryColor }, "Branding saved!");
-    window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl, primaryColor } }));
+  async function onRemove() {
+    if (!(await askConfirm({ title: "Remove logo?", message: "Your studio initial will be shown instead.", confirmLabel: "Remove", danger: true }))) return;
+    setBusy("remove");
+    setUploadErr("");
+    try { await saveLogo(null); notify("Logo removed"); }
+    catch (err: unknown) { setUploadErr(err instanceof Error ? err.message : "Could not remove the logo"); }
+    finally { setBusy(null); }
   }
 
-  const logoEl = logoUrl && !logoErr
-    ? <img src={logoUrl} alt="" className="w-full h-full object-contain" onError={() => setLogoErr(true)} />
-    : null;
+  const name = data.name || "Studio Name";
 
   return (
     <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       {cropSrc && <LogoCropModal src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
 
-      <SectionHead icon={Palette} title="Branding" sub="Logo and colors shown on quotes, invoices and client pages" />
+      <SectionHead icon={Palette} title="Branding" sub="Your logo on quotes, invoices, emails and client pages" />
       <div className="space-y-6 max-w-xl">
 
-        {/* Logo input */}
+        {/* Logo */}
         <div className="space-y-3">
           <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Studio Logo</Label>
-          <div className="flex items-start gap-4">
-            {/* Current logo thumb */}
-            <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0 overflow-hidden">
-              {uploading
-                ? <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                : logoUrl && !logoErr
-                  ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" onError={() => setLogoErr(true)} />
-                  : <Camera className="w-8 h-8 text-slate-300" />}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <StudioLogo url={logoUrl} name={data.name} size={80} className="rounded-2xl" />
+              {busy && (
+                <div className="absolute inset-0 rounded-2xl bg-white/80 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" />
+                </div>
+              )}
             </div>
-
-            <div className="flex-1 space-y-2.5">
-              <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
-                <button onClick={() => setLogoMode("upload")}
-                  className={cn("flex-1 py-2 flex items-center justify-center gap-1.5 transition-colors",
-                    logoMode === "upload" ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
-                  <Upload className="w-3.5 h-3.5" /> Upload
-                </button>
-                <button onClick={() => setLogoMode("url")}
-                  className={cn("flex-1 py-2 flex items-center justify-center gap-1.5 transition-colors",
-                    logoMode === "url" ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
-                  <Link2 className="w-3.5 h-3.5" /> Paste URL
-                </button>
+            <div className="flex-1 space-y-2">
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+                className="hidden" onChange={onFileChange} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" disabled={!!busy} onClick={() => fileInputRef.current?.click()} className="gap-2">
+                  <Upload className="w-4 h-4" />{logoUrl ? "Change logo" : "Upload logo"}
+                </Button>
+                {logoUrl && (
+                  <Button type="button" variant="outline" disabled={!!busy} onClick={onRemove} className="gap-2 text-[#C2304F]">
+                    <Trash2 className="w-4 h-4" />Remove
+                  </Button>
+                )}
               </div>
-
-              {logoMode === "upload" ? (
-                <>
-                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-                    className="hidden" onChange={onFileChange} />
-                  <button onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-10 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors">
-                    <Upload className="w-3.5 h-3.5" /> ছবি বেছে নিন (যেকোনো সাইজ)
-                  </button>
-                  <p className="text-xs text-slate-400">JPG / PNG / WebP — স্বয়ংক্রিয়ভাবে 600 KB-এর নিচে compress হবে</p>
-                </>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input value={logoUrl} onChange={e => { setLogoUrl(e.target.value); setLogoErr(false); }}
-                      placeholder="https://… paste image URL" className="h-10 pl-9 border-slate-200 text-sm" />
-                  </div>
-                  <p className="text-xs text-slate-400">PNG/JPG/SVG direct URL · transparent background recommended</p>
-                </>
-              )}
-
-              {uploadErr && (
-                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{uploadErr}
-                </p>
-              )}
+              <p className="text-xs text-slate-500">JPG / PNG / WebP · square works best · uploading saves it right away</p>
             </div>
           </div>
+          {uploadErr && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{uploadErr}
+            </p>
+          )}
         </div>
 
-        {/* Brand color */}
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Brand Color</Label>
-          <div className="flex items-center gap-3">
-            <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
-              className="w-12 h-12 rounded-xl border border-slate-200 cursor-pointer p-1 bg-white" />
-            <div className="flex-1">
-              <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
-                placeholder="#7D5CEF" maxLength={7} className="h-11 border-slate-200 font-mono" />
-            </div>
-            <div className="w-11 h-11 rounded-xl border border-slate-200 flex-shrink-0" style={{ backgroundColor: primaryColor }} />
-          </div>
-          <p className="text-xs text-slate-400">Quotes, invoices এবং client portal-এ accent color হিসেবে ব্যবহৃত হবে।</p>
-        </div>
-
-        {/* ── Multi-placement Previews ── */}
+        {/* Previews */}
         <div className="space-y-3">
-          <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Logo Placement Preview</Label>
-
+          <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Where your logo appears</Label>
           <div className="grid grid-cols-1 gap-3">
-
-            {/* Invoice / Quote header */}
             <PlacementPreview label="Invoice & Quote Header">
               <div className="p-4 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-                    {logoEl ?? <Camera className="w-5 h-5 text-slate-300" />}
-                  </div>
+                  <StudioLogo url={logoUrl} name={data.name} size={48} />
                   <div>
-                    <p className="font-extrabold text-slate-900 text-sm">{data.name || "Studio Name"}</p>
-                    <p className="text-xs text-slate-400">{data.city || "Dhaka"} · {data.country || "Bangladesh"}</p>
+                    <p className="font-extrabold text-slate-900 text-sm">{name}</p>
+                    <p className="text-xs text-slate-500">{data.city || "Dhaka"} · {data.country || "Bangladesh"}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-base" style={{ color: primaryColor }}>INVOICE</p>
-                  <p className="text-xs text-slate-400">#INV-2025-001</p>
-                </div>
-              </div>
-              <div className="h-1 w-full" style={{ backgroundColor: primaryColor, opacity: 0.15 }} />
-            </PlacementPreview>
-
-            {/* Client Portal header */}
-            <PlacementPreview label="Client Portal Header">
-              <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: primaryColor }}>
-                <div className="w-8 h-8 rounded-lg bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {logoEl ?? <Camera className="w-4 h-4 text-white/60" />}
-                </div>
-                <p className="font-bold text-white text-sm">{data.name || "Studio Name"}</p>
-                <div className="ml-auto">
-                  <div className="px-3 py-1 rounded-lg bg-white/20 text-white text-xs font-semibold">View Gallery</div>
+                  <p className="font-bold text-base" style={{ color: BRAND }}>INVOICE</p>
+                  <p className="text-xs text-slate-500">#INV-2025-001</p>
                 </div>
               </div>
             </PlacementPreview>
 
-            {/* App sidebar / account dropdown */}
-            <PlacementPreview label="App Header & Account Dropdown">
-              <div className="flex items-center gap-3 p-3 bg-indigo-50">
-                <div className="w-10 h-10 rounded-lg bg-white border border-indigo-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {logoEl ?? <Camera className="w-5 h-5 text-slate-300" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{data.name || "Studio Name"}</p>
-                  <span className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">Studio Admin</span>
-                </div>
-              </div>
-            </PlacementPreview>
-
-            {/* Delivery portal */}
-            <PlacementPreview label="Delivery / Tracking Page">
-              <div className="p-3 flex items-center gap-3 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 flex items-center justify-center bg-slate-50 flex-shrink-0"
-                  style={{ borderColor: primaryColor }}>
-                  {logoEl ?? <Camera className="w-3.5 h-3.5 text-slate-300" />}
-                </div>
+            <PlacementPreview label="Client Portal & Booking Tracker">
+              <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: BRAND }}>
+                <StudioLogo url={logoUrl} name={data.name} size={40} tone="onDark" />
                 <div>
-                  <p className="text-sm font-bold text-slate-900">{data.name || "Studio Name"}</p>
-                  <p className="text-xs text-slate-400">Your photos are ready 🎉</p>
+                  <p className="font-bold text-white text-sm">{name}</p>
+                  <p className="text-xs text-white/70">Client Portal</p>
+                </div>
+              </div>
+            </PlacementPreview>
+
+            <PlacementPreview label="App Sidebar & Account Menu">
+              <div className="flex items-center gap-3 p-3 bg-[#F5F3FA]">
+                <StudioLogo url={logoUrl} name={data.name} size={40} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{name}</p>
+                  <p className="text-xs text-slate-500">Studio workspace</p>
                 </div>
               </div>
             </PlacementPreview>
           </div>
         </div>
-
-        <Button disabled={saving || uploading} onClick={handleSave}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Branding</>}
-        </Button>
       </div>
     </>
   );
@@ -943,7 +881,7 @@ function InvoiceTab({ data }: { data: any }) {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: "dark",  label: "Dark",  bg: "#0F172A", text: "#fff" },
-                  { value: "brand", label: "Brand", bg: data.primaryColor || "#7D5CEF", text: "#fff" },
+                  { value: "brand", label: "Brand", bg: BRAND, text: "#fff" },
                   { value: "light", label: "Light", bg: "#F8FAFC", text: "#0F172A" },
                 ].map(opt => (
                   <button

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
+import { StudioLogo } from "@/components/studio-logo";
 
 export const navigation = [
   {
@@ -143,11 +144,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       {/* Studio identity */}
       <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
         <div className={cn("flex items-center rounded-xl bg-slate-50 border border-slate-100", wide ? "gap-2.5 p-2" : "p-1.5")}>
-          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-            {companyLogo
-              ? <img src={companyLogo} alt="" className="w-full h-full object-contain p-0.5" />
-              : <span className="text-xs font-bold text-violet-700">{(companyName || "S").slice(0, 1).toUpperCase()}</span>}
-          </div>
+          <StudioLogo url={companyLogo} name={companyName} size={32} className="rounded-lg" />
           {wide && (
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{companyName || "Your studio"}</p>

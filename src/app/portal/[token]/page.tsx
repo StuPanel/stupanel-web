@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
+import { StudioLogo } from "@/components/studio-logo";
+import { BRAND } from "@/lib/brand";
 
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
 function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
@@ -589,7 +591,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
     </div>
   );
 
-  const brand = data.company.primaryColor || "#7D5CEF";
+  const brand = BRAND;
   const c = sym(data.company.currency);
 
   // Stats computed from bookings
@@ -617,15 +619,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
 
           {/* Company row */}
           <div className="flex items-center gap-3 mb-5">
-            {data.company.logoUrl ? (
-              <div className="w-10 h-10 rounded-xl bg-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
-                <img src={data.company.logoUrl} alt="" className="w-full h-full object-contain p-1" />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                <Camera className="w-5 h-5 text-white" />
-              </div>
-            )}
+            <StudioLogo url={data.company.logoUrl} name={data.company.name} size={48} tone="onDark" />
             <div>
               <p className="font-bold text-white text-base leading-none">{data.company.name}</p>
               <p className="text-xs text-white/60 mt-0.5">Client Portal</p>

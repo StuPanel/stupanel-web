@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
+import { StudioLogo } from "@/components/studio-logo";
 
 interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; }
 interface Quote {
@@ -70,7 +71,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+      <Loader2 className="w-8 h-8 animate-spin text-[#7D5CEF]" />
     </div>
   );
 
@@ -198,19 +199,13 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
           <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden print:rounded-none print:shadow-none print:border-0">
 
             {/* Header — Studio Info */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-8 py-7 text-white print:bg-indigo-600">
+            <div className="bg-[#7D5CEF] px-8 py-7 text-white print:bg-[#7D5CEF]">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  {quote.company.logoUrl ? (
-                    <img src={quote.company.logoUrl} alt="logo" className="w-14 h-14 rounded-xl object-cover bg-white/20" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Camera className="w-7 h-7 text-white" />
-                    </div>
-                  )}
+                  <StudioLogo url={quote.company.logoUrl} name={quote.company.name} size={56} tone="onDark" />
                   <div>
                     <h1 className="text-2xl font-extrabold">{quote.company.name}</h1>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-indigo-200 text-xs">
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-white/75 text-xs">
                       {quote.company.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{quote.company.phone}</span>}
                       {quote.company.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{quote.company.email}</span>}
                       {quote.company.address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{quote.company.address}</span>}
@@ -218,7 +213,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-indigo-200 text-xs uppercase tracking-widest mb-1">Quotation</p>
+                  <p className="text-white/75 text-xs uppercase tracking-widest mb-1">Quotation</p>
                   <p className="text-white font-extrabold text-xl">{quote.quoteNumber}</p>
                   <span className={cn("inline-block mt-2 text-xs px-2.5 py-0.5 rounded-full font-bold", sc.bg, sc.color, sc.border, "border")}>{sc.label}</span>
                 </div>
@@ -244,13 +239,13 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                   {quote.eventDate && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-400">Event Date</span>
-                      <span className="font-semibold text-slate-800 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-indigo-400" />{fmtDate(quote.eventDate)}</span>
+                      <span className="font-semibold text-slate-800 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-[#7D5CEF]" />{fmtDate(quote.eventDate)}</span>
                     </div>
                   )}
                   {quote.venue && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-400">Venue</span>
-                      <span className="font-semibold text-slate-800 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-indigo-400" />{quote.venue}</span>
+                      <span className="font-semibold text-slate-800 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-[#7D5CEF]" />{quote.venue}</span>
                     </div>
                   )}
                   {quote.validUntil && (
@@ -262,7 +257,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                   {quote.program && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-400">Package</span>
-                      <span className="font-semibold text-indigo-700">{quote.program.name}</span>
+                      <span className="font-semibold text-[#5B3FD0]">{quote.program.name}</span>
                     </div>
                   )}
                 </div>
@@ -330,9 +325,9 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
 
               {/* Notes */}
               {quote.notes && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
-                  <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-2">Note from Studio</p>
-                  <p className="text-sm text-indigo-900 leading-relaxed">{quote.notes}</p>
+                <div className="bg-[#EEE8FD] border border-[#E3DCFB] rounded-2xl p-5">
+                  <p className="text-xs font-bold text-[#5B3FD0] uppercase tracking-widest mb-2">Note from Studio</p>
+                  <p className="text-sm text-[#2E1F6B] leading-relaxed">{quote.notes}</p>
                 </div>
               )}
 

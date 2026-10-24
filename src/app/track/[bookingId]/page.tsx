@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { CheckCircle2, Clock, XCircle, Camera, Loader2, MapPin, CalendarDays, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { StudioLogo } from "@/components/studio-logo";
+import { BRAND } from "@/lib/brand";
 
 
 interface Step { key: string; label: string; done: boolean; current: boolean; }
@@ -45,7 +47,7 @@ export default function TrackPage() {
     </div>
   );
 
-  const accent = data.studio.primaryColor ?? "#7D5CEF";
+  const accent = BRAND;
   const steps = data.steps ?? [];
   const currentStep = steps.find(s => s.current);
   const doneCount = steps.filter(s => s.done).length;
@@ -55,13 +57,7 @@ export default function TrackPage() {
       {/* Studio Header */}
       <div className="text-white px-4 py-6 shadow-sm" style={{ backgroundColor: accent }}>
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          {data.studio.logoUrl ? (
-            <img src={data.studio.logoUrl} alt={data.studio.name} className="w-10 h-10 rounded-xl object-contain bg-white/20 p-1" />
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-          )}
+          <StudioLogo url={data.studio.logoUrl} name={data.studio.name} size={48} tone="onDark" />
           <div>
             <p className="font-bold text-lg leading-tight">{data.studio.name}</p>
             <p className="text-xs text-white/70">Booking Tracker</p>

@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { BRAND, safeLogo } from "@/lib/brand";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface InvoiceCompany {
   name: string;
@@ -98,7 +101,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
   } = data;
 
   const s = sym(currency);
-  const accent = company.primaryColor || "#7D5CEF";
+  const accent = BRAND;
   const style  = company.invoiceHeaderStyle || "dark";
 
   const headerBg   = style === "brand" ? accent : style === "light" ? "#F5F3FA" : "#17151F";
@@ -108,6 +111,8 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
 
   const showPayment   = company.invoiceShowPayment   !== false;
   const showLogo      = company.invoiceShowLogo      !== false;
+  const [logoFailed, setLogoFailed] = useState(false);
+  const logoSrc = logoFailed ? null : safeLogo(company.logoUrl);
   const showSignature = company.invoiceShowSignature !== false;
   const sigText       = company.invoiceSignatureText || "Thank you for your business!";
   const hasBank       = showPayment && !!(company.bankName || company.bkashNumber || company.nagadNumber);
@@ -129,8 +134,8 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
       <div style={{ backgroundColor: headerBg, padding: "28px 36px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
         {/* Left: logo + company */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {showLogo && company.logoUrl ? (
-            <img src={company.logoUrl} alt="logo"
+          {showLogo && logoSrc ? (
+            <img src={logoSrc} alt="logo" onError={() => setLogoFailed(true)}
               style={{ width: 52, height: 52, objectFit: "contain", borderRadius: 10, padding: 4,
                 backgroundColor: style === "light" ? "#E3DFEC" : "rgba(255,255,255,0.15)" }} />
           ) : (

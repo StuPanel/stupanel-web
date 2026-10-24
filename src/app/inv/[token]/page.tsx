@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { Loader2, Printer } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
+import { BRAND } from "@/lib/brand";
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fmt(d?: string): string {
@@ -41,7 +42,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
     </div>
   );
 
-  const brandColor = data.company?.primaryColor || "#7D5CEF";
+  const brandColor = BRAND;
 
   const previewData: InvoicePreviewData = {
     company: data.company,

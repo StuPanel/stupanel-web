@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { askConfirm } from "@/components/feedback";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -109,7 +110,7 @@ export default function AdminCouponsPage() {
   }
 
   async function deleteCoupon(id: string) {
-    if (!confirm("Delete this coupon?")) return;
+    if (!(await askConfirm({ message: "Delete this coupon?", danger: true }))) return;
     setDeleteId(id);
     await fetch(`${API}/admin/coupons/${id}`, { method: "DELETE", headers: authH() });
     setDeleteId(null);

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { FeedbackHost } from "@/components/feedback";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -77,6 +78,7 @@ export default function RootLayout({
     <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full`}>
       <body className="h-full bg-background text-foreground antialiased" suppressHydrationWarning>
         {children}
+        <FeedbackHost />
       </body>
     </html>
   );

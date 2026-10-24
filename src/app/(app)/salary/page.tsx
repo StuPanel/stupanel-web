@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
+import { askConfirm } from "@/components/feedback";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
@@ -91,7 +92,7 @@ export default function SalaryPage() {
   }
 
   async function deleteSlip(id: string) {
-    if (!confirm("Delete this salary slip?")) return;
+    if (!(await askConfirm({ message: "Delete this salary slip?", danger: true }))) return;
     const r = await apiFetch(`${API}/salary/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadAll(); setToast({ msg: "Deleted.", ok: true }); }
   }

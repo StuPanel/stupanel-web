@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
+import { askConfirm } from "@/components/feedback";
 
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
@@ -93,7 +94,7 @@ export default function EquipmentPage() {
   }
 
   async function deleteItem(id: string) {
-    if (!confirm("Delete this equipment?")) return;
+    if (!(await askConfirm({ message: "Delete this equipment?", danger: true }))) return;
     const r = await apiFetch(`${API}/equipment/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { loadAll(); setToast({ msg: "Deleted.", ok: true }); }
   }

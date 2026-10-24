@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
+import { askConfirm } from "@/components/feedback";
 
 
 const WALLET_TYPES = [
@@ -108,7 +109,7 @@ export default function ExpensesPage() {
   }
 
   async function deleteWallet(id: string) {
-    if (!confirm("Delete this wallet?")) return;
+    if (!(await askConfirm({ message: "Delete this wallet?", danger: true }))) return;
     const r = await apiFetch(`${API}/wallets/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
     if (r.ok) { if (selWallet?.id === id) setSelWallet(null); loadWallets(); }
   }

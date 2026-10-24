@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { STATUS_CFG, STATUS_PIPELINE, fmtDate } from "./constants";
 import { formatCurrency } from "@/lib/format";
 import type { Booking } from "./types";
+import { askConfirm } from "@/components/feedback";
 
 export function ProgramCard({ b, onView, onEdit, onDelete }: {
   b: Booking;
@@ -182,7 +183,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
       )}
       {!isCancelled && (
         <div className="flex gap-2 mt-1">
-          <button onClick={() => { if (window.confirm("Cancel this program?")) changeStatus("cancelled"); }}
+          <button onClick={async () => { if (await askConfirm({ title: "Cancel this program?", message: "The program will be marked as cancelled. You can reopen it later.", confirmLabel: "Mark cancelled", danger: true })) changeStatus("cancelled"); }}
             className="text-xs text-red-500 hover:text-red-700 underline">Mark Cancelled</button>
           {current !== "completed" && (
             <button onClick={() => changeStatus("completed")}

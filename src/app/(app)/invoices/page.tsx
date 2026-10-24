@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
+import { askConfirm } from "@/components/feedback";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
@@ -685,7 +686,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
   }
 
   async function doDelete() {
-    if (!confirm(`Delete invoice ${inv.invoiceNumber}?`)) return;
+    if (!(await askConfirm({ message: `Delete invoice ${inv.invoiceNumber}?`, danger: true }))) return;
     setActing(true);
     try {
       await apiFetch(`${API}/studio-invoices/${inv.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });

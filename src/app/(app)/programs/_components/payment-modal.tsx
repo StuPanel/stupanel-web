@@ -67,8 +67,8 @@ export function PaymentModal({ booking, onClose, onSaved }: {
   return (
     <>
       <div className="sp-backdrop z-50" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="sp-modal w-full max-w-sm">
+      <div className="fixed inset-0 z-50 pointer-events-none">
+        <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-900">Record Payment</h3>

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { askConfirm } from "@/components/feedback";
+import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
@@ -30,6 +31,7 @@ export default function SalaryPage() {
   const [loading, setLoading] = useState(true);
   const [yearFilter, setYearFilter] = useState(now.getFullYear());
   const [monthFilter, setMonthFilter] = useState(0);
+  const [q, setQ] = useState("");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ memberId: "", month: now.getMonth() + 1, year: now.getFullYear(), baseSalary: "", programBonus: "", deductions: "0", notes: "" });
   const [calcLoading, setCalcLoading] = useState(false);
@@ -142,6 +144,7 @@ export default function SalaryPage() {
       </div>
 
       {/* Filters */}
+      <SearchPill value={q} onChange={setQ} placeholder="Search by team member…" />
       <div className="flex items-center gap-2">
         <select value={yearFilter} onChange={e => setYearFilter(+e.target.value)}
           className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none">
@@ -156,7 +159,7 @@ export default function SalaryPage() {
 
       {/* Slips */}
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : slips.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
           <Banknote className="sp-empty-icon" />
@@ -165,7 +168,10 @@ export default function SalaryPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {slips.map(slip => {
+          {slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).length === 0 && (
+            <p className="text-center text-sm text-[#6B6680] py-10">No salary slips match &ldquo;{q}&rdquo;</p>
+          )}
+          {slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).map(slip => {
             const net = Number(slip.netSalary);
             const base = Number(slip.baseSalary);
             const bonus = Number(slip.programBonus);
@@ -237,8 +243,8 @@ export default function SalaryPage() {
 
       {/* Generate Modal */}
       {modal && (
-        <div className="sp-backdrop z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="sp-modal w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setModal(false); }}>
+          <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Generate Salary Slip</h2>
               <button onClick={() => setModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">

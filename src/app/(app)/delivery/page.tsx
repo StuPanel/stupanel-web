@@ -10,6 +10,7 @@ import { FILTER_TABS } from "./_components/constants";
 import { DeliveryCard } from "./_components/delivery-card";
 import { DeliveryModal } from "./_components/delivery-modal";
 import type { Booking } from "./_components/types";
+import { ListSkeleton } from "@/components/list-ui";
 
 export default function DeliveryPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -99,7 +100,7 @@ export default function DeliveryPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : bookings.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
           <Package className="sp-empty-icon" />

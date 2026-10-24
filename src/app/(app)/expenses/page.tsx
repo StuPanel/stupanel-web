@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
 import { askConfirm } from "@/components/feedback";
+import { ListSkeleton } from "@/components/list-ui";
 
 
 const WALLET_TYPES = [
@@ -160,7 +161,7 @@ export default function ExpensesPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : wallets.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
           <Wallet className="sp-empty-icon" />
@@ -277,8 +278,8 @@ export default function ExpensesPage() {
 
       {/* Create Wallet Modal */}
       {walletModal && (
-        <div className="sp-backdrop z-50 flex items-center justify-center p-4">
-          <div className="sp-modal w-full max-w-sm">
+        <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setWalletModal(false); }}>
+          <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Wallet</h2>
               <button onClick={() => setWalletModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
@@ -312,8 +313,8 @@ export default function ExpensesPage() {
 
       {/* Add Transaction Modal */}
       {txModal && selWallet && (
-        <div className="sp-backdrop z-50 flex items-center justify-center p-4">
-          <div className="sp-modal w-full max-w-sm">
+        <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setTxModal(false); }}>
+          <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900">Add Transaction</h2>
               <button onClick={() => setTxModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>

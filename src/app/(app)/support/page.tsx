@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
 
 
 function fmtDate(d: string) {
@@ -59,6 +60,7 @@ export default function SupportPage() {
   const [pages, setPages] = useState(1);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
   // Detail view
@@ -353,9 +355,11 @@ export default function SupportPage() {
         ))}
       </div>
 
+      <SearchPill value={q} onChange={setQ} placeholder="Search tickets…" />
+
       {/* Ticket list */}
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+        <ListSkeleton />
       ) : tickets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-200 rounded-xl">
           <Inbox className="w-10 h-10 text-slate-300 mb-3" />
@@ -367,7 +371,10 @@ export default function SupportPage() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-          {tickets.map(ticket => {
+          {tickets.filter(t => matches(q, t.subject, t.ticketNumber, t.category)).length === 0 && (
+            <p className="text-center text-sm text-[#6B6680] py-10">No tickets match &ldquo;{q}&rdquo;</p>
+          )}
+          {tickets.filter(t => matches(q, t.subject, t.ticketNumber, t.category)).map(ticket => {
             const cfg = statusConfig[ticket.status] ?? statusConfig.open;
             const StatusIcon = cfg.icon;
             const lastMsg = ticket.messages?.[0];

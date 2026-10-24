@@ -116,7 +116,7 @@ export default function AdminUsersPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium text-white text-sm">{u.firstName} {u.lastName ?? ""}</span>
                             {u.isSuperAdmin && (
-                              <span className="text-[10px] bg-indigo-600/30 text-indigo-400 border border-indigo-600/40 px-1.5 py-0.5 rounded font-bold">ADMIN</span>
+                              <span className="text-xs bg-indigo-600/30 text-indigo-400 border border-indigo-600/40 px-1.5 py-0.5 rounded font-bold">ADMIN</span>
                             )}
                             {u.isOwner && (
                               <Crown className="w-3 h-3 text-amber-400" />

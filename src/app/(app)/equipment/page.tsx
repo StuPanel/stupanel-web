@@ -259,7 +259,7 @@ export default function EquipmentPage() {
                         {activeAssignment ? (
                           <div>
                             <p className="text-xs font-medium text-blue-600">{activeAssignment.booking.eventName || activeAssignment.booking.bookingNumber}</p>
-                            <p className="text-[10px] text-slate-400">{activeAssignment.booking.bookingNumber}</p>
+                            <p className="text-xs text-slate-400">{activeAssignment.booking.bookingNumber}</p>
                           </div>
                         ) : <span className="text-xs text-slate-300">—</span>}
                       </td>

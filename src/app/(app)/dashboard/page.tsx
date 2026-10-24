@@ -69,17 +69,17 @@ const DATE_FILTERS: { label: string; value: Period }[] = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  inquiry:            { label: "Inquiry",     bg: "bg-slate-100",   text: "text-slate-600" },
-  quote_sent:         { label: "Quote Sent",  bg: "bg-sky-100",     text: "text-sky-700" },
-  confirmed:          { label: "Confirmed",   bg: "bg-blue-100",    text: "text-blue-700" },
-  advance_received:   { label: "Advance",     bg: "bg-indigo-100",  text: "text-indigo-700" },
-  in_progress:        { label: "Shooting",    bg: "bg-yellow-100",  text: "text-yellow-700" },
-  editing:            { label: "Editing",     bg: "bg-orange-100",  text: "text-orange-700" },
-  ready_for_delivery: { label: "Ready",       bg: "bg-purple-100",  text: "text-purple-700" },
-  delivered:          { label: "Delivered",   bg: "bg-cyan-100",    text: "text-cyan-700" },
-  completed:          { label: "Completed",   bg: "bg-emerald-100", text: "text-emerald-700" },
-  cancelled:          { label: "Cancelled",   bg: "bg-red-100",     text: "text-red-700" },
-  refunded:           { label: "Refunded",    bg: "bg-rose-100",    text: "text-rose-700" },
+  inquiry:            { label: "Inquiry",     bg: "bg-[#FDECEF]",   text: "text-[#C2304F]" },
+  quote_sent:         { label: "Quote Sent",  bg: "bg-[#FBF2FA]",     text: "text-[#9E3A8C]" },
+  confirmed:          { label: "Confirmed",   bg: "bg-[#EEE8FD]",    text: "text-[#5B3FD0]" },
+  advance_received:   { label: "Advance",     bg: "bg-[#EEE8FD]",  text: "text-[#5B3FD0]" },
+  in_progress:        { label: "Shooting",    bg: "bg-[#E0F2F1]",  text: "text-[#126B66]" },
+  editing:            { label: "Editing",     bg: "bg-[#E6F0FB]",  text: "text-[#1F5C99]" },
+  ready_for_delivery: { label: "Ready",       bg: "bg-[#7D5CEF]",  text: "text-white" },
+  delivered:          { label: "Delivered",   bg: "bg-[#EEEDF2]",    text: "text-[#4A4658]" },
+  completed:          { label: "Completed",   bg: "bg-[#EEEDF2]", text: "text-[#4A4658]" },
+  cancelled:          { label: "Cancelled",   bg: "bg-[#F3E3E3]",     text: "text-[#8A2E2E]" },
+  refunded:           { label: "Refunded",    bg: "bg-[#F3E3E3]",    text: "text-[#8A2E2E]" },
 };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -315,7 +315,7 @@ export default function DashboardPage() {
                         </p>
                       )}
                     </div>
-                    <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0", S.bg, S.text)}>
+                    <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0", S.bg, S.text)}>
                       {S.label}
                     </span>
                   </div>
@@ -363,7 +363,7 @@ export default function DashboardPage() {
                         )}
                         style={{ height: `${h}%` }}
                       />
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">{MONTHS[i][0]}</span>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{MONTHS[i][0]}</span>
                     </div>
                   );
                 })}
@@ -467,7 +467,7 @@ export default function DashboardPage() {
                             }
                           </td>
                           <td className="py-2.5 px-4">
-                            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", S.bg, S.text)}>
+                            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", S.bg, S.text)}>
                               {S.label}
                             </span>
                           </td>
@@ -496,8 +496,8 @@ export default function DashboardPage() {
                         <p className={cn("text-sm font-bold text-slate-900", !showAmounts ? "blur-sm select-none" : "")}>
                           {showAmounts ? fmt(b.grandTotal, b.currency) : "••••"}
                         </p>
-                        {due > 0 && showAmounts && <p className="text-[10px] text-orange-500">Due</p>}
-                        <span className={cn("mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium inline-block", S.bg, S.text)}>
+                        {due > 0 && showAmounts && <p className="text-xs text-orange-500">Due</p>}
+                        <span className={cn("mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium inline-block", S.bg, S.text)}>
                           {S.label}
                         </span>
                       </div>

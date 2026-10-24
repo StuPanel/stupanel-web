@@ -37,10 +37,10 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
-            <span className="text-[10px] text-slate-400 font-mono">{b.bookingNumber}</span>
+            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
+            <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
             {days > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 flex items-center gap-1">
                 <Layers className="w-2.5 h-2.5" />{days}d
               </span>
             )}
@@ -153,7 +153,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
             className="text-xs text-slate-500 hover:text-indigo-600 underline">Reopen</button>
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-1 sm:flex sm:items-center sm:gap-0.5 sm:overflow-x-auto sm:pb-1">
+        <div className="grid grid-cols-4 gap-1">
           {STATUS_PIPELINE.map((s, i) => {
             const sc = STATUS_CFG[s];
             const idx = STATUS_PIPELINE.indexOf(current);
@@ -162,7 +162,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
             return (
               <button key={s} onClick={() => changeStatus(s)}
                 disabled={loading !== null}
-                className={cn("flex-shrink-0 flex flex-col items-center justify-start gap-1 px-1 sm:px-2 py-1.5 rounded-lg transition-all min-w-0",
+                className={cn("flex-shrink-0 flex flex-col items-center justify-start gap-1 px-1 py-1.5 rounded-xl transition-all min-w-0",
                   active ? "bg-indigo-600" : done ? "bg-indigo-100 hover:bg-indigo-200" : "bg-slate-100 hover:bg-slate-200")}>
                 <div className={cn("w-4 h-4 rounded-full flex items-center justify-center",
                   active ? "bg-white" : done ? "bg-indigo-500" : "bg-slate-300")}>
@@ -171,7 +171,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
                     : done ? <Check className="w-2.5 h-2.5 text-white" />
                     : <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-indigo-600" : "bg-slate-400")} />}
                 </div>
-                <span className={cn("text-[9px] font-semibold leading-tight text-center max-w-[52px]",
+                <span className={cn("text-xs font-semibold leading-tight text-center max-w-[52px]",
                   active ? "text-white" : done ? "text-indigo-700" : "text-slate-400")}>
                   {sc?.label ?? s}
                 </span>

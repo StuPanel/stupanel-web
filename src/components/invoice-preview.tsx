@@ -156,7 +156,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
           {statusLabel && (
             <span style={{ display: "inline-block", marginTop: 8, padding: "3px 10px", borderRadius: 99,
               fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
-              backgroundColor: isPaid ? "#10B981" : "rgba(255,255,255,0.18)", color: "#fff" }}>
+              backgroundColor: isPaid ? "#1F8A5B" : "rgba(255,255,255,0.18)", color: "#fff" }}>
               {statusLabel}
             </span>
           )}
@@ -179,7 +179,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
         {dueDate && (
           <div style={{ textAlign: "right" }}>
             <p style={{ margin: 0, fontSize: 9, color: "#9C97AC", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Due Date</p>
-            <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 700, color: "#EF4444" }}>{fmt(dueDate)}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 700, color: "#C2304F" }}>{fmt(dueDate)}</p>
           </div>
         )}
       </div>
@@ -280,7 +280,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
             <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{money(Number(subtotal), s)}</span>
           </div>
           {Number(discountAmount) > 0 && (
-            <div style={{ padding: "9px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#10B981", borderBottom: "1px solid #EEEBF4", backgroundColor: "#F5F3FA" }}>
+            <div style={{ padding: "9px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#1F8A5B", borderBottom: "1px solid #EEEBF4", backgroundColor: "#F5F3FA" }}>
               <span>Discount</span>
               <span style={{ fontFamily: "monospace", fontWeight: 600 }}>−{money(Number(discountAmount), s)}</span>
             </div>
@@ -297,19 +297,19 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
             <span style={{ fontFamily: "monospace" }}>{money(Number(grandTotal), s)}</span>
           </div>
           {Number(paidAmount) > 0 && (
-            <div style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#10B981", borderTop: "1px solid #D1FAE5" }}>
+            <div style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#1F8A5B", borderTop: "1px solid #D1FAE5" }}>
               <span>Paid</span>
               <span style={{ fontFamily: "monospace", fontWeight: 600 }}>−{money(Number(paidAmount), s)}</span>
             </div>
           )}
           {Number(balanceDue) > 0 && (
-            <div style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#EF4444", fontWeight: 700, borderTop: "1px solid #FEE2E2" }}>
+            <div style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", gap: 24, fontSize: 12, color: "#C2304F", fontWeight: 700, borderTop: "1px solid #FEE2E2" }}>
               <span>Balance Due</span>
               <span style={{ fontFamily: "monospace" }}>{money(Number(balanceDue), s)}</span>
             </div>
           )}
           {isPaid && (
-            <div style={{ padding: "8px 16px", textAlign: "center", color: "#10B981", fontSize: 12, fontWeight: 700, borderTop: "1px solid #D1FAE5" }}>
+            <div style={{ padding: "8px 16px", textAlign: "center", color: "#1F8A5B", fontSize: 12, fontWeight: 700, borderTop: "1px solid #D1FAE5" }}>
               ✓ Fully Paid
             </div>
           )}

@@ -308,3 +308,7 @@ main .bg-white.shadow-sm.transition-all:hover { transform: translateY(-2px); }
   .sp-modal { animation: none; }
   main .bg-white.shadow-sm.transition-all:hover { transform: none; }
 }
+
+/* Design system §4: cards 20px radius (pass 1, 2026-10-24) */
+main .bg-white.rounded-xl.shadow-sm, main .bg-white.rounded-2xl.shadow-sm,
+main .bg-white.rounded-xl.border, main .bg-white.rounded-2xl.border { border-radius: 20px; }

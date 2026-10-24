@@ -285,7 +285,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                               <p className="text-sm font-medium text-slate-800 truncate">{r.label}</p>
                               {r.sub && <p className="text-xs text-slate-400 truncate">{r.sub}</p>}
                             </div>
-                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex-shrink-0">
                               {typeLabel(r.type)}
                             </span>
                           </button>
@@ -328,7 +328,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   </Avatar>
                   <div className="text-left hidden lg:block">
                     <p className="text-[13px] font-semibold text-slate-900 leading-none">{displayName}</p>
-                    <p className="text-[11px] text-slate-500 mt-1 leading-none">{roleLabel}</p>
+                    <p className="text-xs text-slate-500 mt-1 leading-none">{roleLabel}</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-400 hidden lg:block" />
                 </button>
@@ -349,7 +349,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   )}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                    <span className="inline-block bg-white text-violet-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 border border-violet-100">
+                    <span className="inline-block bg-white text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 border border-violet-100">
                       {roleLabel}
                     </span>
                     <p className="text-xs text-slate-500 truncate mt-0.5">{user?.company?.name ?? ""}</p>

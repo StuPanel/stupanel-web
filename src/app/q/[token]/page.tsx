@@ -220,7 +220,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                 <div className="text-right flex-shrink-0">
                   <p className="text-indigo-200 text-xs uppercase tracking-widest mb-1">Quotation</p>
                   <p className="text-white font-extrabold text-xl">{quote.quoteNumber}</p>
-                  <span className={cn("inline-block mt-2 text-[10px] px-2.5 py-0.5 rounded-full font-bold", sc.bg, sc.color, sc.border, "border")}>{sc.label}</span>
+                  <span className={cn("inline-block mt-2 text-xs px-2.5 py-0.5 rounded-full font-bold", sc.bg, sc.color, sc.border, "border")}>{sc.label}</span>
                 </div>
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
               {/* Client + Event Info */}
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Prepared For</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Prepared For</p>
                   <p className="font-extrabold text-slate-900 text-lg">{quote.client.firstName} {quote.client.lastName ?? ""}</p>
                   {quote.client.phone && <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5"><Phone className="w-3.5 h-3.5 text-slate-400" />{quote.client.phone}</p>}
                   {quote.client.email && <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5"><Mail className="w-3.5 h-3.5 text-slate-400" />{quote.client.email}</p>}
@@ -273,7 +273,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
 
               {/* Line Items */}
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Services & Packages</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Services & Packages</p>
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
@@ -339,7 +339,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
               {/* Terms */}
               {quote.termsAndConditions && (
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Terms & Conditions</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Terms & Conditions</p>
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
                     <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed">{quote.termsAndConditions}</pre>
                   </div>
@@ -363,7 +363,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
               {/* Footer */}
               <div className="border-t border-slate-100 pt-5 text-center">
                 <p className="text-xs text-slate-400">Thank you for considering <span className="font-semibold text-slate-600">{quote.company.name}</span>. We look forward to capturing your special moments.</p>
-                <p className="text-[10px] text-slate-300 mt-2">{quote.quoteNumber} · Version {quote.version}</p>
+                <p className="text-xs text-slate-300 mt-2">{quote.quoteNumber} · Version {quote.version}</p>
               </div>
             </div>
           </div>

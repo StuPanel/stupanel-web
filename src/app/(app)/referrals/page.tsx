@@ -106,7 +106,7 @@ export default function ReferralsPage() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-semibold text-slate-900 text-sm truncate">{g.name}</p>
                         {g.referrerClientId && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-0.5 flex-shrink-0">
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-0.5 flex-shrink-0">
                             <User className="w-2.5 h-2.5" /> Client
                           </span>
                         )}
@@ -120,15 +120,15 @@ export default function ReferralsPage() {
                   <div className="flex items-center gap-4 sm:gap-6 pl-[3.25rem] sm:pl-0">
                     <div className="text-right">
                       <p className="text-sm font-bold text-slate-900">{g.clientCount}</p>
-                      <p className="text-[10px] text-slate-400">Clients</p>
+                      <p className="text-xs text-slate-400">Clients</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-slate-900">{g.bookingCount}</p>
-                      <p className="text-[10px] text-slate-400">Programs</p>
+                      <p className="text-xs text-slate-400">Programs</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-emerald-600">{formatCurrency(g.revenue, "BDT")}</p>
-                      <p className="text-[10px] text-slate-400">Revenue</p>
+                      <p className="text-xs text-slate-400">Revenue</p>
                     </div>
                     <div className="hidden sm:block flex-shrink-0">
                       {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}

@@ -83,11 +83,11 @@ export default function AdminRevenuePage() {
                     className="w-full bg-indigo-500 group-hover:bg-indigo-400 rounded-t transition-all duration-200"
                     style={{ height: `${Math.max(pct, 2)}%` }}
                   />
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white text-xs px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                     {f(m.total)}
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-500 whitespace-nowrap">{MonthLabel(m.month)}</span>
+                <span className="text-xs text-slate-500 whitespace-nowrap">{MonthLabel(m.month)}</span>
               </div>
             );
           })}

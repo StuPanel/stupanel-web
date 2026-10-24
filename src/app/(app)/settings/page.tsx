@@ -92,7 +92,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div className="space-y-1.5">
       <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{label}</Label>
       {children}
-      {hint && <p className="text-[11px] text-slate-400">{hint}</p>}
+      {hint && <p className="text-xs text-slate-400">{hint}</p>}
     </div>
   );
 }
@@ -166,7 +166,7 @@ function StudioTab({ data }: { data: any }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([ ["city","City","Dhaka"], ["state","State","(optional)"], ["country","Country","Bangladesh"] ] as [string,string,string][]).map(([k,l,p]) => (
             <Field key={k} label={l}>
-              <Input value={(f as any)[k]} onChange={set(k)} placeholder={p} className="h-10 border-slate-200 text-sm" />
+              <Input value={(f as any)[k]} onChange={set(k)} placeholder={p} className="h-11 border-slate-200 text-sm" />
             </Field>
           ))}
         </div>
@@ -319,7 +319,7 @@ function LogoCropModal({ src, onSave, onClose }: {
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <p className="font-bold text-slate-900 text-sm">লোগো পজিশন করুন</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Drag করুন · Scroll বা বোতামে zoom করুন</p>
+            <p className="text-xs text-slate-400 mt-0.5">Drag করুন · Scroll বা বোতামে zoom করুন</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
             <X className="w-4 h-4 text-slate-500" />
@@ -386,7 +386,7 @@ function LogoCropModal({ src, onSave, onClose }: {
 function PlacementPreview({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">{children}</div>
     </div>
   );
@@ -498,7 +498,7 @@ function BrandingTab({ data }: { data: any }) {
                     className="w-full h-10 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors">
                     <Upload className="w-3.5 h-3.5" /> ছবি বেছে নিন (যেকোনো সাইজ)
                   </button>
-                  <p className="text-[11px] text-slate-400">JPG / PNG / WebP — স্বয়ংক্রিয়ভাবে 600 KB-এর নিচে compress হবে</p>
+                  <p className="text-xs text-slate-400">JPG / PNG / WebP — স্বয়ংক্রিয়ভাবে 600 KB-এর নিচে compress হবে</p>
                 </>
               ) : (
                 <>
@@ -507,7 +507,7 @@ function BrandingTab({ data }: { data: any }) {
                     <Input value={logoUrl} onChange={e => { setLogoUrl(e.target.value); setLogoErr(false); }}
                       placeholder="https://… paste image URL" className="h-10 pl-9 border-slate-200 text-sm" />
                   </div>
-                  <p className="text-[11px] text-slate-400">PNG/JPG/SVG direct URL · transparent background recommended</p>
+                  <p className="text-xs text-slate-400">PNG/JPG/SVG direct URL · transparent background recommended</p>
                 </>
               )}
 
@@ -532,7 +532,7 @@ function BrandingTab({ data }: { data: any }) {
             </div>
             <div className="w-11 h-11 rounded-xl border border-slate-200 flex-shrink-0" style={{ backgroundColor: primaryColor }} />
           </div>
-          <p className="text-[11px] text-slate-400">Quotes, invoices এবং client portal-এ accent color হিসেবে ব্যবহৃত হবে।</p>
+          <p className="text-xs text-slate-400">Quotes, invoices এবং client portal-এ accent color হিসেবে ব্যবহৃত হবে।</p>
         </div>
 
         {/* ── Multi-placement Previews ── */}
@@ -582,7 +582,7 @@ function BrandingTab({ data }: { data: any }) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{data.name || "Studio Name"}</p>
-                  <span className="inline-block bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">Studio Admin</span>
+                  <span className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">Studio Admin</span>
                 </div>
               </div>
             </PlacementPreview>
@@ -596,7 +596,7 @@ function BrandingTab({ data }: { data: any }) {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">{data.name || "Studio Name"}</p>
-                  <p className="text-[11px] text-slate-400">Your photos are ready 🎉</p>
+                  <p className="text-xs text-slate-400">Your photos are ready 🎉</p>
                 </div>
               </div>
             </PlacementPreview>
@@ -637,24 +637,24 @@ function PaymentTab({ data }: { data: any }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Bank Name">
-              <Input value={f.bankName} onChange={set("bankName")} placeholder="Bank name" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankName} onChange={set("bankName")} placeholder="Bank name" className="h-11 border-slate-200 text-sm bg-white" />
             </Field>
             <Field label="Branch">
-              <Input value={f.bankBranch} onChange={set("bankBranch")} placeholder="Branch name" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankBranch} onChange={set("bankBranch")} placeholder="Branch name" className="h-11 border-slate-200 text-sm bg-white" />
             </Field>
           </div>
           <Field label="Account Holder Name">
-            <Input value={f.bankAccountName} onChange={set("bankAccountName")} placeholder="Faisal Ahmed Photography" className="h-10 border-slate-200 text-sm bg-white" />
+            <Input value={f.bankAccountName} onChange={set("bankAccountName")} placeholder="Faisal Ahmed Photography" className="h-11 border-slate-200 text-sm bg-white" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Account Number">
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input value={f.bankAccountNumber} onChange={set("bankAccountNumber")} placeholder="1234567890" className="h-10 pl-9 border-slate-200 text-sm bg-white" />
+                <Input value={f.bankAccountNumber} onChange={set("bankAccountNumber")} placeholder="1234567890" className="h-11 pl-9 border-slate-200 text-sm bg-white" />
               </div>
             </Field>
             <Field label="Routing Number">
-              <Input value={f.bankRoutingNumber} onChange={set("bankRoutingNumber")} placeholder="Routing number" className="h-10 border-slate-200 text-sm bg-white" />
+              <Input value={f.bankRoutingNumber} onChange={set("bankRoutingNumber")} placeholder="Routing number" className="h-11 border-slate-200 text-sm bg-white" />
             </Field>
           </div>
         </div>
@@ -675,7 +675,7 @@ function PaymentTab({ data }: { data: any }) {
                 <div className="relative">
                   <Smartphone className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4", color)} />
                   <Input value={(f as any)[key]} onChange={set(key)} placeholder={placeholder}
-                    className="h-10 pl-9 border-slate-200 text-sm bg-white" />
+                    className="h-11 pl-9 border-slate-200 text-sm bg-white" />
                 </div>
               </Field>
             ))}
@@ -684,7 +684,7 @@ function PaymentTab({ data }: { data: any }) {
 
         <div className="flex items-start gap-2 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
           <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-          <p className="text-[11px] text-blue-700 leading-relaxed">These details appear at the bottom of every quote and invoice so clients know how to pay you.</p>
+          <p className="text-xs text-blue-700 leading-relaxed">These details appear at the bottom of every quote and invoice so clients know how to pay you.</p>
         </div>
 
         <Button disabled={saving} onClick={() => save(f, "Payment info saved!")}
@@ -766,7 +766,7 @@ function BookingTab({ data }: { data: any }) {
 
         {/* Default Status */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">New Booking Status</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">New Booking Status</p>
           <p className="text-xs text-slate-500 mb-3">When a new booking is created without a specific status, this is used automatically.</p>
           <div className="space-y-2">
             {BOOKING_STATUSES.map(s => (
@@ -792,7 +792,7 @@ function BookingTab({ data }: { data: any }) {
 
         {/* Cancellation Policy */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Default Cancellation Policy</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Default Cancellation Policy</p>
           <Field label="Cancellation Policy" hint="Pre-filled in every new booking — clients can see this in their portal">
             <textarea
               value={f.defaultCancellationPolicy}
@@ -806,7 +806,7 @@ function BookingTab({ data }: { data: any }) {
 
         {/* Reminder Days */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Event Reminder</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Event Reminder</p>
           <Field label="Remind Before Event" hint={`Studio gets an alert ${f.bookingReminderDays} day(s) before the event date`}>
             <div className="relative">
               <Bell className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -858,7 +858,7 @@ function InvoiceTab({ data }: { data: any }) {
 
         {/* Invoice Numbering */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Numbering</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Numbering</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <Field label="Prefix" hint="e.g. INV, SP, STUDIO">
               <Input
@@ -881,7 +881,7 @@ function InvoiceTab({ data }: { data: any }) {
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex items-center gap-3">
             <Hash className="w-4 h-4 text-indigo-400 flex-shrink-0" />
             <div>
-              <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide">Preview</p>
+              <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Preview</p>
               <p className="text-sm font-mono text-indigo-800 mt-0.5">{preview}</p>
             </div>
           </div>
@@ -889,7 +889,7 @@ function InvoiceTab({ data }: { data: any }) {
 
         {/* Payment Due */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Payment Due</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Payment Due</p>
           <Field label="Default Due Days" hint={`Client must pay within ${f.invoiceDueDays} day(s) of invoice date`}>
             <div className="relative">
               <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -906,7 +906,7 @@ function InvoiceTab({ data }: { data: any }) {
 
         {/* Invoice Content */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Content</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Content</p>
           <div className="space-y-4">
             <Field label="Footer Text" hint="Printed at the bottom of every invoice — optional">
               <textarea
@@ -933,7 +933,7 @@ function InvoiceTab({ data }: { data: any }) {
 
         {/* Invoice Design */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Design</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Design</p>
           <div className="space-y-4">
 
             {/* Header Style */}
@@ -956,7 +956,7 @@ function InvoiceTab({ data }: { data: any }) {
                         : "border-slate-200 hover:border-slate-300"
                     )}
                   >
-                    <div className="w-full h-8 rounded-lg flex items-center justify-center text-[10px] font-bold"
+                    <div className="w-full h-8 rounded-lg flex items-center justify-center text-xs font-bold"
                       style={{ backgroundColor: opt.bg, color: opt.text }}>
                       INVOICE
                     </div>
@@ -1197,7 +1197,7 @@ function ClientPortalTab({ data }: { data: any }) {
 
         {/* Welcome Message */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Welcome Message</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Welcome Message</p>
           <Field label="Greeting Text" hint="Shown at the top of the portal — leave blank to use the default greeting">
             <textarea
               value={f.portalWelcomeMessage}
@@ -1207,13 +1207,13 @@ function ClientPortalTab({ data }: { data: any }) {
               placeholder={`e.g. Welcome to ${data.name ?? "our studio"}'s client portal! Here you'll find your bookings, invoices, and delivered photos.`}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
             />
-            <p className="text-[11px] text-slate-400 mt-1 text-right">{f.portalWelcomeMessage.length}/300</p>
+            <p className="text-xs text-slate-400 mt-1 text-right">{f.portalWelcomeMessage.length}/300</p>
           </Field>
         </div>
 
         {/* Tab Visibility */}
         <div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tab Visibility</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Tab Visibility</p>
           <p className="text-xs text-slate-500 mb-3">Bookings tab is always shown. Toggle the rest on or off.</p>
           <div className="space-y-2">
             {/* Bookings — always on, not toggleable */}
@@ -1305,7 +1305,7 @@ function SecurityTab({ data }: { data: any }) {
           <div className="flex items-center gap-2 mb-1">
             <Shield className="w-4 h-4 text-slate-400" />
             <p className="text-sm font-semibold text-slate-500">Login Activity Log</p>
-            <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
+            <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
           </div>
           <p className="text-xs text-slate-400">Track who logged in, from which device and IP — available in next update.</p>
         </div>
@@ -1315,7 +1315,7 @@ function SecurityTab({ data }: { data: any }) {
           <div className="flex items-center gap-2 mb-1">
             <Smartphone className="w-4 h-4 text-slate-400" />
             <p className="text-sm font-semibold text-slate-500">Two-Factor Authentication (2FA)</p>
-            <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
+            <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
           </div>
           <p className="text-xs text-slate-400">Require OTP on login for all team members. Stronger account protection.</p>
         </div>
@@ -1441,7 +1441,7 @@ function NotificationsTab({ data }: { data: any }) {
 
       {/* Studio Notifications */}
       <div className="mb-6">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Your Notifications</p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Your Notifications</p>
         <p className="text-xs text-slate-500 mb-3">Email alerts sent to your studio email when these events happen</p>
         <div className="bg-slate-50 rounded-xl px-4">
           {studioRows.map(row => (
@@ -1458,7 +1458,7 @@ function NotificationsTab({ data }: { data: any }) {
 
       {/* Client Notifications */}
       <div className="mb-6">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client Notifications</p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Client Notifications</p>
         <p className="text-xs text-slate-500 mb-3">Automatic emails sent to your clients when these events occur</p>
         <div className="bg-slate-50 rounded-xl px-4">
           {clientRows.map(row => (

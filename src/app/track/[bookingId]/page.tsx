@@ -189,7 +189,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <p className="text-center text-[11px] text-slate-300 pt-2">
+        <p className="text-center text-xs text-slate-300 pt-2">
           Powered by StuPanel — Studio Management System
         </p>
       </div>

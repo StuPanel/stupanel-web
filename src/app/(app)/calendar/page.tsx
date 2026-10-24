@@ -17,17 +17,17 @@ interface Booking {
 }
 
 const STATUS_COLORS: Record<string, { dot: string; badge: string; label: string }> = {
-  inquiry:             { dot: "bg-slate-400",   badge: "bg-slate-100 text-slate-600",     label: "Inquiry" },
-  quote_sent:          { dot: "bg-blue-400",    badge: "bg-blue-100 text-blue-700",       label: "Quote Sent" },
-  confirmed:           { dot: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700",   label: "Confirmed" },
-  advance_received:    { dot: "bg-violet-500",  badge: "bg-violet-100 text-violet-700",   label: "Advance Rcvd" },
-  in_progress:         { dot: "bg-amber-500",   badge: "bg-amber-100 text-amber-700",     label: "Shooting" },
-  editing:             { dot: "bg-orange-400",  badge: "bg-orange-100 text-orange-700",   label: "Editing" },
-  ready_for_delivery:  { dot: "bg-cyan-500",    badge: "bg-cyan-100 text-cyan-700",       label: "Ready" },
-  delivered:           { dot: "bg-teal-500",    badge: "bg-teal-100 text-teal-700",       label: "Delivered" },
-  completed:           { dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700", label: "Completed" },
-  cancelled:           { dot: "bg-red-400",     badge: "bg-red-100 text-red-600",         label: "Cancelled" },
-  refunded:            { dot: "bg-rose-400",    badge: "bg-rose-100 text-rose-600",       label: "Refunded" },
+  inquiry:             { dot: "bg-[#C2304F]",   badge: "bg-[#FDECEF] text-[#C2304F]",     label: "Inquiry" },
+  quote_sent:          { dot: "bg-[#9E3A8C]",    badge: "bg-[#FBF2FA] text-[#9E3A8C]",       label: "Quote Sent" },
+  confirmed:           { dot: "bg-[#7D5CEF]",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   label: "Confirmed" },
+  advance_received:    { dot: "bg-[#5B3FD0]",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   label: "Advance Rcvd" },
+  in_progress:         { dot: "bg-[#126B66]",   badge: "bg-[#E0F2F1] text-[#126B66]",     label: "Shooting" },
+  editing:             { dot: "bg-[#1F5C99]",  badge: "bg-[#E6F0FB] text-[#1F5C99]",   label: "Editing" },
+  ready_for_delivery:  { dot: "bg-[#7D5CEF]",    badge: "bg-[#7D5CEF] text-white",       label: "Ready" },
+  delivered:           { dot: "bg-[#4A4658]",    badge: "bg-[#EEEDF2] text-[#4A4658]",       label: "Delivered" },
+  completed:           { dot: "bg-[#1F8A5B]", badge: "bg-[#EEEDF2] text-[#4A4658]", label: "Completed" },
+  cancelled:           { dot: "bg-[#8A2E2E]",     badge: "bg-[#F3E3E3] text-[#8A2E2E]",         label: "Cancelled" },
+  refunded:            { dot: "bg-[#8A2E2E]",    badge: "bg-[#F3E3E3] text-[#8A2E2E]",       label: "Refunded" },
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -70,7 +70,7 @@ function DayPanel({ date, bookings, onClose }: { date: Date; bookings: Booking[]
                 className="block p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <p className="font-semibold text-slate-900 text-sm leading-tight">{b.eventName}</p>
-                  <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0", sc.badge)}>{sc.label}</span>
+                  <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0", sc.badge)}>{sc.label}</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-1">{b.bookingNumber}</p>
                 {clientName && <p className="text-xs text-slate-500">Client: {clientName}</p>}
@@ -242,13 +242,13 @@ export default function CalendarPage() {
                     {cellBookings.slice(0, 2).map(b => {
                       const sc = STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry;
                       return (
-                        <div key={b.id} className={cn("text-[9px] px-1 py-0.5 rounded font-medium truncate leading-tight", sc.badge)}>
+                        <div key={b.id} className={cn("text-xs px-1 py-0.5 rounded font-medium truncate leading-tight", sc.badge)}>
                           {b.eventName}
                         </div>
                       );
                     })}
                     {cellBookings.length > 2 && (
-                      <div className="text-[9px] text-slate-400 pl-1">+{cellBookings.length - 2} more</div>
+                      <div className="text-xs text-slate-400 pl-1">+{cellBookings.length - 2} more</div>
                     )}
                   </div>
                 </button>

@@ -95,7 +95,7 @@ export function ClientFormFields({ value, onChange, autoFocus }: ClientFormField
         <Input type="email" placeholder="client@email.com" value={value.email} onChange={set("email")}
           className="h-11 border-slate-200 focus:border-indigo-400" />
         {value.email.trim() && (
-          <p className="text-[11px] text-amber-600 flex items-center gap-1">
+          <p className="text-xs text-amber-600 flex items-center gap-1">
             ⚠️ Make sure this email is correct — we cannot verify if it exists.
           </p>
         )}

@@ -176,7 +176,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
                   <Link2 className="w-4 h-4 text-indigo-500" />
                   <div>
                     <p className="text-xs font-bold text-slate-700">Manual Link</p>
-                    <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Paste Google Drive, Dropbox or WeTransfer link. Saved in DB. All companies.</p>
+                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Paste Google Drive, Dropbox or WeTransfer link. Saved in DB. All companies.</p>
                   </div>
                 </button>
                 <button onClick={createDriveFolder} disabled={autoLoading}
@@ -184,7 +184,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
                   {autoLoading ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <HardDrive className="w-4 h-4 text-emerald-500" />}
                   <div>
                     <p className="text-xs font-bold text-slate-700">Drive Auto</p>
-                    <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Auto-creates a folder in your Google Drive. Requires connected Drive account. All companies.</p>
+                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Auto-creates a folder in your Google Drive. Requires connected Drive account. All companies.</p>
                   </div>
                 </button>
                 {r2Enabled && (
@@ -193,7 +193,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
                     <ArrowRight className="w-4 h-4 text-blue-500" />
                     <div>
                       <p className="text-xs font-bold text-slate-700">R2 Upload</p>
-                      <p className="text-[9px] text-slate-400 leading-relaxed mt-0.5">Upload files to Cloudflare R2 cloud. Secure storage. Super Admin permission required.</p>
+                      <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Upload files to Cloudflare R2 cloud. Secure storage. Super Admin permission required.</p>
                     </div>
                   </button>
                 )}
@@ -206,7 +206,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-slate-600">Manual Link Delivery</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Paste your Google Drive, Dropbox, or WeTransfer link</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Paste your Google Drive, Dropbox, or WeTransfer link</p>
                 </div>
                 {!booking.deliveryMethod && (
                   <button onClick={() => setMode(null)} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
@@ -239,7 +239,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-slate-600">R2 Cloud Upload</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Files stored securely on Cloudflare R2. Client downloads after full payment.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Files stored securely on Cloudflare R2. Client downloads after full payment.</p>
                 </div>
                 <button onClick={() => { setMode(null); setEditing(!booking.deliveryMethod); setR2Files([]); }} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
               </div>
@@ -249,7 +249,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
                 className="w-full flex flex-col items-center gap-2 py-6 rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-all">
                 {r2Uploading ? <Loader2 className="w-6 h-6 animate-spin text-indigo-500" /> : <ArrowRight className="w-6 h-6 text-slate-400" />}
                 <span className="text-xs text-slate-500">{r2Uploading ? "Uploading…" : "Click to select files"}</span>
-                <span className="text-[10px] text-slate-400">Photos, Videos, ZIP — max 500 MB each</span>
+                <span className="text-xs text-slate-400">Photos, Videos, ZIP — max 500 MB each</span>
               </button>
               {r2Files.length > 0 && (
                 <div className="space-y-1.5 max-h-32 overflow-y-auto">

@@ -131,7 +131,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
           <div className="flex items-center gap-2 mb-3">
             <h2 className="font-bold text-slate-900 capitalize">{kind}</h2>
             {totalUnread > 0 && (
-              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
                 {totalUnread}
               </span>
             )}
@@ -171,7 +171,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <p className={cn("text-sm font-semibold truncate", isActive ? "text-indigo-700" : "text-slate-900")}>{c.name || "Unnamed"}</p>
-                      {c.lastMessageAt && <span className="text-[10px] text-slate-400 flex-shrink-0">{fmtTime(c.lastMessageAt)}</span>}
+                      {c.lastMessageAt && <span className="text-xs text-slate-400 flex-shrink-0">{fmtTime(c.lastMessageAt)}</span>}
                     </div>
                     {c.sub && <p className="text-xs text-slate-400 truncate mt-0.5 capitalize">{c.sub}</p>}
                     {c.lastMessage ? (
@@ -181,7 +181,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                     )}
                   </div>
                   {c.unreadCount > 0 && (
-                    <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center mt-1">
+                    <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center mt-1">
                       {c.unreadCount}
                     </span>
                   )}
@@ -233,7 +233,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                   <div key={date} className="space-y-2">
                     <div className="flex items-center gap-3 my-2">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-[10px] font-medium text-slate-400 px-2">{date}</span>
+                      <span className="text-xs font-medium text-slate-400 px-2">{date}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
@@ -246,7 +246,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                               isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm shadow-sm")}>
                               {msg.content}
                             </div>
-                            <div className={cn("flex items-center gap-1 mt-1 text-[10px]", isMe ? "flex-row-reverse" : "flex-row")}>
+                            <div className={cn("flex items-center gap-1 mt-1 text-xs", isMe ? "flex-row-reverse" : "flex-row")}>
                               <span className="text-slate-400">{fmtTime(msg.createdAt)}</span>
                               {isMe && (
                                 msg.readAt
@@ -285,7 +285,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                   {sending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-300 mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
+              <p className="text-xs text-slate-300 mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
             </div>
           </>
         )}

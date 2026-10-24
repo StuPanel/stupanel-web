@@ -41,10 +41,10 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", cfg.badge)}>
+            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", cfg.badge)}>
               <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{b.bookingNumber}</span>
+            <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
           </div>
           <h3 className="font-bold text-slate-900 text-sm truncate">{b.eventName ?? "—"}</h3>
           <p className="text-xs text-slate-400 mt-0.5">{b.client.firstName} {b.client.lastName ?? ""}</p>

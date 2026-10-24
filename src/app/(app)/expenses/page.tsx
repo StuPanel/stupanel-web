@@ -187,7 +187,7 @@ export default function ExpensesPage() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className={cn("font-extrabold text-sm", Number(w.balance) >= 0 ? "text-emerald-600" : "text-red-500")}>{fmt(Number(w.balance))}</p>
-                    <button onClick={e => { e.stopPropagation(); deleteWallet(w.id); }} className="text-[10px] text-slate-300 hover:text-red-400 mt-0.5 block transition-colors">Remove</button>
+                    <button onClick={e => { e.stopPropagation(); deleteWallet(w.id); }} className="text-xs text-slate-300 hover:text-red-400 mt-0.5 block transition-colors">Remove</button>
                   </div>
                 </div>
               );
@@ -239,8 +239,8 @@ export default function ExpensesPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{tx.description}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {tx.category && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full capitalize">{tx.category}</span>}
-                            <span className="text-[10px] text-slate-400">{fmtDate(tx.date)}</span>
+                            {tx.category && <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full capitalize">{tx.category}</span>}
+                            <span className="text-xs text-slate-400">{fmtDate(tx.date)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">

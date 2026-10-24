@@ -164,7 +164,7 @@ export default function BillingPage() {
                   className={cn("relative text-left rounded-2xl border bg-white p-5 transition-all",
                     selected ? "border-[#7D5CEF] ring-2 ring-[#7D5CEF]/25 shadow-md" : "border-[#E3DFEC] hover:border-[#B29DF8]")}>
                   {p.isPopular && (
-                    <span className="absolute -top-2.5 left-5 rounded-full bg-[#7D5CEF] px-2.5 py-0.5 text-[11px] font-semibold text-white">Popular</span>
+                    <span className="absolute -top-2.5 left-5 rounded-full bg-[#7D5CEF] px-2.5 py-0.5 text-xs font-semibold text-white">Popular</span>
                   )}
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-[#17151F]">{p.name}</p>

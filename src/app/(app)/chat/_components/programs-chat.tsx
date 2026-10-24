@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 import { API_URL as API, WS_URL } from "@/lib/api";
 
 const STATUS_COLOR: Record<string, string> = {
-  inquiry: "bg-slate-400", quote_sent: "bg-blue-400", confirmed: "bg-indigo-500",
-  advance_received: "bg-violet-500", in_progress: "bg-amber-500", editing: "bg-orange-500",
-  ready_for_delivery: "bg-cyan-500", delivered: "bg-teal-500", completed: "bg-emerald-500",
+  inquiry: "bg-[#C2304F]", quote_sent: "bg-[#9E3A8C]", confirmed: "bg-[#7D5CEF]",
+  advance_received: "bg-[#5B3FD0]", in_progress: "bg-[#126B66]", editing: "bg-[#1F5C99]",
+  ready_for_delivery: "bg-[#7D5CEF]", delivered: "bg-[#4A4658]", completed: "bg-[#1F8A5B]",
 };
 
 function fmtTime(iso: string) {
@@ -179,7 +179,7 @@ export function ProgramsChat() {
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-slate-900">Programs</h2>
               {totalUnread > 0 && (
-                <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
                   {totalUnread}
                 </span>
               )}
@@ -220,7 +220,7 @@ export function ProgramsChat() {
                       {b.eventName || b.bookingNumber}
                     </p>
                     {b.lastMessage && (
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">{fmtTime(b.lastMessage.createdAt)}</span>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{fmtTime(b.lastMessage.createdAt)}</span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 truncate mt-0.5">{b.client.firstName} · {b.bookingNumber}</p>
@@ -233,7 +233,7 @@ export function ProgramsChat() {
                   )}
                 </div>
                 {b.unreadCount > 0 && (
-                  <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center mt-1">
+                  <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center mt-1">
                     {b.unreadCount}
                   </span>
                 )}
@@ -303,7 +303,7 @@ export function ProgramsChat() {
                   <div key={date} className="space-y-2">
                     <div className="flex items-center gap-3 my-2">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-[10px] font-medium text-slate-400 px-2">{date}</span>
+                      <span className="text-xs font-medium text-slate-400 px-2">{date}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
@@ -321,7 +321,7 @@ export function ProgramsChat() {
 
                           <div className={cn("max-w-xs sm:max-w-sm lg:max-w-md", isMe ? "items-end" : "items-start", "flex flex-col")}>
                             {!isMe && (
-                              <p className="text-[10px] text-slate-400 font-medium mb-1 ml-1">
+                              <p className="text-xs text-slate-400 font-medium mb-1 ml-1">
                                 {msg.user.firstName} {msg.user.lastName}
                                 {msg.user.isOwner && <span className="ml-1 text-indigo-500">· Owner</span>}
                               </p>
@@ -330,7 +330,7 @@ export function ProgramsChat() {
                               isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm shadow-sm")}>
                               {msg.content}
                             </div>
-                            <div className={cn("flex items-center gap-1 mt-1 text-[10px]", isMe ? "flex-row-reverse" : "flex-row")}>
+                            <div className={cn("flex items-center gap-1 mt-1 text-xs", isMe ? "flex-row-reverse" : "flex-row")}>
                               <span className="text-slate-400">{fmtTime(msg.createdAt)}</span>
                               {isMe && (
                                 <CheckCheck className={cn("w-3 h-3", msg.readBy.length > 1 ? "text-indigo-500" : "text-slate-300")} />
@@ -369,7 +369,7 @@ export function ProgramsChat() {
                   <Send className="w-4 h-4 text-white" />
                 </button>
               </div>
-              <p className="text-[10px] text-slate-300 mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
+              <p className="text-xs text-slate-300 mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
             </div>
           </>
         )}

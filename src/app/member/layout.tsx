@@ -41,7 +41,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
           <BrandMark size={34} />
           <div>
             <p className="font-extrabold text-[17px] tracking-tight text-slate-900 leading-none">StuPanel</p>
-            <p className="text-[11px] text-slate-500 mt-1 leading-none">Team member</p>
+            <p className="text-xs text-slate-500 mt-1 leading-none">Team member</p>
           </div>
         </Link>
         {isMobile && (
@@ -62,7 +62,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
                 {profile.firstName} {profile.lastName ?? ""}
               </p>
               {profile.memberRoles?.[0] && (
-                <p className="text-[11px] text-slate-500 capitalize leading-tight mt-0.5">{profile.memberRoles[0]}</p>
+                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5">{profile.memberRoles[0]}</p>
               )}
             </div>
           </div>
@@ -85,7 +85,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
               </span>
               <span className="flex-1">{item.label}</span>
               {item.href === "/member/chat" && chatUnread > 0 && !active && (
-                <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
                   {chatUnread > 9 ? "9+" : chatUnread}
                 </span>
               )}
@@ -192,7 +192,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
                   className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
                     active ? "bg-violet-50 text-violet-700" : "text-slate-500")}>
                   <item.icon className="w-5 h-5" strokeWidth={active ? 2.4 : 2} />
-                  <span className={cn("text-[11px] leading-none", active ? "font-semibold" : "font-medium")}>{item.label}</span>
+                  <span className={cn("text-xs leading-none", active ? "font-semibold" : "font-medium")}>{item.label}</span>
                 </Link>
               );
             })}
@@ -200,7 +200,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
               className={cn("relative flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
                 moreActive ? "bg-violet-50 text-violet-700" : "text-slate-500")}>
               <LayoutGrid className="w-5 h-5" strokeWidth={moreActive ? 2.4 : 2} />
-              <span className={cn("text-[11px] leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
+              <span className={cn("text-xs leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
               {chatUnread > 0 && <span className="absolute top-1 right-[30%] w-2 h-2 rounded-full bg-violet-600 ring-2 ring-white" />}
             </button>
           </div>

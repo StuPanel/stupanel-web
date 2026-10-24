@@ -144,11 +144,11 @@ export default function AdminBroadcastPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-semibold text-white">{a.title}</span>
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium border", cfg.color, cfg.border)}>
+                        <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium border", cfg.color, cfg.border)}>
                           {cfg.label}
                         </span>
                         {!a.isActive && (
-                          <span className="text-[10px] bg-slate-700 text-slate-400 border border-slate-600 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-xs bg-slate-700 text-slate-400 border border-slate-600 px-1.5 py-0.5 rounded font-medium">
                             Inactive
                           </span>
                         )}

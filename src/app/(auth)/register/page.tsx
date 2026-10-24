@@ -42,12 +42,12 @@ function PasswordStrength({ password }: { password: string }) {
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {checks.map(c => (
-            <span key={c.label} className={cn("text-[10px] flex items-center gap-0.5", c.ok ? "text-emerald-600" : "text-slate-400")}>
+            <span key={c.label} className={cn("text-xs flex items-center gap-0.5", c.ok ? "text-emerald-600" : "text-slate-400")}>
               <CheckCircle2 className="w-2.5 h-2.5" />{c.label}
             </span>
           ))}
         </div>
-        <span className={cn("text-[10px] font-medium",
+        <span className={cn("text-xs font-medium",
           strength === 1 ? "text-red-500" : strength === 2 ? "text-orange-500" : strength === 3 ? "text-emerald-600" : ""
         )}>{labels[strength]}</span>
       </div>

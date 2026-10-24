@@ -23,14 +23,14 @@ function daysUntil(d: string | null | undefined): number | null {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  inquiry: "bg-slate-100 text-slate-600",
-  confirmed: "bg-blue-100 text-blue-700",
-  advance_received: "bg-cyan-100 text-cyan-700",
-  in_progress: "bg-amber-100 text-amber-700",
-  editing: "bg-purple-100 text-purple-700",
-  ready_for_delivery: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-red-100 text-red-600",
+  inquiry: "bg-[#FDECEF] text-[#C2304F]",
+  confirmed: "bg-[#EEE8FD] text-[#5B3FD0]",
+  advance_received: "bg-[#EEE8FD] text-[#5B3FD0]",
+  in_progress: "bg-[#E0F2F1] text-[#126B66]",
+  editing: "bg-[#E6F0FB] text-[#1F5C99]",
+  ready_for_delivery: "bg-[#7D5CEF] text-white",
+  completed: "bg-[#EEEDF2] text-[#4A4658]",
+  cancelled: "bg-[#F3E3E3] text-[#8A2E2E]",
 };
 const STATUS_LABEL: Record<string, string> = {
   inquiry: "Inquiry", confirmed: "Confirmed", advance_received: "Advance Paid",
@@ -107,7 +107,7 @@ export default function SchedulePage() {
             nextDays <= 3 ? "bg-amber-100 text-amber-700" :
             "bg-indigo-100 text-indigo-700")}>
             <span className="text-xl leading-none">{nextDays === 0 ? "!" : nextDays}</span>
-            <span className="text-[9px] uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
+            <span className="text-xs uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-xs font-semibold mb-0.5",
@@ -152,9 +152,9 @@ export default function SchedulePage() {
                         {/* Date column */}
                         {dt && !isNaN(dt.getTime()) ? (
                           <div className="w-12 flex-shrink-0 flex flex-col items-center">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">{MONTHS_SHORT[dt.getMonth()]}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase">{MONTHS_SHORT[dt.getMonth()]}</p>
                             <p className="text-2xl font-extrabold text-slate-900 leading-none">{dt.getDate()}</p>
-                            <p className="text-[10px] text-slate-400">{dt.getFullYear()}</p>
+                            <p className="text-xs text-slate-400">{dt.getFullYear()}</p>
                           </div>
                         ) : (
                           <div className="w-12 flex-shrink-0" />
@@ -164,7 +164,7 @@ export default function SchedulePage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <p className="font-bold text-slate-900 truncate">{ev.eventName || "Event"}</p>
-                            <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0", STATUS_COLOR[ev.status] ?? "bg-slate-100 text-slate-600")}>
+                            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0", STATUS_COLOR[ev.status] ?? "bg-slate-100 text-slate-600")}>
                               {STATUS_LABEL[ev.status] ?? ev.status}
                             </span>
                           </div>
@@ -190,7 +190,7 @@ export default function SchedulePage() {
                               {ev.days.map((d, i) => {
                                 const dayDt = new Date(d);
                                 return (
-                                  <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                                  <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
                                     {!isNaN(dayDt.getTime()) ? `${dayDt.getDate()} ${MONTHS_SHORT[dayDt.getMonth()]}` : d}
                                   </span>
                                 );
@@ -201,7 +201,7 @@ export default function SchedulePage() {
                           {/* Countdown pill */}
                           {days !== null && days >= 0 && ev.status !== "completed" && ev.status !== "cancelled" && (
                             <div className="mt-2">
-                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 w-fit",
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 w-fit",
                                 days === 0 ? "bg-red-100 text-red-700" :
                                 days <= 3 ? "bg-amber-100 text-amber-700" :
                                 "bg-slate-100 text-slate-500")}>

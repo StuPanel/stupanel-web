@@ -137,7 +137,7 @@ export default function AdminPlansPage() {
               plan.isPopular ? "border-indigo-500" : plan.isActive ? "border-slate-700" : "border-slate-700/40 opacity-50"
             )}>
               {plan.isPopular && (
-                <div className="absolute -top-2.5 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <div className="absolute -top-2.5 left-4 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Star className="w-2.5 h-2.5" />POPULAR
                 </div>
               )}
@@ -147,7 +147,7 @@ export default function AdminPlansPage() {
                     <CreditCard className="w-4 h-4 text-indigo-400" />
                     <span className="font-bold text-white">{plan.name}</span>
                     {!plan.isActive && (
-                      <span className="text-[10px] bg-red-900/40 text-red-400 border border-red-800 px-1.5 py-0.5 rounded font-medium">Inactive</span>
+                      <span className="text-xs bg-red-900/40 text-red-400 border border-red-800 px-1.5 py-0.5 rounded font-medium">Inactive</span>
                     )}
                   </div>
                   <p className="text-xs text-slate-500 font-mono mt-0.5">/{plan.slug}</p>

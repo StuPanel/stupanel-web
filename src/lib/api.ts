@@ -26,7 +26,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
   if (res.status !== 401) return res;
 
   // Many requests can hit 401 at the same moment; refresh only once and share it.
-  const accessToken = await refreshOnce();
+  const accessToken = await refreshOnce(token);
   if (!accessToken) {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
@@ -42,19 +42,39 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
 
 let refreshing: Promise<string | null> | null = null;
 
-function refreshOnce(): Promise<string | null> {
+/**
+ * The refresh token works only once. With StuPanel open in two tabs, both
+ * tabs used to refresh with the same token: one won, the other got 401 and
+ * logged everyone out. Now tabs take turns (Web Locks), and a tab that finds
+ * a newer token already saved by another tab just uses it.
+ */
+async function doRefresh(staleToken: string): Promise<string | null> {
+  const latest = localStorage.getItem("access_token");
+  if (latest && latest !== staleToken) return latest; // another tab already refreshed
+  try {
+    const refreshRes = await fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" });
+    if (!refreshRes.ok) {
+      const after = localStorage.getItem("access_token");
+      return after && after !== staleToken ? after : null;
+    }
+    const { accessToken } = await refreshRes.json();
+    if (!accessToken) return null;
+    localStorage.setItem("access_token", accessToken);
+    setAccessTokenCookie(accessToken);
+    return accessToken as string;
+  } catch {
+    return null;
+  }
+}
+
+function refreshOnce(staleToken: string): Promise<string | null> {
   if (!refreshing) {
     refreshing = (async () => {
       try {
-        const refreshRes = await fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" });
-        if (!refreshRes.ok) return null;
-        const { accessToken } = await refreshRes.json();
-        if (!accessToken) return null;
-        localStorage.setItem("access_token", accessToken);
-        setAccessTokenCookie(accessToken);
-        return accessToken as string;
-      } catch {
-        return null;
+        const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+        return locks
+          ? await locks.request("stupanel-token-refresh", () => doRefresh(staleToken))
+          : await doRefresh(staleToken);
       } finally {
         // allow a new refresh later (after this one settles)
         setTimeout(() => { refreshing = null; }, 0);

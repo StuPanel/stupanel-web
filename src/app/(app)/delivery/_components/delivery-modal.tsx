@@ -14,10 +14,11 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
-import { uploadToDrive } from "@/lib/drive-uploader";
+import { uploadToDrive, checkDuplicates, applyDuplicateChoice, type DuplicateCheck, type DuplicateChoice, type DriveFileResult } from "@/lib/drive-uploader";
+import { UploadDuplicateDialog } from "@/components/upload-duplicate-dialog";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
-import { notify } from "@/components/feedback";
+import { notify, askConfirm } from "@/components/feedback";
 
 export function DeliveryModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -46,6 +47,9 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   const [driveTargetFolder, setDriveTargetFolder] = useState<string>("");
   const [driveNewFolderInput, setDriveNewFolderInput] = useState("");
   const [driveShowNewFolder, setDriveShowNewFolder] = useState(false);
+  const [driveChecking, setDriveChecking] = useState(false);
+  const [dupCheck, setDupCheck] = useState<{ check: DuplicateCheck; resolve: (c: DuplicateChoice | null) => void } | null>(null);
+  const [driveDeduping, setDriveDeduping] = useState(false);
   const driveFileInputRef = useRef<HTMLInputElement>(null);
   const driveFolderInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,20 +203,88 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
   // Files go straight to Google Drive in pieces (resumable — see lib/drive-uploader).
   // Progress shows in the bottom-right panel, so this window can be closed.
-  function handleDriveFiles(files: FileList | null) {
-    if (!files?.length) return;
+  // Before uploading, files already in the target folder are found so the user
+  // can Skip them (default), keep both (numbered copy) or replace the old copy.
+  async function handleDriveFiles(list: FileList | null) {
+    if (!list?.length || driveChecking) return;
+    const files = Array.from(list);
+    const bookingId = booking!.id;
+    const folderFor = (file: File) => {
+      const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+      if (wp && wp.includes("/")) return wp.split("/").slice(0, -1).join("/");
+      return driveTargetFolder || undefined;
+    };
+
+    let toUpload = files;
+    let plans: Map<File, { name?: string; replaceFileId?: string }> | undefined;
+    setDriveChecking(true);
+    try {
+      const check = await checkDuplicates({ files, bookingId, folderFor });
+      if (check.inFlight.length) {
+        notify(`${check.inFlight.length} file${check.inFlight.length > 1 ? "s are" : " is"} already uploading — skipped`);
+      }
+      if (check.same.size + check.nameOnly.size > 0) {
+        setDriveChecking(false);
+        const choice = await new Promise<DuplicateChoice | null>(resolve => setDupCheck({ check, resolve }));
+        setDupCheck(null);
+        if (!choice) return;
+        ({ files: toUpload, plans } = applyDuplicateChoice(check, choice));
+      } else {
+        toUpload = check.fresh;
+      }
+    } catch {
+      // Check failed (e.g. offline) — upload anyway rather than block the user.
+      toUpload = files;
+    } finally {
+      setDriveChecking(false);
+    }
+
+    if (!toUpload.length) { notify("All these files are already in the folder"); return; }
     uploadToDrive({
-      files: Array.from(files),
-      bookingId: booking!.id,
+      files: toUpload,
+      bookingId,
       bookingName: booking!.eventName ?? booking!.bookingNumber,
-      folderFor: (file) => {
-        const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-        if (wp && wp.includes("/")) return wp.split("/").slice(0, -1).join("/");
-        return driveTargetFolder || undefined;
-      },
-      onDone: (data) => setDriveFiles(prev => [...prev, data as DriveFile]),
+      folderFor,
+      plans,
+      onDone: (data: DriveFileResult) => setDriveFiles(prev => [
+        ...prev.filter(f => f.id !== data.replacedFileId),
+        data as DriveFile,
+      ]),
     });
     setDriveUploadsStarted(true);
+  }
+
+  // Same folder + same name + same size = duplicate.
+  const driveDuplicateCount = (() => {
+    const seen = new Set<string>();
+    let n = 0;
+    for (const f of driveFiles) {
+      const k = `${f.folderName ?? ""}|${f.fileName}|${f.fileSize}`;
+      if (seen.has(k)) n++; else seen.add(k);
+    }
+    return n;
+  })();
+
+  async function removeDriveDuplicates() {
+    const ok = await askConfirm({
+      title: `Remove ${driveDuplicateCount} duplicate${driveDuplicateCount > 1 ? "s" : ""}?`,
+      message: "Extra copies (same name and size in the same folder) move to Google Drive's trash. The first copy of each file stays. You can restore them from Drive's trash for 30 days.",
+      confirmLabel: "Remove duplicates",
+    });
+    if (!ok) return;
+    setDriveDeduping(true);
+    try {
+      const r = await apiFetch(`${API}/google-drive/remove-duplicates/${booking!.id}`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.message || "Couldn't remove duplicates");
+      const gone = new Set<string>(d.removedIds ?? []);
+      setDriveFiles(prev => prev.filter(f => !gone.has(f.id)));
+      notify(d.removed ? `Removed ${d.removed} duplicate${d.removed > 1 ? "s" : ""}` : "No duplicates found");
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Couldn't remove duplicates", { error: true });
+    } finally {
+      setDriveDeduping(false);
+    }
   }
 
   function addLink() { setLinks(prev => [...prev, { id: crypto.randomUUID(), title: "", url: "" }]); }
@@ -742,7 +814,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       )}>
                       <UploadCloud className={cn("w-8 h-8", driveDragOver ? "text-green-500" : "text-slate-300")} />
                       <div className="text-center">
-                        <p className="text-sm font-medium text-slate-600">Drop files or click to select</p>
+                        <p className="text-sm font-medium text-slate-600">{driveChecking ? "Checking the folder…" : "Drop files or click to select"}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
                           Upload to: <span className="font-semibold text-green-500">{driveTargetFolder || "Other Files"}</span>
                         </p>
@@ -803,6 +875,14 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                               Files ({driveFiles.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                             </p>
+                            <div className="flex items-center gap-1.5">
+                            {driveDuplicateCount > 0 && (
+                              <button onClick={removeDriveDuplicates} disabled={driveDeduping}
+                                className="flex items-center gap-1 text-xs font-semibold text-[#5B3FD0] bg-[#EEE8FD] hover:bg-[#E2D9FC] disabled:opacity-50 px-2 py-1 rounded-lg transition-colors">
+                                {driveDeduping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
+                                Remove duplicates ({driveDuplicateCount})
+                              </button>
+                            )}
                             <button
                               onClick={() => downloadDriveZip()}
                               disabled={driveZipDownloading === "all"}
@@ -810,6 +890,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               {driveZipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                               Download All
                             </button>
+                            </div>
                           </div>
                           {groupEntries.map(([folderKey, files]) => {
                             const expanded = isDriveFolderExpanded(folderKey);
@@ -985,6 +1066,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
           )}
         </div>
       </div>
+      {dupCheck && <UploadDuplicateDialog check={dupCheck.check} onChoose={dupCheck.resolve} />}
     </>
   );
 }

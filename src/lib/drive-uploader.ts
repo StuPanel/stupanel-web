@@ -18,7 +18,11 @@ const PENDING_KEY = "sp_drive_pending_v1";
 export type DriveFileResult = {
   id: string; fileName: string; mimeType: string; fileSize: number;
   folderName: string | null; viewUrl: string; downloadUrl: string;
+  replacedFileId?: string | null;
 };
+
+/** Per-file choice made before uploading (duplicate check). */
+export type UploadPlan = { name?: string; replaceFileId?: string };
 
 export type PendingUpload = {
   fp: string;               // fingerprint: name|size|lastModified|bookingId|folder
@@ -30,6 +34,8 @@ export type PendingUpload = {
   lastModified: number;
   uploadUrl: string;
   createdAt: number;
+  uploadName?: string;
+  replaceFileId?: string;
 };
 
 type Job = {
@@ -38,6 +44,7 @@ type Job = {
   bookingId: string;
   bookingName?: string;
   folderPath?: string;
+  plan?: UploadPlan;
   onDone?: (f: DriveFileResult) => void;
   cancelled?: boolean;
   xhr?: XMLHttpRequest;
@@ -86,14 +93,16 @@ export function uploadToDrive(opts: {
   bookingId: string;
   bookingName?: string;
   folderFor?: (f: File) => string | undefined;
+  plans?: Map<File, UploadPlan>;
   onDone?: (f: DriveFileResult) => void;
 }) {
   for (const file of opts.files) {
     const id = crypto.randomUUID();
     const folderPath = opts.folderFor?.(file);
-    const job: Job = { id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, onDone: opts.onDone };
+    const plan = opts.plans?.get(file);
+    const job: Job = { id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, onDone: opts.onDone };
     uploadStore.add({
-      id, fileName: file.name, progress: 0, done: false, type: "drive",
+      id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
       bookingId: opts.bookingId, bookingName: opts.bookingName, folderName: folderPath,
       size: file.size, sent: 0, status: "queued",
     });
@@ -111,19 +120,20 @@ export function uploadToDrive(opts: {
 export function resumeWithFiles(files: File[]): { matched: number } {
   const pending = readPending();
   let matched = 0;
-  type Group = { bookingName?: string; files: File[]; folders: Map<File, string | undefined> };
+  type Group = { bookingName?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
   const byProgram = new Map<string, Group>();
   for (const file of files) {
     const p = pending.find(x => x.fileName === file.name && x.size === file.size && x.lastModified === file.lastModified && !activeFps.has(x.fp));
     if (!p) continue;
     matched++;
-    const g: Group = byProgram.get(p.bookingId) ?? { bookingName: p.bookingName, files: [], folders: new Map<File, string | undefined>() };
+    const g: Group = byProgram.get(p.bookingId) ?? { bookingName: p.bookingName, files: [], folders: new Map<File, string | undefined>(), plans: new Map<File, UploadPlan>() };
     g.files.push(file);
     g.folders.set(file, p.folderPath);
+    if (p.uploadName || p.replaceFileId) g.plans.set(file, { name: p.uploadName, replaceFileId: p.replaceFileId });
     byProgram.set(p.bookingId, g);
   }
   for (const [bookingId, g] of byProgram) {
-    uploadToDrive({ files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f) });
+    uploadToDrive({ files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f), plans: g.plans });
   }
   return { matched };
 }
@@ -194,11 +204,12 @@ async function runJob(job: Job) {
     }
     if (!pending) {
       const s = await api<{ uploadUrl: string }>(`/google-drive/upload-session/${bookingId}`, {
-        fileName: file.name, mimeType: file.type || "application/octet-stream", size: total, folderPath,
+        fileName: job.plan?.name ?? file.name, mimeType: file.type || "application/octet-stream", size: total, folderPath,
       });
       pending = {
         fp, bookingId, bookingName: job.bookingName, folderPath, fileName: file.name,
         size: total, lastModified: file.lastModified, uploadUrl: s.uploadUrl, createdAt: Date.now(),
+        uploadName: job.plan?.name, replaceFileId: job.plan?.replaceFileId,
       };
       writePending([...readPending().filter(p => p.fp !== fp), pending]);
     }
@@ -241,7 +252,8 @@ async function runJob(job: Job) {
     // 3. Check + share.
     update({ status: "finishing", progress: 99, sent: total });
     if (!fileId) throw new Error("Upload finished but Drive did not return the file");
-    const result = await api<DriveFileResult>(`/google-drive/upload-complete/${bookingId}`, { fileId });
+    const result = await api<DriveFileResult>(`/google-drive/upload-complete/${bookingId}`,
+      { fileId, replaceFileId: job.plan?.replaceFileId ?? pending?.replaceFileId });
     discardPending(fp);
     update({ progress: 100, done: true, status: "done" });
     job.onDone?.(result);
@@ -256,4 +268,92 @@ async function runJob(job: Job) {
 
 export function hasRunningDriveUploads() {
   return running > 0 || queue.length > 0;
+}
+
+// ─── duplicate check (before uploading) ──────────────────────────────────────
+export type ExistingFile = { id: string; name: string; size: number };
+export type DuplicateCheck = {
+  files: File[];
+  folderOf: Map<File, string>;
+  existingByFolder: Record<string, ExistingFile[]>;
+  /** Same name and same size already in the folder. */
+  same: Map<File, ExistingFile>;
+  /** Same name, different size (a different file). */
+  nameOnly: Map<File, ExistingFile>;
+  /** Already uploading right now in this tab. */
+  inFlight: File[];
+  fresh: File[];
+};
+export type DuplicateChoice = "skip" | "keep" | "replace";
+
+const cleanPath = (p?: string) =>
+  (p ?? "").split("/").map(x => x.trim()).filter(x => x && x !== "." && x !== ".." && x !== "Other Files").slice(0, 6).join("/");
+
+/** Ask Drive which of these files already sit in their target folders. */
+export async function checkDuplicates(opts: {
+  files: File[]; bookingId: string; folderFor?: (f: File) => string | undefined;
+}): Promise<DuplicateCheck> {
+  const folderOf = new Map<File, string>();
+  for (const f of opts.files) folderOf.set(f, cleanPath(opts.folderFor?.(f)));
+  const paths = [...new Set(folderOf.values())];
+  const { folders } = await api<{ folders: Record<string, ExistingFile[]> }>(
+    `/google-drive/upload-check/${opts.bookingId}`, { folderPaths: paths });
+
+  const same = new Map<File, ExistingFile>();
+  const nameOnly = new Map<File, ExistingFile>();
+  const inFlight: File[] = [];
+  const fresh: File[] = [];
+  for (const f of opts.files) {
+    const folder = folderOf.get(f) ?? "";
+    if (activeFps.has(fingerprint(f, opts.bookingId, opts.folderFor?.(f)))) { inFlight.push(f); continue; }
+    const list = folders[folder] ?? [];
+    const exact = list.find(x => x.name === f.name && x.size === f.size);
+    if (exact) { same.set(f, exact); continue; }
+    const byName = list.find(x => x.name === f.name);
+    if (byName) { nameOnly.set(f, byName); continue; }
+    fresh.push(f);
+  }
+  return { files: opts.files, folderOf, existingByFolder: folders, same, nameOnly, inFlight, fresh };
+}
+
+/** "photo.jpg" → "photo (1).jpg", skipping names already taken. */
+function numberedName(name: string, taken: Set<string>) {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  for (let n = 1; n < 10000; n++) {
+    const candidate = `${base} (${n})${ext}`;
+    if (!taken.has(candidate)) { taken.add(candidate); return candidate; }
+  }
+  return `${base} (${Date.now()})${ext}`;
+}
+
+/** Turn the user's choice into the files to upload and their names/replacements. */
+export function applyDuplicateChoice(check: DuplicateCheck, choice: DuplicateChoice) {
+  const files: File[] = [...check.fresh];
+  const plans = new Map<File, UploadPlan>();
+  const taken: Record<string, Set<string>> = {};
+  const takenIn = (folder: string) =>
+    (taken[folder] ??= new Set((check.existingByFolder[folder] ?? []).map(x => x.name)));
+
+  const keepBoth = (f: File) => {
+    files.push(f);
+    plans.set(f, { name: numberedName(f.name, takenIn(check.folderOf.get(f) ?? "")) });
+  };
+  const replace = (f: File, old: ExistingFile) => {
+    files.push(f);
+    plans.set(f, { replaceFileId: old.id });
+  };
+
+  for (const [f, old] of check.same) {
+    if (choice === "keep") keepBoth(f);
+    else if (choice === "replace") replace(f, old);
+    // skip: identical file is already there
+  }
+  for (const [f, old] of check.nameOnly) {
+    // Different file with the same name: never thrown away by "skip".
+    if (choice === "replace") replace(f, old);
+    else keepBoth(f);
+  }
+  return { files, plans };
 }

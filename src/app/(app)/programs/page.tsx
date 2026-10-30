@@ -15,7 +15,7 @@ const STATUS_HEX: Record<string, string> = {
 import { ProgramRow, DeleteDialog } from "./_components/program-card";
 import { ProgramDrawer } from "./_components/program-drawer";
 import { ViewDrawer } from "./_components/view-drawer";
-import type { Booking, Package, TeamMember } from "./_components/types";
+import type { Booking, Client, Package, TeamMember } from "./_components/types";
 
 // Module-level cache: packages/team/company rarely change, no need to re-fetch on every filter/page change
 let _cachedPackages: Package[] = [];
@@ -37,6 +37,7 @@ export default function ProgramsPage() {
   const [r2Enabled, setR2Enabled] = useState(_cachedR2Enabled);
 
   const [newOpen, setNewOpen] = useState(false);
+  const [newForClient, setNewForClient] = useState<Client | null>(null);
   const [viewTarget, setViewTarget] = useState<Booking | null>(null);
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
@@ -94,6 +95,18 @@ export default function ProgramsPage() {
     }
   }, [searchParams, bookings, loading, router]);
 
+  // "Create a program for them" from the Clients page (?newFor=clientId)
+  useEffect(() => {
+    const clientId = searchParams.get("newFor");
+    if (!clientId) return;
+    router.replace("/programs", { scroll: false });
+    apiFetch(`${API}/clients/${clientId}`).then(async (res) => {
+      if (!res.ok) return;
+      setNewForClient(await res.json());
+      setNewOpen(true);
+    }).catch(() => {});
+  }, [searchParams, router]);
+
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 
   return (
@@ -135,7 +148,8 @@ export default function ProgramsPage() {
 
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
-      <ProgramDrawer open={newOpen} onClose={() => setNewOpen(false)} onSaved={fetchAll} packages={packages} teamMembers={teamMembers} />
+      <ProgramDrawer open={newOpen} onClose={() => { setNewOpen(false); setNewForClient(null); }} onSaved={fetchAll} packages={packages} teamMembers={teamMembers}
+        initialClient={newForClient} />
       <ProgramDrawer
         open={!!editTarget}
         onClose={() => setEditTarget(null)}

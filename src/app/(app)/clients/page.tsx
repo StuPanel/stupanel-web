@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search, Plus, Phone, Mail, MapPin, Star, MoreHorizontal, Users,
   Camera, Building2, User, Loader2, X, AlertTriangle,
-  Edit3, Trash2, Eye, Link2,
+  Edit3, Trash2, Eye, Link2, Check,
 } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { FormDrawer } from "@/components/ui/form-kit";
+import { notify } from "@/components/feedback";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { PortalAccessModal } from "@/components/portal-access-modal";
@@ -83,22 +85,25 @@ function avatarColor(id: string) {
 // ─── Add / Edit Drawer ──────────────────────────────────────────────────────
 
 function ClientDrawer({
-  open, onClose, onSaved, editing,
+  open, onClose, onSaved, editing, onOpenExisting,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   editing?: Client | null;
+  onOpenExisting: (id: string) => void;
 }) {
+  const router = useRouter();
   const isEdit = !!editing;
 
   const [form, setForm] = useState<ClientFormData>(blankClientForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [added, setAdded] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open) {
-      setError("");
+      setError(""); setAdded(null);
       if (editing) {
         setForm({
           firstName: editing.firstName ?? "",
@@ -127,7 +132,8 @@ function ClientDrawer({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.firstName.trim()) { setError("First name is required."); return; }
+    if (!form.firstName.trim()) { setError("Please write the client's name."); return; }
+    if (!form.phone.trim()) { setError("Please add a phone number — it's how you'll reach them."); return; }
     setError("");
     setLoading(true);
 
@@ -158,65 +164,66 @@ function ClientDrawer({
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) { const msg = data.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
+      if (!res.ok) { const msg = data.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Couldn't save. Please try again.")); return; }
       onSaved();
-      onClose();
+      if (isEdit) { notify("Client saved"); onClose(); }
+      else setAdded({ id: data.id, name: [body.firstName, body.lastName].filter(Boolean).join(" ") });
     } catch {
-      setError("Something went wrong.");
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  if (!open) return null;
+  if (added) {
+    return (
+      <FormDrawer open={open} onClose={onClose} icon={Users} color="blue" title="Client added"
+        footer={<button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Done</button>}>
+        <div className="bg-white rounded-[20px] p-6 text-center shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+          <div className="w-14 h-14 rounded-full bg-[#E9F5EF] flex items-center justify-center mx-auto">
+            <Check className="w-7 h-7 text-[#1F8A5B]" />
+          </div>
+          <p className="mt-4 text-[17px] font-bold text-[#17151F]">{added.name} is saved</p>
+          <p className="mt-1 text-sm text-[#6B6680]">What next?</p>
+          <div className="mt-5 grid gap-2">
+            <button type="button" onClick={() => router.push(`/programs?newFor=${added.id}`)}
+              className="h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+              <Camera className="w-4 h-4" />Create a program for them
+            </button>
+            <button type="button" onClick={() => { setAdded(null); setForm(blankClientForm); }}
+              className="h-12 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+              <Plus className="w-4 h-4" />Add another client
+            </button>
+          </div>
+        </div>
+      </FormDrawer>
+    );
+  }
 
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <div>
-            <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Client" : "Add Client"}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{isEdit ? `Editing ${fullName(editing!)}` : "Add a new client"}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <form id="client-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-5 space-y-5">
-
-            {error && (
-              <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-            )}
-
-            <ClientFormFields
-              value={form}
-              onChange={updates => setForm(prev => ({ ...prev, ...updates }))}
-              autoFocus={!isEdit}
-            />
-
-          </div>
-        </form>
-
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-200 flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200 text-slate-600">
-            Cancel
-          </Button>
-          <Button type="submit" form="client-form" disabled={loading}
-            className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-2">
-            {loading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</>
-              : isEdit ? "Save Changes" : "Add Client"
-            }
-          </Button>
-        </div>
-      </div>
-    </>
+    <FormDrawer open={open} onClose={onClose} icon={Users} color="blue"
+      title={isEdit ? "Edit client" : "New client"}
+      sub={isEdit ? fullName(editing!) : "Only name and phone are needed — add the rest any time."}
+      footer={<>
+        <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>
+        <button type="submit" form="client-form" disabled={loading}
+          className="flex-[1.4] h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : isEdit ? "Save changes" : "Add client"}
+        </button>
+      </>}>
+      <form id="client-form" onSubmit={handleSubmit} noValidate>
+        {error && (
+          <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>
+        )}
+        <ClientFormFields
+          value={form}
+          onChange={updates => setForm(prev => ({ ...prev, ...updates }))}
+          autoFocus={!isEdit}
+          excludeId={editing?.id}
+          existingAction={{ label: "Open", onPick: c => onOpenExisting(c.id) }}
+        />
+      </form>
+    </FormDrawer>
   );
 }
 
@@ -554,6 +561,7 @@ export default function ClientsPage() {
         onClose={() => { setDrawer(false); setEditTarget(null); }}
         onSaved={fetchClients}
         editing={editTarget}
+        onOpenExisting={id => { setDrawer(false); setEditTarget(null); router.push(`/clients?view=${id}`); }}
       />
       <ProfileDrawer
         client={viewTarget}

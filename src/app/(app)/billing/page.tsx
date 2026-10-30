@@ -1,5 +1,8 @@
 "use client";
 
+import { Crown as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, Clock, Copy, Crown, Loader2, Lock, XCircle } from "lucide-react";
 import { apiFetch, API_URL } from "@/lib/api";
@@ -118,10 +121,8 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#17151F]">Plan & Billing</h1>
-        <p className="text-sm text-[#6B6680] mt-1">Pay with bKash, Nagad or Rocket. Your plan starts as soon as we confirm the payment.</p>
-      </div>
+      <PageHeader icon={HeaderIcon} color="violet" title="Plan & Billing"
+        sub="Pay with bKash, Nagad or Rocket. Your plan starts as soon as we confirm the payment." />
 
       {/* Current status */}
       {access && <StatusCard status={status!} />}

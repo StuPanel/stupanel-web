@@ -1,5 +1,8 @@
 "use client";
 
+import { Wallet as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -129,19 +132,12 @@ export default function ExpensesPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-indigo-600" />
-            Expenses & Wallets
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Track cash, bKash, bank and other accounts</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="red" title="Expenses & Wallets" sub={<>Track cash, bKash, bank and other accounts</>}>
         <button onClick={() => setWalletModal(true)}
           className="shrink-0 whitespace-nowrap flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
           <Plus className="w-4 h-4" />Add Wallet
         </button>
-      </div>
+      </PageHeader>
 
       {/* Summary */}
       {summary && (

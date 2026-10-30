@@ -1,5 +1,8 @@
 "use client";
 
+import { BarChart3 as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -124,18 +127,14 @@ export default function ReportsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Reports</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Financial & business overview</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="blue" title="Reports" sub={<>Financial & business overview</>}>
         <select value={year} onChange={e => setYear(Number(e.target.value))}
           className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-indigo-400 cursor-pointer">
           {[currentYear, currentYear - 1, currentYear - 2].map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
-      </div>
+      </PageHeader>
 
       {summary && (
         <>

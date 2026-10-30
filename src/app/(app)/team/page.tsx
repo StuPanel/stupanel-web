@@ -1,5 +1,8 @@
 "use client";
 
+import { UserCog as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -667,15 +670,11 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Team</h1>
-          <p className="text-slate-400 text-xs mt-0.5">{members.filter(m => m.isActive).length} active · {members.length} total</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="blue" title="Team" sub={<>{members.filter(m => m.isActive).length} active · {members.length} total</>}>
         <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Member</span>
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Search + Role filter */}
       {members.length > 0 && (

@@ -1,5 +1,8 @@
 "use client";
 
+import { Package as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -622,15 +625,11 @@ export default function PackagesPage() {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Packages</h1>
-          <p className="text-slate-400 text-xs mt-0.5">{packages.length} service packages</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="violet" title="Packages" sub={<>{packages.length} service packages</>}>
         <Button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">New Package</span>
         </Button>
-      </div>
+      </PageHeader>
 
       {packages.length > 0 && <SearchPill value={q} onChange={setQ} placeholder="Search packages…" />}
 

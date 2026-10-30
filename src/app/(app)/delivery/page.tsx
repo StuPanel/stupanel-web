@@ -1,5 +1,8 @@
 "use client";
 
+import { ImageIcon as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Search, X, Video, Package, Link2, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -53,12 +56,7 @@ export default function DeliveryPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Delivery</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Track photo &amp; video delivery for each program</p>
-        </div>
-      </div>
+      <PageHeader icon={HeaderIcon} color="teal" title="Delivery" sub={<>Track photo &amp; video delivery for each program</>} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[

@@ -1,5 +1,8 @@
 "use client";
 
+import { LifeBuoy as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -148,10 +151,7 @@ export default function SupportPage() {
           <ArrowLeft className="w-4 h-4" />Back to tickets
         </button>
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">New Support Ticket</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Our team typically replies within a few hours</p>
-        </div>
+        <PageHeader icon={HeaderIcon} color="teal" title="New Support Ticket" sub="Our team usually replies within a few hours" />
 
         <form onSubmit={createTicket} className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
           <div className="space-y-1.5">
@@ -306,15 +306,11 @@ export default function SupportPage() {
   // ── LIST VIEW ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Support</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Get help from the StuPanel team</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="teal" title="Support" sub="Get help from the StuPanel team">
         <Button onClick={() => setView("new")} className="bg-indigo-600 hover:bg-indigo-700 gap-2">
           <Plus className="w-4 h-4" />New Ticket
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       {stats && (

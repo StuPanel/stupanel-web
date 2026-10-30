@@ -1,5 +1,8 @@
 "use client";
 
+import { Handshake as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -45,14 +48,7 @@ export default function ReferralsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Handshake className="w-6 h-6 text-indigo-600" /> Referrals
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">See who's bringing you business — clients referred by each person.</p>
-        </div>
-      </div>
+      <PageHeader icon={HeaderIcon} color="teal" title="Referrals" sub={<>See who's bringing you business — clients referred by each person.</>} />
 
       {!loading && groups.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">

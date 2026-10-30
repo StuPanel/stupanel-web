@@ -1,5 +1,8 @@
 "use client";
 
+import { MessageSquareText as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -207,19 +210,13 @@ export default function WhatsAppPage() {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-green-500" />WhatsApp Templates
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">{templates.length} templates · Send to clients from Programs page</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="green" title="WhatsApp Templates" sub={<>{templates.length} templates · Send to clients from Programs page</>}>
         {!showForm && !editing && (
           <Button onClick={() => setShowForm(true)} className="h-9 bg-green-600 hover:bg-green-700 text-white gap-2 text-sm">
             <Plus className="w-4 h-4" />New Template
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {/* How it works */}
       <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-100 rounded-2xl">

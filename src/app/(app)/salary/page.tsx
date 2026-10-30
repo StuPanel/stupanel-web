@@ -1,5 +1,8 @@
 "use client";
 
+import { Banknote as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -117,19 +120,12 @@ export default function SalaryPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-indigo-600" />
-            Salary Slips
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Generate and track team member salary payments</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="green" title="Salary Slips" sub={<>Generate and track team member salary payments</>}>
         <button onClick={() => { setBonusBreakdown([]); setModal(true); }}
           className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
           <Plus className="w-4 h-4" />Generate Slip
         </button>
-      </div>
+      </PageHeader>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">

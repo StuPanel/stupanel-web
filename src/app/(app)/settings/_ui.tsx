@@ -31,6 +31,7 @@ export type StudioSettings = {
   booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean };
   delivery: { lockWhenDue: boolean; managerCanUnlock: boolean };
   paymentReminders: { enabled: boolean; daysBefore: number; afterEveryDays: number; maxAfter: number };
+  eventReminders: { team: boolean; client: boolean };
 };
 type PatchStudio = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => Promise<boolean>;
 

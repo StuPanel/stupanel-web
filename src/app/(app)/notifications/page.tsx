@@ -204,7 +204,7 @@ export default function NotificationsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                    {n.type === "payment" && n.client && (
+                    {(n.type === "payment" || n.type === "upcoming") && n.client && (
                       <button onClick={() => setWaFor(n)}
                         className="flex items-center gap-1 h-7 px-2.5 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] text-xs font-semibold text-white transition-colors">
                         <MessageCircle className="w-3 h-3" /> WhatsApp
@@ -238,7 +238,7 @@ export default function NotificationsPage() {
           ))}
         </div>
       )}
-      <WhatsAppModal preferCategory="payment_reminder" onClose={() => setWaFor(null)}
+      <WhatsAppModal preferCategory={waFor?.type === "upcoming" ? "event_reminder" : "payment_reminder"} onClose={() => setWaFor(null)}
         booking={waFor ? { id: waFor.bookingId, bookingNumber: waFor.bookingNumber, client: waFor.client } : null} />
     </div>
   );

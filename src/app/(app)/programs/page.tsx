@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, X, CalendarDays } from "lucide-react";
-import { TableSkeleton } from "@/components/ui/page-skeleton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Plus, Search, CalendarDays, Camera } from "lucide-react";
+import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { STATUS_CFG } from "./_components/constants";
-import { ProgramCard, DeleteDialog } from "./_components/program-card";
+
+const STATUS_HEX: Record<string, string> = {
+  inquiry: "#C2304F", quote_sent: "#9E3A8C", confirmed: "#7D5CEF", advance_received: "#5B3FD0", in_progress: "#126B66",
+  editing: "#1F5C99", ready_for_delivery: "#7D5CEF", delivered: "#4A4658", completed: "#1F8A5B", cancelled: "#8A2E2E", refunded: "#8A2E2E",
+};
+import { ProgramRow, DeleteDialog } from "./_components/program-card";
 import { ProgramDrawer } from "./_components/program-drawer";
 import { ViewDrawer } from "./_components/view-drawer";
 import type { Booking, Package, TeamMember } from "./_components/types";
@@ -95,75 +97,43 @@ export default function ProgramsPage() {
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Programs</h1>
-          <p className="text-slate-400 text-xs mt-0.5">{meta.total} total programs</p>
-        </div>
-        <Button onClick={() => setNewOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline">New Program</span>
-        </Button>
-      </div>
+    <div className="max-w-[1180px]">
+      <PageHeader icon={Camera} color="deep" title="Programs"
+        sub={meta.total ? `${meta.total} program${meta.total === 1 ? "" : "s"}` : "All your shoots and events"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} placeholder="Search programs"
+          onChange={v => { setSearch(v); setPage(1); }} />
+        <MainButton icon={Plus} onClick={() => setNewOpen(true)}>New program</MainButton>
+      </PageHeader>
 
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search programs..." className="pl-9 h-10 border-slate-200" />
-          {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
-        </div>
-        {allStatuses.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap">
-            <button onClick={() => setStatusFilter("all")}
-              className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all",
-                statusFilter === "all" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200")}>
-              All · {meta.total}
-            </button>
-            {allStatuses.map(([s, c]) => {
-              const sc = STATUS_CFG[s]; if (!sc) return null;
-              return (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
-                    statusFilter === s ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200")}>
-                  <span className={cn("w-1.5 h-1.5 rounded-full", sc.dot)} />{sc.label} · {c}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {allStatuses.length > 0 && (
+        <Chips label="Filter by status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1); }}
+          options={[
+            { value: "all", label: "All", count: Object.values(meta.statusCounts ?? {}).reduce((a, b) => a + b, 0) },
+            ...allStatuses.filter(([s]) => STATUS_CFG[s]).map(([s, c]) => ({ value: s, label: STATUS_CFG[s].label, count: c, dot: STATUS_HEX[s] })),
+          ]} />
+      )}
 
       {loading ? (
-        <TableSkeleton rows={6} />
+        <RowsSkeleton n={6} />
       ) : bookings.length === 0 ? (
-        <div className="text-center py-16">
-          <CalendarDays className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm font-medium">No programs yet</p>
-          <Button onClick={() => setNewOpen(true)} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-            <Plus className="w-4 h-4" />New Program
-          </Button>
-        </div>
+        search || statusFilter !== "all" ? (
+          <EmptyState icon={Search} title={search ? `No programs match "${search}"` : "No programs here"} text="Try another word or filter." />
+        ) : (
+          <EmptyState icon={CalendarDays} title="No programs yet" text="Add your first wedding, event or shoot."
+            action={<MainButton icon={Plus} onClick={() => setNewOpen(true)}>New program</MainButton>} />
+        )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Group>
           {bookings.map(b => (
-            <ProgramCard key={b.id} b={b}
+            <ProgramRow key={b.id} b={b}
               onView={() => setViewTarget(b)}
               onEdit={() => setEditTarget(b)}
               onDelete={() => setDeleteTarget(b)} />
           ))}
-        </div>
+        </Group>
       )}
 
-      {meta.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button onClick={() => setPage(p => p - 1)} disabled={page <= 1}
-            className="h-8 px-3 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:border-slate-300">← Prev</button>
-          <span className="text-sm text-slate-500">{page} / {meta.totalPages}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= meta.totalPages}
-            className="h-8 px-3 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:border-slate-300">Next →</button>
-        </div>
-      )}
+      <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
       <ProgramDrawer open={newOpen} onClose={() => setNewOpen(false)} onSaved={fetchAll} packages={packages} teamMembers={teamMembers} />
       <ProgramDrawer

@@ -2,19 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  MoreVertical, Eye, Edit3, Trash2, AlertTriangle, Loader2,
-  CalendarDays, MapPin, Layers, DollarSign, Check,
+  MoreHorizontal, Eye, Edit3, Trash2, AlertTriangle, Loader2, MapPin, Check,
 } from "lucide-react";
+import { DateBox } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
-import { STATUS_CFG, STATUS_PIPELINE, fmtDate } from "./constants";
+import { STATUS_CFG, STATUS_PIPELINE } from "./constants";
 import { formatCurrency } from "@/lib/format";
 import type { Booking } from "./types";
 import { askConfirm } from "@/components/feedback";
 
-export function ProgramCard({ b, onView, onEdit, onDelete }: {
+/** One program as a row (Apple style). Tap opens it; "…" has Edit / Delete. */
+export function ProgramRow({ b, onView, onEdit, onDelete }: {
   b: Booking;
   onView: () => void;
   onEdit: () => void;
@@ -32,58 +33,39 @@ export function ProgramCard({ b, onView, onEdit, onDelete }: {
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
   const due = Number(b.grandTotal) - Number(b.paidAmount);
   const days = b.eventDays?.length ?? 0;
+  const client = `${b.client.firstName} ${b.client.lastName ?? ""}`.trim();
 
   return (
-    <div onClick={onView} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
-            <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
-            {days > 0 && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 flex items-center gap-1">
-                <Layers className="w-2.5 h-2.5" />{days}d
-              </span>
-            )}
-          </div>
-          <h3 className="font-bold text-slate-900 text-sm truncate">{b.eventName ?? "—"}</h3>
-          <p className="text-xs text-slate-400">{b.client.firstName} {b.client.lastName ?? ""}</p>
-        </div>
-        <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
-          <button onClick={() => setMenuOpen(o => !o)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-9 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
-              <button onClick={() => { onView(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Eye className="w-4 h-4 text-slate-400" />View Details</button>
-              <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit3 className="w-4 h-4 text-slate-400" />Edit</button>
-              <div className="border-t border-slate-100" />
-              <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" />Delete</button>
-            </div>
-          )}
-        </div>
+    <div role="button" tabIndex={0} onClick={onView} onKeyDown={e => { if (e.key === "Enter") onView(); }}
+      className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+      <DateBox date={b.eventDate} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</p>
+        <p className="text-xs text-[#6B6680] truncate mt-0.5">
+          {client}
+          {b.eventLocation ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</> : null}
+          {days > 1 ? ` · ${days} days` : ""}
+        </p>
+        <p className="text-xs text-[#9893A8] font-mono mt-0.5 sm:hidden">{b.bookingNumber}</p>
       </div>
-
-      <div className="flex flex-wrap gap-2 text-xs text-slate-400 mb-3">
-        {b.eventDate && <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(b.eventDate)}</span>}
-        {b.eventLocation && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{b.eventLocation}</span>}
+      <div className="text-right flex-shrink-0">
+        <p className="text-sm font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
+        {due > 0
+          ? <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(due, b.currency)} due</p>
+          : <p className="text-xs font-semibold text-[#1F8A5B]">Paid</p>}
       </div>
-
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-        <div>
-          <p className="text-xs text-slate-400">Contract</p>
-          <p className="font-bold text-slate-900 text-sm">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-400">Due</p>
-          <p className={cn("font-bold text-sm", due > 0 ? "text-red-600" : "text-emerald-600")}>{formatCurrency(due, b.currency)}</p>
-        </div>
-        {Number(b.profitAmount) !== 0 && (
-          <div className="text-right">
-            <p className="text-xs text-slate-400">Profit</p>
-            <p className={cn("font-bold text-sm", Number(b.profitAmount) >= 0 ? "text-emerald-600" : "text-red-600")}>
-              {formatCurrency(Number(b.profitAmount), b.currency)}
-            </p>
+      <span className={cn("hidden md:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap", sc.badge)}>{sc.label}</span>
+      <span className={cn("md:hidden w-2.5 h-2.5 rounded-full flex-shrink-0", sc.dot)} title={sc.label} />
+      <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
+        <button onClick={() => setMenuOpen(o => !o)} aria-label={`More for ${b.eventName ?? b.bookingNumber}`} aria-expanded={menuOpen}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <div role="menu" className="absolute right-0 top-10 w-44 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 overflow-hidden p-1">
+            <button role="menuitem" onClick={() => { onView(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Eye className="w-4 h-4 text-[#6B6680]" />Open</button>
+            <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit</button>
+            <button role="menuitem" onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#C2304F] hover:bg-[#FDECEF]"><Trash2 className="w-4 h-4" />Delete</button>
           </div>
         )}
       </div>

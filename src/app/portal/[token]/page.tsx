@@ -13,6 +13,8 @@ import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
 import { StudioLogo } from "@/components/studio-logo";
 import { BRAND } from "@/lib/brand";
+import { portalHeaders, withPortalSession, clearPortalSession } from "@/lib/portal-session";
+import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
 function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
@@ -149,7 +151,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   function toggleFolder(key: string) { setExpandedFolders(prev => ({ ...prev, [key]: !isFolderExpanded(key) })); }
   function downloadZipUrl(folderName?: string) {
     const base = `${API}/public/portal/${token}/download-zip?bookingId=${bookingId}`;
-    return folderName ? `${base}&folderName=${encodeURIComponent(folderName)}` : base;
+    return withPortalSession(token, folderName ? `${base}&folderName=${encodeURIComponent(folderName)}` : base);
   }
 
   if (!hasContent) return null;
@@ -262,7 +264,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                         <ExternalLink className="w-3 h-3" />Open Drive
                       </a>
                     )}
-                    <a href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}`}
+                    <a href={withPortalSession(token, `${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}`)}
                       className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-opacity hover:opacity-90"
                       style={{ backgroundColor: brand }}>
                       <Download className="w-3 h-3" />Download All
@@ -279,7 +281,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                           <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
                           <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
                         </button>
-                        <a href={`${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}&folderName=${encodeURIComponent(folderKey)}`}
+                        <a href={withPortalSession(token, `${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}&folderName=${encodeURIComponent(folderKey)}`)}
                           title="Download folder as ZIP"
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors flex-shrink-0"
                           onClick={e => e.stopPropagation()}>
@@ -563,30 +565,48 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [gate, setGate] = useState<null | { kind: "locked" | "retired"; meta: PortalMeta | null }>(null);
   const [tab, setTab] = useState<Tab>("programs");
 
-  useEffect(() => {
-    fetch(`${API}/public/portal/${token}`)
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(setData)
-      .catch(() => setError("This portal link is invalid or has been deactivated."))
-      .finally(() => setLoading(false));
-  }, [token]);
+  async function loadPortal() {
+    try {
+      const r = await fetch(`${API}/public/portal/${token}`, { headers: portalHeaders(token) });
+      if (r.status === 401 || r.status === 410) {
+        if (r.status === 401) clearPortalSession(token);
+        const meta = await fetch(`${API}/public/portal/${token}/meta`).then(m => (m.ok ? m.json() : null)).catch(() => null);
+        setGate({ kind: r.status === 410 ? "retired" : "locked", meta });
+        return;
+      }
+      if (!r.ok) throw new Error();
+      setData(await r.json());
+      setGate(null);
+    } catch {
+      setError("This portal link is invalid or has been deactivated.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Load once per link; loadPortal only sets state after the fetch resolves.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { loadPortal(); }, [token]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+    <div className="min-h-screen flex items-center justify-center bg-[#F5F3FA]">
+      <Loader2 className="w-8 h-8 animate-spin text-[#7D5CEF]" />
     </div>
   );
 
+  if (gate) return <PortalLock token={token} kind={gate.kind} meta={gate.meta} onUnlocked={() => { setLoading(true); setGate(null); loadPortal(); }} />;
+
   if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5F3FA] px-4">
       <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center mx-auto mb-4">
-          <XCircle className="w-8 h-8 text-red-500" />
+        <div className="w-16 h-16 rounded-2xl bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
+          <XCircle className="w-8 h-8 text-[#C2304F]" />
         </div>
-        <h2 className="text-lg font-bold text-slate-800 mb-1">Link Invalid</h2>
-        <p className="text-slate-500 text-sm">{error || "Portal not found"}</p>
+        <h2 className="text-lg font-bold text-[#17151F] mb-1">Link Invalid</h2>
+        <p className="text-[#6B6680] text-sm">{error || "Portal not found"}</p>
       </div>
     </div>
   );

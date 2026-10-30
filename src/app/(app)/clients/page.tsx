@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { PortalAccessModal } from "@/components/portal-access-modal";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -230,43 +231,23 @@ function ProfileDrawer({
   onClose: () => void;
   onEdit: (c: Client) => void;
 }) {
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [portalCopied, setPortalCopied] = useState(false);
-
-  async function sharePortal() {
-    if (!client) return;
-    setPortalLoading(true);
-    try {
-      const res = await apiFetch(`${API}/client-portal/generate/${client.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const d = await res.json();
-      const link = `${window.location.origin}/portal/${d.token}`;
-      await navigator.clipboard.writeText(link);
-      setPortalCopied(true);
-      setTimeout(() => setPortalCopied(false), 3000);
-    } catch { /* ignore */ }
-    setPortalLoading(false);
-  }
+  const [portalOpen, setPortalOpen] = useState(false);
 
   if (!client) return null;
   const color = avatarColor(client.id);
 
   return (
     <>
+      {portalOpen && <PortalAccessModal client={client} onClose={() => setPortalOpen(false)} />}
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="sp-drawer z-50 max-w-lg flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <h2 className="font-bold text-slate-900 text-lg">Client Profile</h2>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={sharePortal} disabled={portalLoading}
+            <Button size="sm" variant="outline" onClick={() => setPortalOpen(true)}
               className="gap-1.5 h-8 text-xs border-slate-200">
-              {portalLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-               portalCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> :
-               <Link2 className="w-3.5 h-3.5" />}
-              {portalCopied ? "Copied!" : "Portal"}
+              <Link2 className="w-3.5 h-3.5" /> Portal
             </Button>
             <Button size="sm" variant="outline" onClick={() => { onClose(); onEdit(client); }}
               className="gap-1.5 h-8 text-xs border-slate-200">

@@ -8,7 +8,7 @@ import {
   CalendarDays, MapPin, DollarSign, Check, ChevronRight,
   Link2, MessageCircle, FileText, MoreVertical, ArrowRight,
   Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
-  Monitor, Smartphone, Tablet, Globe, Package,
+  Monitor, Smartphone, Tablet, Globe, Package, MoreHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
-import { ListSkeleton } from "@/components/list-ui";
+import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -614,8 +614,13 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   );
 }
 
-// ─── Quote Card ────────────────────────────────────────────────────────────────
-function QuoteCard({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
+// ─── Quote row (Apple style) ───────────────────────────────────────────────────
+const STATUS_HEX: Record<string, { bg: string; text: string }> = {
+  draft: { bg: "#EEEDF2", text: "#4A4658" }, sent: { bg: "#E6F0FB", text: "#1F5C99" }, viewed: { bg: "#EEE8FD", text: "#5B3FD0" },
+  accepted: { bg: "#E9F5EF", text: "#1F8A5B" }, rejected: { bg: "#FDECEF", text: "#C2304F" },
+  expired: { bg: "#FBF2FA", text: "#9E3A8C" }, converted: { bg: "#E0F2F1", text: "#126B66" },
+};
+function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
   q: Quote;
   onView: () => void; onEdit: () => void; onDuplicate: () => void;
   onDelete: () => void; onSend: () => void;
@@ -623,8 +628,9 @@ function QuoteCard({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const sc = STATUS[q.status] ?? STATUS.draft;
-  const StatusIcon = sc.icon;
+  const h = STATUS_HEX[q.status] ?? STATUS_HEX.draft;
   const sym = currSym(q.currency);
+  const expired = q.validUntil && new Date(q.validUntil) < new Date() && !["converted", "accepted"].includes(q.status);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -633,47 +639,38 @@ function QuoteCard({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
     return () => document.removeEventListener("mousedown", h);
   }, [menuOpen]);
 
+  const item = "w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]";
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={onView}>
-      <div className="flex items-start justify-between gap-2 mb-2.5">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
-              <StatusIcon className="w-2.5 h-2.5" />{sc.label}
-            </span>
-            <span className="text-xs text-slate-400 font-mono">{q.quoteNumber}</span>
-            {q.viewCount > 0 && <span className="text-xs text-violet-500 flex items-center gap-0.5"><Eye className="w-2.5 h-2.5" />{q.viewCount}</span>}
-          </div>
-          <p className="font-bold text-slate-900 text-sm truncate">{q.client.firstName} {q.client.lastName ?? ""}</p>
-          {q.eventType && <p className="text-xs text-slate-500">{q.eventType}{q.venue && ` · ${q.venue}`}</p>}
-        </div>
-        <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
-          <button onClick={() => setMenuOpen(o => !o)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-9 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
-              <button onClick={() => { onView(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Eye className="w-4 h-4 text-slate-400" />View</button>
-              {["draft","rejected"].includes(q.status) && <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit2 className="w-4 h-4 text-slate-400" />Edit</button>}
-              {q.status === "draft" && <button onClick={() => { onSend(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-blue-700 hover:bg-blue-50"><Send className="w-4 h-4 text-blue-400" />Send Quote</button>}
-              <button onClick={() => { onDuplicate(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Copy className="w-4 h-4 text-slate-400" />Duplicate</button>
-              {["draft","rejected","expired"].includes(q.status) && <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4 text-red-400" />Delete</button>}
-            </div>
-          )}
-        </div>
+    <div role="button" tabIndex={0} onClick={onView} onKeyDown={e => { if (e.key === "Enter") onView(); }}
+      className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+      <DateBox date={q.eventDate} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#17151F] truncate">{q.client.firstName} {q.client.lastName ?? ""}</p>
+        <p className="text-xs text-[#6B6680] truncate mt-0.5">
+          <span className="font-mono">{q.quoteNumber}</span>{q.eventType ? ` · ${q.eventType}` : ""}{q.venue ? ` · ${q.venue}` : ""}
+          {q.viewCount > 0 && <span className="text-[#5B3FD0]"> · <Eye className="inline w-3 h-3 -mt-0.5" /> {q.viewCount}</span>}
+          {expired && <span className="text-[#C2304F] font-semibold"> · Expired</span>}
+        </p>
       </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-          {q.eventDate && <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(q.eventDate)}</span>}
-          {q.validUntil && new Date(q.validUntil) < new Date() && q.status !== "converted" && (
-            <span className="flex items-center gap-1 text-red-500"><AlertTriangle className="w-3 h-3" />Expired</span>
-          )}
-        </div>
-        <div className="text-right">
-          <p className="font-bold text-slate-900 text-sm">{sym}{Number(q.grandTotal).toLocaleString()}</p>
-          {Number(q.advanceRequired) > 0 && <p className="text-xs text-orange-500">Adv: {sym}{Number(q.advanceRequired).toLocaleString()}</p>}
-        </div>
+      <div className="text-right flex-shrink-0">
+        <p className="text-sm font-bold text-[#17151F] tabular-nums">{sym}{Number(q.grandTotal).toLocaleString()}</p>
+        {Number(q.advanceRequired) > 0 && <p className="text-xs text-[#6B6680] tabular-nums">Advance {sym}{Number(q.advanceRequired).toLocaleString()}</p>}
+      </div>
+      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: h.bg, color: h.text }}>{sc.label}</span>
+      <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
+        <button onClick={() => setMenuOpen(o => !o)} aria-label={`More for ${q.quoteNumber}`} aria-expanded={menuOpen}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+            <button role="menuitem" onClick={() => { onView(); setMenuOpen(false); }} className={item}><Eye className="w-4 h-4 text-[#6B6680]" />Open</button>
+            {["draft", "rejected"].includes(q.status) && <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className={item}><Edit2 className="w-4 h-4 text-[#6B6680]" />Edit</button>}
+            {q.status === "draft" && <button role="menuitem" onClick={() => { onSend(); setMenuOpen(false); }} className={item}><Send className="w-4 h-4 text-[#5B3FD0]" />Send quote</button>}
+            <button role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }} className={item}><Copy className="w-4 h-4 text-[#6B6680]" />Duplicate</button>
+            {["draft", "rejected", "expired"].includes(q.status) && <button role="menuitem" onClick={() => { onDelete(); setMenuOpen(false); }} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Delete</button>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -727,81 +724,44 @@ export default function QuotesPage() {
   }
 
   const sc = meta.statusCounts;
-  const stats = [
-    { label: "Total",     value: meta.total,          color: "text-slate-900", bg: "bg-slate-50" },
-    { label: "Sent",      value: (sc.sent ?? 0) + (sc.viewed ?? 0), color: "text-blue-700", bg: "bg-blue-50" },
-    { label: "Accepted",  value: sc.accepted ?? 0,    color: "text-emerald-700", bg: "bg-emerald-50" },
-    { label: "Converted", value: sc.converted ?? 0,   color: "text-teal-700",    bg: "bg-teal-50" },
-    { label: "Rejected",  value: sc.rejected ?? 0,    color: "text-red-600",     bg: "bg-red-50" },
-  ];
-
   const conversionRate = meta.total > 0 ? Math.round(((sc.converted ?? 0) / meta.total) * 100) : 0;
-
   const TABS = [
-    { key: "all",      label: "All" },
-    { key: "draft",    label: "Draft" },
-    { key: "sent",     label: "Sent" },
-    { key: "viewed",   label: "Viewed" },
-    { key: "accepted", label: "Accepted" },
-    { key: "converted",label: "Converted" },
-    { key: "rejected", label: "Rejected" },
+    { key: "all", label: "All" }, { key: "draft", label: "Draft" }, { key: "sent", label: "Sent" },
+    { key: "viewed", label: "Viewed" }, { key: "accepted", label: "Accepted" },
+    { key: "converted", label: "Converted" }, { key: "rejected", label: "Rejected" },
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Quotes</h1>
-          <p className="text-xs text-slate-400 mt-0.5">{conversionRate}% conversion rate · {meta.total} total quotes</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)} className="h-9 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm">
-          <Plus className="w-4 h-4" />New Quote
-        </Button>
+    <div className="max-w-[1180px]">
+      <PageHeader icon={FileText} color="deep" title="Quotes"
+        sub={meta.total ? `${meta.total} quote${meta.total === 1 ? "" : "s"} · ${conversionRate}% became programs` : "Price offers you send to clients"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder="Search client or event" />
+        <MainButton icon={Plus} onClick={() => setShowCreate(true)}>New quote</MainButton>
+      </PageHeader>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
+        <StatCard icon={Send} color="blue" label="Sent" value={String((sc.sent ?? 0) + (sc.viewed ?? 0))} sub="Waiting for an answer" />
+        <StatCard icon={CheckCircle2} color="green" label="Accepted" value={String(sc.accepted ?? 0)} />
+        <StatCard icon={RefreshCw} color="teal" label="Became programs" value={String(sc.converted ?? 0)} sub={`${conversionRate}% of all quotes`} />
+        <StatCard icon={XCircle} color="red" label="Rejected" value={String(sc.rejected ?? 0)} />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-        {stats.map(s => (
-          <div key={s.label} className={cn("rounded-2xl p-3 border border-slate-200 shadow-sm", s.bg)}>
-            <p className="text-xs text-slate-500">{s.label}</p>
-            <p className={cn("text-2xl font-extrabold mt-0.5", s.color)}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+      <Chips label="Filter by status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1); }}
+        options={TABS.map(t => ({ value: t.key, label: t.label, count: t.key === "all" ? meta.total : sc[t.key] || undefined, dot: STATUS_HEX[t.key]?.text }))} />
 
-      {/* Search + Filter */}
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by client, event type…" className="pl-9 h-10 border-slate-200" />
-          {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => { setStatusFilter(t.key); setPage(1); }}
-              className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all",
-                statusFilter === t.key ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300")}>
-              {t.label}{t.key !== "all" && sc[t.key] ? ` · ${sc[t.key]}` : ""}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Grid */}
       {loading ? (
-        <ListSkeleton />
+        <RowsSkeleton n={6} />
       ) : quotes.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <FileText className="sp-empty-icon" />
-          <p className="font-semibold text-slate-600 mb-1">No quotes yet</p>
-          <p className="text-sm text-slate-400 mb-4">Create your first quotation to share with clients</p>
-          <Button onClick={() => setShowCreate(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm"><Plus className="w-4 h-4" />Create Quote</Button>
-        </div>
+        search || statusFilter !== "all" ? (
+          <EmptyState icon={Search} title={search ? `No quotes match "${search}"` : "No quotes here"} text="Try another word or filter." />
+        ) : (
+          <EmptyState icon={FileText} title="No quotes yet" text="Create a price offer to share with a client."
+            action={<MainButton icon={Plus} onClick={() => setShowCreate(true)}>New quote</MainButton>} />
+        )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Group>
           {quotes.map(q => (
-            <QuoteCard key={q.id} q={q}
+            <QuoteRow key={q.id} q={q}
               onView={() => setViewTarget(q)}
               onEdit={() => { setViewTarget(null); setEditTarget(q); }}
               onDuplicate={() => duplicateQuote(q)}
@@ -809,16 +769,10 @@ export default function QuotesPage() {
               onSend={() => sendQuote(q)}
             />
           ))}
-        </div>
+        </Group>
       )}
 
-      {meta.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} className="h-8 px-3 text-sm border border-slate-200 rounded-lg disabled:opacity-40">← Prev</button>
-          <span className="text-sm text-slate-500">{page} / {meta.totalPages}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= meta.totalPages} className="h-8 px-3 text-sm border border-slate-200 rounded-lg disabled:opacity-40">Next →</button>
-        </div>
-      )}
+      <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
       {(showCreate || editTarget) && (
         <QuoteDrawer quote={editTarget} onClose={() => { setShowCreate(false); setEditTarget(null); }} onSaved={onSaved} />

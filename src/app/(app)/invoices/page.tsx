@@ -7,9 +7,9 @@ import {
   Plus, X, Loader2, Search, Eye, Trash2, Send, CheckCircle2,
   FileText, Link2, Copy, MoreVertical, AlertCircle, Zap,
   DollarSign, Clock, TrendingUp, ChevronRight, CreditCard,
-  BookOpen, ChevronDown, Bell,
+  BookOpen, ChevronDown, Bell, Receipt,
 } from "lucide-react";
-import { TableSkeleton } from "@/components/ui/page-skeleton";
+import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -884,32 +884,35 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
   );
 }
 
-// ─── Invoice Card ─────────────────────────────────────────────────────────────
-function InvoiceCard({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
+// ─── Invoice row (Apple style) ───────────────────────────────────────────────
+const STATUS_HEX: Record<string, { bg: string; text: string }> = {
+  draft: { bg: "#EEEDF2", text: "#4A4658" }, sent: { bg: "#E6F0FB", text: "#1F5C99" }, viewed: { bg: "#EEE8FD", text: "#5B3FD0" },
+  paid: { bg: "#E9F5EF", text: "#1F8A5B" }, partially_paid: { bg: "#FBF2FA", text: "#9E3A8C" },
+  overdue: { bg: "#FDECEF", text: "#C2304F" }, void: { bg: "#EEEDF2", text: "#6B6680" },
+};
+function InvoiceRow({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
   const s = STATUS[inv.status] ?? STATUS.draft;
+  const h = STATUS_HEX[inv.status] ?? STATUS_HEX.draft;
   const c = sym(inv.currency);
   const due = Number(inv.balanceDue);
   return (
     <button onClick={onClick}
-      className="w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all text-left">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div>
-          <p className="font-bold text-slate-900 text-sm">{inv.invoiceNumber}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{inv.client.firstName} {inv.client.lastName ?? ""}</p>
-        </div>
-        <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0", s.badge)}>{s.label}</span>
-      </div>
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-lg font-extrabold text-slate-900">{c}{Number(inv.grandTotal).toLocaleString()}</p>
-          {due > 0 && <p className="text-xs text-red-500 font-medium">Due: {c}{due.toLocaleString()}</p>}
-          {due === 0 && inv.status === "paid" && <p className="text-xs text-emerald-600 font-medium">Fully Paid ✓</p>}
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-400">{fmtDate(inv.issueDate)}</p>
-          {inv.dueDate && <p className="text-xs text-slate-400">Due {fmtDate(inv.dueDate)}</p>}
-        </div>
-      </div>
+      className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] text-left hover:bg-[#F7F5FB] transition-colors">
+      <Tile icon={FileText} color="orchid" size={36} />
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-[#17151F] truncate">{inv.client.firstName} {inv.client.lastName ?? ""}</span>
+        <span className="block text-xs text-[#6B6680] truncate mt-0.5">
+          <span className="font-mono">{inv.invoiceNumber}</span> · {fmtDate(inv.issueDate)}{inv.dueDate ? ` · due ${fmtDate(inv.dueDate)}` : ""}
+        </span>
+      </span>
+      <span className="text-right flex-shrink-0">
+        <span className="block text-sm font-bold text-[#17151F] tabular-nums">{c}{Number(inv.grandTotal).toLocaleString()}</span>
+        {due > 0
+          ? <span className="block text-xs font-semibold text-[#C2304F] tabular-nums">{c}{due.toLocaleString()} due</span>
+          : inv.status === "paid" ? <span className="block text-xs font-semibold text-[#1F8A5B]">Paid</span> : null}
+      </span>
+      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: h.bg, color: h.text }}>{s.label}</span>
+      <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />
     </button>
   );
 }
@@ -946,69 +949,37 @@ export default function InvoicesPage() {
   const totalPages = Math.ceil(total / 20);
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-[1180px]">
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Invoices</h1>
-          <p className="text-xs text-slate-400 mt-0.5">{total} invoices</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-9">
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline">New Invoice</span>
-        </Button>
+      <PageHeader icon={Receipt} color="orchid" title="Invoices" sub={total ? `${total} invoice${total === 1 ? "" : "s"}` : "Bills you send to clients"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search invoice or client" />
+        <MainButton icon={Plus} onClick={() => setCreateOpen(true)}>New invoice</MainButton>
+      </PageHeader>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
+        <StatCard icon={FileText} color="orchid" label="Total billed" value={formatCurrency(Number(stats.totalValue))} />
+        <StatCard icon={TrendingUp} color="green" label="Received" value={formatCurrency(Number(stats.totalCollected))} />
+        <StatCard icon={DollarSign} color="red" label="Still due" value={formatCurrency(Number(stats.totalDue))} />
+        <StatCard icon={Clock} color="blue" label="Drafts" value={String(stats.draft)} sub="Not sent yet" />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: "Total Value",    val: formatCurrency(Number(stats.totalValue)),    icon: FileText,   color: "bg-indigo-50 text-indigo-600" },
-          { label: "Collected",      val: formatCurrency(Number(stats.totalCollected)), icon: TrendingUp, color: "bg-emerald-50 text-emerald-600" },
-          { label: "Balance Due",    val: formatCurrency(Number(stats.totalDue)),       icon: DollarSign, color: "bg-red-50 text-red-500" },
-          { label: "Pending",        val: String(stats.draft),                          icon: Clock,      color: "bg-amber-50 text-amber-600" },
-        ].map(({ label, val, icon: Icon, color }) => (
-          <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 font-medium">{label}</p>
-              <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center", color)}>
-                <Icon className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-xl font-extrabold text-slate-900">{val}</p>
-          </div>
-        ))}
-      </div>
+      <Chips label="Filter by status" value={statusFilter || "all"} onChange={v => setStatusFilter(v === "all" ? "" : v)}
+        options={[{ value: "all", label: "All" }, ...Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label, dot: STATUS_HEX[k]?.text }))]} />
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search invoice or client…" className="pl-9 h-10 border-slate-200" />
-        </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-          <option value="">All Status</option>
-          {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-      </div>
-
-      {/* List */}
       {loading ? (
-        <TableSkeleton rows={6} />
+        <RowsSkeleton n={6} />
       ) : invoices.length === 0 ? (
-        <div className="text-center py-16">
-          <FileText className="sp-empty-icon" />
-          <p className="text-slate-400 font-medium">No invoices yet</p>
-          <p className="text-xs text-slate-400 mt-1">Create your first invoice or generate from a booking</p>
-          <Button onClick={() => setCreateOpen(true)} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-            <Plus className="w-4 h-4" />New Invoice
-          </Button>
-        </div>
+        search || statusFilter ? (
+          <EmptyState icon={Search} title={search ? `No invoices match "${search}"` : "No invoices with this status"} text="Try another word or filter." />
+        ) : (
+          <EmptyState icon={FileText} title="No invoices yet" text="Create one, or make it from a program."
+            action={<MainButton icon={Plus} onClick={() => setCreateOpen(true)}>New invoice</MainButton>} />
+        )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Group>
           {invoices.map(inv => (
-            <InvoiceCard key={inv.id} inv={inv} onClick={async () => {
+            <InvoiceRow key={inv.id} inv={inv} onClick={async () => {
               setViewLoading(true);
               try {
                 const r = await apiFetch(`${API}/studio-invoices/${inv.id}`);
@@ -1018,30 +989,19 @@ export default function InvoicesPage() {
               finally { setViewLoading(false); }
             }} />
           ))}
-        </div>
+        </Group>
       )}
 
       {viewLoading && (
         <div className="fixed inset-0 bg-black/20 z-40 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-5 shadow-xl flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+          <div className="bg-white rounded-[20px] p-5 shadow-xl flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" />
             <p className="text-sm font-medium text-slate-700">Loading invoice…</p>
           </div>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p-1)} className="h-8 w-8 p-0 border-slate-200">
-            <ChevronRight className="w-4 h-4 rotate-180" />
-          </Button>
-          <span className="text-xs text-slate-500">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p+1)} className="h-8 w-8 p-0 border-slate-200">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
+      <Pager page={page} pages={totalPages} onChange={setPage} />
 
       {createOpen && <CreateDrawer onClose={() => setCreateOpen(false)} onSaved={inv => { setCreateOpen(false); setViewing(inv); fetch_(); setToast({ msg: "Invoice created!", type: "success" }); }} />}
       {viewing && <ViewDrawer inv={viewing} onClose={() => setViewing(null)} onRefresh={() => { fetch_(); setViewing(null); }} />}

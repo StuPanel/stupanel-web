@@ -109,7 +109,8 @@ export function StatCard({ icon, color, label, value, sub, href }: {
         <Tile icon={icon} color={color} size={28} />
         <p className="text-[13px] font-semibold text-[#4A4658] truncate">{label}</p>
       </div>
-      <p className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none">{value}</p>
+      <p className={cn("mt-3 font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none truncate",
+        typeof value === "string" && /[a-z]{3}/i.test(value) ? "text-lg sm:text-xl leading-tight" : "text-[22px] sm:text-[26px]")}>{value}</p>
       {sub && <p className="mt-1.5 text-xs text-[#6B6680]">{sub}</p>}
     </>
   );

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  MoreVertical, Copy, ExternalLink, UploadCloud,
-  CheckCircle2, CalendarDays, MapPin,
+  MoreHorizontal, Copy, ExternalLink, UploadCloud, CheckCircle2, MapPin,
 } from "lucide-react";
+import { DateBox } from "@/components/ui/apple";
 import { cn } from "@/lib/utils";
 import { DEL_STATUS, fmtDate, daysFromNow } from "./constants";
 import type { Booking } from "./types";
@@ -37,78 +37,53 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
   const daysLeft = b.eventDate ? daysFromNow(b.eventDate) : null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", cfg.badge)}>
-              <StatusIcon className="w-2.5 h-2.5" />{cfg.label}
-            </span>
-            <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
+    <div role="button" tabIndex={0} onClick={onEdit} onKeyDown={e => { if (e.key === "Enter") onEdit(); }}
+      className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+      <DateBox date={b.eventDate} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#17151F] truncate">{b.eventName ?? b.bookingNumber}</p>
+        <p className="text-xs text-[#6B6680] truncate mt-0.5">
+          {b.client.firstName} {b.client.lastName ?? ""}
+          {b.eventLocation ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</> : null}
+        </p>
+        <p className="text-xs mt-0.5 truncate">
+          {b.deliveryDate
+            ? <span className="text-[#1F8A5B] font-semibold inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Delivered {fmtDate(b.deliveryDate)}</span>
+            : allLinks.length > 0
+              ? <span className="text-[#5B3FD0] font-semibold">{allLinks.length} link{allLinks.length > 1 ? "s" : ""} added</span>
+              : <span className="text-[#6B6680]">Nothing uploaded yet</span>}
+          {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && !b.deliveryDate && <span className="text-[#9E3A8C] font-semibold"> · event in {daysLeft}d</span>}
+        </p>
+      </div>
+      {due > 0 && <span className="hidden sm:block text-xs font-bold text-[#C2304F] tabular-nums flex-shrink-0">{formatCurrency(due, b.currency)} due</span>}
+      <span className={cn("hidden md:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap items-center gap-1", cfg.badge)}>
+        <StatusIcon className="w-3 h-3" />{cfg.label}
+      </span>
+      <span className={cn("md:hidden w-2.5 h-2.5 rounded-full flex-shrink-0", cfg.dot)} title={cfg.label} />
+      <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
+        <button onClick={() => setMenuOpen(o => !o)} aria-label="More" aria-expanded={menuOpen}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+            <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]">
+              <UploadCloud className="w-4 h-4 text-[#6B6680]" />Upload / manage
+            </button>
+            {allLinks[0] && (
+              <>
+                <button role="menuitem" onClick={() => { copyFirstLink(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]">
+                  <Copy className="w-4 h-4 text-[#6B6680]" />{copied ? "Copied" : "Copy link"}
+                </button>
+                <a role="menuitem" href={allLinks[0].url} target="_blank" rel="noopener noreferrer"
+                  className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]">
+                  <ExternalLink className="w-4 h-4 text-[#6B6680]" />Open link
+                </a>
+              </>
+            )}
           </div>
-          <h3 className="font-bold text-slate-900 text-sm truncate">{b.eventName ?? "—"}</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{b.client.firstName} {b.client.lastName ?? ""}</p>
-        </div>
-        <div className="relative flex-shrink-0" ref={menuRef}>
-          <button onClick={() => setMenuOpen(o => !o)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-9 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
-              <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                <UploadCloud className="w-4 h-4 text-slate-400" />Manage Delivery
-              </button>
-              {allLinks[0] && (
-                <>
-                  <button onClick={() => { copyFirstLink(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                    <Copy className="w-4 h-4 text-slate-400" />Copy Link
-                  </button>
-                  <a href={allLinks[0].url} target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                    <ExternalLink className="w-4 h-4 text-slate-400" />Open Link
-                  </a>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs text-slate-400 mb-3">
-        {b.eventDate && (
-          <span className={cn("flex items-center gap-1", daysLeft !== null && daysLeft < 0 ? "text-red-500" : daysLeft !== null && daysLeft <= 7 ? "text-amber-500" : "")}>
-            <CalendarDays className="w-3 h-3" />{fmtDate(b.eventDate)}
-            {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && <span className="font-semibold">· {daysLeft}d</span>}
-          </span>
-        )}
-        {b.eventLocation && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{b.eventLocation}</span>}
-      </div>
-
-      <button onClick={onEdit}
-        className="w-full flex items-center justify-center gap-1.5 h-9 mb-3 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
-        <UploadCloud className="w-3.5 h-3.5" />
-        {allLinks.length > 0
-          ? <span><span className="font-semibold text-indigo-500">{allLinks.length} link{allLinks.length > 1 ? "s" : ""} added</span> · click to manage</span>
-          : "Upload files or add link"}
-      </button>
-
-      {b.deliveryNote && (
-        <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 mb-3 line-clamp-2">{b.deliveryNote}</p>
-      )}
-
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          {b.deliveryDate && (
-            <span className="flex items-center gap-1 text-teal-600 font-medium">
-              <CheckCircle2 className="w-3 h-3" />Delivered {fmtDate(b.deliveryDate)}
-            </span>
-          )}
-        </div>
-        {due > 0 && (
-          <span className="text-xs font-bold text-red-600">{formatCurrency(due, b.currency)} due</span>
         )}
       </div>
-      <span className="hidden">{String(copied)}</span>
     </div>
   );
 }

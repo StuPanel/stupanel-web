@@ -1,12 +1,12 @@
 "use client";
 
 import { CalendarDays as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { CARD_SHADOW, DateBox, EmptyState, Group, PageHeader } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Loader2, CalendarDays, MapPin, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, CalendarDays, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -49,44 +49,52 @@ function formatTime(dateStr?: string) {
 
 // ─── Day Detail Panel ─────────────────────────────────────────────────────────
 function DayPanel({ date, bookings, onClose }: { date: Date; bookings: Booking[]; onClose: () => void }) {
-  const label = `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const label = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(date);
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[80vh] flex flex-col"
-        onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+    <>
+      <div className="sp-backdrop" onClick={onClose} />
+      <aside className="sp-drawer flex flex-col" role="dialog" aria-modal="true" aria-label={label}>
+        <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-3 border-b border-[#EEEBF4]">
           <div>
-            <p className="font-bold text-slate-900">{label}</p>
-            <p className="text-xs text-slate-400">{bookings.length} {bookings.length === 1 ? "program" : "programs"}</p>
+            <p className="text-xs font-semibold text-[#6B6680]">{bookings.length} {bookings.length === 1 ? "program" : "programs"}</p>
+            <h2 className="text-lg font-bold text-[#17151F]">{label}</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-lg">✕</button>
+          <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><X className="w-4 h-4" /></button>
         </div>
-        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        <div className="overflow-y-auto flex-1 p-4">
           {bookings.length === 0 ? (
-            <p className="text-center text-slate-400 text-sm py-8">No programs on this day</p>
-          ) : bookings.map(b => {
-            const sc = STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry;
-            const clientName = b.client ? `${b.client.firstName} ${b.client.lastName}`.trim() : b.clientName ?? "";
-            const time = formatTime(b.eventDate);
-            return (
-              <Link key={b.id} href="/programs"
-                className="block p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-sm transition-all">
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <p className="font-semibold text-slate-900 text-sm leading-tight">{b.eventName}</p>
-                  <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0", sc.badge)}>{sc.label}</span>
-                </div>
-                <p className="text-xs text-slate-400 mb-1">{b.bookingNumber}</p>
-                {clientName && <p className="text-xs text-slate-500">Client: {clientName}</p>}
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  {time && <span className="flex items-center gap-1 text-xs text-slate-400"><Clock className="w-3 h-3" />{time}</span>}
-                  {b.eventLocation && <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin className="w-3 h-3" />{b.eventLocation}</span>}
-                </div>
-              </Link>
-            );
-          })}
+            <div className="py-12 text-center">
+              <span className="w-12 h-12 rounded-full bg-[#EEE8FD] flex items-center justify-center mx-auto"><CalendarDays className="w-5 h-5 text-[#5B3FD0]" /></span>
+              <p className="mt-3 text-sm font-bold text-[#17151F]">Free day</p>
+              <p className="text-xs text-[#6B6680] mt-1">No programs on this date.</p>
+              <Link href="/programs" className="mt-4 inline-flex h-10 px-4 rounded-full bg-[#16141D] text-white text-sm font-semibold items-center">Add program</Link>
+            </div>
+          ) : (
+            <Group>
+              {bookings.map(b => <EventRow key={b.id} b={b} />)}
+            </Group>
+          )}
         </div>
-      </div>
-    </div>
+      </aside>
+    </>
+  );
+}
+
+function EventRow({ b, withDate }: { b: Booking; withDate?: boolean }) {
+  const sc = STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry;
+  const clientName = b.client ? `${b.client.firstName} ${b.client.lastName ?? ""}`.trim() : b.clientName ?? "";
+  const time = formatTime(b.eventDate);
+  return (
+    <Link href={`/programs?view=${b.id}`} className="flex items-center gap-3 px-4 py-3 min-h-[64px] hover:bg-[#F7F5FB] transition-colors">
+      {withDate ? <DateBox date={b.eventDate} /> : <span className={cn("w-1.5 self-stretch rounded-full flex-shrink-0", sc.dot)} />}
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-[#17151F] truncate">{b.eventName || b.bookingNumber}</span>
+        <span className="block text-xs text-[#6B6680] truncate mt-0.5">
+          {[clientName, time && time !== "12:00 AM" && time !== "00:00" ? time : null, b.eventLocation].filter(Boolean).join(" · ")}
+        </span>
+      </span>
+      <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0", sc.badge)}>{sc.label}</span>
+    </Link>
   );
 }
 
@@ -157,98 +165,67 @@ export default function CalendarPage() {
     : [];
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <PageHeader icon={HeaderIcon} color="red" title="Calendar" sub={<>Program schedule</>}>
-        <button onClick={goToday} className="text-xs px-3 h-8 rounded-lg border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 transition-colors">
-          Today
-        </button>
+    <div>
+      <PageHeader icon={HeaderIcon} color="red" title={`${MONTH_NAMES[month]} ${year}`}
+        sub={loading ? "Loading…" : `${bookings.length} program${bookings.length === 1 ? "" : "s"} this month`}>
+        <div className="flex items-center gap-1 bg-white rounded-full p-1 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+          <button onClick={prev} aria-label="Previous month" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F5F3FA] text-[#4A4658]">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={goToday} className="h-8 px-3 rounded-full text-sm font-semibold text-[#17151F] hover:bg-[#F5F3FA]">Today</button>
+          <button onClick={next} aria-label="Next month" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F5F3FA] text-[#4A4658]">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </PageHeader>
 
-      {/* Month Nav */}
-      <div className="flex items-center justify-between">
-        <button onClick={prev} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 border border-slate-200">
-          <ChevronLeft className="w-4 h-4 text-slate-600" />
-        </button>
-        <h2 className="font-bold text-slate-900 text-base">{MONTH_NAMES[month]} {year}</h2>
-        <button onClick={next} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 border border-slate-200">
-          <ChevronRight className="w-4 h-4 text-slate-600" />
-        </button>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-slate-100">
-          {DAY_NAMES.map(d => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-slate-400">{d}</div>
+      {/* Month grid */}
+      <div className={cn("bg-white rounded-[20px] overflow-hidden mb-7", CARD_SHADOW)}>
+        <div className="grid grid-cols-7 border-b border-[#EEEBF4]">
+          {DAY_NAMES.map((d, i) => (
+            <div key={d} className={cn("py-2.5 text-center text-xs font-bold", i === 5 ? "text-[#C2304F]" : "text-[#6B6680]")}>{d}</div>
           ))}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" />
           </div>
         ) : (
           <div className="grid grid-cols-7">
             {cells.map((cell, i) => {
               const key = `${cell.date.getFullYear()}-${String(cell.date.getMonth()+1).padStart(2,"0")}-${String(cell.date.getDate()).padStart(2,"0")}`;
               const cellBookings = dayMap.get(key) ?? [];
-              const isToday = cell.currentMonth &&
-                cell.day === today.getDate() &&
-                month === today.getMonth() &&
-                year === today.getFullYear();
-              const isSelected = selected &&
-                selected.getDate() === cell.date.getDate() &&
-                selected.getMonth() === cell.date.getMonth() &&
-                selected.getFullYear() === cell.date.getFullYear();
-              const hasBookings = cellBookings.length > 0;
-
+              const isToday = cell.currentMonth && cell.day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+              const isSelected = selected && selected.getDate() === cell.date.getDate() && selected.getMonth() === cell.date.getMonth() && selected.getFullYear() === cell.date.getFullYear();
               return (
-                <button
-                  key={i}
-                  onClick={() => { if (cell.currentMonth) setSelected(cell.date); }}
+                <button key={i} onClick={() => { if (cell.currentMonth) setSelected(cell.date); }} disabled={!cell.currentMonth}
+                  aria-label={`${cell.day} ${MONTH_NAMES[cell.date.getMonth()]}${cellBookings.length ? `, ${cellBookings.length} program${cellBookings.length > 1 ? "s" : ""}` : ""}`}
                   className={cn(
-                    "min-h-[60px] sm:min-h-[80px] p-1.5 sm:p-2 text-left border-b border-r border-slate-100 transition-colors",
-                    !cell.currentMonth && "bg-slate-50/50",
-                    cell.currentMonth && "hover:bg-indigo-50/50 cursor-pointer",
-                    isSelected && "bg-indigo-50 ring-1 ring-inset ring-indigo-300",
+                    "min-h-[64px] sm:min-h-[104px] p-1.5 sm:p-2 text-left border-b border-r border-[#EEEBF4] transition-colors flex flex-col",
+                    cell.currentMonth ? "hover:bg-[#F7F5FB]" : "bg-[#FBFAFD]",
+                    isSelected && "bg-[#EEE8FD] hover:bg-[#EEE8FD]",
                     i % 7 === 6 && "border-r-0",
-                    i >= 35 && "border-b-0",
-                  )}
-                >
-                  <span className={cn(
-                    "w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium mx-auto mb-1",
-                    !cell.currentMonth && "text-slate-300",
-                    cell.currentMonth && !isToday && "text-slate-600",
-                    isToday && "bg-indigo-600 text-white",
                   )}>
+                  <span className={cn("w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-semibold mx-auto sm:mx-0 sm:ml-auto tabular-nums",
+                    !cell.currentMonth && "text-[#CFC8DC]",
+                    cell.currentMonth && !isToday && "text-[#17151F]",
+                    isToday && "bg-[#C2304F] text-white")}>
                     {cell.day}
                   </span>
-
-                  {/* Dots on mobile */}
-                  {hasBookings && (
-                    <div className="flex flex-wrap gap-0.5 justify-center sm:hidden">
-                      {cellBookings.slice(0, 3).map((b, j) => {
-                        const dot = (STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry).dot;
-                        return <span key={j} className={cn("w-1.5 h-1.5 rounded-full", dot)} />;
-                      })}
+                  {cellBookings.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5 justify-center mt-1 sm:hidden">
+                      {cellBookings.slice(0, 3).map((b, j) => (
+                        <span key={j} className={cn("w-1.5 h-1.5 rounded-full", (STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry).dot)} />
+                      ))}
                     </div>
                   )}
-
-                  {/* Labels on desktop */}
-                  <div className="hidden sm:block space-y-0.5">
+                  <div className="hidden sm:block space-y-1 mt-1 w-full">
                     {cellBookings.slice(0, 2).map(b => {
                       const sc = STATUS_COLORS[b.status] ?? STATUS_COLORS.inquiry;
-                      return (
-                        <div key={b.id} className={cn("text-xs px-1 py-0.5 rounded font-medium truncate leading-tight", sc.badge)}>
-                          {b.eventName}
-                        </div>
-                      );
+                      return <div key={b.id} className={cn("text-xs px-1.5 py-0.5 rounded-[6px] font-semibold truncate leading-tight", sc.badge)}>{b.eventName || b.bookingNumber}</div>;
                     })}
-                    {cellBookings.length > 2 && (
-                      <div className="text-xs text-slate-400 pl-1">+{cellBookings.length - 2} more</div>
-                    )}
+                    {cellBookings.length > 2 && <div className="text-xs font-semibold text-[#6B6680] pl-1">+{cellBookings.length - 2} more</div>}
                   </div>
                 </button>
               );
@@ -257,25 +234,16 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3">
-        {Object.entries(STATUS_COLORS).filter(([, v]) => v).map(([key, v]) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <span className={cn("w-2 h-2 rounded-full", v.dot)} />
-            <span className="text-xs text-slate-400">{v.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty state */}
-      {!loading && bookings.length === 0 && (
-        <div className="text-center py-8">
-          <CalendarDays className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm">No programs this month</p>
-          <Link href="/programs" className="inline-block mt-3 text-xs px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-            Add Programs
-          </Link>
-        </div>
+      {/* This month as a list */}
+      {!loading && (
+        bookings.length === 0 ? (
+          <EmptyState icon={CalendarDays} title="No programs this month" text="Pick another month, or add a program."
+            action={<Link href="/programs" className="inline-flex h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold items-center">Add program</Link>} />
+        ) : (
+          <Group title={`${MONTH_NAMES[month]} programs`}>
+            {[...bookings].sort((a, b) => (a.eventDate ?? "").localeCompare(b.eventDate ?? "")).map(b => <EventRow key={b.id} b={b} withDate />)}
+          </Group>
+        )
       )}
 
       {/* Day panel */}

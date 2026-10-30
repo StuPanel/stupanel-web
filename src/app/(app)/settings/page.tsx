@@ -1,1918 +1,291 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Building2, FileText, Loader2, CheckCircle2, Camera,
-  Link2, Globe, Phone, MapPin, Palette, Percent, CalendarDays,
-  CreditCard, Smartphone, ExternalLink, Video,
-  Shield, Clock, Bell, AlertCircle, Landmark, Hash, User,
-  HardDrive, Trash2, Star, Plus, AlertTriangle, RefreshCw, Receipt, Monitor,
-  Upload, X, ZoomIn, ZoomOut, ChevronDown, BookOpen, Search, Edit2,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+/**
+ * Settings — laid out like macOS System Settings.
+ * Desktop: sidebar (search + grouped panes) on the left, the pane on the right.
+ * Mobile: the list first; tapping a pane slides into it with a back button.
+ * Search finds any single setting and jumps straight to it.
+ * Every change saves by itself (see _ui.tsx).
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Search, X } from "lucide-react";
+import { apiFetch, API_URL as API } from "@/lib/api";
+import { notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-import { askConfirm, notify } from "@/components/feedback";
-import { StudioLogo } from "@/components/studio-logo";
-import { BRAND, safeLogo } from "@/lib/brand";
+import { GROUPS, paneById, searchSettings, type PaneId } from "./_registry";
+import { PaneHeader, SettingsCtx, Tile, type Company, type SaveState } from "./_ui";
+import { BrandingPane, GeneralPane, OnlinePane } from "./_panes/studio";
+import { CatalogPane, InvoicesPane, PaymentPane, QuotesPane, TaxPane } from "./_panes/money";
+import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
+import { IntegrationsPane, SecurityPane } from "./_panes/account";
 
+const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
+  general: GeneralPane, branding: BrandingPane, online: OnlinePane,
+  payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, tax: TaxPane, catalog: CatalogPane,
+  bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
+  security: SecurityPane, integrations: IntegrationsPane,
+};
 
-type Tab = "studio" | "branding" | "payment" | "quotation" | "booking" | "invoice" | "tax" | "social" | "notifications" | "portal" | "security" | "integrations" | "catalog";
+// Old links used ?tab=… — keep them working.
+const OLD_TABS: Record<string, PaneId> = {
+  studio: "general", branding: "branding", social: "online", payment: "payment", quotation: "quotes",
+  invoice: "invoices", tax: "tax", catalog: "catalog", booking: "bookings", portal: "portal",
+  notifications: "notifications", security: "security", integrations: "integrations",
+};
 
-const DEFAULT_TERMS = `1. 50% advance payment required to confirm booking.
-2. Remaining balance due on the event day.
-3. Edited photos delivered within 30 working days.
-4. Videos delivered within 45 working days.
-5. Cancellation with less than 7 days notice will forfeit the advance.
-6. Studio is not responsible for circumstances beyond our control.
-7. This quotation is valid until the date mentioned above.`;
-
-const CURRENCIES = [
-  { code: "BDT", label: "৳ BDT — Bangladeshi Taka" },
-  { code: "USD", label: "$ USD — US Dollar" },
-  { code: "INR", label: "₹ INR — Indian Rupee" },
-  { code: "GBP", label: "£ GBP — British Pound" },
-  { code: "EUR", label: "€ EUR — Euro" },
-  { code: "AED", label: "AED — UAE Dirham" },
-];
-
-const TIMEZONES = [
-  { value: "Asia/Dhaka",       label: "Asia/Dhaka (BDT +6:00)" },
-  { value: "Asia/Kolkata",     label: "Asia/Kolkata (IST +5:30)" },
-  { value: "Asia/Karachi",     label: "Asia/Karachi (PKT +5:00)" },
-  { value: "Asia/Dubai",       label: "Asia/Dubai (GST +4:00)" },
-  { value: "Asia/Singapore",   label: "Asia/Singapore (SGT +8:00)" },
-  { value: "Europe/London",    label: "Europe/London (GMT +0:00)" },
-  { value: "America/New_York", label: "America/New_York (EST -5:00)" },
-];
-
-const SESSION_OPTS = [
-  { value: 30,    label: "30 minutes" },
-  { value: 60,    label: "1 hour" },
-  { value: 120,   label: "2 hours" },
-  { value: 240,   label: "4 hours" },
-  { value: 480,   label: "8 hours (recommended)" },
-  { value: 1440,  label: "1 day" },
-  { value: 10080, label: "1 week (never timeout)" },
-];
-
-// ─── Toast ─────────────────────────────────────────────────────────────────────
-function Toast({ msg, type, onDone }: { msg: string; type: "success" | "error"; onDone: () => void }) {
-  useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t); }, [onDone]);
-  return (
-    <div className={cn(
-      "sp-toast",
-      type === "success" ? "" : "sp-toast--err",
-    )}>
-      {type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-      {msg}
-    </div>
-  );
+function paneFromUrl(): PaneId | null {
+  if (typeof window === "undefined") return null;
+  const p = new URLSearchParams(window.location.search);
+  const id = p.get("pane") ?? OLD_TABS[p.get("tab") ?? ""];
+  return id && paneById(id) ? (id as PaneId) : null;
 }
 
-// ─── Section Header ─────────────────────────────────────────────────────────────
-function SectionHead({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub: string }) {
-  return (
-    <div className="flex items-center gap-3 pb-4 border-b border-slate-100 mb-5">
-      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-4 h-4 text-indigo-600" />
-      </div>
-      <div>
-        <p className="font-bold text-slate-800 text-sm">{title}</p>
-        <p className="text-xs text-slate-400">{sub}</p>
-      </div>
-    </div>
-  );
-}
+export default function SettingsPage() {
+  const [data, setData] = useState<Company | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [pane, setPane] = useState<PaneId>("general");
+  const [mobileOpen, setMobileOpen] = useState(false); // mobile: showing a pane (not the list)
+  const [q, setQ] = useState("");
+  const [cursor, setCursor] = useState(0);
+  const [state, setState] = useState<SaveState>("idle");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-// ─── Field wrapper ─────────────────────────────────────────────────────────────
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{label}</Label>
-      {children}
-      {hint && <p className="text-xs text-slate-400">{hint}</p>}
-    </div>
-  );
-}
+  useEffect(() => {
+    const fromUrl = paneFromUrl();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fromUrl) { setPane(fromUrl); setMobileOpen(true); }
+    apiFetch(`${API}/companies/me`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => setFailed(true));
+  }, []);
 
-// ─── Shared save hook ──────────────────────────────────────────────────────────
-function useSave() {
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-
-  async function save(payload: object, successMsg = "Saved!") {
-    setSaving(true);
+  // Save one or more fields. Shows the change at once; puts it back if saving fails.
+  const patch = useCallback(async (payload: Record<string, unknown>) => {
+    let before: Company | null = null;
+    setData(d => { before = d; return d ? { ...d, ...payload } : d; });
+    setState("saving");
+    if (savedTimer.current) clearTimeout(savedTimer.current);
     try {
       const r = await apiFetch(`${API}/companies/me`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        const msg = d.message;
-        const errText = Array.isArray(msg) ? msg[0] : (msg || `Error ${r.status}`);
-        setToast({ msg: errText, type: "error" });
-        return;
+        throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save");
       }
-      setToast({ msg: successMsg, type: "success" });
-    } catch { setToast({ msg: "Network error. Please try again.", type: "error" }); }
-    finally { setSaving(false); }
-  }
-
-  return { saving, toast, setToast, save };
-}
-
-// ─── Studio Tab ────────────────────────────────────────────────────────────────
-function StudioTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    name: data.name ?? "", phone: data.phone ?? "",
-    website: data.website ?? "", address: data.address ?? "",
-    city: data.city ?? "", state: data.state ?? "", country: data.country ?? "Bangladesh",
-    currency: data.currency ?? "BDT", timezone: data.timezone ?? "Asia/Dhaka",
-  });
-  const { saving, toast, setToast, save } = useSave();
-  const set = (k: string) => (e: React.ChangeEvent<any>) => setF(p => ({ ...p, [k]: e.target.value }));
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Building2} title="Studio Information" sub="Your studio's public profile and contact details" />
-      <form onSubmit={e => { e.preventDefault(); save(f, "Studio info saved!"); }} className="space-y-4 max-w-lg">
-        <Field label="Studio Name *">
-          <Input value={f.name} onChange={set("name")} placeholder="My Photography Studio" className="h-11 border-slate-200" required />
-        </Field>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Phone">
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input value={f.phone} onChange={set("phone")} placeholder="+1 234 567 8900" className="h-11 pl-9 border-slate-200" />
-            </div>
-          </Field>
-          <Field label="Website">
-            <div className="relative">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input value={f.website} onChange={set("website")} placeholder="https://yourstudio.com" className="h-11 pl-9 border-slate-200" />
-            </div>
-          </Field>
-        </div>
-        <Field label="Address">
-          <div className="relative">
-            <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-            <textarea value={f.address} onChange={set("address")} rows={2} placeholder="Studio address…"
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-          </div>
-        </Field>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {([ ["city","City","Dhaka"], ["state","State","(optional)"], ["country","Country","Bangladesh"] ] as [string,string,string][]).map(([k,l,p]) => (
-            <Field key={k} label={l}>
-              <Input value={(f as any)[k]} onChange={set(k)} placeholder={p} className="h-11 border-slate-200 text-sm" />
-            </Field>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Currency">
-            <select value={f.currency} onChange={set("currency")}
-              className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-            </select>
-          </Field>
-          <Field label="Timezone">
-            <select value={f.timezone} onChange={set("timezone")}
-              className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-              {TIMEZONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </Field>
-        </div>
-        <Button type="submit" disabled={saving} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Studio Info</>}
-        </Button>
-      </form>
-    </>
-  );
-}
-
-// ─── Logo Crop Modal ───────────────────────────────────────────────────────────
-const CD = 300; // canvas display size
-const CO = 400; // crop output size
-
-function LogoCropModal({ src, onSave, onClose }: {
-  src: string;
-  onSave: (blob: Blob) => void;
-  onClose: () => void;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef    = useRef<HTMLImageElement | null>(null);
-  const scaleRef  = useRef(1);
-  const offsetRef = useRef({ x: 0, y: 0 });
-  const minScRef  = useRef(1);
-
-  const [scale, _setScale]   = useState(1);
-  const [offset, _setOffset] = useState({ x: 0, y: 0 });
-  const [minScale, setMinScale] = useState(1);
-  const [exporting, setExporting] = useState(false);
-  const dragging = useRef(false);
-  const lastPos  = useRef({ x: 0, y: 0 });
-
-  // Keep refs in sync so closures always read current values
-  function applyScale(s: number)                    { scaleRef.current = s;  _setScale(s); }
-  function applyOffset(o: { x: number; y: number }) { offsetRef.current = o; _setOffset(o); }
-
-  const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const img    = imgRef.current;
-    if (!canvas || !img) return;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, CD, CD);
-    const { x, y } = offsetRef.current;
-    ctx.drawImage(img, x, y, img.width * scaleRef.current, img.height * scaleRef.current);
+      setState("saved");
+      savedTimer.current = setTimeout(() => setState("idle"), 1800);
+      return true;
+    } catch (e) {
+      if (before) setData(before);
+      setState("error");
+      notify(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "Couldn't save — check your internet", { error: true });
+      return false;
+    }
   }, []);
 
-  useEffect(() => { redraw(); }, [scale, offset, redraw]);
+  const results = useMemo(() => searchSettings(q), [q]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setCursor(0); }, [q]);
 
+  const openPane = useCallback((id: PaneId, rowId?: string) => {
+    setPane(id);
+    setMobileOpen(true);
+    window.history.replaceState({}, "", `${window.location.pathname}?pane=${id}`);
+    if (!rowId) { contentRef.current?.scrollIntoView({ block: "start" }); window.scrollTo({ top: 0 }); return; }
+    // Wait for the pane to render, then scroll to the setting and flash it.
+    setTimeout(() => {
+      const el = document.getElementById(`set-${rowId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("sp-set-flash");
+      void el.offsetWidth;
+      el.classList.add("sp-set-flash");
+      const field = el.querySelector<HTMLElement>("input:not([type=file]), select, textarea");
+      field?.focus({ preventScroll: true });
+    }, 120);
+  }, []);
+
+  function pick(i: number) {
+    const r = results[i];
+    if (!r) return;
+    openPane(r.pane.id, r.entry.id || undefined);
+    setQ("");
+  }
+
+  function onSearchKey(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); pick(cursor); (e.target as HTMLInputElement).blur(); }
+    else if (e.key === "Escape") { setQ(""); }
+  }
+
+  // "/" or Ctrl/⌘+K jumps to search.
   useEffect(() => {
-    const image = new Image();
-    image.onload = () => {
-      const s = Math.max(CD / image.width, CD / image.height);
-      const ox = (CD - image.width  * s) / 2;
-      const oy = (CD - image.height * s) / 2;
-      imgRef.current    = image;
-      minScRef.current  = s;
-      scaleRef.current  = s;
-      offsetRef.current = { x: ox, y: oy };
-      setMinScale(s);
-      applyScale(s);
-      applyOffset({ x: ox, y: oy });
+    const onKey = (e: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
+      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        const desktop = window.matchMedia("(min-width: 768px)").matches;
+        if (!desktop) setMobileOpen(false);
+        setTimeout(() => (desktop ? searchRef : mobileSearchRef).current?.focus(), 0);
+      }
     };
-    image.src = src;
-  }, [src]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
-  function clamp(ox: number, oy: number, sc: number) {
-    const img = imgRef.current;
-    if (!img) return { x: ox, y: oy };
-    const w = img.width * sc, h = img.height * sc;
-    return {
-      x: Math.min(0, Math.max(CD - w, ox)),
-      y: Math.min(0, Math.max(CD - h, oy)),
-    };
-  }
-
-  // Zoom toward canvas center — ratio adjustment keeps center pixel fixed
-  function zoomTo(next: number) {
-    const img = imgRef.current;
-    if (!img) return;
-    const clamped = Math.min(4, Math.max(minScRef.current, next));
-    const cur = scaleRef.current;
-    if (Math.abs(clamped - cur) < 0.001) return;
-    const cx = CD / 2, cy = CD / 2;
-    const ratio = clamped / cur;
-    const { x, y } = offsetRef.current;
-    const newOff = clamp(cx - (cx - x) * ratio, cy - (cy - y) * ratio, clamped);
-    applyScale(clamped);
-    applyOffset(newOff);
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    dragging.current = true;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging.current) return;
-    const dx = e.clientX - lastPos.current.x, dy = e.clientY - lastPos.current.y;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    applyOffset(clamp(offsetRef.current.x + dx, offsetRef.current.y + dy, scaleRef.current));
-  }
-  function onPointerUp() { dragging.current = false; }
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    zoomTo(scaleRef.current + (e.deltaY < 0 ? 0.08 : -0.08));
-  }
-
-  // Auto-compress: iteratively reduce JPEG quality until < 600 KB
-  function exportCrop() {
-    const img = imgRef.current;
-    if (!img) return;
-    setExporting(true);
-    const out = document.createElement('canvas');
-    out.width = CO; out.height = CO;
-    const ctx = out.getContext('2d')!;
-    const r = CO / CD;
-    const { x, y } = offsetRef.current;
-    const sc = scaleRef.current;
-    ctx.drawImage(img, x * r, y * r, img.width * sc * r, img.height * sc * r);
-
-    const TARGET = 600 * 1024;
-    function tryQ(q: number) {
-      out.toBlob(blob => {
-        if (!blob) { setExporting(false); return; }
-        if (blob.size > TARGET && q > 0.25) { tryQ(q - 0.08); }
-        else { setExporting(false); onSave(blob); }
-      }, 'image/jpeg', q);
-    }
-    tryQ(0.9);
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="sp-modal w-full max-w-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="font-bold text-slate-900 text-sm">লোগো পজিশন করুন</p>
-            <p className="text-xs text-slate-400 mt-0.5">Drag করুন · Scroll বা বোতামে zoom করুন</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {/* Canvas */}
-          <div className="relative mx-auto overflow-hidden rounded-xl" style={{ width: CD, height: CD }}>
-            <canvas
-              ref={canvasRef}
-              width={CD} height={CD}
-              className="cursor-grab active:cursor-grabbing touch-none select-none"
-              style={{ display: 'block' }}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerLeave={onPointerUp}
-              onWheel={handleWheel}
-            />
-            {/* Dark overlay outside circle — CSS mask approach */}
-            <div className="absolute inset-0 pointer-events-none" style={{
-              background: 'radial-gradient(circle ' + (CD/2 - 12) + 'px at center, transparent 99%, rgba(0,0,0,0.55) 100%)',
-            }} />
-            {/* Circle border guide */}
-            <div className="absolute pointer-events-none rounded-full border-2 border-white/70"
-              style={{ inset: 12 }} />
-          </div>
-
-          {/* Zoom slider */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => zoomTo(scaleRef.current - 0.15)}
-              className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 flex-shrink-0">
-              <ZoomOut className="w-4 h-4 text-slate-600" />
-            </button>
-            <input type="range"
-              min={Math.round(minScale * 100)} max={400}
-              value={Math.round(scale * 100)}
-              onChange={e => zoomTo(Number(e.target.value) / 100)}
-              className="flex-1 accent-indigo-600" />
-            <button onClick={() => zoomTo(scaleRef.current + 0.15)}
-              className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 flex-shrink-0">
-              <ZoomIn className="w-4 h-4 text-slate-600" />
-            </button>
-          </div>
-        </div>
-
-        <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">
-            বাতিল
-          </button>
-          <button onClick={exportCrop} disabled={exporting}
-            className="flex-1 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center justify-center gap-2">
-            {exporting ? <><Loader2 className="w-4 h-4 animate-spin" />Processing…</> : "এই Crop ব্যবহার করুন"}
-          </button>
-        </div>
-      </div>
+  if (failed) return (
+    <div className="max-w-md mx-auto text-center py-20">
+      <p className="text-base font-bold text-[#17151F]">Couldn&apos;t load settings</p>
+      <p className="text-sm text-[#6B6680] mt-1">Check your internet and try again.</p>
+      <button onClick={() => window.location.reload()} className="mt-5 h-11 px-5 rounded-full bg-[#16141D] text-white text-sm font-semibold">Try again</button>
     </div>
   );
-}
 
-// ─── Logo placement preview card ───────────────────────────────────────────────
-function PlacementPreview({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">{children}</div>
+  if (!data) return <SettingsSkeleton />;
+
+  const current = paneById(pane)!;
+  const View = PANE_VIEWS[pane];
+
+  const searchBox = (ref: React.RefObject<HTMLInputElement | null>, id: string, onWhite = true) => (
+    <div className="relative">
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680] pointer-events-none" />
+      <input ref={ref} id={id} value={q} onChange={e => setQ(e.target.value)} onKeyDown={onSearchKey}
+        placeholder="Search settings" aria-label="Search settings" autoComplete="off"
+        role="combobox" aria-expanded={!!q} aria-controls={`${id}-results`}
+        aria-activedescendant={q && results[cursor] ? `${id}-opt-${cursor}` : undefined}
+        className={cn("w-full h-11 pl-10 pr-16 rounded-full text-sm", onWhite ? "bg-[#F5F3FA]" : "bg-white shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]",
+          " text-[#17151F] placeholder:text-[#6B6680] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40")} />
+      {q ? (
+        <button onClick={() => setQ("")} aria-label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-white">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      ) : (
+        <kbd className="hidden md:inline-flex absolute right-3 top-1/2 -translate-y-1/2 h-6 px-2 items-center rounded-md bg-white text-[11px] font-semibold text-[#6B6680] border border-[#E3DFEC]">/</kbd>
+      )}
     </div>
   );
-}
 
-// ─── Branding Tab ──────────────────────────────────────────────────────────────
-// Logo is upload-only (no pasted links) and saves as soon as it is uploaded.
-// Every studio uses the one StuPanel colour, so there is no colour picker.
-function BrandingTab({ data }: { data: any }) {
-  const [logoUrl, setLogoUrl] = useState<string>(safeLogo(data.logoUrl) ?? "");
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
-  const [uploadErr, setUploadErr] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setUploadErr("শুধু JPG, PNG বা WebP ছবি দিন।");
-      return;
-    }
-    setUploadErr("");
-    const reader = new FileReader();
-    reader.onload = ev => { if (ev.target?.result) setCropSrc(ev.target.result as string); };
-    reader.readAsDataURL(file);
-  }
-
-  async function saveLogo(url: string | null) {
-    const r = await apiFetch(`${API}/companies/me`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ logoUrl: url ?? "" }),
-    });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      throw new Error(Array.isArray(d.message) ? d.message[0] : (d.message || "Could not save the logo"));
-    }
-    setLogoUrl(url ?? "");
-    window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: url } }));
-  }
-
-  async function onCropSave(blob: Blob) {
-    setCropSrc(null);
-    setBusy("upload");
-    setUploadErr("");
-    try {
-      const form = new FormData();
-      form.append("file", blob, "logo.jpg");
-      const res = await apiFetch(`${API}/companies/logo`, { method: "POST", body: form });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "Upload failed");
-      const { url } = await res.json();
-      await saveLogo(url);
-      notify("Logo saved");
-    } catch (err: unknown) {
-      setUploadErr(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function onRemove() {
-    if (!(await askConfirm({ title: "Remove logo?", message: "Your studio initial will be shown instead.", confirmLabel: "Remove", danger: true }))) return;
-    setBusy("remove");
-    setUploadErr("");
-    try { await saveLogo(null); notify("Logo removed"); }
-    catch (err: unknown) { setUploadErr(err instanceof Error ? err.message : "Could not remove the logo"); }
-    finally { setBusy(null); }
-  }
-
-  const name = data.name || "Studio Name";
-
-  return (
-    <>
-      {cropSrc && <LogoCropModal src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
-
-      <SectionHead icon={Palette} title="Branding" sub="Your logo on quotes, invoices, emails and client pages" />
-      <div className="space-y-6 max-w-xl">
-
-        {/* Logo */}
-        <div className="space-y-3">
-          <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Studio Logo</Label>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <StudioLogo url={logoUrl} name={data.name} size={80} className="rounded-2xl" />
-              {busy && (
-                <div className="absolute inset-0 rounded-2xl bg-white/80 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 space-y-2">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-                className="hidden" onChange={onFileChange} />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" disabled={!!busy} onClick={() => fileInputRef.current?.click()} className="gap-2">
-                  <Upload className="w-4 h-4" />{logoUrl ? "Change logo" : "Upload logo"}
-                </Button>
-                {logoUrl && (
-                  <Button type="button" variant="outline" disabled={!!busy} onClick={onRemove} className="gap-2 text-[#C2304F]">
-                    <Trash2 className="w-4 h-4" />Remove
-                  </Button>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">JPG / PNG / WebP · square works best · uploading saves it right away</p>
-            </div>
-          </div>
-          {uploadErr && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{uploadErr}
-            </p>
-          )}
+  const resultList = (id: string, big?: boolean) => (
+    <div id={`${id}-results`} role="listbox" aria-label="Search results">
+      {results.length === 0 ? (
+        <div className="px-3 py-8 text-center">
+          <p className="text-sm font-semibold text-[#17151F]">No settings match &ldquo;{q}&rdquo;</p>
+          <p className="text-xs text-[#6B6680] mt-1">Try another word, like &ldquo;logo&rdquo;, &ldquo;bKash&rdquo; or &ldquo;invoice&rdquo;.</p>
         </div>
-
-        {/* Previews */}
-        <div className="space-y-3">
-          <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Where your logo appears</Label>
-          <div className="grid grid-cols-1 gap-3">
-            <PlacementPreview label="Invoice & Quote Header">
-              <div className="p-4 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <StudioLogo url={logoUrl} name={data.name} size={48} />
-                  <div>
-                    <p className="font-extrabold text-slate-900 text-sm">{name}</p>
-                    <p className="text-xs text-slate-500">{data.city || "Dhaka"} · {data.country || "Bangladesh"}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-base" style={{ color: BRAND }}>INVOICE</p>
-                  <p className="text-xs text-slate-500">#INV-2025-001</p>
-                </div>
-              </div>
-            </PlacementPreview>
-
-            <PlacementPreview label="Client Portal & Booking Tracker">
-              <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: BRAND }}>
-                <StudioLogo url={logoUrl} name={data.name} size={40} tone="onDark" />
-                <div>
-                  <p className="font-bold text-white text-sm">{name}</p>
-                  <p className="text-xs text-white/70">Client Portal</p>
-                </div>
-              </div>
-            </PlacementPreview>
-
-            <PlacementPreview label="App Sidebar & Account Menu">
-              <div className="flex items-center gap-3 p-3 bg-[#F5F3FA]">
-                <StudioLogo url={logoUrl} name={data.name} size={40} />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{name}</p>
-                  <p className="text-xs text-slate-500">Studio workspace</p>
-                </div>
-              </div>
-            </PlacementPreview>
-          </div>
-        </div>
-      </div>
-    </>
+      ) : results.map((r, i) => (
+        <button key={`${r.pane.id}-${r.entry.id}`} id={`${id}-opt-${i}`} role="option" aria-selected={i === cursor}
+          onMouseEnter={() => setCursor(i)} onClick={() => pick(i)}
+          className={cn("w-full flex items-center gap-3 rounded-[14px] text-left transition-colors",
+            big ? "px-4 py-3" : "px-2.5 py-2", i === cursor ? "bg-[#EEE8FD]" : "hover:bg-[#F5F3FA]")}>
+          <Tile icon={r.pane.icon} color={r.pane.color} size={big ? 30 : 24} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-[#17151F] truncate"><Highlight text={r.entry.label} q={q} /></span>
+            <span className="block text-xs text-[#6B6680] truncate">{r.entry.id ? `${r.pane.title} › ${r.entry.section}` : r.pane.sub}</span>
+          </span>
+          {big && <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
+        </button>
+      ))}
+    </div>
   );
-}
-
-// ─── Payment Info Tab ──────────────────────────────────────────────────────────
-function PaymentTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    bankName: data.bankName ?? "", bankBranch: data.bankBranch ?? "",
-    bankAccountName: data.bankAccountName ?? "", bankAccountNumber: data.bankAccountNumber ?? "",
-    bankRoutingNumber: data.bankRoutingNumber ?? "",
-    bkashNumber: data.bkashNumber ?? "", nagadNumber: data.nagadNumber ?? "", rocketNumber: data.rocketNumber ?? "",
-  });
-  const { saving, toast, setToast, save } = useSave();
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
 
   return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={CreditCard} title="Payment Information" sub="Bank and mobile banking details shown on quotes and invoices" />
-      <div className="space-y-5 max-w-lg">
+    <SettingsCtx.Provider value={{ data, patch, state }}>
+      <div className="max-w-6xl mx-auto md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
 
-        {/* Bank */}
-        <div className="space-y-3 p-4 rounded-2xl border border-slate-200 bg-slate-50">
-          <div className="flex items-center gap-2 mb-1">
-            <Landmark className="w-4 h-4 text-indigo-500" />
-            <p className="text-sm font-semibold text-slate-700">Bank Transfer</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Bank Name">
-              <Input value={f.bankName} onChange={set("bankName")} placeholder="Bank name" className="h-11 border-slate-200 text-sm bg-white" />
-            </Field>
-            <Field label="Branch">
-              <Input value={f.bankBranch} onChange={set("bankBranch")} placeholder="Branch name" className="h-11 border-slate-200 text-sm bg-white" />
-            </Field>
-          </div>
-          <Field label="Account Holder Name">
-            <Input value={f.bankAccountName} onChange={set("bankAccountName")} placeholder="Faisal Ahmed Photography" className="h-11 border-slate-200 text-sm bg-white" />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Account Number">
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input value={f.bankAccountNumber} onChange={set("bankAccountNumber")} placeholder="1234567890" className="h-11 pl-9 border-slate-200 text-sm bg-white" />
+        {/* ── Desktop sidebar ── */}
+        <aside className="hidden md:flex flex-col sticky top-[68px] max-h-[calc(100vh-5.5rem)] bg-white rounded-[22px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
+          <div className="p-3 pb-2">{searchBox(searchRef, "settings-search")}</div>
+          <nav className="flex-1 overflow-y-auto px-2 pb-3" aria-label="Settings sections">
+            {q ? resultList("settings-search") : GROUPS.map(g => (
+              <div key={g.title} className="mt-3 first:mt-1">
+                <p className="px-2.5 mb-1 text-xs font-bold text-[#6B6680]">{g.title}</p>
+                {g.panes.map(p => {
+                  const active = p.id === pane;
+                  return (
+                    <button key={p.id} onClick={() => openPane(p.id)} aria-current={active ? "page" : undefined}
+                      className={cn("w-full h-10 px-2.5 rounded-[12px] flex items-center gap-3 text-sm transition-colors",
+                        active ? "bg-[#EEE8FD] text-[#5B3FD0] font-bold" : "text-[#17151F] font-medium hover:bg-[#F5F3FA]")}>
+                      <Tile icon={p.icon} color={p.color} size={26} />
+                      <span className="truncate">{p.title}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </Field>
-            <Field label="Routing Number">
-              <Input value={f.bankRoutingNumber} onChange={set("bankRoutingNumber")} placeholder="Routing number" className="h-11 border-slate-200 text-sm bg-white" />
-            </Field>
-          </div>
-        </div>
-
-        {/* Mobile Banking */}
-        <div className="space-y-3 p-4 rounded-2xl border border-slate-200 bg-slate-50">
-          <div className="flex items-center gap-2 mb-1">
-            <Smartphone className="w-4 h-4 text-indigo-500" />
-            <p className="text-sm font-semibold text-slate-700">Mobile Banking</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {([
-              ["bkashNumber",  "bKash",  "Mobile number", "text-pink-600"   ],
-              ["nagadNumber",  "Nagad",  "Mobile number", "text-orange-600" ],
-              ["rocketNumber", "Rocket", "Mobile number", "text-purple-600" ],
-            ] as [string,string,string,string][]).map(([key, label, placeholder, color]) => (
-              <Field key={key} label={label}>
-                <div className="relative">
-                  <Smartphone className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4", color)} />
-                  <Input value={(f as any)[key]} onChange={set(key)} placeholder={placeholder}
-                    className="h-11 pl-9 border-slate-200 text-sm bg-white" />
-                </div>
-              </Field>
             ))}
-          </div>
-        </div>
+          </nav>
+        </aside>
 
-        <div className="flex items-start gap-2 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-          <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700 leading-relaxed">These details appear at the bottom of every quote and invoice so clients know how to pay you.</p>
-        </div>
-
-        <Button disabled={saving} onClick={() => save(f, "Payment info saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Payment Info</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Quotation Tab ─────────────────────────────────────────────────────────────
-function QuotationTab({ data }: { data: any }) {
-  const [defaultTerms, setDefaultTerms] = useState(data.defaultTerms ?? DEFAULT_TERMS);
-  const [defaultValidityDays, setDefaultValidityDays] = useState(Number(data.defaultValidityDays ?? 7));
-  const [defaultAdvancePercent, setDefaultAdvancePercent] = useState(Number(data.defaultAdvancePercent ?? 50));
-  const { saving, toast, setToast, save } = useSave();
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={FileText} title="Quotation Defaults" sub="Auto-filled when creating a new quotation — override per quote anytime" />
-      <div className="space-y-5 max-w-lg">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Validity Days" hint={`Quote expires ${defaultValidityDays} days after creation`}>
-            <div className="relative">
-              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="number" min="1" max="365" value={defaultValidityDays}
-                onChange={e => setDefaultValidityDays(Number(e.target.value) || 7)}
-                className="w-full h-11 pl-9 pr-14 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
-            </div>
-          </Field>
-          <Field label="Default Advance %" hint={`Client pays ${defaultAdvancePercent}% upfront to confirm`}>
-            <div className="relative">
-              <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="number" min="0" max="100" step="5" value={defaultAdvancePercent}
-                onChange={e => setDefaultAdvancePercent(Number(e.target.value) || 50)}
-                className="w-full h-11 pl-9 pr-8 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
-            </div>
-          </Field>
-        </div>
-        <Field label="Default Terms & Conditions">
-          <textarea value={defaultTerms} onChange={e => setDefaultTerms(e.target.value)} rows={10}
-            placeholder="Enter your standard terms…"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-y font-mono text-xs leading-relaxed" />
-        </Field>
-        <Button disabled={saving} onClick={() => save({ defaultTerms, defaultValidityDays, defaultAdvancePercent }, "Quotation defaults saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Defaults</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Booking Tab ──────────────────────────────────────────────────────────────
-const BOOKING_STATUSES = [
-  { value: "inquiry",          label: "Inquiry",           desc: "Client has enquired, not yet confirmed" },
-  { value: "quote_sent",       label: "Quote Sent",        desc: "Quotation has been sent to client" },
-  { value: "confirmed",        label: "Confirmed",         desc: "Booking is confirmed and locked in" },
-  { value: "advance_received", label: "Advance Received",  desc: "Advance payment has been collected" },
-];
-
-function BookingTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    defaultBookingStatus:      data.defaultBookingStatus      ?? "inquiry",
-    defaultCancellationPolicy: data.defaultCancellationPolicy ?? "",
-    bookingReminderDays:       Number(data.bookingReminderDays ?? 3),
-  });
-  const { saving, toast, setToast, save } = useSave();
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={CalendarDays} title="Booking Defaults" sub="Pre-filled settings applied whenever a new booking is created" />
-      <div className="space-y-6 max-w-lg">
-
-        {/* Default Status */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">New Booking Status</p>
-          <p className="text-xs text-slate-500 mb-3">When a new booking is created without a specific status, this is used automatically.</p>
-          <div className="space-y-2">
-            {BOOKING_STATUSES.map(s => (
-              <label key={s.value}
-                className={cn(
-                  "flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all",
-                  f.defaultBookingStatus === s.value
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-slate-200 hover:border-slate-300 bg-white"
-                )}>
-                <input type="radio" name="bookingStatus" value={s.value}
-                  checked={f.defaultBookingStatus === s.value}
-                  onChange={() => setF(p => ({ ...p, defaultBookingStatus: s.value }))}
-                  className="accent-indigo-600" />
-                <div className="flex-1">
-                  <p className={cn("text-sm font-semibold", f.defaultBookingStatus === s.value ? "text-indigo-700" : "text-slate-700")}>{s.label}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{s.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Cancellation Policy */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Default Cancellation Policy</p>
-          <Field label="Cancellation Policy" hint="Pre-filled in every new booking — clients can see this in their portal">
-            <textarea
-              value={f.defaultCancellationPolicy}
-              onChange={e => setF(p => ({ ...p, defaultCancellationPolicy: e.target.value }))}
-              rows={4}
-              placeholder={`e.g.\n1. Cancellation within 7 days of booking date forfeits the advance.\n2. Rescheduling allowed once with 14 days notice.\n3. Refunds processed within 7 business days.`}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
-            />
-          </Field>
-        </div>
-
-        {/* Reminder Days */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Event Reminder</p>
-          <Field label="Remind Before Event" hint={`Studio gets an alert ${f.bookingReminderDays} day(s) before the event date`}>
-            <div className="relative">
-              <Bell className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="number" min={1} max={90}
-                value={f.bookingReminderDays}
-                onChange={e => setF(p => ({ ...p, bookingReminderDays: Number(e.target.value) || 3 }))}
-                className="w-full h-11 pl-9 pr-14 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
-            </div>
-          </Field>
-        </div>
-
-        <Button disabled={saving} onClick={() => save(f, "Booking defaults saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Booking Defaults</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Invoice Tab ──────────────────────────────────────────────────────────────
-function InvoiceTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    invoicePrefix:        data.invoicePrefix        ?? "INV",
-    invoiceStartNumber:   Number(data.invoiceStartNumber ?? 1),
-    invoiceDueDays:       Number(data.invoiceDueDays     ?? 7),
-    invoiceFooter:        data.invoiceFooter        ?? "",
-    invoiceShowPayment:   data.invoiceShowPayment   ?? true,
-    invoiceHeaderStyle:   data.invoiceHeaderStyle   ?? "dark",
-    invoiceShowLogo:      data.invoiceShowLogo      ?? true,
-    invoiceShowSignature: data.invoiceShowSignature ?? true,
-    invoiceSignatureText: data.invoiceSignatureText ?? "Thank you for your business!",
-  });
-  const { saving, toast, setToast, save } = useSave();
-  const set = (k: string) => (e: React.ChangeEvent<any>) => setF(p => ({ ...p, [k]: e.target.value }));
-
-  const pad = (n: number) => String(n).padStart(3, "0");
-  const pfx = f.invoicePrefix.trim() || "INV";
-  const preview = `${pfx}-${pad(f.invoiceStartNumber)}, ${pfx}-${pad(f.invoiceStartNumber + 1)}, ${pfx}-${pad(f.invoiceStartNumber + 2)}…`;
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Receipt} title="Invoice Defaults" sub="Configure how invoices are numbered and displayed to clients" />
-      <div className="space-y-6 max-w-lg">
-
-        {/* Invoice Numbering */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Numbering</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-            <Field label="Prefix" hint="e.g. INV, SP, STUDIO">
-              <Input
-                value={f.invoicePrefix}
-                onChange={set("invoicePrefix")}
-                placeholder="INV"
-                maxLength={20}
-                className="h-11 border-slate-200 font-mono tracking-wider"
-              />
-            </Field>
-            <Field label="Starting Number" hint="First invoice number">
-              <input
-                type="number" min={1} max={999999}
-                value={f.invoiceStartNumber}
-                onChange={e => setF(p => ({ ...p, invoiceStartNumber: Number(e.target.value) || 1 }))}
-                className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:border-indigo-400 bg-white"
-              />
-            </Field>
-          </div>
-          <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex items-center gap-3">
-            <Hash className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Preview</p>
-              <p className="text-sm font-mono text-indigo-800 mt-0.5">{preview}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Due */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Payment Due</p>
-          <Field label="Default Due Days" hint={`Client must pay within ${f.invoiceDueDays} day(s) of invoice date`}>
-            <div className="relative">
-              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="number" min={1} max={365}
-                value={f.invoiceDueDays}
-                onChange={e => setF(p => ({ ...p, invoiceDueDays: Number(e.target.value) || 7 }))}
-                className="w-full h-11 pl-9 pr-14 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
-            </div>
-          </Field>
-        </div>
-
-        {/* Invoice Content */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Content</p>
-          <div className="space-y-4">
-            <Field label="Footer Text" hint="Printed at the bottom of every invoice — optional">
-              <textarea
-                value={f.invoiceFooter}
-                onChange={set("invoiceFooter")}
-                rows={3}
-                placeholder="e.g. Thank you for your business! Payment within due date is appreciated."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
-              />
-            </Field>
-
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Show payment details on invoice</p>
-                <p className="text-xs text-slate-400 mt-0.5">Display bank account, bKash, Nagad info so clients know how to pay</p>
-              </div>
-              <Toggle
-                on={f.invoiceShowPayment}
-                onChange={() => setF(p => ({ ...p, invoiceShowPayment: !p.invoiceShowPayment }))}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Invoice Design */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Invoice Design</p>
-          <div className="space-y-4">
-
-            {/* Header Style */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-600">Header Style</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: "dark",  label: "Dark",  bg: "#0F172A", text: "#fff" },
-                  { value: "brand", label: "Brand", bg: BRAND, text: "#fff" },
-                  { value: "light", label: "Light", bg: "#F8FAFC", text: "#0F172A" },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setF(p => ({ ...p, invoiceHeaderStyle: opt.value }))}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
-                      f.invoiceHeaderStyle === opt.value
-                        ? "border-indigo-500 ring-2 ring-indigo-100"
-                        : "border-slate-200 hover:border-slate-300"
-                    )}
-                  >
-                    <div className="w-full h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-                      style={{ backgroundColor: opt.bg, color: opt.text }}>
-                      INVOICE
-                    </div>
-                    <span className="text-xs font-medium text-slate-600">{opt.label}</span>
+        {/* ── Mobile list ── */}
+        <div className={cn("md:hidden", mobileOpen && "hidden")}>
+          <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-[#17151F] px-1 pt-1">Settings</h1>
+          <div className="mt-3 mb-5">{searchBox(mobileSearchRef, "settings-search-m", false)}</div>
+          {q ? (
+            <div className="bg-white rounded-[20px] p-1.5 shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">{resultList("settings-search-m", true)}</div>
+          ) : GROUPS.map(g => (
+            <section key={g.title} className="mb-6">
+              <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">{g.title}</h2>
+              <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
+                {g.panes.map((p, i) => (
+                  <button key={p.id} onClick={() => openPane(p.id)}
+                    className="w-full flex items-center gap-3 pl-4 pr-3 min-h-[56px] text-left active:bg-[#F5F3FA]">
+                    <Tile icon={p.icon} color={p.color} size={30} />
+                    <span className={cn("flex-1 min-w-0 py-3 flex items-center gap-2", i > 0 && "border-t border-[#EEEBF4]")}>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[15px] font-semibold text-[#17151F]">{p.title}</span>
+                        <span className="block text-xs text-[#6B6680] truncate">{p.sub}</span>
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />
+                    </span>
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Show company logo</p>
-                <p className="text-xs text-slate-400 mt-0.5">Display your studio logo in the invoice header</p>
-              </div>
-              <Toggle
-                on={f.invoiceShowLogo}
-                onChange={() => setF(p => ({ ...p, invoiceShowLogo: !p.invoiceShowLogo }))}
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Show thank-you signature</p>
-                <p className="text-xs text-slate-400 mt-0.5">Display a handwritten-style thank you note at the bottom</p>
-              </div>
-              <Toggle
-                on={f.invoiceShowSignature}
-                onChange={() => setF(p => ({ ...p, invoiceShowSignature: !p.invoiceShowSignature }))}
-              />
-            </div>
-
-            {f.invoiceShowSignature && (
-              <Field label="Signature Text" hint="Shown in cursive at the bottom of the invoice">
-                <Input
-                  value={f.invoiceSignatureText}
-                  onChange={set("invoiceSignatureText")}
-                  placeholder="Thank you for your business!"
-                  maxLength={200}
-                  className="h-11 border-slate-200"
-                />
-              </Field>
-            )}
-          </div>
-        </div>
-
-        <Button disabled={saving} onClick={() => save(f, "Invoice defaults saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Invoice Defaults</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Tax Tab ───────────────────────────────────────────────────────────────────
-function TaxTab({ data }: { data: any }) {
-  const [taxLabel, setTaxLabel] = useState(data.taxLabel ?? "VAT");
-  const [defaultTaxPercent, setDefaultTaxPercent] = useState(Number(data.defaultTaxPercent ?? 0));
-  const { saving, toast, setToast, save } = useSave();
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Percent} title="Tax Settings" sub="Default tax applied on quotations and invoices" />
-      <div className="space-y-5 max-w-lg">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Tax Label" hint="Shown on quote (e.g. VAT, GST, Tax)">
-            <Input value={taxLabel} onChange={e => setTaxLabel(e.target.value)} placeholder="VAT"
-              maxLength={20} className="h-11 border-slate-200" />
-          </Field>
-          <Field label="Default Tax %" hint={defaultTaxPercent === 0 ? "No tax applied" : `${defaultTaxPercent}% added to subtotal`}>
-            <div className="relative">
-              <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="number" min="0" max="30" step="0.5" value={defaultTaxPercent}
-                onChange={e => setDefaultTaxPercent(Number(e.target.value))}
-                className="w-full h-11 pl-9 pr-8 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
-            </div>
-          </Field>
-        </div>
-        {/* Preview */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Quote preview</p>
-          <div className="flex justify-between text-sm text-slate-500"><span>Subtotal</span><span>৳ 50,000</span></div>
-          {defaultTaxPercent > 0 && (
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>{taxLabel || "Tax"} ({defaultTaxPercent}%)</span>
-              <span>+ ৳ {(50000 * defaultTaxPercent / 100).toLocaleString()}</span>
-            </div>
-          )}
-          <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-2 text-sm">
-            <span>Grand Total</span>
-            <span>৳ {(50000 + 50000 * defaultTaxPercent / 100).toLocaleString()}</span>
-          </div>
-        </div>
-        <Button disabled={saving} onClick={() => save({ taxLabel, defaultTaxPercent }, "Tax settings saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Tax Settings</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Social Media Tab ──────────────────────────────────────────────────────────
-function SocialTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    website:      data.website      ?? "",
-    facebookUrl:  data.facebookUrl  ?? "",
-    instagramUrl: data.instagramUrl ?? "",
-    youtubeUrl:   data.youtubeUrl   ?? "",
-    tiktokUrl:    data.tiktokUrl    ?? "",
-  });
-  const [otherLinks, setOtherLinks] = useState<{ label: string; url: string }[]>(
-    Array.isArray(data.otherLinks) ? data.otherLinks : []
-  );
-  const { saving, toast, setToast, save } = useSave();
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF(p => ({ ...p, [k]: e.target.value }));
-
-  function addLink() { setOtherLinks(p => [...p, { label: "", url: "" }]); }
-  function removeLink(i: number) { setOtherLinks(p => p.filter((_, idx) => idx !== i)); }
-  function updateLink(i: number, field: "label" | "url", val: string) {
-    setOtherLinks(p => p.map((l, idx) => idx === i ? { ...l, [field]: val } : l));
-  }
-
-  const socialFields: { key: string; label: string; placeholder: string; color: string }[] = [
-    { key: "facebookUrl",  label: "Facebook",  placeholder: "https://facebook.com/yourstudio",  color: "text-blue-600"  },
-    { key: "instagramUrl", label: "Instagram", placeholder: "https://instagram.com/yourstudio", color: "text-pink-600"  },
-    { key: "youtubeUrl",   label: "YouTube",   placeholder: "https://youtube.com/@yourstudio",  color: "text-red-600"   },
-    { key: "tiktokUrl",    label: "TikTok",    placeholder: "https://tiktok.com/@yourstudio",   color: "text-slate-700" },
-  ];
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Globe} title="Social Media & Links" sub="Links shown on client-facing pages and quote footers" />
-      <div className="space-y-6 max-w-lg">
-
-        {/* Website */}
-        <Field label="Website">
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-            <Input value={f.website} onChange={set("website")}
-              placeholder="https://yourstudio.com"
-              className="h-11 pl-9 border-slate-200" />
-          </div>
-        </Field>
-
-        {/* Social profiles */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Social Profiles</p>
-          <div className="space-y-4">
-            {socialFields.map(({ key, label, placeholder, color }) => (
-              <Field key={key} label={label}>
-                <div className="relative">
-                  <ExternalLink className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4", color)} />
-                  <Input value={(f as any)[key]} onChange={set(key)} placeholder={placeholder}
-                    className="h-11 pl-9 border-slate-200" />
-                </div>
-              </Field>
-            ))}
-          </div>
-        </div>
-
-        {/* Other links */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Other Links</p>
-          <div className="space-y-2">
-            {otherLinks.map((link, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <Input
-                  value={link.label}
-                  onChange={e => updateLink(i, "label", e.target.value)}
-                  placeholder="Label (e.g. Portfolio)"
-                  className="h-10 text-sm w-36 flex-shrink-0 border-slate-200"
-                />
-                <div className="relative flex-1">
-                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <Input
-                    value={link.url}
-                    onChange={e => updateLink(i, "url", e.target.value)}
-                    placeholder="https://..."
-                    className="h-10 text-sm pl-8 border-slate-200"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeLink(i)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addLink}
-              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-1 py-1.5 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Link
-            </button>
-          </div>
-        </div>
-
-        <Button disabled={saving} onClick={() => save({ ...f, otherLinks }, "Social links saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Social & Links</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Client Portal Tab ────────────────────────────────────────────────────────
-function ClientPortalTab({ data }: { data: any }) {
-  const [f, setF] = useState({
-    portalWelcomeMessage: data.portalWelcomeMessage ?? "",
-    portalShowQuotes:     data.portalShowQuotes     ?? true,
-    portalShowInvoices:   data.portalShowInvoices   ?? true,
-    portalShowPayments:   data.portalShowPayments   ?? true,
-    portalShowMessages:   data.portalShowMessages   ?? true,
-  });
-  const { saving, toast, setToast, save } = useSave();
-
-  const PORTAL_TABS = [
-    { key: "portalShowQuotes",   label: "Quotes tab",    hint: "Client can view all quotations sent to them" },
-    { key: "portalShowInvoices", label: "Invoices tab",  hint: "Client can view and open their invoices" },
-    { key: "portalShowPayments", label: "Payments tab",  hint: "Client can see their full payment history" },
-    { key: "portalShowMessages", label: "Messages tab",  hint: "Client can chat directly with the studio" },
-  ] as const;
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Monitor} title="Client Portal Settings" sub="Customize what clients see when they open their portal link" />
-      <div className="space-y-6 max-w-lg">
-
-        {/* Welcome Message */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Welcome Message</p>
-          <Field label="Greeting Text" hint="Shown at the top of the portal — leave blank to use the default greeting">
-            <textarea
-              value={f.portalWelcomeMessage}
-              onChange={e => setF(p => ({ ...p, portalWelcomeMessage: e.target.value }))}
-              rows={3}
-              maxLength={300}
-              placeholder={`e.g. Welcome to ${data.name ?? "our studio"}'s client portal! Here you'll find your bookings, invoices, and delivered photos.`}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
-            />
-            <p className="text-xs text-slate-400 mt-1 text-right">{f.portalWelcomeMessage.length}/300</p>
-          </Field>
-        </div>
-
-        {/* Tab Visibility */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Tab Visibility</p>
-          <p className="text-xs text-slate-500 mb-3">Bookings tab is always shown. Toggle the rest on or off.</p>
-          <div className="space-y-2">
-            {/* Bookings — always on, not toggleable */}
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl opacity-60">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Bookings tab</p>
-                <p className="text-xs text-slate-400 mt-0.5">Always visible — clients can always see their bookings</p>
-              </div>
-              <div className="w-11 h-6 rounded-full bg-indigo-600 relative flex-shrink-0">
-                <span className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white shadow-sm" />
-              </div>
-            </div>
-            {PORTAL_TABS.map(({ key, label, hint }) => (
-              <div key={key} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">{label}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{hint}</p>
-                </div>
-                <Toggle
-                  on={f[key]}
-                  onChange={() => setF(p => ({ ...p, [key]: !p[key] }))}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Live Preview Note */}
-        <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
-          <Monitor className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold text-indigo-700">Changes apply immediately</p>
-            <p className="text-xs text-indigo-600 mt-0.5">After saving, every client portal link will reflect the new settings instantly — no need to regenerate links.</p>
-          </div>
-        </div>
-
-        <Button disabled={saving} onClick={() => save(f, "Portal settings saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Portal Settings</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Security Tab ──────────────────────────────────────────────────────────────
-function SecurityTab({ data }: { data: any }) {
-  const [resetEmail, setResetEmail] = useState(data.resetEmail ?? data.email ?? "");
-  const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(Number(data.sessionTimeoutMinutes ?? 480));
-  const { saving, toast, setToast, save } = useSave();
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Shield} title="Security" sub="Account security and session management for your studio" />
-      <div className="space-y-5 max-w-lg">
-
-        {/* Password Reset Email */}
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-indigo-500" />
-            <p className="text-sm font-semibold text-slate-700">Password Reset Email</p>
-          </div>
-          <Field label="Receive reset links at" hint="When any team member resets password, notification goes here">
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
-                placeholder="admin@yourstudio.com" className="h-11 pl-9 border-slate-200 bg-white" />
-            </div>
-          </Field>
-        </div>
-
-        {/* Session Timeout */}
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-indigo-500" />
-            <p className="text-sm font-semibold text-slate-700">Session Timeout</p>
-          </div>
-          <Field label="Auto-logout after inactivity" hint="Applies to all team members">
-            <select value={sessionTimeoutMinutes} onChange={e => setSessionTimeoutMinutes(Number(e.target.value))}
-              className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-              {SESSION_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
-        </div>
-
-        {/* Coming Soon — Login Activity */}
-        <div className="p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 opacity-60">
-          <div className="flex items-center gap-2 mb-1">
-            <Shield className="w-4 h-4 text-slate-400" />
-            <p className="text-sm font-semibold text-slate-500">Login Activity Log</p>
-            <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
-          </div>
-          <p className="text-xs text-slate-400">Track who logged in, from which device and IP — available in next update.</p>
-        </div>
-
-        {/* Coming Soon — 2FA */}
-        <div className="p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 opacity-60">
-          <div className="flex items-center gap-2 mb-1">
-            <Smartphone className="w-4 h-4 text-slate-400" />
-            <p className="text-sm font-semibold text-slate-500">Two-Factor Authentication (2FA)</p>
-            <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-medium">Coming Soon</span>
-          </div>
-          <p className="text-xs text-slate-400">Require OTP on login for all team members. Stronger account protection.</p>
-        </div>
-
-        <Button disabled={saving} onClick={() => save({ resetEmail, sessionTimeoutMinutes }, "Security settings saved!")}
-          className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Security Settings</>}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ─── Notifications Tab ────────────────────────────────────────────────────────
-
-type NotifPrefs = {
-  studio: {
-    onNewBooking: boolean;
-    onBookingConfirmed: boolean;
-    onBookingCancelled: boolean;
-    onPaymentReceived: boolean;
-    onInvoicePaid: boolean;
-    onNewClient: boolean;
-    onDeliveryUploaded: boolean;
-  };
-  client: {
-    sendBookingConfirmation: boolean;
-    sendInvoiceEmail: boolean;
-    sendPaymentReceipt: boolean;
-    sendDeliveryReady: boolean;
-    sendQuoteEmail: boolean;
-  };
-};
-
-const DEFAULT_NOTIF_PREFS: NotifPrefs = {
-  studio: {
-    onNewBooking: true,
-    onBookingConfirmed: true,
-    onBookingCancelled: true,
-    onPaymentReceived: true,
-    onInvoicePaid: true,
-    onNewClient: false,
-    onDeliveryUploaded: false,
-  },
-  client: {
-    sendBookingConfirmation: true,
-    sendInvoiceEmail: true,
-    sendPaymentReceipt: true,
-    sendDeliveryReady: true,
-    sendQuoteEmail: true,
-  },
-};
-
-function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={onChange}
-      className={cn(
-        "relative inline-flex w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 flex-shrink-0",
-        on ? "bg-indigo-600" : "bg-slate-200"
-      )}
-    >
-      <span className={cn(
-        "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200",
-        on ? "translate-x-[22px]" : "translate-x-0.5"
-      )} />
-    </button>
-  );
-}
-
-function NotifRow({ label, hint, on, onToggle }: { label: string; hint: string; on: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-700">{label}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{hint}</p>
-      </div>
-      <Toggle on={on} onChange={onToggle} />
-    </div>
-  );
-}
-
-function NotificationsTab({ data }: { data: any }) {
-  const raw = data?.notificationPrefs;
-  const initial: NotifPrefs = {
-    studio: { ...DEFAULT_NOTIF_PREFS.studio, ...(raw?.studio ?? {}) },
-    client: { ...DEFAULT_NOTIF_PREFS.client, ...(raw?.client ?? {}) },
-  };
-  const [prefs, setPrefs] = useState<NotifPrefs>(initial);
-  const { saving, toast, setToast, save } = useSave();
-
-  const toggleStudio = (key: keyof NotifPrefs["studio"]) =>
-    setPrefs(p => ({ ...p, studio: { ...p.studio, [key]: !p.studio[key] } }));
-
-  const toggleClient = (key: keyof NotifPrefs["client"]) =>
-    setPrefs(p => ({ ...p, client: { ...p.client, [key]: !p.client[key] } }));
-
-  const studioRows: { key: keyof NotifPrefs["studio"]; label: string; hint: string }[] = [
-    { key: "onNewBooking",       label: "New booking created",        hint: "Alert when a new program is added to the system" },
-    { key: "onBookingConfirmed", label: "Booking confirmed",          hint: "When a program's status changes to Confirmed" },
-    { key: "onBookingCancelled", label: "Booking cancelled",          hint: "When a booking is cancelled or rejected" },
-    { key: "onPaymentReceived",  label: "Payment received",           hint: "When a client records or makes a payment" },
-    { key: "onInvoicePaid",      label: "Invoice fully paid",         hint: "When an invoice balance reaches zero" },
-    { key: "onNewClient",        label: "New client added",           hint: "When a new client profile is created" },
-    { key: "onDeliveryUploaded", label: "Delivery files uploaded",    hint: "When gallery delivery is ready for a program" },
-  ];
-
-  const clientRows: { key: keyof NotifPrefs["client"]; label: string; hint: string }[] = [
-    { key: "sendBookingConfirmation", label: "Booking confirmation",  hint: "Emailed to client when their booking is confirmed" },
-    { key: "sendInvoiceEmail",        label: "Invoice sent",          hint: "Notify client when a new invoice is issued" },
-    { key: "sendPaymentReceipt",      label: "Payment receipt",       hint: "Send receipt to client after payment" },
-    { key: "sendDeliveryReady",       label: "Delivery ready",        hint: "Notify client when gallery files are ready to view" },
-    { key: "sendQuoteEmail",          label: "Quotation sent",        hint: "Email client when a quote is shared with them" },
-  ];
-
-  return (
-    <>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <SectionHead icon={Bell} title="Notification Preferences" sub="Control which email alerts are sent to you and your clients" />
-
-      {/* Studio Notifications */}
-      <div className="mb-6">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Your Notifications</p>
-        <p className="text-xs text-slate-500 mb-3">Email alerts sent to your studio email when these events happen</p>
-        <div className="bg-slate-50 rounded-xl px-4">
-          {studioRows.map(row => (
-            <NotifRow
-              key={row.key}
-              label={row.label}
-              hint={row.hint}
-              on={prefs.studio[row.key]}
-              onToggle={() => toggleStudio(row.key)}
-            />
+            </section>
           ))}
         </div>
-      </div>
 
-      {/* Client Notifications */}
-      <div className="mb-6">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Client Notifications</p>
-        <p className="text-xs text-slate-500 mb-3">Automatic emails sent to your clients when these events occur</p>
-        <div className="bg-slate-50 rounded-xl px-4">
-          {clientRows.map(row => (
-            <NotifRow
-              key={row.key}
-              label={row.label}
-              hint={row.hint}
-              on={prefs.client[row.key]}
-              onToggle={() => toggleClient(row.key)}
-            />
-          ))}
+        {/* ── Pane ── */}
+        <div ref={contentRef} className={cn("min-w-0 max-w-[760px] w-full scroll-mt-24", !mobileOpen && "hidden md:block")}>
+          <div key={pane} className="sp-pane-in">
+            <PaneHeader icon={current.icon} color={current.color} title={current.title} sub={current.sub}
+              onBack={() => { setMobileOpen(false); window.history.replaceState({}, "", window.location.pathname); }} />
+            <View />
+          </div>
         </div>
       </div>
-
-      {/* Info note */}
-      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 flex gap-3">
-        <Bell className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-indigo-700">Notifications use your studio email</p>
-          <p className="text-xs text-indigo-500 mt-0.5">Studio alerts go to your registered email. You can change it in the Studio tab.</p>
-        </div>
-      </div>
-
-      <form onSubmit={e => { e.preventDefault(); save({ notificationPrefs: prefs }, "Notification preferences saved!"); }}>
-        <Button type="submit" disabled={saving} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-6">
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircle2 className="w-4 h-4" />Save Preferences</>}
-        </Button>
-      </form>
-    </>
+    </SettingsCtx.Provider>
   );
 }
 
-// ─── Service Catalog Tab ──────────────────────────────────────────────────────
-const CATALOG_UNITS = ["service", "hour", "day", "piece", "album", "copy", "session", "package", "item", "GB"];
-const CATALOG_CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album", "Printing", "Other"];
-
-interface CatalogItem { id: string; name: string; description?: string; category?: string; unit: string; defaultPrice: number; currency: string; isActive: boolean; sortOrder: number; }
-
-function CatalogTab() {
-  const [items, setItems] = useState<CatalogItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", category: "", unit: "service", defaultPrice: 0, currency: "BDT", isActive: true, sortOrder: 0 });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-
-  useEffect(() => { load(); }, []);
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 2500); return () => clearTimeout(t); } }, [toast]);
-
-  async function load() {
-    setLoading(true);
-    try {
-      const r = await apiFetch(`${API}/service-catalog?limit=200`);
-      const d = await r.json();
-      setItems(d.data ?? []);
-    } finally { setLoading(false); }
-  }
-
-  function openCreate() {
-    setEditingId(null);
-    setForm({ name: "", description: "", category: "", unit: "service", defaultPrice: 0, currency: "BDT", isActive: true, sortOrder: 0 });
-    setError(""); setShowForm(true);
-  }
-
-  function openEdit(item: CatalogItem) {
-    setEditingId(item.id);
-    setForm({ name: item.name, description: item.description ?? "", category: item.category ?? "", unit: item.unit, defaultPrice: item.defaultPrice, currency: item.currency, isActive: item.isActive, sortOrder: item.sortOrder });
-    setError(""); setShowForm(true);
-  }
-
-  async function save() {
-    if (!form.name.trim()) { setError("Name required."); return; }
-    setSaving(true); setError("");
-    try {
-      const url = editingId ? `${API}/service-catalog/${editingId}` : `${API}/service-catalog`;
-      const method = editingId ? "PATCH" : "POST";
-      const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      const d = await r.json();
-      if (!r.ok) { setError(d.message || "Failed."); return; }
-      setToast(editingId ? "Updated!" : "Added!");
-      setShowForm(false); load();
-    } catch { setError("Something went wrong."); }
-    finally { setSaving(false); }
-  }
-
-  async function remove(id: string, name: string) {
-    if (!(await askConfirm({ message: `Remove "${name}" from catalog?`, confirmLabel: "Remove", danger: true }))) return;
-    await apiFetch(`${API}/service-catalog/${id}`, { method: "DELETE" });
-    setToast("Removed."); load();
-  }
-
-  const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || (i.category ?? "").toLowerCase().includes(search.toLowerCase()));
-
-  return (
-    <div className="space-y-5">
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold bg-emerald-600 text-white flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" />{toast}
-        </div>
-      )}
-      <div>
-        <h3 className="text-base font-bold text-slate-900">Service Catalog</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Reusable services that auto-fill invoice line items</p>
-      </div>
-
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search catalog…"
-            className="w-full h-9 pl-8 pr-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
-        </div>
-        <Button onClick={openCreate} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 h-9">
-          <Plus className="w-3.5 h-3.5" />Add Service
-        </Button>
-      </div>
-
-      {showForm && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-sm text-slate-800">{editingId ? "Edit Service" : "New Service"}</p>
-            <button onClick={() => setShowForm(false)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200"><X className="w-3.5 h-3.5 text-slate-500" /></button>
-          </div>
-          {error && <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded-lg">{error}</p>}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs text-slate-500">Name *</Label>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Wedding Photography"
-                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs text-slate-500">Description</Label>
-              <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description"
-                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Category</Label>
-              <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} list="settings-cat-list" placeholder="Category"
-                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              <datalist id="settings-cat-list">{CATALOG_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Unit</Label>
-              <select value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-                className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-                {CATALOG_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Default Price</Label>
-              <input type="number" min="0" value={form.defaultPrice} onChange={e => setForm(f => ({ ...f, defaultPrice: Number(e.target.value) }))}
-                className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Currency</Label>
-              <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-                {["BDT","USD","INR","GBP"].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" onClick={() => setShowForm(false)} className="flex-1 h-9 border-slate-200 text-slate-600 text-xs">Cancel</Button>
-            <Button disabled={saving} onClick={save} className="flex-1 h-9 bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-              {editingId ? "Update" : "Add"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="sp-empty-icon" />
-          <p className="text-sm text-slate-400 font-medium">No catalog items yet</p>
-          <p className="text-xs text-slate-300 mt-1">Add your common services to speed up invoicing</p>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-slate-200 overflow-hidden">
-          {filtered.map((item, i) => (
-            <div key={item.id} className={cn("flex items-center gap-3 px-4 py-3", i > 0 && "border-t border-slate-100")}>
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-4 h-4 text-indigo-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {item.category && <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">{item.category}</span>}
-                  <p className="font-semibold text-sm text-slate-800">{item.name}</p>
-                </div>
-                {item.description && <p className="text-xs text-slate-400 truncate">{item.description}</p>}
-                <p className="text-xs text-slate-400">{item.unit} · {item.currency}</p>
-              </div>
-              <p className="font-bold text-slate-900 text-sm flex-shrink-0">{Number(item.defaultPrice).toLocaleString()}</p>
-              <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => openEdit(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600">
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => remove(item.id, item.name)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function Highlight({ text, q }: { text: string; q: string }) {
+  const word = q.trim().split(/\s+/)[0]?.toLowerCase();
+  const i = word ? text.toLowerCase().indexOf(word) : -1;
+  if (!word || i < 0) return <>{text}</>;
+  return <>{text.slice(0, i)}<mark className="bg-transparent text-[#5B3FD0]">{text.slice(i, i + word.length)}</mark>{text.slice(i + word.length)}</>;
 }
 
-// ─── Integrations Tab ──────────────────────────────────────────────────────────
-interface DriveAccount {
-  id: string;
-  googleEmail: string;
-  isPrimary: boolean;
-  totalStorageGb: number;
-  usedStorageGb: number;
-  usedPercent: number;
-  rootFolderUrl: string | null;
-  connectedAt: string;
-}
-
-function IntegrationsTab() {
-  const [accounts, setAccounts] = useState<DriveAccount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionId, setActionId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-
-  async function loadAccounts() {
-    try {
-      const r = await apiFetch(`${API}/google-drive/accounts`);
-      if (r.ok) setAccounts(await r.json());
-    } finally { setLoading(false); }
-  }
-
-  useEffect(() => { loadAccounts(); }, []);
-
-  // Handle redirect back from Google OAuth
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("tab") === "integrations") {
-      if (params.get("drive") === "connected") {
-        setToast({ msg: "Google Drive connected successfully!", type: "success" });
-        loadAccounts();
-      } else if (params.get("drive") === "error") {
-        const msg = params.get("msg") || "Failed to connect Google Drive";
-        setToast({ msg: decodeURIComponent(msg), type: "error" });
-      }
-      window.history.replaceState({}, "", window.location.pathname + "?tab=integrations");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function setPrimary(id: string) {
-    setActionId(id);
-    try {
-      const r = await apiFetch(`${API}/google-drive/accounts/${id}/primary`, { method: "PATCH" });
-      if (r.ok) { setToast({ msg: "Primary account updated", type: "success" }); loadAccounts(); }
-    } finally { setActionId(null); }
-  }
-
-  async function disconnect(id: string, email: string) {
-    if (!(await askConfirm({ message: `Disconnect ${email}?`, confirmLabel: "Disconnect", danger: true }))) return;
-    setActionId(id);
-    try {
-      const r = await apiFetch(`${API}/google-drive/accounts/${id}`, { method: "DELETE" });
-      if (r.ok) { setToast({ msg: "Account disconnected", type: "success" }); loadAccounts(); }
-    } finally { setActionId(null); }
-  }
-
-  async function connectNew() {
-    try {
-      const r = await apiFetch(`${API}/google-drive/connect-url`);
-      if (!r.ok) throw new Error("Failed");
-      const { url } = await r.json();
-      window.location.href = url;
-    } catch {
-      setToast({ msg: "Could not start Google authentication. Please try again.", type: "error" });
-    }
-  }
-
+function SettingsSkeleton() {
   return (
-    <div className="space-y-6">
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-
-      <div>
-        <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-          <HardDrive className="w-4 h-4 text-indigo-500" /> Google Drive
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">
-          Connect Google Drive accounts to deliver photos/videos directly to client folders
-        </p>
+    <div className="max-w-6xl mx-auto md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6" aria-busy="true" aria-label="Loading settings">
+      <div className="hidden md:block bg-white rounded-[22px] p-3 space-y-2">
+        <div className="sp-skel h-11 rounded-full" />
+        {Array.from({ length: 9 }).map((_, i) => <div key={i} className="sp-skel h-9 rounded-[12px]" />)}
       </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {accounts.length === 0 && (
-            <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl">
-              <HardDrive className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-500 font-medium">No Google Drive connected</p>
-              <p className="text-xs text-slate-400 mt-1">Connect a Gmail account to auto-deliver bookings</p>
-            </div>
-          )}
-
-          {accounts.map(acc => (
-            <div key={acc.id} className={cn(
-              "border rounded-xl p-4 space-y-3 transition-colors",
-              acc.isPrimary ? "border-indigo-200 bg-indigo-50/50" : "border-slate-200 bg-white"
-            )}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{acc.googleEmail}</p>
-                    <p className="text-xs text-slate-400">
-                      Connected {new Date(acc.connectedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {acc.isPrimary && (
-                    <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-indigo-500" /> Primary
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Storage bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>Storage</span>
-                  <span>{acc.usedStorageGb} GB / {acc.totalStorageGb} GB</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all",
-                      acc.usedPercent > 85 ? "bg-red-500" :
-                      acc.usedPercent > 65 ? "bg-amber-500" : "bg-emerald-500"
-                    )}
-                    style={{ width: `${Math.min(acc.usedPercent, 100)}%` }}
-                  />
-                </div>
-                {acc.usedPercent > 85 && (
-                  <p className="text-xs text-red-600 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Storage almost full — add another account
-                  </p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                {!acc.isPrimary && (
-                  <button onClick={() => setPrimary(acc.id)} disabled={actionId === acc.id}
-                    className="flex-1 h-8 rounded-lg border border-indigo-200 text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
-                    {actionId === acc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
-                    Set as Primary
-                  </button>
-                )}
-                {acc.rootFolderUrl && (
-                  <a href={acc.rootFolderUrl} target="_blank" rel="noopener noreferrer"
-                    className="h-8 px-3 rounded-lg border border-slate-200 text-slate-500 text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1.5">
-                    <ExternalLink className="w-3 h-3" /> View Drive
-                  </a>
-                )}
-                <button onClick={() => disconnect(acc.id, acc.googleEmail)} disabled={actionId === acc.id}
-                  className="h-8 px-3 rounded-lg border border-red-100 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors flex items-center gap-1.5">
-                  <Trash2 className="w-3 h-3" /> Disconnect
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <button onClick={connectNew}
-            className="w-full h-11 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-500 font-medium hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2">
-            <Plus className="w-4 h-4" /> Add Google Drive Account
-          </button>
-        </div>
-      )}
-
-      {/* Info box */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5">
-        <p className="text-xs font-semibold text-slate-700">How it works</p>
-        <ul className="text-xs text-slate-500 space-y-1">
-          <li>• Connect one or more Gmail accounts</li>
-          <li>• <strong className="text-slate-700">Primary</strong> account is used for all auto-deliveries</li>
-          <li>• When delivering a booking, StuPanel creates a folder automatically</li>
-          <li>• Client gets a shareable link — no Gmail required on their side</li>
-          <li>• Switch primary if a Drive gets full</li>
-        </ul>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4"><div className="sp-skel w-[52px] h-[52px] rounded-[15px]" /><div className="sp-skel h-7 w-48 rounded-full" /></div>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-[20px] p-4 space-y-4">
+            {Array.from({ length: 3 }).map((__, j) => <div key={j} className="sp-skel h-8 rounded-full" />)}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function SettingsPage() {
-  const initialTab = (typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("tab") === "integrations")
-    ? "integrations" : "studio";
-  const [tab, setTab] = useState<Tab>(initialTab as Tab);
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiFetch(`${API}/companies/me`)
-      .then(r => r.json()).then(setData).finally(() => setLoading(false));
-  }, []);
-
-  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "studio",       label: "Studio",       icon: Building2  },
-    { id: "branding",     label: "Branding",     icon: Palette    },
-    { id: "payment",      label: "Payment",      icon: CreditCard },
-    { id: "quotation",    label: "Quotation",    icon: FileText   },
-    { id: "booking",      label: "Booking",      icon: CalendarDays },
-    { id: "invoice",      label: "Invoice",      icon: Receipt    },
-    { id: "catalog",      label: "Catalog",      icon: BookOpen   },
-    { id: "tax",          label: "Tax",          icon: Percent    },
-    { id: "social",         label: "Social",         icon: Globe      },
-    { id: "notifications",  label: "Notifications",  icon: Bell       },
-    { id: "portal",         label: "Client Portal",  icon: Monitor    },
-    { id: "security",       label: "Security",       icon: Shield     },
-    { id: "integrations", label: "Integrations", icon: HardDrive  },
-  ];
-
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[300px]">
-      <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-    </div>
-  );
-
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Studio Settings</h1>
-        <p className="text-xs text-slate-400 mt-0.5">Configure your studio profile, payment info, quotation defaults and security</p>
-      </div>
-
-      {/* Mobile: native select dropdown */}
-      <div className="md:hidden mb-5 relative">
-        {(() => { const activeTab = tabs.find(t => t.id === tab); const ActiveIcon = activeTab?.icon ?? Building2; return (
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-            <ActiveIcon className="w-4 h-4 text-indigo-600" />
-          </div>
-        ); })()}
-        <select
-          value={tab}
-          onChange={e => setTab(e.target.value as Tab)}
-          className="w-full h-12 pl-10 pr-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-semibold appearance-none shadow-sm focus:border-indigo-400 focus:outline-none"
-          style={{ WebkitAppearance: "none" }}
-        >
-          {tabs.map(t => (
-            <option key={t.id} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          <ChevronDown className="w-4 h-4 text-slate-400" />
-        </div>
-      </div>
-
-      {/* Desktop: two-column layout */}
-      <div className="flex gap-6 items-start">
-
-        {/* Left vertical nav (desktop only) */}
-        <nav className="hidden md:flex flex-col w-52 flex-shrink-0 bg-white border border-slate-200 rounded-2xl p-2 shadow-sm sticky top-20">
-          {tabs.map(t => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left w-full",
-                  active
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                )}>
-                <Icon className={cn("w-4 h-4 flex-shrink-0", active ? "text-white" : "text-slate-400")} />
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
-          {tab === "studio"       && <StudioTab      data={data} />}
-          {tab === "branding"     && <BrandingTab    data={data} />}
-          {tab === "payment"      && <PaymentTab     data={data} />}
-          {tab === "quotation"    && <QuotationTab   data={data} />}
-          {tab === "booking"      && <BookingTab     data={data} />}
-          {tab === "invoice"      && <InvoiceTab     data={data} />}
-          {tab === "catalog"      && <CatalogTab />}
-          {tab === "tax"          && <TaxTab         data={data} />}
-          {tab === "social"         && <SocialTab         data={data} />}
-          {tab === "notifications"  && <NotificationsTab  data={data} />}
-          {tab === "portal"         && <ClientPortalTab   data={data} />}
-          {tab === "security"       && <SecurityTab       data={data} />}
-          {tab === "integrations" && <IntegrationsTab />}
-        </div>
-
-      </div>
-    </div>
-  );
-}

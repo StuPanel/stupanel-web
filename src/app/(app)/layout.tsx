@@ -175,7 +175,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           <BillingBanner />
         </div>
 
-        <main className="flex-1 min-w-0 overflow-x-hidden px-3 sm:px-4 lg:px-0 pt-1 pb-28 lg:pb-8">
+        <main className="flex-1 min-w-0 overflow-x-clip px-3 sm:px-4 lg:px-0 pt-1 pb-28 lg:pb-8">
           <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>

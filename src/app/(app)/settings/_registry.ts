@@ -1,0 +1,183 @@
+/**
+ * Every Settings pane and every setting in it, in one list.
+ * The sidebar, the mobile list and search all read from here, so a new
+ * setting only needs a line here plus a <Row id="…"> in its pane.
+ * `keywords` can hold other words people may type (including Bangla).
+ */
+import {
+  Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
+  CalendarDays, Monitor, Bell, Shield, HardDrive,
+} from "lucide-react";
+
+export type PaneId =
+  | "general" | "branding" | "online"
+  | "payment" | "quotes" | "invoices" | "tax" | "catalog"
+  | "bookings" | "portal" | "notifications"
+  | "security" | "integrations";
+
+export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
+export type Entry = { id: string; pane: PaneId; section: string; label: string; keywords?: string };
+
+// Tile colours come from the design-system tokens only.
+const C = {
+  violet: "#7D5CEF", deep: "#5B3FD0", ink: "#16141D", teal: "#126B66",
+  blue: "#1F5C99", orchid: "#9E3A8C", green: "#1F8A5B", red: "#C2304F", lavender: "#B29DF8",
+};
+
+export const GROUPS: { title: string; panes: Pane[] }[] = [
+  {
+    title: "Studio",
+    panes: [
+      { id: "general", title: "General", sub: "Studio name, contact, currency and time zone", icon: Building2, color: C.blue, keywords: "studio profile স্টুডিও" },
+      { id: "branding", title: "Branding", sub: "Your logo on quotes, invoices, emails and client pages", icon: Palette, color: C.violet, keywords: "logo লোগো" },
+      { id: "online", title: "Social & Links", sub: "Website and social profiles shown to clients", icon: Globe, color: C.teal, keywords: "facebook website" },
+    ],
+  },
+  {
+    title: "Money",
+    panes: [
+      { id: "payment", title: "Payment Methods", sub: "How clients pay you — shown on quotes and invoices", icon: CreditCard, color: C.green, keywords: "bank bkash nagad" },
+      { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote কোটেশন" },
+      { id: "invoices", title: "Invoices", sub: "Numbering, due date and how invoices look", icon: Receipt, color: C.orchid, keywords: "invoice ইনভয়েস বিল" },
+      { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat ভ্যাট" },
+      { id: "catalog", title: "Service Catalog", sub: "Ready-made services for quick invoice lines", icon: BookOpen, color: C.teal, keywords: "services price" },
+    ],
+  },
+  {
+    title: "Work",
+    panes: [
+      { id: "bookings", title: "Programs", sub: "Defaults for every new program", icon: CalendarDays, color: C.violet, keywords: "booking event প্রোগ্রাম বুকিং" },
+      { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
+      { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন" },
+    ],
+  },
+  {
+    title: "Account",
+    panes: [
+      { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password পাসওয়ার্ড" },
+      { id: "integrations", title: "Google Drive", sub: "Connect Drive to deliver photos and videos", icon: HardDrive, color: C.green, keywords: "integrations drive google ড্রাইভ" },
+    ],
+  },
+];
+
+export const PANES: Pane[] = GROUPS.flatMap(g => g.panes);
+export const paneById = (id: string) => PANES.find(p => p.id === id);
+
+export const ENTRIES: Entry[] = [
+  // General
+  { id: "name", pane: "general", section: "Studio", label: "Studio name", keywords: "company business নাম" },
+  { id: "phone", pane: "general", section: "Studio", label: "Phone", keywords: "mobile contact number ফোন নম্বর" },
+  { id: "website", pane: "general", section: "Studio", label: "Website", keywords: "url site ওয়েবসাইট" },
+  { id: "address", pane: "general", section: "Location", label: "Address", keywords: "location ঠিকানা" },
+  { id: "city", pane: "general", section: "Location", label: "City", keywords: "শহর" },
+  { id: "state", pane: "general", section: "Location", label: "State / Division", keywords: "region division বিভাগ" },
+  { id: "country", pane: "general", section: "Location", label: "Country", keywords: "দেশ" },
+  { id: "currency", pane: "general", section: "Region", label: "Currency", keywords: "taka bdt usd money টাকা" },
+  { id: "timezone", pane: "general", section: "Region", label: "Time zone", keywords: "time clock সময়" },
+
+  // Branding
+  { id: "logo", pane: "branding", section: "Logo", label: "Studio logo", keywords: "image upload picture লোগো" },
+  { id: "logo-preview", pane: "branding", section: "Preview", label: "Where your logo appears", keywords: "preview" },
+
+  // Online
+  { id: "facebookUrl", pane: "online", section: "Social profiles", label: "Facebook", keywords: "fb ফেসবুক" },
+  { id: "instagramUrl", pane: "online", section: "Social profiles", label: "Instagram", keywords: "insta" },
+  { id: "youtubeUrl", pane: "online", section: "Social profiles", label: "YouTube", keywords: "video ইউটিউব" },
+  { id: "tiktokUrl", pane: "online", section: "Social profiles", label: "TikTok" },
+  { id: "otherLinks", pane: "online", section: "Other links", label: "Other links", keywords: "portfolio link" },
+
+  // Payment
+  { id: "bankName", pane: "payment", section: "Bank transfer", label: "Bank name", keywords: "ব্যাংক" },
+  { id: "bankBranch", pane: "payment", section: "Bank transfer", label: "Branch", keywords: "শাখা" },
+  { id: "bankAccountName", pane: "payment", section: "Bank transfer", label: "Account holder name" },
+  { id: "bankAccountNumber", pane: "payment", section: "Bank transfer", label: "Account number", keywords: "a/c একাউন্ট" },
+  { id: "bankRoutingNumber", pane: "payment", section: "Bank transfer", label: "Routing number" },
+  { id: "bkashNumber", pane: "payment", section: "Mobile banking", label: "bKash", keywords: "bikash বিকাশ mobile banking" },
+  { id: "nagadNumber", pane: "payment", section: "Mobile banking", label: "Nagad", keywords: "নগদ mobile banking" },
+  { id: "rocketNumber", pane: "payment", section: "Mobile banking", label: "Rocket", keywords: "রকেট mobile banking" },
+
+  // Quotes
+  { id: "defaultValidityDays", pane: "quotes", section: "Defaults", label: "Quote valid for", keywords: "validity expire days মেয়াদ" },
+  { id: "defaultAdvancePercent", pane: "quotes", section: "Defaults", label: "Advance payment", keywords: "advance percent অগ্রিম" },
+  { id: "defaultTerms", pane: "quotes", section: "Terms", label: "Terms & conditions", keywords: "terms policy শর্ত" },
+
+  // Invoices
+  { id: "invoicePrefix", pane: "invoices", section: "Numbering", label: "Invoice prefix", keywords: "number INV" },
+  { id: "invoiceStartNumber", pane: "invoices", section: "Numbering", label: "Starting number", keywords: "number serial" },
+  { id: "invoiceDueDays", pane: "invoices", section: "Payment", label: "Payment due in", keywords: "due days deadline" },
+  { id: "invoiceShowPayment", pane: "invoices", section: "Payment", label: "Show payment details", keywords: "bank bkash on invoice" },
+  { id: "invoiceHeaderStyle", pane: "invoices", section: "Look", label: "Header style", keywords: "design color dark light" },
+  { id: "invoiceShowLogo", pane: "invoices", section: "Look", label: "Show logo", keywords: "logo" },
+  { id: "invoiceShowSignature", pane: "invoices", section: "Look", label: "Thank-you note", keywords: "signature" },
+  { id: "invoiceSignatureText", pane: "invoices", section: "Look", label: "Thank-you text", keywords: "signature" },
+  { id: "invoiceFooter", pane: "invoices", section: "Look", label: "Footer text", keywords: "footer bottom" },
+
+  // Tax
+  { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label ভ্যাট" },
+  { id: "defaultTaxPercent", pane: "tax", section: "Tax", label: "Tax rate", keywords: "percent vat ভ্যাট" },
+
+  // Catalog
+  { id: "catalog-list", pane: "catalog", section: "Services", label: "Services list", keywords: "add service price package সার্ভিস" },
+
+  // Bookings / programs
+  { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status স্ট্যাটাস" },
+  { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days রিমাইন্ডার" },
+  { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund বাতিল" },
+
+  // Portal
+  { id: "portalWelcomeMessage", pane: "portal", section: "Welcome", label: "Welcome message", keywords: "greeting" },
+  { id: "portalShowQuotes", pane: "portal", section: "Tabs clients see", label: "Quotes tab" },
+  { id: "portalShowInvoices", pane: "portal", section: "Tabs clients see", label: "Invoices tab" },
+  { id: "portalShowPayments", pane: "portal", section: "Tabs clients see", label: "Payments tab" },
+  { id: "portalShowMessages", pane: "portal", section: "Tabs clients see", label: "Messages tab", keywords: "chat" },
+
+  // Notifications
+  { id: "n-onNewBooking", pane: "notifications", section: "Emails to you", label: "New program created", keywords: "booking" },
+  { id: "n-onBookingConfirmed", pane: "notifications", section: "Emails to you", label: "Program confirmed", keywords: "booking" },
+  { id: "n-onBookingCancelled", pane: "notifications", section: "Emails to you", label: "Program cancelled", keywords: "booking" },
+  { id: "n-onPaymentReceived", pane: "notifications", section: "Emails to you", label: "Payment received", keywords: "money" },
+  { id: "n-onInvoicePaid", pane: "notifications", section: "Emails to you", label: "Invoice fully paid" },
+  { id: "n-onNewClient", pane: "notifications", section: "Emails to you", label: "New client added" },
+  { id: "n-onDeliveryUploaded", pane: "notifications", section: "Emails to you", label: "Delivery files uploaded" },
+  { id: "n-sendBookingConfirmation", pane: "notifications", section: "Emails to clients", label: "Program confirmation", keywords: "booking client email" },
+  { id: "n-sendQuoteEmail", pane: "notifications", section: "Emails to clients", label: "Quotation sent", keywords: "client email" },
+  { id: "n-sendInvoiceEmail", pane: "notifications", section: "Emails to clients", label: "Invoice sent", keywords: "client email" },
+  { id: "n-sendPaymentReceipt", pane: "notifications", section: "Emails to clients", label: "Payment receipt", keywords: "client email money রসিদ" },
+  { id: "n-sendDeliveryReady", pane: "notifications", section: "Emails to clients", label: "Delivery ready", keywords: "client email photos" },
+
+  // Security
+  { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password পাসওয়ার্ড" },
+  { id: "sessionTimeoutMinutes", pane: "security", section: "Sign-in", label: "Sign out after inactivity", keywords: "session timeout sign off লগআউট" },
+  { id: "twoFactor", pane: "security", section: "Coming soon", label: "Two-step sign-in (2FA)", keywords: "otp 2fa" },
+  { id: "loginActivity", pane: "security", section: "Coming soon", label: "Sign-in activity", keywords: "login history device" },
+
+  // Integrations
+  { id: "drive-accounts", pane: "integrations", section: "Accounts", label: "Google Drive accounts", keywords: "connect gmail storage delivery" },
+  { id: "drive-add", pane: "integrations", section: "Accounts", label: "Add Google Drive account", keywords: "connect" },
+];
+
+/** Case-insensitive; every word typed must appear somewhere in the entry. Best matches first. */
+export function searchSettings(q: string) {
+  const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const scored: { entry: Entry; pane: Pane; score: number }[] = [];
+  const all: { entry: Entry; pane: Pane }[] = [
+    // Each pane is also a result (e.g. "invoice" → the Invoices pane).
+    ...PANES.map(p => ({ entry: { id: "", pane: p.id, section: "", label: p.title, keywords: `${p.sub} ${p.keywords ?? ""}` }, pane: p })),
+    ...ENTRIES.map(e => ({ entry: e, pane: paneById(e.pane)! })),
+  ];
+  for (const { entry, pane } of all) {
+    const label = entry.label.toLowerCase();
+    const hay = `${label} ${entry.section} ${pane.title} ${entry.keywords ?? ""}`.toLowerCase();
+    if (!words.every(w => hay.includes(w))) continue;
+    let score = 0;
+    for (const w of words) {
+      if (label.startsWith(w)) score += 4;
+      else if (label.includes(w)) score += 2;
+      else score += 1;
+    }
+    if (!entry.id) score += 1; // pane itself slightly ahead of ties
+    scored.push({ entry, pane, score });
+  }
+  return scored.sort((a, b) => b.score - a.score).slice(0, 12);
+}

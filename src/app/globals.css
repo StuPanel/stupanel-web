@@ -321,3 +321,13 @@ main .bg-white.rounded-xl.border, main .bg-white.rounded-2xl.border { border-rad
   animation: sp-shimmer 1.4s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) { .sp-skel { animation: none; } }
+
+/* ─── Settings (macOS-style) ─────────────────────────────────────────────── */
+@keyframes sp-set-flash { 0%, 35% { background: #EEE8FD } 100% { background: transparent } }
+.sp-set-flash { animation: sp-set-flash 1.8s cubic-bezier(.2, .8, .2, 1); }
+@keyframes sp-pane-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.sp-pane-in { animation: sp-pane-in .3s cubic-bezier(.2, .8, .2, 1) both; }
+@media (max-width: 767px) {
+  @keyframes sp-pane-in { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+}
+@media (prefers-reduced-motion: reduce) { .sp-set-flash, .sp-pane-in { animation: none; } }

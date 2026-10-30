@@ -6,12 +6,13 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive,
+  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
   | "payment" | "quotes" | "invoices" | "tax" | "catalog"
+  | "features" | "worktypes" | "team" | "delivery"
   | "bookings" | "portal" | "notifications"
   | "security" | "integrations";
 
@@ -46,7 +47,11 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
   {
     title: "Work",
     panes: [
-      { id: "bookings", title: "Programs", sub: "Defaults for every new program", icon: CalendarDays, color: C.violet, keywords: "booking event প্রোগ্রাম বুকিং" },
+      { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face ফিচার" },
+      { id: "worktypes", title: "Work Types & Shifts", sub: "Kinds of work you do and the shifts of an event", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye শিফট" },
+      { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event প্রোগ্রাম বুকিং" },
+      { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment টিম বেতন" },
+      { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
       { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন" },
     ],
@@ -74,6 +79,24 @@ export const ENTRIES: Entry[] = [
   { id: "country", pane: "general", section: "Location", label: "Country", keywords: "দেশ" },
   { id: "currency", pane: "general", section: "Region", label: "Currency", keywords: "taka bdt usd money টাকা" },
   { id: "timezone", pane: "general", section: "Region", label: "Time zone", keywords: "time clock সময়" },
+  { id: "language", pane: "general", section: "Language", label: "App language", keywords: "bangla bengali english বাংলা ভাষা" },
+
+  // Features
+  { id: "f-photoSelection", pane: "features", section: "Client features", label: "Photo selection", keywords: "pick favourite album select ছবি বাছাই" },
+  { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube গান" },
+  { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album অ্যালবাম" },
+  { id: "f-faceRecognition", pane: "features", section: "Coming soon", label: "Face recognition", keywords: "selfie guest face" },
+
+  // Work types & shifts
+  { id: "workTypes", pane: "worktypes", section: "Work types", label: "Work types", keywords: "wedding corporate school product video ধরন" },
+  { id: "shiftTemplates", pane: "worktypes", section: "Shift templates", label: "Shift templates", keywords: "holud biye reception walima ashirbad bou bhat হলুদ বিয়ে" },
+
+  // Team
+  { id: "teamPay", pane: "team", section: "Pay", label: "Pay team by", keywords: "per shift per program rate salary" },
+
+  // Delivery
+  { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid বকেয়া" },
+  { id: "d-managerCanUnlock", pane: "delivery", section: "Payment", label: "Managers can unlock", keywords: "manager unlock" },
 
   // Branding
   { id: "logo", pane: "branding", section: "Logo", label: "Studio logo", keywords: "image upload picture লোগো" },
@@ -123,6 +146,8 @@ export const ENTRIES: Entry[] = [
   { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status স্ট্যাটাস" },
   { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days রিমাইন্ডার" },
   { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund বাতিল" },
+  { id: "b-warnDoubleBooking", pane: "bookings", section: "Rules", label: "Warn about double booking", keywords: "same day clash conflict" },
+  { id: "b-askBeforeConfirm", pane: "bookings", section: "Rules", label: "Ask before confirming", keywords: "confirm check" },
 
   // Portal
   { id: "portalWelcomeMessage", pane: "portal", section: "Welcome", label: "Welcome message", keywords: "greeting" },

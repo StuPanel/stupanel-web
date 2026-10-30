@@ -1,30 +1,30 @@
 "use client";
 
 import { Wallet as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, StatCard, Tile } from "@/components/ui/apple";
+import { PillSelect } from "@/components/ui/pill-select";
 
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
 import {
   Wallet, Plus, Loader2, X, CheckCircle2, AlertCircle, Trash2,
-  ArrowUpRight, ArrowDownRight, ChevronRight, Settings2, TrendingUp,
+  ArrowUpRight, ArrowDownRight, ChevronRight, Settings2, TrendingUp, Banknote, Smartphone, Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
 import { askConfirm } from "@/components/feedback";
-import { ListSkeleton } from "@/components/list-ui";
 
 
 const WALLET_TYPES = [
-  { key: "cash",   label: "Cash",   color: "bg-emerald-500", light: "bg-emerald-50 text-emerald-700" },
-  { key: "bkash",  label: "bKash",  color: "bg-pink-500",    light: "bg-pink-50 text-pink-700"       },
-  { key: "nagad",  label: "Nagad",  color: "bg-orange-500",  light: "bg-orange-50 text-orange-700"   },
-  { key: "rocket", label: "Rocket", color: "bg-purple-500",  light: "bg-purple-50 text-purple-700"   },
-  { key: "bank",   label: "Bank",   color: "bg-blue-500",    light: "bg-blue-50 text-blue-700"       },
-  { key: "other",  label: "Other",  color: "bg-slate-500",   light: "bg-slate-100 text-slate-700"    },
+  { key: "cash",   label: "Cash",   tile: "green",  icon: Banknote },
+  { key: "bkash",  label: "bKash",  tile: "orchid", icon: Smartphone },
+  { key: "nagad",  label: "Nagad",  tile: "red",    icon: Smartphone },
+  { key: "rocket", label: "Rocket", tile: "deep",   icon: Smartphone },
+  { key: "bank",   label: "Bank",   tile: "blue",   icon: Landmark },
+  { key: "other",  label: "Other",  tile: "ink",    icon: Wallet },
 ];
 const WALLET_MAP = Object.fromEntries(WALLET_TYPES.map(w => [w.key, w]));
 
@@ -122,7 +122,7 @@ export default function ExpensesPage() {
   const setT = (k: string) => (e: React.ChangeEvent<any>) => setTxForm(p => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="space-y-5">
+    <div>
       {toast && (
         <div className={cn("sp-toast",
           toast.ok ? "" : "sp-toast--err")}>
@@ -131,143 +131,85 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Header */}
-      <PageHeader icon={HeaderIcon} color="red" title="Expenses & Wallets" sub={<>Track cash, bKash, bank and other accounts</>}>
-        <button onClick={() => setWalletModal(true)}
-          className="shrink-0 whitespace-nowrap flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />Add Wallet
-        </button>
+      <PageHeader icon={HeaderIcon} color="red" title="Expenses & Wallets" sub={<>Cash, bKash, bank — money in and out</>}>
+        <MainButton icon={Plus} onClick={() => setWalletModal(true)}>Add wallet</MainButton>
       </PageHeader>
 
-      {/* Summary */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Total Balance", value: fmt(summary.totalBalance), color: "text-slate-900", bg: "bg-white" },
-            { label: "This Month In", value: fmt(summary.thisMonthIncome), color: "text-emerald-700", bg: "bg-emerald-50" },
-            { label: "This Month Out", value: fmt(summary.thisMonthExpense), color: "text-red-700", bg: "bg-red-50" },
-            { label: "Wallets", value: String(summary.walletCount), color: "text-indigo-700", bg: "bg-indigo-50" },
-          ].map(s => (
-            <div key={s.label} className={cn("border border-slate-200 rounded-2xl p-4", s.bg)}>
-              <p className="text-xs text-slate-500">{s.label}</p>
-              <p className={cn("text-xl font-extrabold mt-1", s.color)}>{s.value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
+          <StatCard icon={Wallet} color="violet" label="Total balance" value={fmt(summary.totalBalance)} />
+          <StatCard icon={ArrowUpRight} color="green" label="In this month" value={fmt(summary.thisMonthIncome)} />
+          <StatCard icon={ArrowDownRight} color="red" label="Out this month" value={fmt(summary.thisMonthExpense)} />
+          <StatCard icon={Landmark} color="blue" label="Wallets" value={String(summary.walletCount ?? wallets.length)} />
         </div>
       )}
 
       {loading ? (
-        <ListSkeleton />
+        <RowsSkeleton n={4} />
       ) : wallets.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Wallet className="sp-empty-icon" />
-          <p className="text-slate-500 font-medium">No wallets yet</p>
-          <p className="text-sm text-slate-400 mt-1">Add Cash, bKash, Bank accounts to track expenses</p>
-        </div>
+        <EmptyState icon={Wallet} title="No wallets yet" text="Add Cash, bKash or bank accounts to track money in and out."
+          action={<MainButton icon={Plus} onClick={() => setWalletModal(true)}>Add wallet</MainButton>} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Wallet list */}
-          <div className="lg:col-span-1 space-y-2">
-            {wallets.map(w => {
-              const wt = WALLET_MAP[w.type] ?? WALLET_MAP.other;
-              const isSelected = selWallet?.id === w.id;
-              return (
-                <div key={w.id}
-                  onClick={() => { setSelWallet(w); setTxPage(1); }}
-                  className={cn("flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all",
-                    isSelected ? "border-indigo-200 bg-indigo-50 shadow-sm" : "border-slate-200 bg-white hover:border-indigo-100")}>
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0", wt.color)}>
-                    {wt.label[0]}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-5">
+          <div className="lg:col-span-1">
+            <Group title="Wallets">
+              {wallets.map(w => {
+                const wt = WALLET_MAP[w.type] ?? WALLET_MAP.other;
+                const isSelected = selWallet?.id === w.id;
+                return (
+                  <div key={w.id} role="button" tabIndex={0}
+                    onClick={() => { setSelWallet(w); setTxPage(1); }} onKeyDown={e => { if (e.key === "Enter") { setSelWallet(w); setTxPage(1); } }}
+                    className={cn("flex items-center gap-3 px-4 py-3 min-h-[64px] cursor-pointer transition-colors", isSelected ? "bg-[#EEE8FD]" : "hover:bg-[#F7F5FB]")}>
+                    <Tile icon={wt.icon} color={wt.tile} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm truncate", isSelected ? "font-bold text-[#5B3FD0]" : "font-semibold text-[#17151F]")}>{w.name}</p>
+                      <p className="text-xs text-[#6B6680]">{wt.label}</p>
+                    </div>
+                    <p className={cn("text-sm font-bold tabular-nums flex-shrink-0", Number(w.balance) >= 0 ? "text-[#17151F]" : "text-[#C2304F]")}>{fmt(Number(w.balance))}</p>
+                    <button onClick={e => { e.stopPropagation(); deleteWallet(w.id); }} aria-label={`Remove ${w.name}`}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[#9893A8] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 text-sm truncate">{w.name}</p>
-                    <p className={cn("text-xs font-medium px-1.5 py-0.5 rounded-full inline-block mt-0.5", wt.light)}>{wt.label}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className={cn("font-extrabold text-sm", Number(w.balance) >= 0 ? "text-emerald-600" : "text-red-500")}>{fmt(Number(w.balance))}</p>
-                    <button onClick={e => { e.stopPropagation(); deleteWallet(w.id); }} className="text-xs text-slate-300 hover:text-red-400 mt-0.5 block transition-colors">Remove</button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </Group>
           </div>
 
-          {/* Transactions */}
           <div className="lg:col-span-2">
             {!selWallet ? (
-              <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-                <Wallet className="sp-empty-icon" />
-                <p className="text-slate-400 text-sm">Select a wallet to view transactions</p>
-              </div>
+              <EmptyState icon={Wallet} title="Pick a wallet" text="Its money in and out will show here." />
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">{selWallet.name}</p>
-                    <p className="text-xs text-slate-400">Balance: <span className="font-semibold text-slate-700">{fmt(Number(selWallet.balance))}</span></p>
-                  </div>
+              <Group title={<>{selWallet.name} · <span className="text-[#17151F]">{fmt(Number(selWallet.balance))}</span></>}
+                action={
                   <div className="flex items-center gap-2">
-                    <select value={txFilter} onChange={e => { setTxFilter(e.target.value); setTxPage(1); }}
-                      className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none">
-                      <option value="">All</option>
-                      <option value="credit">Income</option>
-                      <option value="debit">Expense</option>
-                    </select>
+                    <PillSelect small label="Show" value={txFilter || "all"} onChange={v => { setTxFilter(v === "all" ? "" : v); setTxPage(1); }}
+                      options={[{ value: "all", label: "All" }, { value: "credit", label: "Money in" }, { value: "debit", label: "Money out" }]} />
                     <button onClick={() => setTxModal(true)}
-                      className="flex items-center gap-1 h-8 px-3 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">
-                      <Plus className="w-3.5 h-3.5" />Add
-                    </button>
+                      className="h-8 px-3 rounded-full bg-[#16141D] text-white text-xs font-semibold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add</button>
                   </div>
-                </div>
-
+                }>
                 {txLoading ? (
-                  <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
+                  <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" /></div>
                 ) : txs.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-slate-400">No transactions yet</div>
-                ) : (
-                  <ul className="divide-y divide-slate-50">
-                    {txs.map(tx => (
-                      <li key={tx.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 group transition-colors">
-                        <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0",
-                          tx.type === "credit" ? "bg-emerald-100" : "bg-red-100")}>
-                          {tx.type === "credit"
-                            ? <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                            : <ArrowDownRight className="w-4 h-4 text-red-500" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-800 truncate">{tx.description}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {tx.category && <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full capitalize">{tx.category}</span>}
-                            <span className="text-xs text-slate-400">{fmtDate(tx.date)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={cn("font-bold text-sm", tx.type === "credit" ? "text-emerald-600" : "text-red-500")}>
-                            {tx.type === "credit" ? "+" : "-"}{fmt(Number(tx.amount))}
-                          </span>
-                          <button onClick={() => deleteTx(tx.id)}
-                            className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-all">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {txTotal > 20 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-                    <span className="text-xs text-slate-400">{txTotal} total</span>
-                    <div className="flex gap-2">
-                      <button disabled={txPage <= 1} onClick={() => setTxPage(p => p - 1)}
-                        className="h-7 px-3 text-xs rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-50">Prev</button>
-                      <button disabled={txPage * 20 >= txTotal} onClick={() => setTxPage(p => p + 1)}
-                        className="h-7 px-3 text-xs rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-50">Next</button>
+                  <div className="text-center py-12 text-sm text-[#6B6680]">Nothing recorded yet</div>
+                ) : txs.map(tx => (
+                  <div key={tx.id} className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[60px] hover:bg-[#F7F5FB] group transition-colors">
+                    <Tile icon={tx.type === "credit" ? ArrowUpRight : ArrowDownRight} color={tx.type === "credit" ? "green" : "red"} size={32} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#17151F] truncate">{tx.description}</p>
+                      <p className="text-xs text-[#6B6680] truncate mt-0.5">
+                        {tx.category && <span className="capitalize">{tx.category} · </span>}{fmtDate(tx.date)}
+                      </p>
                     </div>
+                    <span className={cn("text-sm font-bold tabular-nums flex-shrink-0", tx.type === "credit" ? "text-[#1F8A5B]" : "text-[#C2304F]")}>
+                      {tx.type === "credit" ? "+" : "−"}{fmt(Number(tx.amount))}
+                    </span>
+                    <button onClick={() => deleteTx(tx.id)} aria-label="Delete"
+                      className="sm:opacity-0 group-hover:opacity-100 w-8 h-8 rounded-full flex items-center justify-center text-[#9893A8] hover:bg-[#FDECEF] hover:text-[#C2304F] transition-all flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                )}
-              </div>
+                ))}
+              </Group>
             )}
+            {selWallet && txTotal > 20 && <Pager page={txPage} pages={Math.ceil(txTotal / 20)} onChange={setTxPage} />}
           </div>
         </div>
       )}

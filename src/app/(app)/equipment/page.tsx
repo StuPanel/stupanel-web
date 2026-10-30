@@ -1,7 +1,7 @@
 "use client";
 
 import { Wrench as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
 
@@ -9,21 +9,27 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Camera, Plus, Search, Loader2, X, CheckCircle2, AlertCircle,
   Wrench, Trash2, Edit2, Package, TrendingDown, CircleOff,
+  Aperture, Plane, Lightbulb, Mic, Briefcase, Laptop, HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { EditableSelect } from "@/components/ui/editable-select";
 import { askConfirm } from "@/components/feedback";
-import { ListSkeleton } from "@/components/list-ui";
 
 
 const CATEGORIES = ["camera", "lens", "drone", "lighting", "audio", "tripod", "bag", "computer", "storage", "accessories", "other"];
-const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> = {
-  available:   { label: "Available",    color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  in_use:      { label: "In Use",       color: "bg-blue-100 text-blue-700",      dot: "bg-blue-500"    },
-  maintenance: { label: "Maintenance",  color: "bg-amber-100 text-amber-700",    dot: "bg-amber-500"   },
-  retired:     { label: "Retired",      color: "bg-slate-100 text-slate-500",    dot: "bg-slate-400"   },
+const STATUS_CFG: Record<string, { label: string; color: string; dot: string; hex: string }> = {
+  available:   { label: "Available",   color: "bg-[#E9F5EF] text-[#1F8A5B]", dot: "bg-[#1F8A5B]", hex: "#1F8A5B" },
+  in_use:      { label: "In use",      color: "bg-[#E6F0FB] text-[#1F5C99]", dot: "bg-[#1F5C99]", hex: "#1F5C99" },
+  maintenance: { label: "Repair",      color: "bg-[#FBF2FA] text-[#9E3A8C]", dot: "bg-[#9E3A8C]", hex: "#9E3A8C" },
+  retired:     { label: "Retired",     color: "bg-[#EEEDF2] text-[#4A4658]", dot: "bg-[#6B6680]", hex: "#6B6680" },
+};
+
+const CAT_ICON: Record<string, { icon: React.ElementType; tile: string }> = {
+  camera: { icon: Camera, tile: "ink" }, lens: { icon: Aperture, tile: "deep" }, drone: { icon: Plane, tile: "teal" },
+  lighting: { icon: Lightbulb, tile: "orchid" }, audio: { icon: Mic, tile: "blue" }, tripod: { icon: Wrench, tile: "ink" },
+  bag: { icon: Briefcase, tile: "violet" }, computer: { icon: Laptop, tile: "blue" }, storage: { icon: HardDrive, tile: "green" },
 };
 
 function fmt(n?: number | null, currency = "BDT") { return n != null ? formatCurrency(Math.round(n), currency) : "—"; }
@@ -106,7 +112,7 @@ export default function EquipmentPage() {
   const set = (k: string) => (e: React.ChangeEvent<any>) => setForm(p => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="space-y-5">
+    <div>
       {toast && (
         <div className={cn("sp-toast",
           toast.ok ? "" : "sp-toast--err")}>
@@ -116,169 +122,60 @@ export default function EquipmentPage() {
       )}
 
       {/* Header */}
-      <PageHeader icon={HeaderIcon} color="ink" title="Equipment" sub={<>Camera, lens, drone, lighting — full inventory</>}>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />Add Equipment
-        </button>
+      <PageHeader icon={HeaderIcon} color="ink" title="Equipment" sub={<>Camera, lens, drone, lighting — your full kit</>}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search equipment" />
+        <MainButton icon={Plus} onClick={openAdd}>Add equipment</MainButton>
       </PageHeader>
 
-      {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Total", value: stats.total, icon: Package, color: "bg-indigo-50 text-indigo-600" },
-            { label: "Available", value: stats.available, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600" },
-            { label: "In Use", value: stats.inUse, icon: Camera, color: "bg-blue-50 text-blue-600" },
-            { label: "Total Value", value: fmt(stats.totalValue), icon: TrendingDown, color: "bg-amber-50 text-amber-600" },
-          ].map(s => (
-            <div key={s.label} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
-              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", s.color)}>
-                <s.icon className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{s.label}</p>
-                <p className="text-lg font-extrabold text-slate-900">{s.value}</p>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
+          <StatCard icon={Package} color="ink" label="Items" value={String(stats.total)} />
+          <StatCard icon={CheckCircle2} color="green" label="Available" value={String(stats.available)} />
+          <StatCard icon={Camera} color="blue" label="In use" value={String(stats.inUse)} sub={stats.maintenance ? `${stats.maintenance} in repair` : undefined} />
+          <StatCard icon={TrendingDown} color="violet" label="Kit value" value={fmt(stats.totalValue)} />
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search equipment…"
-            className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-        </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
-          <option value="">All Status</option>
-          {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-      </div>
+      <Chips label="Filter by status" value={statusFilter || "all"} onChange={v => setStatusFilter(v === "all" ? "" : v)}
+        options={[{ value: "all", label: "All" }, ...Object.entries(STATUS_CFG).map(([k, v]) => ({ value: k, label: v.label, dot: v.hex }))]} />
 
-      {/* Table */}
       {loading ? (
-        <ListSkeleton />
+        <RowsSkeleton n={5} />
       ) : items.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Wrench className="sp-empty-icon" />
-          <p className="text-slate-500 font-medium">No equipment yet</p>
-          <p className="text-sm text-slate-400 mt-1">Add cameras, lenses, drones and other gear</p>
-        </div>
+        search || statusFilter
+          ? <EmptyState icon={Search} title="Nothing matches" text="Try another word or status." />
+          : <EmptyState icon={Wrench} title="No equipment yet" text="Add cameras, lenses, drones and other gear."
+              action={<MainButton icon={Plus} onClick={openAdd}>Add equipment</MainButton>} />
       ) : (
-        <>
-        {/* Phones: one card per item */}
-        <div className="sm:hidden space-y-3">
+        <Group>
           {items.map(item => {
             const sc = STATUS_CFG[item.status] ?? STATUS_CFG.available;
-            const activeAssignment = item.assignments?.[0];
+            const cat = CAT_ICON[item.category] ?? { icon: Package, tile: "ink" };
+            const active = item.assignments?.[0];
             return (
-              <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 truncate">{item.name}</p>
-                    {(item.brand || item.model) && (
-                      <p className="text-xs text-slate-500 mt-0.5 truncate">{[item.brand, item.model].filter(Boolean).join(" · ")}</p>
-                    )}
-                  </div>
-                  <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0", sc.color)}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full", sc.dot)} />
-                    {sc.label}
-                  </span>
+              <div key={item.id} role="button" tabIndex={0} onClick={() => openEdit(item)} onKeyDown={e => { if (e.key === "Enter") openEdit(item); }}
+                className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+                <Tile icon={cat.icon} color={cat.tile} size={40} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#17151F] truncate">{item.name}</p>
+                  <p className="text-xs text-[#6B6680] truncate mt-0.5">
+                    <span className="capitalize">{item.category}</span>
+                    {(item.brand || item.model) && <> · {[item.brand, item.model].filter(Boolean).join(" ")}</>}
+                    {item.serialNumber && <span className="font-mono"> · #{item.serialNumber}</span>}
+                  </p>
+                  {active && <p className="text-xs font-semibold text-[#1F5C99] truncate mt-0.5">With {active.booking.eventName || active.booking.bookingNumber}</p>}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-slate-500">Category</p>
-                    <p className="font-medium text-slate-800 capitalize mt-0.5">{item.category}</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-slate-500">Value</p>
-                    <p className="font-medium text-slate-800 mt-0.5">{fmt(item.currentValue ?? item.purchasePrice)}</p>
-                  </div>
-                </div>
-                {activeAssignment && (
-                  <p className="mt-2 text-xs text-slate-600">In use: <span className="font-medium text-violet-700">{activeAssignment.booking.eventName || activeAssignment.booking.bookingNumber}</span></p>
-                )}
-                <div className="mt-3 flex gap-2">
-                  <button onClick={() => openEdit(item)} className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 flex items-center justify-center gap-1.5">
-                    <Edit2 className="w-4 h-4" /> Edit
-                  </button>
-                  <button onClick={() => deleteItem(item.id)} className="h-10 w-10 rounded-xl border border-slate-200 text-red-500 flex items-center justify-center" aria-label="Delete">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <span className="hidden sm:block text-sm font-bold text-[#17151F] tabular-nums flex-shrink-0">{fmt(item.currentValue ?? item.purchasePrice)}</span>
+                <span className={cn("hidden md:inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0", sc.color)}>{sc.label}</span>
+                <span className={cn("md:hidden w-2.5 h-2.5 rounded-full flex-shrink-0", sc.dot)} title={sc.label} />
+                <button onClick={e => { e.stopPropagation(); deleteItem(item.id); }} aria-label={`Delete ${item.name}`}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             );
           })}
-        </div>
-
-        <div className="hidden sm:block bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Equipment</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Value</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assigned To</th>
-                  <th className="px-4 py-3 w-20" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {items.map(item => {
-                  const sc = STATUS_CFG[item.status] ?? STATUS_CFG.available;
-                  const activeAssignment = item.assignments?.[0];
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">{item.name}</p>
-                          {(item.brand || item.model) && (
-                            <p className="text-xs text-slate-400 mt-0.5">{[item.brand, item.model].filter(Boolean).join(" · ")}</p>
-                          )}
-                          {item.serialNumber && <p className="text-xs text-slate-400 font-mono"># {item.serialNumber}</p>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-slate-500 capitalize">{item.category}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full", sc.color)}>
-                          <span className={cn("w-1.5 h-1.5 rounded-full", sc.dot)} />
-                          {sc.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-700">{fmt(item.currentValue ?? item.purchasePrice)}</td>
-                      <td className="px-4 py-3">
-                        {activeAssignment ? (
-                          <div>
-                            <p className="text-xs font-medium text-blue-600">{activeAssignment.booking.eventName || activeAssignment.booking.bookingNumber}</p>
-                            <p className="text-xs text-slate-400">{activeAssignment.booking.bookingNumber}</p>
-                          </div>
-                        ) : <span className="text-xs text-slate-300">—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 justify-end">
-                          <button onClick={() => openEdit(item)} className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center">
-                            <Edit2 className="w-3.5 h-3.5 text-slate-500" />
-                          </button>
-                          <button onClick={() => deleteItem(item.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        </>
+        </Group>
       )}
 
       {/* Add/Edit Modal */}

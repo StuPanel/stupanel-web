@@ -1,12 +1,12 @@
 "use client";
 
 import { Package as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { CARD_SHADOW, EmptyState, MainButton, PageHeader, RowsSkeleton, SearchField, Tile } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit3, Trash2, Loader2, X, AlertTriangle, Package, CheckCircle2, Eye, EyeOff, Clock, DollarSign } from "lucide-react";
+import { Plus, Edit3, Trash2, Loader2, X, AlertTriangle, Package, CheckCircle2, Eye, EyeOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import { EditableSelect } from "@/components/ui/editable-select";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
+import { matches } from "@/components/list-ui";
 
 
 interface StaffingLine { role: string; level: string; count: number; }
@@ -526,70 +526,55 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
   pkg: Pkg; onEdit: (p: Pkg) => void; onDelete: (p: Pkg) => void; onToggle: (p: Pkg) => void;
 }) {
   const fmt = (n: number) => formatCurrency(Number(n), pkg.currency);
+  const lines = summaryLines(pkg);
+  const duration = pkg.durationUnit === "days" && pkg.durationDays ? `${pkg.durationDays} day${pkg.durationDays > 1 ? "s" : ""}` : pkg.durationHours ? `${pkg.durationHours} hours` : null;
   return (
-    <div className={cn("bg-white border rounded-xl p-4 shadow-sm transition-opacity", !pkg.isActive && "opacity-60")}>
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-slate-900 text-sm">{pkg.name}</h3>
-            {!pkg.isActive && <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactive</span>}
-            {pkg.isVisibleInPortal && <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">Portal</span>}
+    <div className={cn("bg-white rounded-[20px] flex flex-col overflow-hidden transition-transform hover:-translate-y-0.5", CARD_SHADOW, !pkg.isActive && "opacity-60")}>
+      <button onClick={() => onEdit(pkg)} className="text-left p-5 flex-1 flex flex-col justify-start items-stretch">
+        <div className="flex items-start gap-3">
+          <Tile icon={Package} color="violet" size={40} />
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-bold text-[#17151F] truncate">{pkg.name}</p>
+            <p className="text-xs text-[#6B6680] mt-0.5 flex items-center gap-1.5 flex-wrap">
+              {pkg.category && <span>{pkg.category}</span>}
+              {!pkg.isActive && <span className="font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Hidden</span>}
+              {pkg.isVisibleInPortal && <span className="font-bold text-[#1F5C99] bg-[#E6F0FB] px-1.5 py-0.5 rounded-full">In portal</span>}
+            </p>
           </div>
-          {pkg.category && <span className="text-xs text-slate-400">{pkg.category}</span>}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => onEdit(pkg)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700">
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => onToggle(pkg)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-            {pkg.isActive ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          </button>
-          <button onClick={() => onDelete(pkg)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-      {pkg.description && <p className="text-xs text-slate-500 mb-3 leading-relaxed">{pkg.description}</p>}
-      {pkg.staffing && pkg.staffing.length > 0 && (
-        <div className="mb-3 space-y-1.5">
-          {pkg.eventTypesIncluded && pkg.eventTypesIncluded.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-1">
-              {pkg.eventTypesIncluded.map(v => (
-                <span key={v} className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">
-                  {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
-                </span>
-              ))}
-            </div>
-          )}
-          <ul className="space-y-1">
-            {summaryLines(pkg).map((line, i) => (
-              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />{line}
+        <p className="mt-4 text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none">
+          {fmt(pkg.basePrice)}
+          {pkg.priceIsNegotiable && <span className="ml-2 text-xs font-semibold text-[#6B6680] tracking-normal">negotiable</span>}
+        </p>
+        <p className="mt-1.5 text-xs text-[#6B6680]">
+          {[duration, pkg.deliveryDays ? `delivery in ${pkg.deliveryDays} days` : null].filter(Boolean).join(" · ") || "\u00A0"}
+        </p>
+        {pkg.description && <p className="mt-3 text-sm text-[#4A4658] leading-relaxed line-clamp-2">{pkg.description}</p>}
+        {pkg.eventTypesIncluded && pkg.eventTypesIncluded.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {pkg.eventTypesIncluded.map(v => (
+              <span key={v} className="text-xs px-2 py-0.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] font-semibold">
+                {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
+              </span>
+            ))}
+          </div>
+        )}
+        {lines.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {lines.map((line, i) => (
+              <li key={i} className="text-sm text-[#17151F] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#1F8A5B] mt-0.5 flex-shrink-0" />{line}
               </li>
             ))}
           </ul>
-        </div>
-      )}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-          <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-          {fmt(pkg.basePrice)}
-          {pkg.priceIsNegotiable && <span className="text-xs text-slate-400 font-normal ml-0.5">negotiable</span>}
-        </div>
-        {pkg.durationUnit === "days" && pkg.durationDays ? (
-          <div className="flex items-center gap-1 text-xs text-slate-400">
-            <Clock className="w-3 h-3" />{pkg.durationDays} Day{pkg.durationDays > 1 ? "s" : ""}
-          </div>
-        ) : pkg.durationHours ? (
-          <div className="flex items-center gap-1 text-xs text-slate-400">
-            <Clock className="w-3 h-3" />{pkg.durationHours}h
-          </div>
-        ) : null}
-        {pkg.deliveryDays && (
-          <div className="flex items-center gap-1 text-xs text-slate-400">
-            <CheckCircle2 className="w-3 h-3" />{pkg.deliveryDays}d delivery
-          </div>
         )}
+      </button>
+      <div className="flex border-t border-[#EEEBF4] divide-x divide-[#EEEBF4]">
+        <button onClick={() => onEdit(pkg)} className="flex-1 h-11 text-sm font-semibold text-[#5B3FD0] hover:bg-[#F7F4FE] inline-flex items-center justify-center gap-1.5"><Edit3 className="w-4 h-4" />Edit</button>
+        <button onClick={() => onToggle(pkg)} className="flex-1 h-11 text-sm font-semibold text-[#4A4658] hover:bg-[#F7F5FB] inline-flex items-center justify-center gap-1.5">
+          {pkg.isActive ? <><EyeOff className="w-4 h-4" />Hide</> : <><Eye className="w-4 h-4" />Show</>}
+        </button>
+        <button onClick={() => onDelete(pkg)} aria-label={`Delete ${pkg.name}`} className="w-14 h-11 text-[#C2304F] hover:bg-[#FDECEF] inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
       </div>
     </div>
   );
@@ -625,30 +610,20 @@ export default function PackagesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon={HeaderIcon} color="violet" title="Packages" sub={<>{packages.length} service packages</>}>
-        <Button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline">New Package</span>
-        </Button>
+      <PageHeader icon={HeaderIcon} color="violet" title="Packages" sub={<>{packages.length} package{packages.length === 1 ? "" : "s"} you offer</>}>
+        {packages.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder="Search packages" />}
+        <MainButton icon={Plus} onClick={openNew}>New package</MainButton>
       </PageHeader>
 
-      {packages.length > 0 && <SearchPill value={q} onChange={setQ} placeholder="Search packages…" />}
-
       {loading ? (
-        <ListSkeleton />
+        <RowsSkeleton n={4} />
       ) : packages.length === 0 ? (
-        <div className="text-center py-16">
-          <Package className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm font-medium">No packages yet</p>
-          <p className="text-slate-300 text-xs mt-1">Create service packages to attach to bookings</p>
-          <Button onClick={openNew} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-            <Plus className="w-4 h-4" /> New Package
-          </Button>
-        </div>
+        <EmptyState icon={Package} title="No packages yet" text="Make ready-made packages to add to programs and quotes in one tap."
+          action={<MainButton icon={Plus} onClick={openNew}>New package</MainButton>} />
+      ) : packages.filter(p => matches(q, p.name, p.category, p.description)).length === 0 ? (
+        <EmptyState icon={Search} title={`No packages match "${q}"`} text="Try another name." />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {packages.filter(p => matches(q, p.name, p.category, p.description)).length === 0 && (
-            <p className="sm:col-span-2 text-center text-sm text-[#6B6680] py-10">No packages match &ldquo;{q}&rdquo;</p>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
           {packages.filter(p => matches(q, p.name, p.category, p.description)).map(p => (
             <PackageCard key={p.id} pkg={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} onToggle={toggle} />
           ))}

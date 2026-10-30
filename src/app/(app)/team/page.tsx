@@ -1,7 +1,9 @@
 "use client";
 
 import { UserCog as HeaderIcon } from "lucide-react";
-import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchField, Tile } from "@/components/ui/apple";
+import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchField, Tile, type TileColor } from "@/components/ui/apple";
+import { Field, FormDrawer, FormGroup, MoreDetails, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { notify } from "@/components/feedback";
 
 import { apiFetch } from "@/lib/api";
 
@@ -9,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, X, Loader2, AlertTriangle, Trash2, Edit3, MoreHorizontal, MessageCircle,
   Eye, EyeOff, Camera, Video, Image, Film, KeyRound, UserCheck,
-  UserX, Shield, CheckCircle2, XCircle, Navigation, Briefcase, Tag, Search,
+  UserX, Shield, CheckCircle2, XCircle, Navigation, Briefcase, Tag, Search, Check, BadgeCheck, Zap, UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,8 +41,8 @@ function roleConfig(id: string, customRoles: string[] = []) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Member {
-  id: string; memberId: string; username: string;
-  email: string;
+  id: string; memberId: string; username: string | null;
+  email: string; memberType?: string;
   firstName: string; lastName?: string; phone?: string;
   bio?: string; memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
@@ -66,6 +68,16 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   const [newRoleInput, setNewRoleInput] = useState("");
   const [addingRole, setAddingRole] = useState(false);
   const [showRoleInput, setShowRoleInput] = useState(false);
+  const [memberType, setMemberType] = useState<"staff" | "freelancer">("staff");
+  const [userTouched, setUserTouched] = useState(false);
+  const [defaultUnit, setDefaultUnit] = useState("per_program");
+
+  // Rates follow Settings → Team & Pay (per shift or per program)
+  useEffect(() => {
+    if (!open) return;
+    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.teamPay?.mode) setDefaultUnit(d.teamPay.mode); }).catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,13 +85,15 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setUnCheck({ checking: false, available: null, suggestions: [] });
     setShowRoleInput(false);
     setNewRoleInput("");
+    setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
+    setUserTouched(false);
     if (editing) {
       const realEmail = editing.email?.includes(".internal") ? "" : (editing.email ?? "");
       const existingRates: RoleRate[] = Array.isArray(editing.roleRates)
         ? editing.roleRates.map(r => ({ roleId: r.roleId, rate: String(r.rate ?? ""), rateType: r.rateType ?? "per_program", note: r.note ?? "" }))
         : [];
       setForm({ firstName: editing.firstName, lastName: editing.lastName ?? "",
-        phone: editing.phone ?? "", email: realEmail, username: editing.username,
+        phone: editing.phone ?? "", email: realEmail, username: editing.username ?? "",
         password: "", bio: editing.bio ?? "", memberRoles: editing.memberRoles,
         payRate: editing.payRate ? String(editing.payRate) : "",
         payRateType: editing.payRateType ?? "per_program",
@@ -138,7 +152,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
         memberRoles: hasRole ? p.memberRoles.filter(r => r !== rid) : [...p.memberRoles, rid],
         roleRates: hasRole
           ? p.roleRates.filter(r => r.roleId !== rid)
-          : [...p.roleRates, { roleId: rid, rate: "", rateType: "per_program", note: "" }],
+          : [...p.roleRates, { roleId: rid, rate: "", rateType: defaultUnit, note: "" }],
       };
     });
   }
@@ -152,10 +166,14 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.firstName.trim()) { setError("Name is required."); return; }
-    if (!form.username.trim()) { setError("Username is required."); return; }
-    if (unCheck.available === false) { setError("Please choose an available username."); return; }
-    if (!isEdit && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const freelancer = memberType === "freelancer";
+    if (!form.firstName.trim()) { setError("Please write their name."); return; }
+    if (freelancer && !form.phone.trim()) { setError("A freelancer needs a phone number — it's their ID."); return; }
+    if (!freelancer) {
+      if (!form.username.trim()) { setError("Please choose a username for their login."); return; }
+      if (unCheck.available === false) { setError("That username is taken — pick another."); return; }
+      if (!isEdit && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    }
     setError(""); setLoading(true);
     try {
       const payRateVal = form.payRate ? parseFloat(form.payRate) : undefined;
@@ -170,239 +188,237 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
         roleRates: cleanRoleRates,
       };
       const body = isEdit
-        ? { ...base, username: form.username || undefined }
-        : { ...base, username: form.username, password: form.password };
+        ? { ...base, username: freelancer ? undefined : (form.username || undefined) }
+        : freelancer
+          ? { ...base, memberType: "freelancer" }
+          : { ...base, memberType: "staff", username: form.username, password: form.password };
       const url = isEdit ? `${API}/team/${editing!.id}` : `${API}/team`;
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { const msg = d.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
+      notify(isEdit ? "Saved" : freelancer ? `${form.firstName} added as a freelancer` : `${form.firstName} added to the team`);
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
     finally { setLoading(false); }
   }
 
-  if (!open) return null;
+  const allRoles = [...DEFAULT_ROLES, ...customRoles.filter(cr => !DEFAULT_ROLES.some(d => d.id === cr)).map(cr => roleConfig(cr, customRoles))];
+  const isStaff = memberType === "staff";
+  const salaryOn = form.payRateType === "monthly" && !!form.payRate;
+  const UNIT_LABEL: Record<string, string> = { per_shift: "Per shift", per_program: "Per program", per_day: "Per day" };
+
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-md flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Member" : "Add Team Member"}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-        <form id="member-form" onSubmit={submit} className="flex-1 overflow-y-auto p-5 space-y-4">
-          {error && <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
+    <FormDrawer open={open} onClose={onClose} icon={UserCog} color="blue"
+      title={isEdit ? "Edit team member" : "New team member"}
+      sub={isEdit ? `${editing!.firstName} ${editing!.lastName ?? ""}`.trim() : "Photographers, editors, drone — permanent or freelance."}
+      footer={<>
+        <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>
+        <button type="submit" form="member-form" disabled={loading}
+          className="flex-[1.4] h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : isEdit ? "Save changes" : "Add to team"}
+        </button>
+      </>}>
+      <form id="member-form" onSubmit={submit} noValidate>
+        {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">First Name *</Label>
-              <Input value={form.firstName} onChange={set("firstName")} placeholder="Alex" className="h-11 border-slate-200" autoFocus />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Last Name</Label>
-              <Input value={form.lastName} onChange={set("lastName")} placeholder="Carter" className="h-11 border-slate-200" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Phone</Label>
-            <Input value={form.phone} onChange={set("phone")} placeholder="01XXXXXXXXX" className="h-11 border-slate-200" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">
-              Email <span className="text-slate-400 font-normal">(for notifications)</span>
-            </Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-              placeholder="alex@example.com"
-              className="h-11 border-slate-200"
-            />
-            {form.email.trim() ? (
-              <p className="text-xs text-amber-600">⚠️ Make sure this email is correct — we cannot verify if it exists.</p>
-            ) : (
-              <p className="text-xs text-slate-400">Optional — used to send assignment &amp; event notifications</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Username * <span className="text-slate-400 font-normal">(for login)</span></Label>
-            <div className="relative">
-              <Input
-                value={form.username}
-                onChange={e => handleUsernameChange(e.target.value)}
-                placeholder="alex_photo"
-                className={cn("h-11 border-slate-200 pr-9",
-                  unCheck.available === true && "border-emerald-400 focus:border-emerald-400",
-                  unCheck.available === false && "border-red-400 focus:border-red-400",
-                )}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {unCheck.checking && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-                {!unCheck.checking && unCheck.available === true && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                {!unCheck.checking && unCheck.available === false && <XCircle className="w-4 h-4 text-red-500" />}
-              </div>
-            </div>
-            {/* Availability message */}
-            {!unCheck.checking && unCheck.available === true && (
-              <p className="text-xs text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Username available
-              </p>
-            )}
-            {!unCheck.checking && unCheck.available === false && (
-              <div>
-                <p className="text-xs text-red-500 flex items-center gap-1 mb-1.5">
-                  <XCircle className="w-3 h-3" /> Username already taken
-                </p>
-                {unCheck.suggestions.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs text-slate-400">Try:</span>
-                    {unCheck.suggestions.map(s => (
-                      <button key={s} type="button"
-                        onClick={() => { setForm(p => ({ ...p, username: s })); handleUsernameChange(s); }}
-                        className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors font-medium">
-                        {s}
-                      </button>
-                    ))}
+        {!isEdit && (
+          <div role="radiogroup" aria-label="Type of member" className="grid grid-cols-2 gap-3 mb-5">
+            {([
+              { v: "staff", icon: BadgeCheck, title: "Team staff", text: "Works with you regularly. Can log in to see their programs." },
+              { v: "freelancer", icon: Zap, title: "Freelancer", text: "Hired per program. No login — phone number is their ID." },
+            ] as const).map(o => {
+              const on = memberType === o.v;
+              return (
+                <button key={o.v} type="button" role="radio" aria-checked={on} onClick={() => setMemberType(o.v)}
+                  className={cn("text-left p-4 rounded-[20px] bg-white transition-all shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]",
+                    on ? "ring-2 ring-[#7D5CEF]" : "hover:ring-1 hover:ring-[#E4E0EC]")}>
+                  <div className="flex items-center justify-between">
+                    <Tile icon={o.icon} color={o.v === "staff" ? "blue" : "orchid"} size={32} />
+                    <span className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center", on ? "border-[#7D5CEF] bg-[#7D5CEF]" : "border-[#D8D3E3]")}>
+                      {on && <Check className="w-3 h-3 text-white" />}
+                    </span>
                   </div>
-                )}
+                  <p className="mt-3 text-[15px] font-bold text-[#17151F]">{o.title}</p>
+                  <p className="mt-0.5 text-xs text-[#6B6680] leading-snug">{o.text}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <FormGroup title="Who">
+          <Field label="Name" required>
+            {id => (
+              <div className="grid grid-cols-2 gap-2">
+                <input id={id} className={inputCls} placeholder="First name" value={form.firstName} autoFocus={!isEdit} aria-label="First name"
+                  onChange={e => {
+                    const v = e.target.value;
+                    setForm(p => ({ ...p, firstName: v }));
+                    if (!isEdit && !userTouched) handleUsernameChange(v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""));
+                  }} />
+                <input className={inputCls} placeholder="Last name" value={form.lastName} onChange={set("lastName")} aria-label="Last name" />
               </div>
             )}
-          </div>
+          </Field>
+          <Field label="Phone / WhatsApp" required={!isStaff} hint={!isStaff ? "Used to send them program details on WhatsApp." : undefined}>
+            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={form.phone} onChange={set("phone")} />}
+          </Field>
+          <Field label="Email" hint="Optional — they get program reminder emails here.">
+            {id => <input id={id} className={inputCls} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} />}
+          </Field>
+        </FormGroup>
 
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Password *</Label>
-              <div className="relative">
-                <Input type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
-                  placeholder="Min. 6 characters" className="pr-10 h-11 border-slate-200" />
-                <button type="button" onClick={() => setShowPass(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Roles */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-slate-600">Roles <span className="text-slate-400 font-normal">(multiple allowed)</span></Label>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[...DEFAULT_ROLES, ...customRoles.map(cr => ({ id: cr, label: cr, icon: Tag, color: "bg-indigo-100 text-indigo-700" }))].map(r => {
+        <FormGroup title="What they do" note="Pick every kind of work they can do.">
+          <div className="px-4 py-3.5">
+            <div className="flex flex-wrap gap-2">
+              {allRoles.map(r => {
+                const on = form.memberRoles.includes(r.id);
                 const Icon = r.icon;
-                const selected = form.memberRoles.includes(r.id);
                 return (
-                  <button key={r.id} type="button" onClick={() => toggleRole(r.id)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all text-left",
-                      selected ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-                    )}>
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-xs flex-1 truncate">{r.label}</span>
-                    {selected && <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                    </div>}
+                  <button key={r.id} type="button" role="checkbox" aria-checked={on} onClick={() => toggleRole(r.id)}
+                    className={cn("inline-flex items-center gap-2 h-10 pl-1.5 pr-3.5 rounded-full text-[13px] font-semibold transition-all",
+                      on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>
+                    <Tile icon={Icon} color={r.tile as TileColor} size={28} />{r.label}
                   </button>
                 );
               })}
+              {showRoleInput ? (
+                <div className="flex items-center gap-1.5 w-full mt-1">
+                  <input autoFocus value={newRoleInput} onChange={e => setNewRoleInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddCustomRole(); } }}
+                    placeholder="e.g. Makeup artist" className={inputCls + " h-10"} />
+                  <button type="button" onClick={handleAddCustomRole} disabled={addingRole || !newRoleInput.trim()}
+                    className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold disabled:opacity-50 flex-shrink-0">
+                    {addingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
+                  </button>
+                  <button type="button" aria-label="Cancel" onClick={() => { setShowRoleInput(false); setNewRoleInput(""); }}
+                    className="w-10 h-10 rounded-full bg-[#F5F3FA] text-[#6B6680] flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowRoleInput(true)}
+                  className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full border border-dashed border-[#D8D3E3] text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA]">
+                  <Plus className="w-3.5 h-3.5" />Other work
+                </button>
+              )}
             </div>
-
-            {/* Add custom role */}
-            {showRoleInput ? (
-              <div className="flex gap-2 mt-1">
-                <input
-                  value={newRoleInput}
-                  onChange={e => setNewRoleInput(e.target.value)}
-                  onKeyDown={async e => { if (e.key === "Enter") { e.preventDefault(); await handleAddCustomRole(); } if (e.key === "Escape") { setShowRoleInput(false); setNewRoleInput(""); } }}
-                  placeholder="e.g. Makeup Artist"
-                  className="flex-1 h-9 px-3 rounded-lg border border-indigo-300 text-sm focus:outline-none focus:border-indigo-500"
-                  autoFocus
-                />
-                <button type="button" onClick={handleAddCustomRole} disabled={addingRole}
-                  className="h-9 px-3 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 disabled:opacity-50">
-                  {addingRole ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Add"}
-                </button>
-                <button type="button" onClick={() => { setShowRoleInput(false); setNewRoleInput(""); }}
-                  className="h-9 px-2 border border-slate-200 rounded-lg text-slate-400 hover:bg-slate-50">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setShowRoleInput(true)}
-                className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1">
-                <Plus className="w-3.5 h-3.5" />Add Custom Role
-              </button>
-            )}
           </div>
+        </FormGroup>
 
-          {/* Per-role rates */}
-          {form.memberRoles.length > 0 && (
-            <div className="space-y-2.5">
-              <Label className="text-xs font-medium text-slate-600">
-                Payment Rate per Role <span className="text-slate-400 font-normal">(optional)</span>
-              </Label>
-              {form.memberRoles.map(rid => {
-                const roleCfg = [...DEFAULT_ROLES, ...customRoles.map(cr => ({ id: cr, label: cr, icon: Tag, color: "" }))].find(r => r.id === rid);
-                const rr = form.roleRates.find(r => r.roleId === rid) ?? { roleId: rid, rate: "", rateType: "per_program", note: "" };
-                return (
-                  <div key={rid} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-200">
-                    <p className="text-xs font-semibold text-slate-700">{roleCfg?.label ?? rid}</p>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="number" min="0" step="100"
-                          value={rr.rate}
-                          onChange={e => updateRoleRate(rid, "rate", e.target.value)}
-                          placeholder="0"
-                          className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400"
-                        />
-                      </div>
-                      <select
-                        value={rr.rateType}
-                        onChange={e => updateRoleRate(rid, "rateType", e.target.value)}
-                        className="h-9 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 text-slate-700 cursor-pointer">
-                        <option value="per_program">/ Program</option>
-                        <option value="per_day">/ Day</option>
-                        <option value="monthly">/ Month</option>
-                      </select>
-                    </div>
-                    <input
-                      type="text"
-                      value={rr.note}
-                      onChange={e => updateRoleRate(rid, "note", e.target.value)}
-                      placeholder="Note (e.g. with own setup, studio gear included...)"
-                      className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400"
-                    />
+        <FormGroup title="Pay" note={form.memberRoles.length
+          ? "These rates fill in by themselves when you put them on a program — you can still change them per program."
+          : "Pick their work above to set a rate for each."}>
+          {form.memberRoles.length === 0 && !isStaff && <p className="px-4 py-3.5 text-sm text-[#A29DB3]">No work picked yet</p>}
+          {form.memberRoles.map(rid => {
+            const rc = roleConfig(rid, customRoles);
+            const rr = form.roleRates.find(r => r.roleId === rid) ?? { roleId: rid, rate: "", rateType: defaultUnit, note: "" };
+            return (
+              <div key={rid} className="px-4 py-3.5">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Tile icon={rc.icon} color={rc.tile as TileColor} size={26} />
+                  <p className="text-[14px] font-semibold text-[#17151F]">{rc.label}</p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                    <input type="number" inputMode="numeric" min="0" step="100" value={rr.rate} aria-label={`${rc.label} rate`}
+                      onChange={e => updateRoleRate(rid, "rate", e.target.value)} placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
                   </div>
-                );
-              })}
-            </div>
+                  <select value={rr.rateType === "monthly" ? defaultUnit : rr.rateType} aria-label={`${rc.label} rate unit`}
+                    onChange={e => updateRoleRate(rid, "rateType", e.target.value)}
+                    className={cn(inputCls, "w-[140px] flex-shrink-0 pr-8 cursor-pointer")}>
+                    {Object.entries(UNIT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+            );
+          })}
+          {isStaff && (
+            <>
+              <SwitchRow label="Monthly salary" hint="For staff paid every month, on top of or instead of per-program pay"
+                on={form.payRateType === "monthly"} onChange={v => setForm(p => ({ ...p, payRateType: v ? "monthly" : "per_program", payRate: v ? p.payRate : "" }))} />
+              {form.payRateType === "monthly" && (
+                <Field label="Salary per month">
+                  {id => (
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                      <input id={id} type="number" inputMode="numeric" min="0" step="500" value={form.payRate} onChange={set("payRate")}
+                        placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
+                    </div>
+                  )}
+                </Field>
+              )}
+            </>
           )}
+        </FormGroup>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Note / Bio</Label>
-            <textarea value={form.bio} onChange={set("bio")} rows={2} placeholder="Optional note..."
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-          </div>
-        </form>
-        <div className="px-5 py-4 border-t border-slate-200 flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-          <Button type="submit" form="member-form" disabled={loading} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? "Saving..." : "Adding..."}</> : isEdit ? "Save Changes" : "Add Member"}
-          </Button>
-        </div>
-      </div>
-    </>
+        {isStaff && (
+          <FormGroup title="App login" note={isEdit ? "To change the password, use Reset password in the member menu." : "Share these with them — they can log in at app.stupanel.com."}>
+            <Field label="Username" required>
+              {id => (
+                <>
+                  <div className="relative">
+                    <input id={id} className={cn(inputCls, "pr-10", unCheck.available === false && "border-[#C2304F] bg-[#FDECEF]")}
+                      value={form.username} onChange={e => { setUserTouched(true); handleUsernameChange(e.target.value.toLowerCase().replace(/\s+/g, "_")); }} placeholder="rakib_photo" autoComplete="off" />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      {unCheck.checking && <Loader2 className="w-4 h-4 animate-spin text-[#A29DB3]" />}
+                      {!unCheck.checking && unCheck.available === true && <CheckCircle2 className="w-4 h-4 text-[#1F8A5B]" />}
+                      {!unCheck.checking && unCheck.available === false && <XCircle className="w-4 h-4 text-[#C2304F]" />}
+                    </span>
+                  </div>
+                  {!unCheck.checking && unCheck.available === false && (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs text-[#C2304F]">Taken. Try:</span>
+                      {unCheck.suggestions.map(sg => (
+                        <button key={sg} type="button" onClick={() => handleUsernameChange(sg)}
+                          className="h-7 px-2.5 rounded-full bg-[#EEE8FD] text-xs font-semibold text-[#5B3FD0]">{sg}</button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </Field>
+            {!isEdit && (
+              <Field label="Password" required hint="At least 6 characters.">
+                {id => (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input id={id} type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
+                        placeholder="Min. 6 characters" className={inputCls + " pr-10"} autoComplete="new-password" />
+                      <button type="button" aria-label={showPass ? "Hide password" : "Show password"} onClick={() => setShowPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button type="button" onClick={() => { setForm(p => ({ ...p, password: makePassword() })); setShowPass(true); }}
+                      className="h-11 px-4 rounded-[12px] bg-[#EEE8FD] text-[13px] font-semibold text-[#5B3FD0] flex-shrink-0">Make one</button>
+                  </div>
+                )}
+              </Field>
+            )}
+          </FormGroup>
+        )}
+
+        <MoreDetails sub={form.bio ? "1 filled" : "Note about this person"} defaultOpen={!!form.bio}>
+          <FormGroup>
+            <Field label="Note" hint="Only you and managers see this.">
+              {id => <textarea id={id} rows={3} value={form.bio} onChange={set("bio")} placeholder="Own gear, best at, availability…"
+                className={inputCls + " h-auto py-2.5 resize-none"} />}
+            </Field>
+          </FormGroup>
+        </MoreDetails>
+      </form>
+    </FormDrawer>
   );
 }
 
-// ─── Reset Password Dialog ─────────────────────────────────────────────────────
+/** Easy-to-read temporary password: word + 4 digits. */
+function makePassword() {
+  const words = ["studio", "camera", "frame", "lens", "photo", "shoot", "light"];
+  const w = words[Math.floor(Math.random() * words.length)];
+  const n = Math.floor(1000 + Math.random() * 9000);
+  return `${w}${n}`;
+}
+
 function ResetPassDialog({ member, onClose, onDone }: { member: Member | null; onClose: () => void; onDone: () => void }) {
   const [pass, setPass] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -516,7 +532,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
       {open && (
         <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1 [&>button]:rounded-[12px] [&>button]:h-10 [&>button]:py-0">
           <button onClick={() => act(onEdit)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit3 className="w-4 h-4 text-slate-400" />Edit Info</button>
-          <button onClick={() => act(onReset)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><KeyRound className="w-4 h-4 text-slate-400" />Reset Password</button>
+          {member.memberType !== "freelancer" && <button onClick={() => act(onReset)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><KeyRound className="w-4 h-4 text-slate-400" />Reset Password</button>}
           <button onClick={() => act(onToggle)} className={cn("w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-slate-50", member.isActive ? "text-amber-600" : "text-emerald-600")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
@@ -531,15 +547,17 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
 
 // ─── Member row (Apple style) ──────────────────────────────────────────────────
 function rateLine(m: Member, customRoles: string[]) {
-  if (Array.isArray(m.roleRates) && m.roleRates.some(r => r.rate)) {
-    return m.roleRates.filter(r => r.rate).map(r => {
+  const parts: string[] = [];
+  if (m.payRateType === "monthly" && m.payRate) parts.push(`Salary ${formatCurrency(Number(m.payRate))}/month`);
+  if (Array.isArray(m.roleRates)) {
+    for (const r of m.roleRates.filter(r => r.rate)) {
       const lbl = [...DEFAULT_ROLES, ...customRoles.map(cr => ({ id: cr, label: cr }))].find(x => x.id === r.roleId)?.label ?? r.roleId;
       const type = r.rateType === "per_program" ? "program" : r.rateType === "per_day" ? "day" : r.rateType === "per_shift" ? "shift" : "month";
-      return `${lbl} ${formatCurrency(Number(r.rate))}/${type}`;
-    }).join(" · ");
+      parts.push(`${lbl}: ${formatCurrency(Number(r.rate))}/${type}`);
+    }
   }
-  if (m.payRate) return `${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}`;
-  return null;
+  if (!parts.length && m.payRate) parts.push(`${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}`);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete }: {
@@ -556,6 +574,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#17151F] truncate flex items-center gap-2">
           {m.firstName} {m.lastName ?? ""}
+          {m.memberType === "freelancer" && <span className="text-[11px] font-bold text-[#9E3A8C] bg-[#FBF2FA] px-1.5 py-0.5 rounded-full">Freelancer</span>}
           {!m.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Inactive</span>}
         </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
@@ -626,7 +645,7 @@ export default function TeamPage() {
     const q = search.toLowerCase();
     const matchSearch = !q ||
       `${m.firstName} ${m.lastName ?? ""}`.toLowerCase().includes(q) ||
-      m.username.toLowerCase().includes(q) ||
+      (m.username ?? "").toLowerCase().includes(q) ||
       (m.phone ?? "").includes(q) ||
       m.memberId.toLowerCase().includes(q);
     const matchRole = roleFilter === "all" || m.memberRoles.includes(roleFilter);

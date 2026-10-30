@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, User, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { inputCls } from "./form-kit";
 
 type Suggestion =
   | { type: "client"; id: string; name: string; phone?: string }
@@ -67,8 +68,8 @@ export function ReferrerInput({ clientId, name, onChange }: ReferrerInputProps) 
           onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 150); }}
           placeholder="Type a name..."
           className={cn(
-            "w-full h-11 px-3 pr-8 rounded-lg border text-sm focus:outline-none focus:border-indigo-400",
-            clientId ? "border-emerald-300 bg-emerald-50/40" : "border-slate-200 bg-white",
+            inputCls, "pr-9",
+            clientId && "bg-[#E9F5EF]",
           )}
         />
         {query && (
@@ -78,7 +79,7 @@ export function ReferrerInput({ clientId, name, onChange }: ReferrerInputProps) 
         )}
       </div>
       {clientId && (
-        <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+        <p className="text-xs text-[#1F8A5B] mt-1.5 flex items-center gap-1">
           <User className="w-3 h-3" /> Linked to an existing client
         </p>
       )}

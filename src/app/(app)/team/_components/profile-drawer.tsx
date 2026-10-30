@@ -14,7 +14,7 @@ import { formatCurrency, fmtDate as sharedFmtDate } from "@/lib/format";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Member {
-  id: string; memberId: string; username: string; email: string;
+  id: string; memberId: string; username: string | null; email: string; memberType?: string;
   firstName: string; lastName?: string; phone?: string; bio?: string;
   memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
@@ -274,7 +274,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                   </span>
                 </div>
                 <h2 className="font-bold text-slate-900 text-lg mt-1 leading-tight">{member.firstName} {member.lastName ?? ""}</h2>
-                <p className="text-sm text-slate-400">@{member.username}</p>
+                <p className="text-sm text-slate-400">{member.memberType === "freelancer" ? "Freelancer · no login" : `@${member.username}`}</p>
               </div>
             </div>
 
@@ -324,10 +324,12 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                 className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 <Edit3 className="w-3.5 h-3.5" />Edit Info
               </button>
+              {member.memberType !== "freelancer" && (
               <button onClick={() => onReset(member)}
                 className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 <KeyRound className="w-3.5 h-3.5" />Reset Password
               </button>
+              )}
               <button onClick={() => onToggle(member)}
                 className={cn("flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-colors",
                   member.isActive

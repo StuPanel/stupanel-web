@@ -152,6 +152,7 @@ function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>;
           value={data.newClient}
           onChange={updates => onChange({ newClient: { ...data.newClient, ...updates } })}
           autoFocus
+          existingAction={{ label: "Use this client", onPick: c => onChange({ clientMode: "search", selectedClient: c as Client }) }}
         />
       )}
     </div>
@@ -730,13 +731,15 @@ const STEPS = [
   { icon: BarChart2,   label: "Costs" },
 ];
 
-export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking }: {
+export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   packages: Package[];
   teamMembers: TeamMember[];
   initialBooking?: Booking | null;
+  /** Start a new program for this client (skips the client step). */
+  initialClient?: Client | null;
 }) {
   const isEdit = !!initialBooking;
   const [step, setStep] = useState(0);
@@ -747,7 +750,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   useEffect(() => {
     if (open) {
       setStep(0); setError("");
-      setData(isEdit && initialBooking ? bookingToWizard(initialBooking) : blankWizard());
+      setData(isEdit && initialBooking ? bookingToWizard(initialBooking)
+        : initialClient ? { ...blankWizard(), selectedClient: initialClient } : blankWizard());
+      if (!isEdit && initialClient) setStep(1);
       if (isEdit && initialBooking) {
         apiFetch(`${API}/bookings/${initialBooking.id}/editors`)
           .then(r => r.ok ? r.json() : [])
@@ -757,7 +762,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
           .catch(() => {});
       }
     }
-  }, [open, initialBooking]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, initialBooking, initialClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onChange(u: Partial<ReturnType<typeof blankWizard>>) { setData(p => ({ ...p, ...u })); }
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { Star } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, ArrowRight, Camera, Globe, MessageCircle, Search, Share2, Store, UserPlus, Users } from "lucide-react";
 import { ReferrerInput } from "@/components/ui/referrer-input";
-import { cn } from "@/lib/utils";
+import { Field, FormGroup, MoreDetails, PillPicker, SwitchRow, inputCls, phoneKey } from "@/components/ui/form-kit";
+import { apiFetch, API_URL as API } from "@/lib/api";
 
 export interface ClientFormData {
   firstName: string;
@@ -34,165 +34,149 @@ export const blankClientForm: ClientFormData = {
 };
 
 export const CLIENT_SOURCES = [
-  { value: "referral", label: "Referral" },
-  { value: "instagram", label: "Instagram" },
-  { value: "facebook", label: "Facebook" },
-  { value: "google", label: "Google" },
-  { value: "website", label: "Website" },
-  { value: "walk_in", label: "Walk-in" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "other", label: "Other" },
+  { value: "facebook", label: "Facebook", icon: Share2 },
+  { value: "referral", label: "Referral", icon: Users },
+  { value: "walk_in", label: "Walk-in", icon: Store },
+  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { value: "instagram", label: "Instagram", icon: Camera },
+  { value: "google", label: "Google", icon: Search },
+  { value: "website", label: "Website", icon: Globe },
+  { value: "other", label: "Other", icon: UserPlus },
 ];
+
+export type ExistingClient = { id: string; firstName: string; lastName?: string | null; phone?: string | null };
 
 interface ClientFormFieldsProps {
   value: ClientFormData;
   onChange: (updates: Partial<ClientFormData>) => void;
   autoFocus?: boolean;
+  /** Client being edited — not reported as a duplicate of itself. */
+  excludeId?: string;
+  /** What to offer when the phone already belongs to a client. */
+  existingAction?: { label: string; onPick: (c: ExistingClient) => void };
 }
 
-export function ClientFormFields({ value, onChange, autoFocus }: ClientFormFieldsProps) {
-  function set(key: keyof ClientFormData) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      onChange({ [key]: e.target.value });
-  }
+/** Looks up clients with the same phone (last 10 digits), after the user stops typing. */
+function useSamePhone(phone: string, excludeId?: string) {
+  const [match, setMatch] = useState<ExistingClient | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    clearTimeout(timer.current);
+    const key = phoneKey(phone);
+    if (key.length < 10) { setMatch(null); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await apiFetch(`${API}/clients?search=${encodeURIComponent(key)}&limit=5`);
+        if (!r.ok) return;
+        const d = await r.json();
+        const list: ExistingClient[] = Array.isArray(d?.data) ? d.data : [];
+        setMatch(list.find(c => c.id !== excludeId && phoneKey(c.phone) === key) ?? null);
+      } catch { /* offline: the server still blocks duplicates */ }
+    }, 350);
+    return () => clearTimeout(timer.current);
+  }, [phone, excludeId]);
+  return match;
+}
+
+export function ClientFormFields({ value, onChange, autoFocus, excludeId, existingAction }: ClientFormFieldsProps) {
+  const set = (key: keyof ClientFormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange({ [key]: e.target.value });
+  const same = useSamePhone(value.phone, excludeId);
+  const extraCount = [value.phoneSecondary, value.facebookProfile, value.city, value.address, value.occupation, value.companyName, value.notes, value.internalNotes]
+    .filter(v => v.trim()).length + (value.vipStatus ? 1 : 0);
 
   return (
-    <div className="space-y-4">
-      {/* Name */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">First Name *</Label>
-          <Input
-            placeholder="Karim" value={value.firstName} onChange={set("firstName")}
-            className="h-11 border-slate-200 focus:border-indigo-400"
-            autoFocus={autoFocus} required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Last Name</Label>
-          <Input placeholder="Ahmed" value={value.lastName} onChange={set("lastName")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
-        </div>
-      </div>
+    <div>
+      <FormGroup title="Client">
+        <Field label="Name" required>
+          {id => (
+            <div className="grid grid-cols-2 gap-2">
+              <input id={id} className={inputCls} placeholder="First name" value={value.firstName} onChange={set("firstName")}
+                autoFocus={autoFocus} autoComplete="off" aria-label="First name" />
+              <input className={inputCls} placeholder="Last name" value={value.lastName} onChange={set("lastName")}
+                autoComplete="off" aria-label="Last name" />
+            </div>
+          )}
+        </Field>
+        <Field label="Phone / WhatsApp" required>
+          {id => (
+            <>
+              <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX"
+                value={value.phone} onChange={set("phone")} autoComplete="off" />
+              {same && (
+                <div role="status" className="mt-2 flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] bg-[#FDECEF]">
+                  <AlertTriangle className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
+                  <p className="flex-1 text-[13px] text-[#8A2340] leading-snug">
+                    This number belongs to <strong>{[same.firstName, same.lastName].filter(Boolean).join(" ")}</strong>.
+                  </p>
+                  {existingAction && (
+                    <button type="button" onClick={() => existingAction.onPick(same)}
+                      className="inline-flex items-center gap-1 h-8 px-3 rounded-full bg-white text-[13px] font-semibold text-[#17151F] hover:bg-[#F5F3FA] flex-shrink-0">
+                      {existingAction.label}<ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </Field>
+        <Field label="Email" hint="Needed for reminder, invoice and delivery emails.">
+          {id => <input id={id} className={inputCls} type="email" inputMode="email" placeholder="client@email.com"
+            value={value.email} onChange={set("email")} autoComplete="off" />}
+        </Field>
+      </FormGroup>
 
-      {/* Phone + Phone 2 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Phone</Label>
-          <Input placeholder="017XXXXXXXX" value={value.phone} onChange={set("phone")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
+      <FormGroup title="How did they find you?">
+        <div className="px-4 py-3.5">
+          <PillPicker label="Source" options={CLIENT_SOURCES} value={value.source}
+            onChange={v => onChange({ source: value.source === v ? "" : v })} />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Phone 2 <span className="text-slate-400 font-normal">(optional)</span></Label>
-          <Input placeholder="017XXXXXXXX" value={value.phoneSecondary} onChange={set("phoneSecondary")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
-        </div>
-      </div>
-
-      {/* Email */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-slate-700">Email</Label>
-        <Input type="email" placeholder="client@email.com" value={value.email} onChange={set("email")}
-          className="h-11 border-slate-200 focus:border-indigo-400" />
-        {value.email.trim() && (
-          <p className="text-xs text-amber-600 flex items-center gap-1">
-            ⚠️ Make sure this email is correct — we cannot verify if it exists.
-          </p>
+        {value.source === "referral" && (
+          <Field label="Referred by" hint="Pick a client, or type any name.">
+            {() => (
+              <ReferrerInput
+                clientId={value.referredByClientId || undefined}
+                name={value.referredByName}
+                onChange={({ clientId, name }) => onChange({ referredByClientId: clientId ?? "", referredByName: name ?? "" })}
+              />
+            )}
+          </Field>
         )}
-      </div>
+      </FormGroup>
 
-      {/* Facebook Profile */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-slate-700">Facebook Profile <span className="text-slate-400 font-normal">(optional)</span></Label>
-        <Input placeholder="facebook.com/username" value={value.facebookProfile} onChange={set("facebookProfile")}
-          className="h-11 border-slate-200 focus:border-indigo-400" />
-      </div>
-
-      {/* City + Source */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">City</Label>
-          <Input placeholder="Dhaka" value={value.city} onChange={set("city")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Source</Label>
-          <select value={value.source} onChange={set("source")}
-            className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
-            <option value="">Select source...</option>
-            {CLIENT_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {value.source === "referral" && (
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Referred By</Label>
-          <ReferrerInput
-            clientId={value.referredByClientId || undefined}
-            name={value.referredByName}
-            onChange={({ clientId, name }) => onChange({ referredByClientId: clientId ?? "", referredByName: name ?? "" })}
-          />
-        </div>
-      )}
-
-      {/* Address */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-slate-700">Address <span className="text-slate-400 font-normal">(optional)</span></Label>
-        <Input placeholder="Full address or area" value={value.address} onChange={set("address")}
-          className="h-11 border-slate-200 focus:border-indigo-400" />
-      </div>
-
-      {/* Occupation + Company */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Occupation</Label>
-          <Input placeholder="e.g. Engineer" value={value.occupation} onChange={set("occupation")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-slate-700">Company</Label>
-          <Input placeholder="Company name" value={value.companyName} onChange={set("companyName")}
-            className="h-11 border-slate-200 focus:border-indigo-400" />
-        </div>
-      </div>
-
-      {/* VIP toggle */}
-      <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-        <div className={cn(
-          "w-10 h-6 rounded-full transition-colors relative flex-shrink-0",
-          value.vipStatus ? "bg-yellow-400" : "bg-slate-200"
-        )}>
-          <div
-            className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-            style={{ transform: value.vipStatus ? "translateX(18px)" : "translateX(2px)" }}
-          />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-slate-900 flex items-center gap-1.5">
-            <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" /> VIP Client
-          </p>
-          <p className="text-xs text-slate-400">Mark as high-value client</p>
-        </div>
-        <input type="checkbox" checked={value.vipStatus}
-          onChange={e => onChange({ vipStatus: e.target.checked })}
-          className="sr-only" />
-      </label>
-
-      {/* Notes */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></Label>
-        <textarea value={value.notes} onChange={set("notes")} rows={2}
-          placeholder="Any notes about this client..."
-          className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-slate-700">Internal Notes <span className="text-slate-400 font-normal">(private)</span></Label>
-        <textarea value={value.internalNotes} onChange={set("internalNotes")} rows={2}
-          placeholder="Internal notes, visible only to your team..."
-          className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-      </div>
+      <MoreDetails sub={extraCount ? `${extraCount} filled` : "Second phone, Facebook, address, work, VIP, notes"} defaultOpen={extraCount > 0}>
+        <FormGroup title="Contact">
+          <Field label="Second phone">
+            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={value.phoneSecondary} onChange={set("phoneSecondary")} />}
+          </Field>
+          <Field label="Facebook profile">
+            {id => <input id={id} className={inputCls} placeholder="facebook.com/username" value={value.facebookProfile} onChange={set("facebookProfile")} />}
+          </Field>
+          <Field label="City">
+            {id => <input id={id} className={inputCls} placeholder="Feni" value={value.city} onChange={set("city")} />}
+          </Field>
+          <Field label="Address">
+            {id => <input id={id} className={inputCls} placeholder="House, road, area" value={value.address} onChange={set("address")} />}
+          </Field>
+        </FormGroup>
+        <FormGroup title="Work">
+          <Field label="Occupation">
+            {id => <input id={id} className={inputCls} placeholder="e.g. Engineer" value={value.occupation} onChange={set("occupation")} />}
+          </Field>
+          <Field label="Company / organisation" hint="For corporate and school programs.">
+            {id => <input id={id} className={inputCls} placeholder="Company name" value={value.companyName} onChange={set("companyName")} />}
+          </Field>
+        </FormGroup>
+        <FormGroup title="Notes">
+          <SwitchRow label="VIP client" hint="Marked with a star in lists" on={value.vipStatus} onChange={v => onChange({ vipStatus: v })} />
+          <Field label="Notes">
+            {id => <textarea id={id} rows={2} className={inputCls + " h-auto py-2.5 resize-none"} placeholder="Anything about this client…" value={value.notes} onChange={set("notes")} />}
+          </Field>
+          <Field label="Private notes" hint="Only your team sees these — never the client.">
+            {id => <textarea id={id} rows={2} className={inputCls + " h-auto py-2.5 resize-none"} placeholder="Internal notes…" value={value.internalNotes} onChange={set("internalNotes")} />}
+          </Field>
+        </FormGroup>
+      </MoreDetails>
     </div>
   );
 }

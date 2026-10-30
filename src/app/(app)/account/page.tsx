@@ -129,28 +129,28 @@ export default function MyAccountPage() {
       <PageHeader icon={HeaderIcon} color="deep" title="My Account" sub="Your profile and password" />
 
       {/* Identity card */}
-      <div className="flex items-center gap-4 bg-white rounded-xl border border-slate-200 p-5">
+      <div className="flex items-center gap-4 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5">
         <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-xl text-white flex-shrink-0">
           {initials}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-bold text-slate-900 text-base">{profile?.firstName} {profile?.lastName ?? ""}</p>
+            <p className="font-bold text-[#17151F] text-base">{profile?.firstName} {profile?.lastName ?? ""}</p>
             {profile?.isOwner && (
               <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
                 <Crown className="w-3 h-3" />Owner
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+          <p className="text-sm text-[#6B6680] flex items-center gap-1 mt-0.5 truncate">
             <Mail className="w-3.5 h-3.5 flex-shrink-0" />{profile?.email}
           </p>
-          <p className="text-xs text-slate-400 capitalize mt-0.5">{profile?.role}</p>
+          <p className="text-xs text-[#6B6680] capitalize mt-0.5">{profile?.role}</p>
         </div>
       </div>
 
       {/* Personal info */}
-      <form onSubmit={saveProfile} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+      <form onSubmit={saveProfile} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5 space-y-4">
         <p className="text-sm font-bold text-slate-800">Personal Info</p>
 
         <div className="grid grid-cols-2 gap-3">
@@ -169,7 +169,7 @@ export default function MyAccountPage() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">Phone</Label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
             <Input value={phone} onChange={e => setPhone(e.target.value)}
               placeholder="01XXXXXXXXX" className="h-9 text-sm pl-9" />
           </div>
@@ -178,7 +178,7 @@ export default function MyAccountPage() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">Bio</Label>
           <div className="relative">
-            <FileText className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+            <FileText className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#6B6680]" />
             <textarea value={bio} onChange={e => setBio(e.target.value)}
               placeholder="Studio owner, photographer..."
               rows={2}
@@ -199,13 +199,13 @@ export default function MyAccountPage() {
       </form>
 
       {/* Change / set password */}
-      <form onSubmit={changePassword} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+      <form onSubmit={changePassword} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5 space-y-4">
         <div>
           <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-slate-400" />{profile?.hasPassword ? "Change Password" : "Set Password"}
+            <ShieldCheck className="w-4 h-4 text-[#6B6680]" />{profile?.hasPassword ? "Change Password" : "Set Password"}
           </p>
           {!profile?.hasPassword && (
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[#6B6680] mt-1">
               You signed up with Google and don&apos;t have a password yet — set one so you can also log in with your email.
             </p>
           )}
@@ -215,13 +215,13 @@ export default function MyAccountPage() {
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-slate-600">Current Password *</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
               <Input type={showCurrent ? "text" : "password"}
                 value={currentPw} onChange={e => setCurrentPw(e.target.value)}
                 placeholder="Enter current password" required
                 className="h-9 text-sm pl-9 pr-9" />
               <button type="button" onClick={() => setShowCurrent(p => !p)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6680] hover:text-slate-600">
                 {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
@@ -231,13 +231,13 @@ export default function MyAccountPage() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">New Password *</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
             <Input type={showNew ? "text" : "password"}
               value={newPw} onChange={e => setNewPw(e.target.value)}
               placeholder="Min. 8 characters" required
               className="h-9 text-sm pl-9 pr-9" />
             <button type="button" onClick={() => setShowNew(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6680] hover:text-slate-600">
               {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
@@ -246,7 +246,7 @@ export default function MyAccountPage() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600">Confirm New Password *</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
             <Input type="password"
               value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
               placeholder="Re-enter new password" required

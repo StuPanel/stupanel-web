@@ -1,7 +1,8 @@
 "use client";
 
 import { BarChart3 as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { CARD_SHADOW, PageHeader, StatCard as AStat, Tile } from "@/components/ui/apple";
+import { PillSelect } from "@/components/ui/pill-select";
 
 import { apiFetch } from "@/lib/api";
 
@@ -45,31 +46,6 @@ interface TopClient { client: { id: string; firstName: string; lastName?: string
 interface StatusItem { status: string; count: number; revenue: number; }
 interface TeamEarning { memberName: string; totalEarned: number; programs: number; }
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend }: {
-  label: string; value: string; sub?: string; icon: typeof DollarSign;
-  accent: string; trend?: number;
-}) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-500 font-medium">{label}</p>
-          <p className="text-xl font-extrabold text-slate-900 mt-1 truncate">{value}</p>
-          {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
-          {trend !== undefined && (
-            <div className={cn("flex items-center gap-1 mt-1 text-xs font-semibold", trend >= 0 ? "text-emerald-600" : "text-red-500")}>
-              {trend >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-              {Math.abs(trend)}%
-            </div>
-          )}
-        </div>
-        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", accent)}>
-          <Icon className="w-4 h-4" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ReportsPage() {
   const currentYear = new Date().getFullYear();
@@ -127,97 +103,82 @@ export default function ReportsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <PageHeader icon={HeaderIcon} color="blue" title="Reports" sub={<>Financial & business overview</>}>
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-indigo-400 cursor-pointer">
-          {[currentYear, currentYear - 1, currentYear - 2].map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+      <PageHeader icon={HeaderIcon} color="blue" title="Reports" sub={<>Money, programs, clients and team for the year</>}>
+        <PillSelect label="Year" value={String(year)} onChange={v => setYear(Number(v))}
+          options={[currentYear, currentYear - 1, currentYear - 2].map(y => ({ value: String(y), label: String(y) }))} />
       </PageHeader>
 
       {summary && (
         <>
           {/* Top stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard label="Total Programs"    value={String(summary.totalPrograms)}      icon={Camera}    accent="bg-indigo-50 text-indigo-600" />
-            <StatCard label="Contract Value"    value={fmt(summary.contractValue)}          icon={Layers}    accent="bg-blue-50 text-blue-600"    sub={`${fmtFull(summary.totalDiscount)} discount`} />
-            <StatCard label="Collected"         value={fmt(summary.collected)}              icon={CreditCard} accent="bg-emerald-50 text-emerald-600" />
-            <StatCard label="Outstanding"       value={fmt(summary.outstanding)}            icon={DollarSign} accent="bg-red-50 text-red-500"    sub="Due payments" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <AStat label="Programs" value={String(summary.totalPrograms)} icon={Camera} color="deep" />
+            <AStat label="Total contracts" value={fmt(summary.contractValue)} icon={Layers} color="blue" sub={`${fmtFull(summary.totalDiscount)} discount given`} />
+            <AStat label="Received" value={fmt(summary.collected)} icon={CreditCard} color="green" />
+            <AStat label="Still due" value={fmt(summary.outstanding)} icon={DollarSign} color="red" sub="From clients" />
           </div>
 
-          {/* P&L Summary */}
-          <div className="bg-slate-900 text-white rounded-2xl p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Profit & Loss — {year}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-              <div>
-                <p className="text-xs text-slate-400">Net Revenue</p>
-                <p className="text-xl font-extrabold text-white mt-1">{fmt(summary.netRevenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Total Costs</p>
-                <p className="text-xl font-extrabold text-red-400 mt-1">{fmt(summary.totalCost)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Net Profit</p>
-                <p className={cn("text-xl font-extrabold mt-1", summary.netProfit >= 0 ? "text-emerald-400" : "text-red-400")}>{fmt(summary.netProfit)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Margin</p>
-                <p className={cn("text-xl font-extrabold mt-1", summary.margin >= 0 ? "text-emerald-400" : "text-red-400")}>{summary.margin}%</p>
-              </div>
-            </div>
-
-            {/* Profit bar */}
-            {summary.netRevenue > 0 && (
-              <div className="space-y-1.5">
-                <div className="h-3 bg-slate-700 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-emerald-500 rounded-full transition-all"
-                    style={{ width: `${Math.max(0, Math.min(100, (summary.netProfit / summary.netRevenue) * 100))}%` }} />
-                </div>
-                <p className="text-xs text-slate-500">Profit ratio: {summary.margin}% of revenue</p>
-              </div>
-            )}
-
-            {/* Cost breakdown toggle */}
-            <button onClick={() => setCostsOpen(o => !o)}
-              className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300">
-              {costsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              Cost breakdown
-            </button>
-            {costsOpen && (
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {/* Profit & loss */}
+          <section>
+            <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Profit &amp; loss — {year}</h2>
+            <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 {[
-                  { label: "Team", value: summary.teamCost, icon: Users },
-                  { label: "Transport", value: summary.transportCost, icon: Truck },
-                  { label: "Album/Print", value: summary.albumCost, icon: Image },
-                  { label: "Equipment", value: summary.equipCost, icon: Wrench },
-                  { label: "Other", value: summary.otherCost, icon: Package },
-                ].map(({ label, value, icon: Icon }) => (
-                  <div key={label} className="bg-slate-800 rounded-xl p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Icon className="w-3 h-3 text-slate-400" />
-                      <span className="text-xs text-slate-400">{label}</span>
-                    </div>
-                    <p className="font-bold text-white text-sm">{fmtFull(value)}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {summary.totalCost > 0 ? Math.round((value / summary.totalCost) * 100) : 0}% of costs
-                    </p>
+                  { label: "Money in", value: fmt(summary.netRevenue), cls: "text-[#17151F]" },
+                  { label: "Costs", value: fmt(summary.totalCost), cls: "text-[#C2304F]" },
+                  { label: "Profit", value: fmt(summary.netProfit), cls: summary.netProfit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]" },
+                  { label: "Margin", value: `${summary.margin}%`, cls: summary.margin >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]" },
+                ].map(x => (
+                  <div key={x.label}>
+                    <p className="text-[13px] font-semibold text-[#4A4658]">{x.label}</p>
+                    <p className={cn("text-[22px] font-extrabold tracking-[-0.02em] tabular-nums mt-1", x.cls)}>{x.value}</p>
+                  </div>
+                ))}
+              </div>
+              {summary.netRevenue > 0 && (
+                <div className="space-y-1.5">
+                  <div className="h-2.5 bg-[#EEEBF4] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#1F8A5B] rounded-full transition-all"
+                      style={{ width: `${Math.max(0, Math.min(100, (summary.netProfit / summary.netRevenue) * 100))}%` }} />
+                  </div>
+                  <p className="text-xs text-[#6B6680]">You keep {summary.margin}% of the money that comes in</p>
+                </div>
+              )}
+              <button onClick={() => setCostsOpen(o => !o)} aria-expanded={costsOpen}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#5B3FD0]">
+                {costsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                Where the costs went
+              </button>
+            </div>
+            {costsOpen && (
+              <div className={cn("mt-3 bg-white rounded-[20px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
+                {[
+                  { label: "Team", value: summary.teamCost, icon: Users, color: "blue" },
+                  { label: "Transport", value: summary.transportCost, icon: Truck, color: "teal" },
+                  { label: "Album & print", value: summary.albumCost, icon: Image, color: "orchid" },
+                  { label: "Equipment", value: summary.equipCost, icon: Wrench, color: "ink" },
+                  { label: "Other", value: summary.otherCost, icon: Package, color: "violet" },
+                ].map(({ label, value, icon, color }) => (
+                  <div key={label} className="flex items-center gap-3 px-4 sm:px-5 py-3">
+                    <Tile icon={icon} color={color} size={32} />
+                    <span className="flex-1 text-sm font-semibold text-[#17151F]">{label}</span>
+                    <span className="text-xs text-[#6B6680] tabular-nums">{summary.totalCost > 0 ? Math.round((value / summary.totalCost) * 100) : 0}%</span>
+                    <span className="text-sm font-bold text-[#17151F] tabular-nums w-28 text-right">{fmtFull(value)}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </section>
 
           {/* Monthly chart */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h2 className="font-bold text-slate-900 text-sm">Monthly Breakdown — {year}</h2>
+              <h2 className="font-bold text-[#17151F] text-[15px]">Monthly Breakdown — {year}</h2>
               <div className="flex gap-1">
                 {(["revenue", "profit", "programs"] as const).map(m => (
                   <button key={m} onClick={() => setChartMetric(m)}
-                    className={cn("h-7 px-3 rounded-lg text-xs font-medium capitalize transition-all",
-                      chartMetric === m ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>
+                    className={cn("h-8 px-3.5 rounded-full text-xs font-semibold capitalize transition-all",
+                      chartMetric === m ? "bg-[#16141D] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:text-[#17151F]")}>
                     {m}
                   </button>
                 ))}
@@ -232,11 +193,11 @@ export default function ReportsPage() {
                 return (
                   <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full group"
                     title={`${MONTHS_SHORT[i]}: ${chartMetric === "programs" ? d.value : fmtFull(d.value)}`}>
-                    <div className={cn("w-full rounded-t-lg transition-colors",
+                    <div className={cn("w-full rounded-[6px] transition-colors",
                       isNeg ? "bg-red-300 group-hover:bg-red-400"
-                      : isCurrent ? "bg-indigo-500"
+                      : isCurrent ? "bg-[#7D5CEF]"
                       : chartMetric === "profit" ? "bg-emerald-300 group-hover:bg-emerald-400"
-                      : "bg-indigo-200 group-hover:bg-indigo-400")}
+                      : "bg-[#CFC2F8] group-hover:bg-[#B29DF8]")}
                       style={{ height: `${h}%` }} />
                     <span className="text-xs text-slate-400">{MONTHS_SHORT[i][0]}</span>
                   </div>
@@ -266,8 +227,8 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Status Breakdown */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-sm mb-4">Programs by Status</h2>
+        <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
+          <h2 className="font-bold text-[#17151F] text-[15px] mb-4">Programs by Status</h2>
           {statusBreakdown.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No data</p>
           ) : (
@@ -298,8 +259,8 @@ export default function ReportsPage() {
         </div>
 
         {/* Top Clients */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-sm mb-4">Top Clients — {year}</h2>
+        <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
+          <h2 className="font-bold text-[#17151F] text-[15px] mb-4">Top Clients — {year}</h2>
           {topClients.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No data</p>
           ) : (
@@ -324,7 +285,7 @@ export default function ReportsPage() {
                         </div>
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="h-full bg-[#7D5CEF] rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   </div>
@@ -337,8 +298,8 @@ export default function ReportsPage() {
 
       {/* Team Earnings */}
       {teamEarnings.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-sm mb-4">Team Earnings — {year}</h2>
+        <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
+          <h2 className="font-bold text-[#17151F] text-[15px] mb-4">Team Earnings — {year}</h2>
           <div className="space-y-2.5">
             {teamEarnings.map((te, i) => {
               const maxEarned = teamEarnings[0]?.totalEarned ?? 1;
@@ -357,7 +318,7 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
+                      <div className="h-full bg-[#1F5C99] rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 </div>

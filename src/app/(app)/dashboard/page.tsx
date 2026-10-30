@@ -1,534 +1,324 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-
-import { useState, useEffect, useCallback, type CSSProperties } from "react";
-import {
-  Camera, DollarSign, Users, Clock, TrendingUp, TrendingDown,
-  ArrowRight, CalendarDays, Eye, EyeOff, Loader2, Plus,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+/**
+ * Dashboard — Apple style (DESIGN_SYSTEM §11): page header with tile, number
+ * cards with tiles, grouped white cards with rows.
+ */
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { API_URL as API } from "@/lib/api";
+import {
+  Camera, Banknote, Users, Clock, TrendingUp, TrendingDown, CalendarDays, Eye, EyeOff,
+  LayoutDashboard, Plus, UserPlus, CreditCard, BarChart3, ChevronDown, ChevronRight,
+} from "lucide-react";
+import { apiFetch, API_URL as API } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { fmtDate as sharedFmtDate, formatCurrencyCompact, formatCurrency } from "@/lib/format";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { CARD_SHADOW, Group, ListRow, PageHeader, Tile } from "@/components/ui/apple";
 
 type Period = "this_month" | "last_month" | "last_3_months" | "this_year" | "last_year";
 
 interface Stats {
-  totalPrograms: number;
-  totalRevenue: number;
-  pendingAmount: number;
-  totalClients: number;
+  totalPrograms: number; totalRevenue: number; pendingAmount: number; totalClients: number;
   changes: { programs: number; revenue: number; clients: number };
 }
-
 interface Booking {
-  id: string;
-  bookingNumber: string;
-  eventName?: string;
-  eventDate?: string;
-  eventTime?: string;
-  status: string;
-  grandTotal: number;
-  paidAmount: number;
-  currency: string;
+  id: string; bookingNumber: string; eventName?: string; eventDate?: string; eventTime?: string;
+  status: string; grandTotal: number; paidAmount: number; currency: string;
   client: { id: string; firstName: string; lastName?: string };
 }
-
 interface MonthData { month: number; total: number }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+const fmt = (n: number, c = "BDT") => formatCurrencyCompact(n, c);
+const fmtFull = (n: number, c = "BDT") => formatCurrency(n, c);
+const clientName = (c: { firstName: string; lastName?: string }) => [c.firstName, c.lastName].filter(Boolean).join(" ");
 
-
-function fmt(n: number, currency = "BDT") { return formatCurrencyCompact(n, currency); }
-function fmtFull(n: number, currency = "BDT") { return formatCurrency(n, currency); }
-function fmtDate(d: string | Date | null | undefined, short = false): string {
-  if (!d) return "—";
+function dayBox(d?: string) {
+  if (!d) return null;
   const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
-  if (short) {
-    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(dt).toUpperCase().replace(" ", "-");
-  }
-  return sharedFmtDate(dt);
+  if (isNaN(dt.getTime())) return null;
+  return {
+    day: dt.getDate(),
+    mon: new Intl.DateTimeFormat("en-GB", { month: "short" }).format(dt).toUpperCase(),
+    week: new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(dt),
+  };
 }
 
-function clientName(c: { firstName: string; lastName?: string }) {
-  return [c.firstName, c.lastName].filter(Boolean).join(" ");
-}
-
-const DATE_FILTERS: { label: string; value: Period }[] = [
-  { label: "This Month",    value: "this_month" },
-  { label: "Last Month",    value: "last_month" },
-  { label: "Last 3 Months", value: "last_3_months" },
-  { label: "This Year",     value: "this_year" },
-  { label: "Last Year",     value: "last_year" },
+const PERIODS: { label: string; value: Period }[] = [
+  { label: "This month", value: "this_month" },
+  { label: "Last month", value: "last_month" },
+  { label: "Last 3 months", value: "last_3_months" },
+  { label: "This year", value: "this_year" },
+  { label: "Last year", value: "last_year" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  inquiry:            { label: "Inquiry",     bg: "bg-[#FDECEF]",   text: "text-[#C2304F]" },
-  quote_sent:         { label: "Quote Sent",  bg: "bg-[#FBF2FA]",     text: "text-[#9E3A8C]" },
-  confirmed:          { label: "Confirmed",   bg: "bg-[#EEE8FD]",    text: "text-[#5B3FD0]" },
-  advance_received:   { label: "Advance",     bg: "bg-[#EEE8FD]",  text: "text-[#5B3FD0]" },
-  in_progress:        { label: "Shooting",    bg: "bg-[#E0F2F1]",  text: "text-[#126B66]" },
-  editing:            { label: "Editing",     bg: "bg-[#E6F0FB]",  text: "text-[#1F5C99]" },
-  ready_for_delivery: { label: "Ready",       bg: "bg-[#7D5CEF]",  text: "text-white" },
-  delivered:          { label: "Delivered",   bg: "bg-[#EEEDF2]",    text: "text-[#4A4658]" },
-  completed:          { label: "Completed",   bg: "bg-[#EEEDF2]", text: "text-[#4A4658]" },
-  cancelled:          { label: "Cancelled",   bg: "bg-[#F3E3E3]",     text: "text-[#8A2E2E]" },
-  refunded:           { label: "Refunded",    bg: "bg-[#F3E3E3]",    text: "text-[#8A2E2E]" },
+const STATUS: Record<string, { label: string; bg: string; text: string }> = {
+  inquiry: { label: "Inquiry", bg: "#FDECEF", text: "#C2304F" },
+  quote_sent: { label: "Quote sent", bg: "#FBF2FA", text: "#9E3A8C" },
+  confirmed: { label: "Confirmed", bg: "#EEE8FD", text: "#5B3FD0" },
+  advance_received: { label: "Advance", bg: "#EEE8FD", text: "#5B3FD0" },
+  in_progress: { label: "Shooting", bg: "#E0F2F1", text: "#126B66" },
+  editing: { label: "Editing", bg: "#E6F0FB", text: "#1F5C99" },
+  ready_for_delivery: { label: "Ready", bg: "#7D5CEF", text: "#FFFFFF" },
+  delivered: { label: "Delivered", bg: "#EEEDF2", text: "#4A4658" },
+  completed: { label: "Completed", bg: "#EEEDF2", text: "#4A4658" },
+  cancelled: { label: "Cancelled", bg: "#F3E3E3", text: "#8A2E2E" },
+  refunded: { label: "Refunded", bg: "#F3E3E3", text: "#8A2E2E" },
 };
-
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
-  return <div className={cn("bg-slate-100 animate-pulse rounded", className)} style={style} />;
+function StatusPill({ status }: { status: string }) {
+  const s = STATUS[status] ?? STATUS.inquiry;
+  return <span className="px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: s.bg, color: s.text }}>{s.label}</span>;
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function DashboardPage() {
   const [showAmounts, setShowAmounts] = useState(true);
   const [period, setPeriod] = useState<Period>("this_month");
   const [chartYear, setChartYear] = useState(new Date().getFullYear());
-
   const [stats, setStats] = useState<Stats | null>(null);
-  const [upcoming, setUpcoming] = useState<Booking[]>([]);
-  const [recent, setRecent] = useState<Booking[]>([]);
-  const [chart, setChart] = useState<MonthData[]>([]);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingUpcoming, setLoadingUpcoming] = useState(true);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-  const [loadingChart, setLoadingChart] = useState(true);
+  const [upcoming, setUpcoming] = useState<Booking[] | null>(null);
+  const [recent, setRecent] = useState<Booking[] | null>(null);
+  const [chart, setChart] = useState<MonthData[] | null>(null);
 
-  const fetchStats = useCallback(async () => {
-    setLoadingStats(true);
-    try {
-      const res = await apiFetch(`${API}/dashboard/stats?period=${period}`, { headers: { "Content-Type": "application/json" } });
-      if (res.ok) setStats(await res.json());
-    } catch { /* silent */ }
-    finally { setLoadingStats(false); }
-  }, [period]);
+  // Remember hide/show amounts on this device.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    try { if (localStorage.getItem("sp_hide_amounts") === "1") setShowAmounts(false); } catch { /* ignore */ }
+  }, []);
+  function toggleAmounts() {
+    setShowAmounts(v => {
+      try { localStorage.setItem("sp_hide_amounts", v ? "1" : "0"); } catch { /* ignore */ }
+      return !v;
+    });
+  }
 
-  const fetchUpcoming = useCallback(async () => {
-    setLoadingUpcoming(true);
+  const load = useCallback(async <T,>(path: string, set: (v: T) => void, fallback: T) => {
     try {
-      const res = await apiFetch(`${API}/dashboard/upcoming`, { headers: { "Content-Type": "application/json" } });
-      if (res.ok) setUpcoming(await res.json());
-    } catch { /* silent */ }
-    finally { setLoadingUpcoming(false); }
+      const r = await apiFetch(`${API}${path}`);
+      set(r.ok ? await r.json() : fallback);
+    } catch { set(fallback); }
   }, []);
 
-  const fetchRecent = useCallback(async () => {
-    setLoadingRecent(true);
-    try {
-      const res = await apiFetch(`${API}/dashboard/recent`, { headers: { "Content-Type": "application/json" } });
-      if (res.ok) setRecent(await res.json());
-    } catch { /* silent */ }
-    finally { setLoadingRecent(false); }
-  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setStats(null); load<Stats | null>(`/dashboard/stats?period=${period}`, setStats, null); }, [period, load]);
+  useEffect(() => {
+    load<Booking[]>("/dashboard/upcoming", setUpcoming, []);
+    load<Booking[]>("/dashboard/recent", setRecent, []);
+  }, [load]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setChart(null); load<MonthData[]>(`/dashboard/revenue-chart?year=${chartYear}`, setChart, []); }, [chartYear, load]);
 
-  const fetchChart = useCallback(async () => {
-    setLoadingChart(true);
-    try {
-      const res = await apiFetch(`${API}/dashboard/revenue-chart?year=${chartYear}`, { headers: { "Content-Type": "application/json" } });
-      if (res.ok) setChart(await res.json());
-    } catch { /* silent */ }
-    finally { setLoadingChart(false); }
-  }, [chartYear]);
+  const money = (v: string) => (showAmounts ? v : "••••••");
+  const periodLabel = PERIODS.find(p => p.value === period)?.label.toLowerCase() ?? "";
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => { fetchUpcoming(); fetchRecent(); }, [fetchUpcoming, fetchRecent]);
-  useEffect(() => { fetchChart(); }, [fetchChart]);
-
-  // Chart max for scaling
-  const chartMax = Math.max(...chart.map(d => d.total), 1);
-  const chartTotal = chart.reduce((s, d) => s + d.total, 0);
-
-  const statCards = stats ? [
-    {
-      title: "Total Programs",
-      value: String(stats.totalPrograms),
-      isAmount: false,
-      change: stats.changes.programs,
-      icon: Camera,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-    },
-    {
-      title: "Total Revenue",
-      value: fmtFull(stats.totalRevenue),
-      isAmount: true,
-      change: stats.changes.revenue,
-      icon: DollarSign,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      title: "Pending Due",
-      value: fmtFull(stats.pendingAmount),
-      isAmount: true,
-      change: null,
-      icon: Clock,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
-    },
-    {
-      title: "Total Clients",
-      value: String(stats.totalClients),
-      isAmount: false,
-      change: stats.changes.clients,
-      icon: Users,
-      color: "text-purple-600",
-      bg: "bg-purple-50",
-    },
+  const cards = stats ? [
+    { label: "Programs", value: String(stats.totalPrograms), change: stats.changes.programs, icon: Camera, color: "deep", href: "/programs", amount: false },
+    { label: "Money received", value: fmtFull(stats.totalRevenue), change: stats.changes.revenue, icon: Banknote, color: "green", href: "/payments", amount: true },
+    { label: "Still due", value: fmtFull(stats.pendingAmount), change: null, icon: Clock, color: "red", href: "/payments", amount: true },
+    { label: "Clients", value: String(stats.totalClients), change: stats.changes.clients, icon: Users, color: "blue", href: "/clients", amount: false },
   ] : null;
 
+  const chartMax = Math.max(...(chart ?? []).map(d => d.total), 1);
+  const chartTotal = (chart ?? []).reduce((s, d) => s + d.total, 0);
+  const now = new Date();
+
   return (
-    <div className="space-y-5">
+    <div className="max-w-[1180px]">
+      <PageHeader icon={LayoutDashboard} color="violet" title="Dashboard" sub="Here's what's happening in your studio.">
+        <button onClick={toggleAmounts} aria-pressed={!showAmounts}
+          className="h-10 px-4 rounded-full bg-white text-sm font-semibold text-[#17151F] inline-flex items-center gap-2 shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB]">
+          {showAmounts ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showAmounts ? "Hide amounts" : "Show amounts"}
+        </button>
+        <PillSelect label="Period" value={period} onChange={v => setPeriod(v as Period)} options={PERIODS} />
+      </PageHeader>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Overview</h1>
-          <p className="text-slate-400 text-xs mt-0.5">Here&apos;s what&apos;s happening in your studio.</p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => setShowAmounts(!showAmounts)}
-            className="gap-1.5 text-slate-600 border-slate-200 h-9 text-xs">
-            {showAmounts ? <><EyeOff className="w-3.5 h-3.5" /><span className="hidden sm:inline">Hide</span></> : <><Eye className="w-3.5 h-3.5" /><span className="hidden sm:inline">Show</span></>}
-          </Button>
-          <select value={period} onChange={e => setPeriod(e.target.value as Period)}
-            className="text-sm border border-slate-200 rounded-lg px-3 h-9 text-slate-700 bg-white focus:outline-none cursor-pointer">
-            {DATE_FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {loadingStats
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="border-slate-200 shadow-sm">
-                <CardContent className="p-4 space-y-2">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-7 w-32" />
-                  <Skeleton className="h-3 w-16" />
-                </CardContent>
-              </Card>
-            ))
-          : statCards?.map(stat => (
-              <Card key={stat.title} className="border-slate-200 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs text-slate-500 font-medium truncate">{stat.title}</p>
-                      <p className={cn(
-                        "text-xl font-bold text-slate-900 mt-1 transition-all",
-                        stat.isAmount && !showAmounts ? "blur-sm select-none" : ""
-                      )}>
-                        {stat.isAmount && !showAmounts ? "••••••" : stat.value}
-                      </p>
-                      {stat.change !== null && stat.change !== undefined ? (
-                        <div className="flex items-center gap-1 mt-1">
-                          {stat.change >= 0
-                            ? <TrendingUp className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                            : <TrendingDown className="w-3 h-3 text-red-500 flex-shrink-0" />
-                          }
-                          <span className={cn("text-xs font-medium", stat.change >= 0 ? "text-emerald-600" : "text-red-500")}>
-                            {stat.change > 0 ? "+" : ""}{stat.change}%
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-400 mt-1">All active bookings</p>
-                      )}
-                    </div>
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", stat.bg)}>
-                      <stat.icon className={cn("w-4 h-4", stat.color)} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-        }
-      </div>
-
-      {/* Middle Row: Upcoming + Revenue Chart */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-
-        {/* Upcoming Programs */}
-        <Card className="xl:col-span-1 border-slate-200 shadow-sm">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-slate-900">Upcoming Programs</CardTitle>
-              <Link href="/programs" className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5">
-                View All <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-1">
-            {loadingUpcoming ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-2">
-                  <Skeleton className="w-9 h-9 rounded-lg flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-2.5 w-20" />
-                  </div>
-                </div>
-              ))
-            ) : upcoming.length === 0 ? (
-              <div className="text-center py-8">
-                <CalendarDays className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">No upcoming programs</p>
-                <Link href="/programs">
-                  <Button size="sm" className="mt-3 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1">
-                    <Plus className="w-3 h-3" /> Add Program
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              upcoming.map(b => {
-                const S = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.inquiry;
-                const dateStr = b.eventDate
-                  ? fmtDate(b.eventDate, true)
-                  : null;
-                return (
-                  <div key={b.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                      <Camera className="w-4 h-4 text-indigo-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{b.eventName || "Untitled"}</p>
-                      <p className="text-xs text-slate-500 truncate">{clientName(b.client)}</p>
-                      {dateStr && (
-                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                          <CalendarDays className="w-3 h-3" />{dateStr}
-                          {b.eventTime && ` · ${b.eventTime}`}
-                        </p>
-                      )}
-                    </div>
-                    <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0", S.bg, S.text)}>
-                      {S.label}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Revenue Chart */}
-        <Card className="xl:col-span-2 border-slate-200 shadow-sm">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-slate-900">Revenue Overview</CardTitle>
-              <select value={chartYear} onChange={e => setChartYear(Number(e.target.value))}
-                className="text-xs border border-slate-200 rounded-lg px-2 h-7 text-slate-600 bg-white focus:outline-none cursor-pointer">
-                {[new Date().getFullYear(), new Date().getFullYear() - 1].map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {loadingChart ? (
-              <div className="flex items-end gap-1 h-40">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                    <Skeleton className="w-full rounded-t-sm" style={{ height: `${20 + Math.random() * 60}%` }} />
-                    <Skeleton className="h-2.5 w-3 rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-end gap-1" style={{ height: "10rem" }}>
-                {chart.map((d, i) => {
-                  const h = chartMax > 0 ? Math.max(4, (d.total / chartMax) * 100) : 4;
-                  const isCurrentMonth = i === new Date().getMonth() && chartYear === new Date().getFullYear();
-                  return (
-                    <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full group"
-                      title={`${MONTHS[i]}: ${fmtFull(d.total)}`}>
-                      <div
-                        className={cn(
-                          "w-full rounded-t-sm transition-colors",
-                          isCurrentMonth ? "bg-indigo-500" : "bg-indigo-200 group-hover:bg-indigo-400"
-                        )}
-                        style={{ height: `${h}%` }}
-                      />
-                      <span className="text-xs text-slate-400 flex-shrink-0">{MONTHS[i][0]}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mt-4 pt-3 border-t border-slate-100">
-              <div>
-                <p className={cn("text-xl font-bold text-slate-900 transition-all", !showAmounts ? "blur-sm select-none" : "")}>
-                  {showAmounts ? fmtFull(chartTotal) : "••••••"}
-                </p>
-                <p className="text-xs text-slate-400 mt-0.5">{chartYear} total revenue collected</p>
-              </div>
-              {!loadingChart && (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
-                    <span className="text-xs text-slate-500 whitespace-nowrap">Current month</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />
-                    <span className="text-xs text-slate-500 whitespace-nowrap">Other months</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Programs */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-slate-900">Recent Programs</CardTitle>
-            <Link href="/programs" className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5">
-              View All <ArrowRight className="w-3 h-3" />
-            </Link>
+      {/* Numbers */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-7">
+        {!cards ? Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={cn("bg-white rounded-[20px] p-4 space-y-3", CARD_SHADOW)}>
+            <div className="flex items-center gap-2.5"><div className="sp-skel w-7 h-7 rounded-[8px]" /><div className="sp-skel h-3.5 w-20 rounded-full" /></div>
+            <div className="sp-skel h-7 w-28 rounded-full" /><div className="sp-skel h-3 w-16 rounded-full" />
           </div>
-        </CardHeader>
-        <CardContent className="p-0 pb-1">
-          {loadingRecent ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-2.5 w-20" />
-                  </div>
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-              ))}
+        )) : cards.map(c => (
+          <Link key={c.label} href={c.href}
+            className={cn("block bg-white rounded-[20px] p-4 transition-transform duration-200 hover:-translate-y-0.5", CARD_SHADOW)}>
+            <div className="flex items-center gap-2.5">
+              <Tile icon={c.icon} color={c.color} size={28} />
+              <p className="text-[13px] font-semibold text-[#4A4658] truncate">{c.label}</p>
             </div>
-          ) : recent.length === 0 ? (
-            <div className="text-center py-10">
-              <Camera className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">No programs yet</p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50">
-                      <th className="text-left py-2.5 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
-                      <th className="text-left py-2.5 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Event</th>
-                      <th className="text-left py-2.5 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Date</th>
-                      <th className="text-left py-2.5 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
-                      <th className="text-left py-2.5 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recent.map(b => {
-                      const S = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.inquiry;
-                      const due = Math.max(0, b.grandTotal - b.paidAmount);
-                      return (
-                        <tr key={b.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
-                          <td className="py-2.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">
-                                {b.client.firstName[0]?.toUpperCase()}
-                              </div>
-                              <span className="font-medium text-slate-900 text-sm">{clientName(b.client)}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-4 text-slate-500 hidden sm:table-cell text-sm truncate max-w-[160px]">
-                            {b.eventName || "—"}
-                          </td>
-                          <td className="py-2.5 px-4 text-slate-400 hidden md:table-cell text-xs">
-                            {fmtDate(b.eventDate)}
-                          </td>
-                          <td className={cn("py-2.5 px-4 font-semibold text-slate-900 text-sm transition-all", !showAmounts ? "blur-sm select-none" : "")}>
-                            {showAmounts
-                              ? <div>
-                                  <p>{fmtFull(b.grandTotal, b.currency)}</p>
-                                  {due > 0 && <p className="text-xs text-orange-500 font-normal">Due: {fmtFull(due, b.currency)}</p>}
-                                </div>
-                              : "••••"
-                            }
-                          </td>
-                          <td className="py-2.5 px-4">
-                            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", S.bg, S.text)}>
-                              {S.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="sm:hidden p-3 space-y-2">
-                {recent.map(b => {
-                  const S = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.inquiry;
-                  const due = Math.max(0, b.grandTotal - b.paidAmount);
-                  return (
-                    <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">
-                        {b.client.firstName[0]?.toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{clientName(b.client)}</p>
-                        <p className="text-xs text-slate-500 truncate">{b.eventName || b.bookingNumber}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className={cn("text-sm font-bold text-slate-900", !showAmounts ? "blur-sm select-none" : "")}>
-                          {showAmounts ? fmt(b.grandTotal, b.currency) : "••••"}
-                        </p>
-                        {due > 0 && showAmounts && <p className="text-xs text-orange-500">Due</p>}
-                        <span className={cn("mt-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium inline-block", S.bg, S.text)}>
-                          {S.label}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "New Program", icon: Camera, href: "/programs", color: "bg-indigo-50 text-indigo-700 hover:bg-indigo-100" },
-          { label: "Add Client",  icon: Users,  href: "/clients",  color: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
-          { label: "Record Payment", icon: DollarSign, href: "/payments", color: "bg-orange-50 text-orange-700 hover:bg-orange-100" },
-        ].map(a => (
-          <Link key={a.label} href={a.href}>
-            <button className={cn(
-              "w-full rounded-xl p-3 flex flex-col items-center gap-2 transition-colors border border-transparent hover:border-slate-200",
-              a.color
-            )}>
-              <a.icon className="w-5 h-5" />
-              <span className="text-xs font-medium text-center leading-tight">{a.label}</span>
-            </button>
+            <p className={cn("mt-3 text-[22px] sm:text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none truncate",
+              c.amount && !showAmounts && "select-none")}>
+              {c.amount ? money(c.value) : c.value}
+            </p>
+            {c.change !== null && c.change !== undefined ? (
+              <p className={cn("mt-2 text-xs font-semibold inline-flex items-center gap-1", c.change >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]")}>
+                {c.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                {c.change > 0 ? "+" : ""}{c.change}% <span className="text-[#6B6680] font-medium">vs before</span>
+              </p>
+            ) : <p className="mt-2 text-xs text-[#6B6680]">On all open programs</p>}
           </Link>
         ))}
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-x-5">
+        {/* Upcoming */}
+        <div className="xl:col-span-2">
+          <Group title="Coming up" action={<SeeAll href="/calendar" label="Calendar" />}>
+            {upcoming === null ? <RowsSkeleton n={4} /> : upcoming.length === 0 ? (
+              <Empty icon={CalendarDays} title="Nothing coming up" text="New programs will show here by date." cta={{ href: "/programs", label: "Add program" }} />
+            ) : upcoming.map(b => {
+              const d = dayBox(b.eventDate);
+              return (
+                <Link key={b.id} href={`/programs?view=${b.id}`}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[64px] hover:bg-[#F7F5FB] transition-colors">
+                  <span className="w-12 flex-shrink-0 rounded-[12px] bg-[#FDECEF] text-center py-1.5">
+                    <span className="block text-[11px] font-bold text-[#C2304F] leading-none">{d?.mon ?? "—"}</span>
+                    <span className="block text-lg font-extrabold text-[#17151F] leading-tight tabular-nums">{d?.day ?? ""}</span>
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</span>
+                    <span className="block text-xs text-[#6B6680] truncate">{clientName(b.client)}{d ? ` · ${d.week}` : ""}{b.eventTime ? ` · ${b.eventTime}` : ""}</span>
+                  </span>
+                  <StatusPill status={b.status} />
+                </Link>
+              );
+            })}
+          </Group>
+        </div>
+
+        {/* Money chart */}
+        <div className="xl:col-span-3">
+          <Group title="Money received" action={
+            <PillSelect label="Year" small value={String(chartYear)} onChange={v => setChartYear(Number(v))}
+              options={[now.getFullYear(), now.getFullYear() - 1].map(y => ({ value: String(y), label: String(y) }))} />
+          }>
+            <div className="px-4 sm:px-5 pt-5 pb-4">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+                <p className="text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none">{money(fmtFull(chartTotal))}</p>
+                <p className="text-xs text-[#6B6680]">Collected in {chartYear}</p>
+              </div>
+              <div className="flex items-end gap-1.5 sm:gap-2 h-44" role="img" aria-label={`Money received each month in ${chartYear}`}>
+                {(chart ?? Array.from({ length: 12 }, (_, i) => ({ month: i + 1, total: 0 }))).map((d, i) => {
+                  const h = chart ? Math.max(3, (d.total / chartMax) * 100) : 30 + ((i * 37) % 50);
+                  const current = i === now.getMonth() && chartYear === now.getFullYear();
+                  return (
+                    <div key={i} className="flex-1 h-full flex flex-col justify-end items-center gap-1.5 group" title={`${MONTHS[i]}: ${showAmounts ? fmtFull(d.total) : "hidden"}`}>
+                      <div className={cn("w-full rounded-[6px] transition-colors", !chart ? "sp-skel" : current ? "bg-[#7D5CEF]" : "bg-[#CFC2F8] group-hover:bg-[#B29DF8]")}
+                        style={{ height: `${h}%` }} />
+                      <span className={cn("text-xs", current ? "font-bold text-[#5B3FD0]" : "text-[#6B6680]")}>{MONTHS[i][0]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <ListRow href="/reports" icon={BarChart3} color="blue" title="See full reports" sub="Income, dues, programs and team" />
+          </Group>
+        </div>
+      </div>
+
+      {/* Recent */}
+      <Group title="Recent programs" action={<SeeAll href="/programs" label="All programs" />}>
+        {recent === null ? <RowsSkeleton n={5} /> : recent.length === 0 ? (
+          <Empty icon={Camera} title="No programs yet" text="Add your first program to see it here." cta={{ href: "/programs", label: "Add program" }} />
+        ) : recent.map(b => {
+          const due = Math.max(0, b.grandTotal - b.paidAmount);
+          return (
+            <Link key={b.id} href={`/programs?view=${b.id}`}
+              className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[64px] hover:bg-[#F7F5FB] transition-colors">
+              <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-sm font-bold flex items-center justify-center flex-shrink-0">
+                {b.client.firstName?.[0]?.toUpperCase() ?? "?"}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-[#17151F] truncate">{clientName(b.client)}</span>
+                <span className="block text-xs text-[#6B6680] truncate">{b.eventName || b.bookingNumber}{b.eventDate ? ` · ${sharedFmtDate(b.eventDate)}` : ""}</span>
+              </span>
+              <span className="text-right flex-shrink-0 hidden sm:block">
+                <span className="block text-sm font-bold text-[#17151F] tabular-nums">{money(fmtFull(b.grandTotal, b.currency))}</span>
+                {due > 0 && <span className="block text-xs font-semibold text-[#C2304F] tabular-nums">{money(`${fmtFull(due, b.currency)} due`)}</span>}
+              </span>
+              <span className="text-right flex-shrink-0 sm:hidden">
+                <span className="block text-sm font-bold text-[#17151F] tabular-nums">{money(fmt(b.grandTotal, b.currency))}</span>
+                {due > 0 && showAmounts && <span className="block text-xs font-semibold text-[#C2304F]">Due</span>}
+              </span>
+              <span className="hidden md:block"><StatusPill status={b.status} /></span>
+              <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />
+            </Link>
+          );
+        })}
+      </Group>
+
+      {/* Quick actions */}
+      <Group title="Quick actions" flush>
+        <div className="grid grid-cols-3 divide-x divide-[#EEEBF4]">
+          {[
+            { label: "New program", icon: Plus, color: "deep", href: "/programs" },
+            { label: "Add client", icon: UserPlus, color: "blue", href: "/clients" },
+            { label: "Record payment", icon: CreditCard, color: "green", href: "/payments" },
+          ].map(a => (
+            <Link key={a.label} href={a.href} className="flex flex-col items-center gap-2 py-4 px-2 hover:bg-[#F7F5FB] transition-colors">
+              <Tile icon={a.icon} color={a.color} size={36} />
+              <span className="text-xs sm:text-sm font-semibold text-[#17151F] text-center leading-tight">{a.label}</span>
+            </Link>
+          ))}
+        </div>
+      </Group>
+
+      <p className="sr-only" aria-live="polite">Showing numbers for {periodLabel}</p>
+    </div>
+  );
+}
+
+// ─── small pieces ─────────────────────────────────────────────────────────────
+function PillSelect({ value, onChange, options, label, small }: {
+  value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; label: string; small?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <select aria-label={label} value={value} onChange={e => onChange(e.target.value)}
+        className={cn("appearance-none rounded-full bg-white font-semibold text-[#17151F] pl-4 pr-9 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40",
+          "shadow-[0_1px_2px_rgba(22,18,40,.06)]", small ? "h-8 text-xs" : "h-10 text-sm")}
+        style={{ WebkitAppearance: "none" }}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680] pointer-events-none" />
+    </div>
+  );
+}
+
+function SeeAll({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="text-xs font-semibold text-[#5B3FD0] hover:underline inline-flex items-center gap-0.5">
+      {label} <ChevronRight className="w-3.5 h-3.5" />
+    </Link>
+  );
+}
+
+function RowsSkeleton({ n }: { n: number }) {
+  return (
+    <>
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[64px]">
+          <div className="sp-skel w-10 h-10 rounded-[12px]" />
+          <div className="flex-1 space-y-2"><div className="sp-skel h-3.5 w-40 rounded-full" /><div className="sp-skel h-3 w-24 rounded-full" /></div>
+          <div className="sp-skel h-6 w-20 rounded-full" />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Empty({ icon: Icon, title, text, cta }: { icon: React.ElementType; title: string; text: string; cta?: { href: string; label: string } }) {
+  return (
+    <div className="py-10 px-4 text-center">
+      <span className="w-12 h-12 rounded-full bg-[#EEE8FD] flex items-center justify-center mx-auto"><Icon className="w-5 h-5 text-[#5B3FD0]" /></span>
+      <p className="mt-3 text-sm font-bold text-[#17151F]">{title}</p>
+      <p className="text-xs text-[#6B6680] mt-1">{text}</p>
+      {cta && (
+        <Link href={cta.href} className="mt-4 inline-flex h-10 px-4 rounded-full bg-[#16141D] text-white text-sm font-semibold items-center gap-1.5">
+          <Plus className="w-4 h-4" /> {cta.label}
+        </Link>
+      )}
     </div>
   );
 }

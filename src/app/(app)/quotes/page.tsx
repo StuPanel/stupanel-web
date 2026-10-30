@@ -732,7 +732,7 @@ export default function QuotesPage() {
   ];
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       <PageHeader icon={FileText} color="deep" title="Quotes"
         sub={meta.total ? `${meta.total} quote${meta.total === 1 ? "" : "s"} · ${conversionRate}% became programs` : "Price offers you send to clients"}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder="Search client or event" />

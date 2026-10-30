@@ -125,7 +125,7 @@ export default function MyAccountPage() {
   const initials = ((profile?.firstName?.[0] ?? "") + (profile?.lastName?.[0] ?? "")).toUpperCase() || "A";
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-6">
       <PageHeader icon={HeaderIcon} color="deep" title="My Account" sub="Your profile and password" />
 
       {/* Identity card */}

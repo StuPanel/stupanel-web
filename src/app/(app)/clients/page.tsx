@@ -516,7 +516,7 @@ export default function ClientsPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       <PageHeader icon={Users} color="blue" title="Clients"
         sub={total ? `${total} client${total === 1 ? "" : "s"}` : "Everyone you work with"}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search name or phone" />

@@ -108,7 +108,7 @@ export default function NotificationsPage() {
   );
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-4">
       {/* Header */}
       <PageHeader icon={HeaderIcon} color="red" title="Notifications"
         sub={<>{highCount > 0 && <span className="font-semibold text-[#C2304F]">{highCount} important · </span>}{visible.length} active · {dismissed.size} dismissed</>}>

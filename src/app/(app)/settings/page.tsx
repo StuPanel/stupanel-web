@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
   return (
     <SettingsCtx.Provider value={{ data, patch, state, studio, patchStudio }}>
-      <div className="max-w-[1120px] md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
+      <div className="md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
 
         {/* ── Desktop sidebar ── */}
         <aside className="hidden md:flex flex-col sticky top-[68px] max-h-[calc(100vh-5.5rem)] bg-white rounded-[22px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
@@ -286,7 +286,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Pane ── */}
-        <div ref={contentRef} className={cn("min-w-0 max-w-[820px] w-full scroll-mt-24", !mobileOpen && "hidden md:block")}>
+        <div ref={contentRef} className={cn("min-w-0 w-full scroll-mt-24", !mobileOpen && "hidden md:block")}>
           <div key={pane} className="sp-pane-in">
             <PaneHeader icon={current.icon} color={current.color} title={current.title} sub={current.sub}
               onBack={() => { setMobileOpen(false); window.history.replaceState({}, "", window.location.pathname); }} />
@@ -307,7 +307,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 function SettingsSkeleton() {
   return (
-    <div className="max-w-[1120px] md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6" aria-busy="true" aria-label="Loading settings">
+    <div className="md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6" aria-busy="true" aria-label="Loading settings">
       <div className="hidden md:block bg-white rounded-[22px] p-3 space-y-2">
         <div className="sp-skel h-11 rounded-full" />
         {Array.from({ length: 9 }).map((_, i) => <div key={i} className="sp-skel h-9 rounded-[12px]" />)}

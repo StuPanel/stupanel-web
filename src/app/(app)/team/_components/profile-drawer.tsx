@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  X, Loader2, Camera, Video, Image, Film, Navigation, Briefcase, Tag,
-  Phone, Mail, CalendarDays, UserCheck, UserX, Edit3, KeyRound,
-  TrendingUp, Wallet, Clock, CheckCircle2, Plus, Save, ChevronRight,
-  MessageSquare, BarChart3,
+  Loader2, Camera, Video, Image, Film, Navigation, Briefcase, Tag,
+  Phone, MessageCircle, Edit3, KeyRound, UserCheck, UserX, Wallet, CalendarDays,
+  CheckCircle2, Plus, HandCoins, TrendingUp, MapPin, MoreHorizontal, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api";
-import { API_URL as API } from "@/lib/api";
-import { formatCurrency, fmtDate as sharedFmtDate } from "@/lib/format";
+import { apiFetch, API_URL as API } from "@/lib/api";
+import { formatCurrency, fmtDate } from "@/lib/format";
+import { DateBox, Group, TILE, Tile, type TileColor } from "@/components/ui/apple";
+import { ActionButton, Avatar, IdentityCard, InfoRow, MiniStat, ProfileShell, waLink } from "@/components/ui/profile-kit";
+import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { STATUS_CFG } from "../../programs/_components/constants";
+import { notify } from "@/components/feedback";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Member {
@@ -25,7 +28,12 @@ interface Member {
 interface ProgramEntry {
   id: string; bookingNumber: string; eventName?: string;
   eventDate?: string; status: string; currency: string;
-  role: string; totalBill: number; note: string; clientName: string;
+  role: string; totalBill: number; paid?: number; due?: number; note: string; clientName: string;
+}
+
+interface UpcomingDay {
+  bookingId: string; bookingNumber: string; eventName?: string; clientName: string;
+  date: string; location?: string; work: string[];
 }
 
 interface SalarySlip {
@@ -36,150 +44,99 @@ interface SalarySlip {
 
 interface ProfileData {
   member: Member;
+  upcoming?: UpcomingDay[];
   stats: { totalPrograms: number; thisMonthPrograms: number; lifetimeEarned: number; totalPaid: number; pendingAmount: number };
   programs: ProgramEntry[];
   salarySlips: SalarySlip[];
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-const DEFAULT_ROLES = [
-  { id: "photographer",    label: "Photographer",   icon: Camera,     color: "bg-blue-100 text-blue-700" },
-  { id: "cinematographer", label: "Cinematographer", icon: Video,      color: "bg-violet-100 text-violet-700" },
-  { id: "photo_editor",   label: "Photo Editor",    icon: Image,      color: "bg-emerald-100 text-emerald-700" },
-  { id: "video_editor",   label: "Video Editor",    icon: Film,       color: "bg-orange-100 text-orange-700" },
-  { id: "drone_pilot",    label: "Drone Pilot",     icon: Navigation, color: "bg-sky-100 text-sky-700" },
-  { id: "assistant",      label: "Assistant",       icon: Briefcase,  color: "bg-slate-100 text-slate-700" },
-];
-
-const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> = {
-  draft:              { label: "Draft",       dot: "bg-slate-400",   badge: "bg-slate-100 text-slate-600" },
-  confirmed:          { label: "Confirmed",   dot: "bg-[#7D5CEF]",    badge: "bg-[#EEE8FD] text-[#5B3FD0]" },
-  in_progress:        { label: "Shooting",    dot: "bg-[#126B66]",   badge: "bg-[#E0F2F1] text-[#126B66]" },
-  editing:            { label: "Editing",     dot: "bg-[#1F5C99]",  badge: "bg-[#E6F0FB] text-[#1F5C99]" },
-  ready_for_delivery: { label: "Ready",       dot: "bg-[#7D5CEF]",  badge: "bg-[#7D5CEF] text-white" },
-  delivered:          { label: "Delivered",   dot: "bg-[#4A4658]",    badge: "bg-[#EEEDF2] text-[#4A4658]" },
-  completed:          { label: "Completed",   dot: "bg-[#1F8A5B]", badge: "bg-[#EEEDF2] text-[#4A4658]" },
-  cancelled:          { label: "Cancelled",   dot: "bg-[#8A2E2E]",     badge: "bg-[#F3E3E3] text-[#8A2E2E]" },
+const ROLES: Record<string, { label: string; icon: React.ElementType; tile: TileColor }> = {
+  photographer:    { label: "Photographer",    icon: Camera,     tile: "blue" },
+  cinematographer: { label: "Cinematographer", icon: Video,      tile: "deep" },
+  photo_editor:    { label: "Photo Editor",    icon: Image,      tile: "green" },
+  video_editor:    { label: "Video Editor",    icon: Film,       tile: "orchid" },
+  drone_pilot:     { label: "Drone Pilot",     icon: Navigation, tile: "teal" },
+  assistant:       { label: "Assistant",       icon: Briefcase,  tile: "ink" },
 };
+const role = (id: string) => ROLES[id] ?? { label: id.replace(/_/g, " "), icon: Tag, tile: "violet" as TileColor };
+const UNIT: Record<string, string> = { per_program: "program", per_day: "day", per_shift: "shift", monthly: "month" };
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-function fmtDate(d?: string | null) { return sharedFmtDate(d); }
-
-function roleConfig(id: string, customRoles: string[] = []) {
-  const def = DEFAULT_ROLES.find(r => r.id === id);
-  if (def) return def;
-  if (customRoles.includes(id)) return { id, label: id, icon: Tag, color: "bg-indigo-100 text-indigo-700" };
-  return { id, label: id, icon: Tag, color: "bg-slate-100 text-slate-600" };
-}
-
-function avatarBg(memberId: string) {
-  const colors = ["bg-indigo-500","bg-violet-500","bg-emerald-500","bg-blue-500","bg-orange-500","bg-pink-500"];
-  return colors[memberId.charCodeAt(memberId.length - 1) % colors.length];
-}
-
-// ─── Add Payment Modal ────────────────────────────────────────────────────────
-function AddPaymentModal({ memberId, onClose, onSaved }: {
-  memberId: string; onClose: () => void; onSaved: () => void;
+// ─── Record a payment (salary slip) ─────────────────────────────────────────
+function PayDrawer({ member, owed, onClose, onSaved }: {
+  member: Member; owed: number; onClose: () => void; onSaved: () => void;
 }) {
   const now = new Date();
-  const [form, setForm] = useState({
-    amount: "", deductions: "", notes: "",
-    month: now.getMonth() + 1, year: now.getFullYear(),
-  });
+  const [form, setForm] = useState({ amount: owed > 0 ? String(owed) : "", deductions: "", notes: "", month: now.getMonth() + 1, year: now.getFullYear() });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
   const net = (parseFloat(form.amount) || 0) - (parseFloat(form.deductions) || 0);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.amount || parseFloat(form.amount) <= 0) { setError("Amount is required."); return; }
+    if (!(parseFloat(form.amount) > 0)) { setError("Please write how much you paid."); return; }
     setSaving(true); setError("");
     try {
-      const r = await apiFetch(`${API}/team/${memberId}/salary-slip`, {
+      const r = await apiFetch(`${API}/team/${member.id}/salary-slip`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          month: form.month, year: form.year,
-          amount: parseFloat(form.amount),
-          deductions: parseFloat(form.deductions) || 0,
-          notes: form.notes || undefined,
-        }),
+        body: JSON.stringify({ month: form.month, year: form.year, amount: parseFloat(form.amount), deductions: parseFloat(form.deductions) || 0, notes: form.notes || undefined }),
       });
-      if (r.ok) { onSaved(); onClose(); }
-      else { const d = await r.json(); setError(d.message || "Failed to save."); }
+      if (r.ok) { notify(`Payment to ${member.firstName} saved`); onSaved(); onClose(); }
+      else { const d = await r.json().catch(() => ({})); setError(d.message || "Couldn't save. Please try again."); }
     } finally { setSaving(false); }
   }
 
   return (
-    <>
-      <div className="sp-backdrop z-60" onClick={onClose} />
-      <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
-        <div className="sp-modal w-full max-w-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-slate-900">Add Payment Record</h3>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
-          {error && <div className="mb-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
-          <form onSubmit={submit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Month</p>
-                <select value={form.month} onChange={e => setForm(f => ({ ...f, month: Number(e.target.value) }))}
-                  className="w-full h-10 px-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400">
-                  {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Year</p>
-                <input type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: Number(e.target.value) }))}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Amount *</p>
-              <input type="number" min="0" step="100" value={form.amount}
-                onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                placeholder="0" autoFocus
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Deductions <span className="text-slate-400">(optional)</span></p>
-              <input type="number" min="0" step="100" value={form.deductions}
-                onChange={e => setForm(f => ({ ...f, deductions: e.target.value }))}
-                placeholder="0"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
-            </div>
-            {form.amount && (
-              <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                <span className="text-xs text-emerald-700">Net Payment</span>
-                <span className="text-sm font-bold text-emerald-700">{formatCurrency(net)}</span>
+    <FormDrawer open onTop onClose={onClose} icon={HandCoins} color="green" title={`Pay ${member.firstName}`}
+      sub={owed > 0 ? `Owed now: ${formatCurrency(owed)}` : "Record money you gave them"}
+      footer={<>
+        <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>
+        <button type="submit" form="pay-form" disabled={saving}
+          className="flex-[1.4] h-12 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Save payment
+        </button>
+      </>}>
+      <form id="pay-form" onSubmit={submit} noValidate>
+        {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
+        <FormGroup title="Payment" note={form.amount ? <>They get <strong className="text-[#1F8A5B]">{formatCurrency(net)}</strong>.</> : undefined}>
+          <Field label="Amount" required>
+            {id => (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                <input id={id} type="number" inputMode="numeric" min="0" step="100" autoFocus value={form.amount}
+                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" className={inputCls + " pl-8 text-lg font-bold tabular-nums"} />
               </div>
             )}
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Note <span className="text-slate-400">(optional)</span></p>
-              <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder="e.g. Payment for June programs..."
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button type="button" onClick={onClose}
-                className="flex-1 h-10 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button type="submit" disabled={saving}
-                className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
+          </Field>
+          <Field label="Cut / deduction" hint="Optional — e.g. an advance taken earlier.">
+            {id => (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                <input id={id} type="number" inputMode="numeric" min="0" step="100" value={form.deductions}
+                  onChange={e => setForm(f => ({ ...f, deductions: e.target.value }))} placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
+              </div>
+            )}
+          </Field>
+          <Field label="For which month" hint="More payments in the same month add up.">
+            {id => (
+              <div className="grid grid-cols-[1fr_110px] gap-2">
+                <select id={id} value={form.month} onChange={e => setForm(f => ({ ...f, month: Number(e.target.value) }))} className={cn(inputCls, "cursor-pointer")}>
+                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                </select>
+                <input type="number" aria-label="Year" value={form.year} onChange={e => setForm(f => ({ ...f, year: Number(e.target.value) }))} className={inputCls + " tabular-nums"} />
+              </div>
+            )}
+          </Field>
+          <Field label="Note">
+            {id => <input id={id} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. bKash, for October programs" className={inputCls} />}
+          </Field>
+        </FormGroup>
+      </form>
+    </FormDrawer>
   );
 }
 
-// ─── Profile Drawer ───────────────────────────────────────────────────────────
+// ─── Profile ──────────────────────────────────────────────────────────────────
 export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, customRoles }: {
   member: Member | null;
   onClose: () => void;
@@ -190,367 +147,181 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
 }) {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"programs" | "payments">("programs");
-  const [addPayOpen, setAddPayOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [notes, setNotes] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [notesSaved, setNotesSaved] = useState(false);
+  const [notesState, setNotesState] = useState<"" | "saving" | "saved">("");
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  void customRoles;
 
   const fetchProfile = useCallback(async () => {
     if (!member) return;
     setLoading(true);
     try {
       const r = await apiFetch(`${API}/team/${member.id}/profile`);
-      if (r.ok) {
-        const d = await r.json();
-        setData(d);
-        setNotes(d.member.adminNotes ?? "");
-      }
+      if (r.ok) { const d = await r.json(); setData(d); setNotes(d.member.adminNotes ?? ""); }
     } finally { setLoading(false); }
-  }, [member?.id]);
+  }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!member) { setData(null); return; }
-    setTab("programs");
+    setShowAllPrograms(false); setMoreOpen(false);
     fetchProfile();
-  }, [member?.id]);
+  }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveNotes(value: string) {
     if (!member) return;
-    setSavingNotes(true);
+    setNotesState("saving");
     try {
       await apiFetch(`${API}/team/${member.id}/admin-notes`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: value }),
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: value }),
       });
-      setNotesSaved(true);
-      setTimeout(() => setNotesSaved(false), 2000);
-    } finally { setSavingNotes(false); }
+      setNotesState("saved");
+    } catch { setNotesState(""); }
   }
-
-  function handleNotesChange(val: string) {
-    setNotes(val);
-    setNotesSaved(false);
+  function onNotes(v: string) {
+    setNotes(v); setNotesState("");
     clearTimeout(notesTimer.current);
-    notesTimer.current = setTimeout(() => saveNotes(val), 1200);
+    notesTimer.current = setTimeout(() => saveNotes(v), 1000);
   }
 
   if (!member) return null;
 
-  const initials = (member.firstName[0] + (member.lastName?.[0] ?? "")).toUpperCase();
-  const bg = avatarBg(member.memberId);
+  const m = data?.member ?? member;
+  const name = `${m.firstName} ${m.lastName ?? ""}`.trim();
+  const freelancer = m.memberType === "freelancer";
+  const main = role(m.memberRoles[0] ?? "");
   const stats = data?.stats;
   const programs = data?.programs ?? [];
   const slips = data?.salarySlips ?? [];
+  const upcoming = data?.upcoming ?? [];
+  const owed = stats?.pendingAmount ?? 0;
+  const realEmail = m.email && !m.email.includes(".internal") ? m.email : "";
+  const rates = (m.roleRates ?? []).filter(r => r.rate);
+  const shownPrograms = showAllPrograms ? programs : programs.slice(0, 5);
 
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-
-        {/* ── Top bar ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Member Profile</p>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-
-          {/* ── Identity Header ── */}
-          <div className="px-5 py-5 border-b border-slate-100">
-            <div className="flex items-start gap-4">
-              <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0", bg)}>
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{member.memberId}</span>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
-                    member.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-                    {member.isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                <h2 className="font-bold text-slate-900 text-lg mt-1 leading-tight">{member.firstName} {member.lastName ?? ""}</h2>
-                <p className="text-sm text-slate-400">{member.memberType === "freelancer" ? "Freelancer · no login" : `@${member.username}`}</p>
-              </div>
-            </div>
-
-            {/* Contact row */}
-            <div className="mt-4 space-y-1.5">
-              {member.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="text-sm text-slate-700">{member.phone}</span>
-                  <a href={`https://wa.me/${member.phone.replace(/\D/g,"").replace(/^0/,"88")}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200 font-medium hover:bg-green-100">
-                    WhatsApp
-                  </a>
-                </div>
-              )}
-              {member.email && !member.email.includes(".internal") && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="text-sm text-slate-700">{member.email}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="text-sm text-slate-500">Joined {fmtDate(member.createdAt)}</span>
-              </div>
-            </div>
-
-            {/* Role badges */}
-            {member.memberRoles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {member.memberRoles.map(rid => {
-                  const rc = roleConfig(rid, customRoles);
-                  const Icon = rc.icon;
-                  return (
-                    <span key={rid} className={cn("flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium", rc.color)}>
-                      <Icon className="w-3 h-3" />{rc.label}
-                    </span>
-                  );
-                })}
+    <ProfileShell open onClose={onClose} label={freelancer ? "Freelancer" : "Team member"}>
+      <IdentityCard
+        avatar={<Avatar name={name} color={TILE[main.tile]} />}
+        name={name}
+        sub={<>{m.memberId}{freelancer ? " · no login" : m.username ? ` · @${m.username}` : ""}{m.phone ? ` · ${m.phone}` : ""}</>}
+        chips={<>
+          {freelancer && <span className="h-6 px-2.5 rounded-full bg-[#FBF2FA] text-[#9E3A8C] text-xs font-bold inline-flex items-center">Freelancer</span>}
+          {!m.isActive && <span className="h-6 px-2.5 rounded-full bg-[#EEEDF2] text-[#4A4658] text-xs font-bold inline-flex items-center">Inactive</span>}
+          {m.memberRoles.map(r => {
+            const rc = role(r); const Icon = rc.icon;
+            return <span key={r} className="h-6 pl-1 pr-2.5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-xs font-semibold inline-flex items-center gap-1.5"><Tile icon={Icon} color={rc.tile} size={18} />{rc.label}</span>;
+          })}
+        </>}
+        actions={<>
+          <ActionButton icon={MessageCircle} label="WhatsApp" tone="green" href={waLink(m.phone)} disabled={!m.phone} />
+          <ActionButton icon={Phone} label="Call" tone="blue" href={m.phone ? `tel:${m.phone}` : undefined} disabled={!m.phone} />
+          <ActionButton icon={HandCoins} label="Pay" tone="violet" onClick={() => setPayOpen(true)} />
+          <div className="relative">
+            <ActionButton icon={MoreHorizontal} label="More" tone="ink" onClick={() => setMoreOpen(o => !o)} />
+            {moreOpen && (
+              <div role="menu" className="absolute right-0 top-[72px] w-52 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+                <button role="menuitem" onClick={() => { setMoreOpen(false); onEdit(m); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
+                {!freelancer && <button role="menuitem" onClick={() => { setMoreOpen(false); onReset(m); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
+                <button role="menuitem" onClick={() => { setMoreOpen(false); onToggle(m); }} className={cn("w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm hover:bg-[#F5F3FA]", m.isActive ? "text-[#C2304F]" : "text-[#1F8A5B]")}>
+                  {m.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}{m.isActive ? "Make inactive" : "Make active"}
+                </button>
               </div>
             )}
+          </div>
+        </>}
+      />
 
-            {/* Action buttons */}
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => onEdit(member)}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                <Edit3 className="w-3.5 h-3.5" />Edit Info
-              </button>
-              {member.memberType !== "freelancer" && (
-              <button onClick={() => onReset(member)}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                <KeyRound className="w-3.5 h-3.5" />Reset Password
-              </button>
-              )}
-              <button onClick={() => onToggle(member)}
-                className={cn("flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-colors",
-                  member.isActive
-                    ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                    : "border-emerald-200 text-emerald-700 hover:bg-emerald-50")}>
-                {member.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                {member.isActive ? "Deactivate" : "Activate"}
-              </button>
-            </div>
+      {loading && !data ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-7">
+            <MiniStat icon={Wallet} color="red" label="Owed now" value={formatCurrency(owed)} tone={owed > 0 ? "red" : undefined} sub={owed > 0 ? "Tap Pay to settle" : "All settled"} />
+            <MiniStat icon={CheckCircle2} color="green" label="Paid so far" value={formatCurrency(stats?.totalPaid ?? 0)} sub={`of ${formatCurrency(stats?.lifetimeEarned ?? 0)} earned`} />
+            <MiniStat icon={CalendarDays} color="blue" label="This month" value={`${stats?.thisMonthPrograms ?? 0} program${stats?.thisMonthPrograms === 1 ? "" : "s"}`} sub={`${stats?.totalPrograms ?? 0} in total`} />
+            <MiniStat icon={TrendingUp} color="violet" label="Next work" value={upcoming[0] ? fmtDate(upcoming[0].date) : "—"} sub={upcoming[0]?.eventName ?? "Nothing booked"} />
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
-          ) : (
-            <>
-              {/* ── Stats Cards ── */}
-              <div className="px-5 py-4 border-b border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Overview</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Total Programs</span>
-                    </div>
-                    <p className="text-2xl font-bold text-slate-900">{stats?.totalPrograms ?? 0}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-xs font-semibold text-slate-400 uppercase">This Month</span>
-                    </div>
-                    <p className="text-2xl font-bold text-slate-900">{stats?.thisMonthPrograms ?? 0}</p>
-                  </div>
-                  <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs font-semibold text-emerald-500 uppercase">Lifetime Earned</span>
-                    </div>
-                    <p className="text-xl font-bold text-emerald-700">{formatCurrency(stats?.lifetimeEarned ?? 0)}</p>
-                  </div>
-                  <div className={cn("rounded-xl p-3 border", (stats?.pendingAmount ?? 0) > 0 ? "bg-amber-50 border-amber-100" : "bg-slate-50 border-slate-100")}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wallet className={cn("w-3.5 h-3.5", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")} />
-                      <span className={cn("text-xs font-semibold uppercase", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-500" : "text-slate-400")}>Pending</span>
-                    </div>
-                    <p className={cn("text-xl font-bold", (stats?.pendingAmount ?? 0) > 0 ? "text-amber-700" : "text-slate-500")}>
-                      {formatCurrency(stats?.pendingAmount ?? 0)}
-                    </p>
-                  </div>
+          <Group title="Coming up" note={upcoming.length ? undefined : "No upcoming work. Add them to a program's shift and it shows here."}>
+            {upcoming.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">Nothing booked yet</span>} /> : upcoming.slice(0, 6).map((u, i) => (
+              <div key={`${u.bookingId}-${u.date}-${i}`} className="flex items-center gap-3 px-4 py-3">
+                <DateBox date={u.date} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-semibold text-[#17151F] truncate">{u.eventName || u.bookingNumber}</p>
+                  <p className="text-xs text-[#6B6680] truncate mt-0.5">{u.work.join(", ")}{u.location ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {u.location}</> : null}</p>
+                  <p className="text-xs text-[#9893A8] truncate">{u.clientName}</p>
                 </div>
               </div>
+            ))}
+          </Group>
 
-              {/* ── Tabs ── */}
-              <div className="px-5 pt-4">
-                <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-4">
-                  {(["programs","payments"] as const).map(t => (
-                    <button key={t} onClick={() => setTab(t)}
-                      className={cn("flex-1 h-8 rounded-lg text-xs font-semibold transition-all capitalize",
-                        tab === t ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700")}>
-                      {t === "programs" ? `Programs (${programs.length})` : `Payments (${slips.length})`}
-                    </button>
-                  ))}
-                </div>
+          <Group title="Programs & pay" note={programs.length ? "Bill and paid come from each program's team payments." : undefined}
+            action={programs.length > 5 ? <button type="button" onClick={() => setShowAllPrograms(v => !v)} className="text-[13px] font-semibold text-[#5B3FD0]">{showAllPrograms ? "Show less" : `See all ${programs.length}`}</button> : undefined}>
+            {programs.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No programs yet</span>} /> : shownPrograms.map(p => {
+              const sc = STATUS_CFG[p.status];
+              const due = p.due ?? 0;
+              return (
+                <InfoRow key={p.id}
+                  left={p.eventName || p.bookingNumber}
+                  sub={<>{fmtDate(p.eventDate)} · {p.clientName}{p.role ? ` · ${p.role.split(", ").map(r => role(r).label).join(", ")}` : ""}{sc ? ` · ${sc.label}` : ""}</>}
+                  right={<>
+                    <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(p.totalBill, p.currency)}</p>
+                    {p.totalBill > 0 && (due > 0
+                      ? <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(due, p.currency)} due</p>
+                      : <p className="text-xs font-semibold text-[#1F8A5B]">Paid</p>)}
+                  </>} />
+              );
+            })}
+          </Group>
 
-                {/* Programs Tab */}
-                {tab === "programs" && (
-                  <div className="space-y-2 pb-4">
-                    {programs.length === 0 ? (
-                      <div className="text-center py-10 text-slate-400">
-                        <Camera className="w-8 h-8 mx-auto mb-2 text-slate-200" />
-                        <p className="text-sm">No programs assigned yet</p>
-                      </div>
-                    ) : programs.map(p => {
-                      const sc = STATUS_CFG[p.status] ?? { label: p.status, dot: "bg-slate-400", badge: "bg-slate-100 text-slate-600" };
-                      return (
-                        <div key={p.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-900 truncate">{p.eventName ?? p.bookingNumber}</p>
-                              <p className="text-xs text-slate-400 mt-0.5">{p.clientName} · {fmtDate(p.eventDate)}</p>
-                              {p.role && (
-                                <span className="inline-block mt-1 text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium capitalize">
-                                  {p.role.replace(/_/g," ")}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-bold text-emerald-700">{formatCurrency(Number(p.totalBill))}</p>
-                              <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block", sc.badge)}>{sc.label}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+          <Group title="Payments" action={<button type="button" onClick={() => setPayOpen(true)} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#5B3FD0]"><Plus className="w-3.5 h-3.5" />Record</button>}>
+            {slips.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments recorded</span>} /> : slips.map(s => (
+              <InfoRow key={s.id}
+                left={`${MONTHS[s.month - 1]} ${s.year}`}
+                sub={[s.paidAt ? `Paid ${fmtDate(s.paidAt)}` : null, s.notes, Number(s.deductions) > 0 ? `−${formatCurrency(Number(s.deductions))} cut` : null].filter(Boolean).join(" · ")}
+                right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(s.netSalary))}</p>} />
+            ))}
+          </Group>
+
+          <Group title="Rates" action={<button type="button" onClick={() => onEdit(m)} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>
+            {m.payRateType === "monthly" && m.payRate ? (
+              <InfoRow left="Monthly salary" right={<p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(m.payRate))}<span className="text-xs font-medium text-[#6B6680]"> / month</span></p>} />
+            ) : null}
+            {rates.length === 0 && !(m.payRateType === "monthly" && m.payRate)
+              ? <InfoRow left={<span className="text-[#A29DB3]">No rates set</span>} />
+              : rates.map(r => {
+                const rc = role(r.roleId); const Icon = rc.icon;
+                return (
+                  <div key={r.roleId} className="flex items-center gap-3 px-4 py-3">
+                    <Tile icon={Icon} color={rc.tile} size={28} />
+                    <p className="flex-1 text-[15px] font-medium text-[#17151F]">{rc.label}</p>
+                    <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}<span className="text-xs font-medium text-[#6B6680]"> / {UNIT[r.rateType] ?? "program"}</span></p>
                   </div>
-                )}
+                );
+              })}
+          </Group>
 
-                {/* Payments Tab */}
-                {tab === "payments" && (
-                  <div className="pb-4 space-y-3">
-                    <button onClick={() => setAddPayOpen(true)}
-                      className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border-2 border-dashed border-indigo-200 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition-colors">
-                      <Plus className="w-4 h-4" />Add Payment Record
-                    </button>
+          <Group title="Details">
+            {m.phone && <InfoRow left={m.phone} sub="Phone / WhatsApp" />}
+            {realEmail && <InfoRow left={<span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#6B6680]" />{realEmail}</span>} sub="Gets program reminder emails" />}
+            <InfoRow left={fmtDate(m.createdAt)} sub="Joined" />
+            {m.bio && <InfoRow left={<span className="whitespace-normal">{m.bio}</span>} sub="Note" />}
+          </Group>
 
-                    {slips.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400">
-                        <Wallet className="w-8 h-8 mx-auto mb-2 text-slate-200" />
-                        <p className="text-sm">No payment records yet</p>
-                      </div>
-                    ) : slips.map(s => (
-                      <div key={s.id} className="bg-white rounded-xl p-3 border border-slate-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{MONTH_NAMES[s.month - 1]} {s.year}</p>
-                            {s.notes && <p className="text-xs text-slate-400 mt-0.5">{s.notes}</p>}
-                            {Number(s.deductions) > 0 && (
-                              <p className="text-xs text-red-500 mt-0.5">-{formatCurrency(Number(s.deductions))} deduction</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="text-base font-bold text-emerald-700">{formatCurrency(Number(s.netSalary))}</p>
-                            <div className="flex items-center gap-1 justify-end mt-0.5">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                              <span className="text-xs text-emerald-600 font-medium">Paid</span>
-                            </div>
-                            {s.paidAt && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(s.paidAt)}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {slips.length > 0 && (
-                      <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
-                        <span className="text-xs text-slate-500 font-medium">Total Paid</span>
-                        <span className="text-sm font-bold text-slate-800">{formatCurrency(stats?.totalPaid ?? 0)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ── Rate Card ── */}
-              {(member.roleRates?.length ?? 0) > 0 && (
-                <div className="px-5 py-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rate Card</p>
-                    <button onClick={() => onEdit(member)}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-                      <Edit3 className="w-3 h-3" />Edit
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {member.roleRates?.filter(r => r.rate).map(r => {
-                      const rc = roleConfig(r.roleId, customRoles);
-                      const Icon = rc.icon;
-                      const typeLabel = r.rateType === "per_program" ? "/ Program" : r.rateType === "per_day" ? "/ Day" : "/ Month";
-                      return (
-                        <div key={r.roleId} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-sm text-slate-700 font-medium">{rc.label}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-emerald-700">{formatCurrency(Number(r.rate))}</span>
-                            <span className="text-xs text-slate-400 ml-1">{typeLabel}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {member.roleRates?.every(r => !r.rate) && (
-                      <p className="text-xs text-slate-400 text-center py-2">No rates set · <button onClick={() => onEdit(member)} className="text-indigo-500 underline">Add rates</button></p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Admin Notes ── */}
-              <div className="px-5 py-4 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin Notes</p>
-                    <span className="text-xs text-slate-300">(private, member can&apos;t see)</span>
-                  </div>
-                  {savingNotes && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
-                  {notesSaved && (
-                    <span className="flex items-center gap-1 text-xs text-emerald-600">
-                      <CheckCircle2 className="w-3 h-3" />Saved
-                    </span>
-                  )}
-                </div>
-                <textarea
-                  value={notes}
-                  onChange={e => handleNotesChange(e.target.value)}
-                  rows={3}
-                  placeholder="Private notes about this member (attendance, behavior, special arrangements...)"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 resize-none"
-                />
-                <div className="flex justify-end mt-2">
-                  <button onClick={() => saveNotes(notes)} disabled={savingNotes}
-                    className="flex items-center gap-1.5 px-3 h-8 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
-                    {savingNotes ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}Save Notes
-                  </button>
-                </div>
-              </div>
-
-              {/* bottom pad */}
-              <div className="h-6" />
-            </>
-          )}
-        </div>
-      </div>
-
-      {addPayOpen && (
-        <AddPaymentModal
-          memberId={member.id}
-          onClose={() => setAddPayOpen(false)}
-          onSaved={() => { fetchProfile(); setAddPayOpen(false); }}
-        />
+          <Group title="Private notes" note="Only you and managers see these. Saved as you type."
+            action={notesState === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6B6680]" /> : notesState === "saved" ? <span className="text-xs font-semibold text-[#1F8A5B]">Saved</span> : undefined}>
+            <div className="p-3">
+              <textarea value={notes} onChange={e => onNotes(e.target.value)} rows={3} aria-label="Private notes"
+                placeholder="Attendance, behaviour, special arrangements…" className={inputCls + " h-auto py-2.5 resize-none"} />
+            </div>
+          </Group>
+        </>
       )}
-    </>
+
+      {payOpen && <PayDrawer member={m} owed={owed} onClose={() => setPayOpen(false)} onSaved={fetchProfile} />}
+    </ProfileShell>
   );
 }

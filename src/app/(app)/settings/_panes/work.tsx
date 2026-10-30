@@ -20,7 +20,7 @@ export function BookingsPane() {
           <Select label="Starting status" value={data.defaultBookingStatus ?? "inquiry"} options={STATUSES}
             onChange={v => patch({ defaultBookingStatus: v })} />
         </Row>
-        <Row id="bookingReminderDays" label="Reminder before event" hint="You get an alert this many days before">
+        <Row id="bookingReminderDays" label="Reminder before event" hint="Program reminder emails go this many days before each program day (turn them on in Notifications)">
           <NumberField label="Reminder before event" value={Number(data.bookingReminderDays ?? 3)} min={1} max={90} suffix="days"
             onCommit={v => patch({ bookingReminderDays: v })} />
         </Row>
@@ -107,6 +107,7 @@ export function NotificationsPane() {
           </Row>
         ))}
       </Group>
+      <EventRemindersGroup />
       <PaymentRemindersGroup />
       <Group title="Emails to clients" note="Sent automatically to the client's email address, if they have one.">
         {CLIENT_ROWS.map(r => (
@@ -143,6 +144,33 @@ function PaymentRemindersGroup() {
       </Row>
       <Row id="pr-maxAfter" label="Reminders after the program" hint="0 = none" disabled={!r.enabled}>
         <fieldset disabled={!r.enabled} className="contents"><NumberField label="Reminders after the program" value={r.maxAfter} min={0} max={5} suffix="times" onCommit={v => set({ maxAfter: v })} /></fieldset>
+      </Row>
+    </Group>
+  );
+}
+
+// ─── Program reminders (companies.settings → eventReminders; days = bookingReminderDays) ──
+function EventRemindersGroup() {
+  const { data, patch, studio, patchStudio } = useSettings();
+  if (!studio?.eventReminders) return null;
+  const e = studio.eventReminders;
+  const days = Number(data.bookingReminderDays ?? 3);
+  const when = days === 1 ? "the day before" : `${days} days before`;
+  const on = e.team || e.client;
+  const note = !on
+    ? "Off — no program reminder emails are sent."
+    : `Sent at 10 AM, ${when} each program day, to ${[e.team && "the team members working that day", e.client && "the client"].filter(Boolean).join(" and ")}. Only people with a real email address get it.`;
+  return (
+    <Group title="Program reminders" note={note}>
+      <Row id="er-team" label="Remind the team" hint="Each member gets their date, place, work and the client's phone">
+        <Switch label="Remind the team" on={e.team} onChange={v => patchStudio("eventReminders", { ...e, team: v })} />
+      </Row>
+      <Row id="er-client" label="Remind the client" hint="The client gets the date and place of their program">
+        <Switch label="Remind the client" on={e.client} onChange={v => patchStudio("eventReminders", { ...e, client: v })} />
+      </Row>
+      <Row id="er-days" label="How early" disabled={!on}>
+        <fieldset disabled={!on} className="contents"><NumberField label="Days before the program" value={days} min={1} max={90} suffix={days === 1 ? "day" : "days"}
+          onCommit={v => patch({ bookingReminderDays: v })} /></fieldset>
       </Row>
     </Group>
   );

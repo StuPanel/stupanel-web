@@ -1,5 +1,8 @@
 "use client";
 
+import { ClipboardList as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -127,14 +130,7 @@ export default function ChecklistPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-indigo-600" />
-            Checklist
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Manage shoot day tasks and per-program checklists</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="orchid" title="Checklist" sub={<>Manage shoot day tasks and per-program checklists</>}>
         <div className="flex gap-2">
           <button onClick={() => setView("templates")}
             className={cn("h-9 px-4 rounded-xl text-sm font-medium border transition-all",
@@ -147,7 +143,7 @@ export default function ChecklistPage() {
             By Program
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* ── Templates View ── */}
       {view === "templates" && (

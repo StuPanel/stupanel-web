@@ -1,5 +1,8 @@
 "use client";
 
+import { CircleUserRound as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect } from "react";
@@ -123,10 +126,7 @@ export default function MyAccountPage() {
 
   return (
     <div className="max-w-xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">My Account</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Manage your personal profile and password</p>
-      </div>
+      <PageHeader icon={HeaderIcon} color="deep" title="My Account" sub="Your profile and password" />
 
       {/* Identity card */}
       <div className="flex items-center gap-4 bg-white rounded-xl border border-slate-200 p-5">

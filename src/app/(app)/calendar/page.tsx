@@ -1,5 +1,8 @@
 "use client";
 
+import { CalendarDays as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -156,15 +159,11 @@ export default function CalendarPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Calendar</h1>
-          <p className="text-slate-400 text-xs mt-0.5">Program schedule</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="red" title="Calendar" sub={<>Program schedule</>}>
         <button onClick={goToday} className="text-xs px-3 h-8 rounded-lg border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 transition-colors">
           Today
         </button>
-      </div>
+      </PageHeader>
 
       {/* Month Nav */}
       <div className="flex items-center justify-between">

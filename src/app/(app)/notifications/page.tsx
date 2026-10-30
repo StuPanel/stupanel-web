@@ -1,5 +1,8 @@
 "use client";
 
+import { Bell as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -107,20 +110,8 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            Notifications
-            {highCount > 0 && (
-              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
-                {highCount}
-              </span>
-            )}
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {visible.length} active · {dismissed.size} dismissed
-          </p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="red" title="Notifications"
+        sub={<>{highCount > 0 && <span className="font-semibold text-[#C2304F]">{highCount} important · </span>}{visible.length} active · {dismissed.size} dismissed</>}>
         <div className="flex items-center gap-2">
           {visible.length > 0 && (
             <button onClick={dismissAll}
@@ -133,7 +124,7 @@ export default function NotificationsPage() {
             <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Filter tabs */}
       <div className="flex gap-1.5 flex-wrap">

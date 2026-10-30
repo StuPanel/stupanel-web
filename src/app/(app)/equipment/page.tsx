@@ -1,5 +1,8 @@
 "use client";
 
+import { Wrench as HeaderIcon } from "lucide-react";
+import { PageHeader } from "@/components/ui/apple";
+
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
@@ -113,19 +116,12 @@ export default function EquipmentPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-indigo-600" />
-            Equipment
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">Camera, lens, drone, lighting — full inventory</p>
-        </div>
+      <PageHeader icon={HeaderIcon} color="ink" title="Equipment" sub={<>Camera, lens, drone, lighting — full inventory</>}>
         <button onClick={openAdd}
           className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
           <Plus className="w-4 h-4" />Add Equipment
         </button>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       {stats && (

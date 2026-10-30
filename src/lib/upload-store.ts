@@ -9,6 +9,11 @@ export interface UploadEntry {
   bookingId: string;
   bookingName?: string;
   folderName?: string;
+  /** Resumable Drive uploads only */
+  size?: number;
+  sent?: number;
+  speed?: number; // bytes/second
+  status?: "queued" | "uploading" | "waiting" | "resuming" | "finishing" | "done" | "error" | "cancelled";
 }
 
 type Listener = (uploads: UploadEntry[]) => void;
@@ -16,6 +21,7 @@ type Listener = (uploads: UploadEntry[]) => void;
 class UploadStore {
   private map = new Map<string, UploadEntry>();
   private xhrs = new Map<string, XMLHttpRequest>();
+  private cancels = new Map<string, () => void>();
   private listeners = new Set<Listener>();
 
   subscribe(fn: Listener): () => void {
@@ -38,6 +44,10 @@ class UploadStore {
     this.xhrs.set(id, xhr);
   }
 
+  registerCancel(id: string, fn: () => void) {
+    this.cancels.set(id, fn);
+  }
+
   update(id: string, patch: Partial<UploadEntry>) {
     const e = this.map.get(id);
     if (e) { this.map.set(id, { ...e, ...patch }); this.notify(); }
@@ -46,13 +56,15 @@ class UploadStore {
   cancel(id: string) {
     const xhr = this.xhrs.get(id);
     if (xhr) { xhr.abort(); this.xhrs.delete(id); }
+    const fn = this.cancels.get(id);
+    if (fn) { fn(); this.cancels.delete(id); }
     const e = this.map.get(id);
     if (e) { this.map.set(id, { ...e, cancelled: true, error: "Cancelled" }); this.notify(); }
   }
 
   clearDone() {
     for (const [id, e] of this.map) {
-      if (e.done || e.error || e.cancelled) { this.map.delete(id); this.xhrs.delete(id); }
+      if (e.done || e.error || e.cancelled) { this.map.delete(id); this.xhrs.delete(id); this.cancels.delete(id); }
     }
     this.notify();
   }

@@ -9,9 +9,11 @@ import type { Booking } from "./types";
 
 interface WaTemplate { id: string; name: string; category: string; body: string; }
 
-export function WhatsAppModal({ booking, onClose }: {
-  booking: Booking | null;
+export function WhatsAppModal({ booking, onClose, preferCategory }: {
+  booking: Pick<Booking, "id" | "bookingNumber"> & { client?: { firstName?: string; lastName?: string | null; phone?: string | null } | null } | null;
   onClose: () => void;
+  /** Pick the first template of this category straight away (e.g. "payment_reminder"). */
+  preferCategory?: string;
 }) {
   const [templates, setTemplates] = useState<WaTemplate[]>([]);
   const [loadingTpl, setLoadingTpl] = useState(true);
@@ -26,8 +28,14 @@ export function WhatsAppModal({ booking, onClose }: {
     if (!booking) return;
     setPhone(booking.client?.phone ?? "");
     apiFetch(`${API}/wa-templates`)
-      .then(r => r.json()).then(d => { setTemplates(Array.isArray(d) ? d : []); })
+      .then(r => r.json()).then(d => {
+        const list: WaTemplate[] = Array.isArray(d) ? d : [];
+        setTemplates(list);
+        const pick = preferCategory && list.find(t => t.category === preferCategory);
+        if (pick) fillTemplate(pick.id);
+      })
       .catch(() => {}).finally(() => setLoadingTpl(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking]);
 
   async function fillTemplate(id: string) {

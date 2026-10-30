@@ -9,10 +9,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell, CalendarDays, AlertTriangle, Clock, DollarSign, Plus,
-  Loader2, RefreshCw, CheckCheck, ChevronRight, Layers,
+  Loader2, RefreshCw, CheckCheck, ChevronRight, Layers, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { WhatsAppModal } from "../programs/_components/whatsapp-modal";
 
 
 const DISMISSED_KEY = "notif_dismissed";
@@ -31,6 +32,7 @@ function markSeen(ids: string[]) {
 interface Notif {
   id: string; type: string; priority: "high" | "medium" | "low";
   title: string; body: string; bookingId: string; bookingNumber: string; createdAt: string;
+  client?: { firstName: string; lastName?: string | null; phone?: string | null };
 }
 interface NotifResponse { total: number; unread: number; items: Notif[]; }
 
@@ -62,6 +64,7 @@ export default function NotificationsPage() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [waFor, setWaFor] = useState<Notif | null>(null);
 
   useEffect(() => { setDismissed(getDismissed()); }, []);
 
@@ -201,6 +204,12 @@ export default function NotificationsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    {n.type === "payment" && n.client && (
+                      <button onClick={() => setWaFor(n)}
+                        className="flex items-center gap-1 h-7 px-2.5 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] text-xs font-semibold text-white transition-colors">
+                        <MessageCircle className="w-3 h-3" /> WhatsApp
+                      </button>
+                    )}
                     <button
                       onClick={() => router.push("/programs")}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white/80 hover:bg-white border border-white/50 text-xs font-medium text-slate-700 transition-colors shadow-sm">
@@ -229,6 +238,8 @@ export default function NotificationsPage() {
           ))}
         </div>
       )}
+      <WhatsAppModal preferCategory="payment_reminder" onClose={() => setWaFor(null)}
+        booking={waFor ? { id: waFor.bookingId, bookingNumber: waFor.bookingNumber, client: waFor.client } : null} />
     </div>
   );
 }

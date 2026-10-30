@@ -107,6 +107,7 @@ export function NotificationsPane() {
           </Row>
         ))}
       </Group>
+      <PaymentRemindersGroup />
       <Group title="Emails to clients" note="Sent automatically to the client's email address, if they have one.">
         {CLIENT_ROWS.map(r => (
           <Row key={r.key} id={`n-${r.key}`} label={r.label} hint={r.hint}>
@@ -115,5 +116,34 @@ export function NotificationsPane() {
         ))}
       </Group>
     </>
+  );
+}
+
+// ─── Payment reminders (companies.settings → paymentReminders) ────────────────
+function PaymentRemindersGroup() {
+  const { studio, patchStudio } = useSettings();
+  if (!studio?.paymentReminders) return null;
+  const r = studio.paymentReminders;
+  const set = (p: Partial<typeof r>) => patchStudio("paymentReminders", { ...r, ...p });
+  const plan = !r.enabled
+    ? "Off — no reminder emails go to clients. You can still send a WhatsApp reminder from the Notifications page."
+    : `If money is still due, the client gets an email ${r.daysBefore} day${r.daysBefore > 1 ? "s" : ""} before the program`
+      + (r.maxAfter > 0 ? `, then every ${r.afterEveryDays} day${r.afterEveryDays > 1 ? "s" : ""} after it (up to ${r.maxAfter} time${r.maxAfter > 1 ? "s" : ""}).` : ".")
+      + " Sent at 10 AM, only to clients who have an email address.";
+  return (
+    <Group title="Payment reminders" note={plan}>
+      <Row id="pr-enabled" label="Remind clients about due payments" hint="Automatic email when a program still has money due">
+        <Switch label="Remind clients about due payments" on={r.enabled} onChange={v => set({ enabled: v })} />
+      </Row>
+      <Row id="pr-daysBefore" label="Before the program" disabled={!r.enabled}>
+        <fieldset disabled={!r.enabled} className="contents"><NumberField label="Days before the program" value={r.daysBefore} min={1} max={30} suffix="days" onCommit={v => set({ daysBefore: v })} /></fieldset>
+      </Row>
+      <Row id="pr-afterEveryDays" label="After the program, every" disabled={!r.enabled || r.maxAfter === 0}>
+        <fieldset disabled={!r.enabled || r.maxAfter === 0} className="contents"><NumberField label="Days between reminders after the program" value={r.afterEveryDays} min={1} max={30} suffix="days" onCommit={v => set({ afterEveryDays: v })} /></fieldset>
+      </Row>
+      <Row id="pr-maxAfter" label="Reminders after the program" hint="0 = none" disabled={!r.enabled}>
+        <fieldset disabled={!r.enabled} className="contents"><NumberField label="Reminders after the program" value={r.maxAfter} min={0} max={5} suffix="times" onCommit={v => set({ maxAfter: v })} /></fieldset>
+      </Row>
+    </Group>
   );
 }

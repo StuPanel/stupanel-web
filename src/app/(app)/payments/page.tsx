@@ -4,11 +4,11 @@ import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Plus, Search, Filter, CreditCard, Loader2, X, AlertTriangle,
-  Edit3, Trash2, ChevronLeft, ChevronRight, Banknote, Smartphone,
+  Plus, Search, CreditCard, Loader2, X, AlertTriangle, MoreHorizontal,
+  Edit3, Trash2, Banknote, Smartphone,
   Building2, CheckCircle2, TrendingUp, Calendar, FileText,
 } from "lucide-react";
-import { TableSkeleton } from "@/components/ui/page-skeleton";
+import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,23 +50,23 @@ interface Stats {
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-const METHOD_CONFIG: Record<PaymentMethod, { label: string; icon: React.ElementType; bg: string; text: string }> = {
-  cash:           { label: "Cash",           icon: Banknote,    bg: "bg-emerald-100", text: "text-emerald-700" },
-  bank_transfer:  { label: "Bank Transfer",  icon: Building2,   bg: "bg-blue-100",    text: "text-blue-700" },
-  mobile_banking: { label: "Mobile Banking", icon: Smartphone,  bg: "bg-violet-100",  text: "text-violet-700" },
-  credit_card:    { label: "Credit Card",    icon: CreditCard,  bg: "bg-pink-100",    text: "text-pink-700" },
-  debit_card:     { label: "Debit Card",     icon: CreditCard,  bg: "bg-indigo-100",  text: "text-indigo-700" },
-  cheque:         { label: "Cheque",         icon: FileText,    bg: "bg-orange-100",  text: "text-orange-700" },
-  online_gateway: { label: "Online",         icon: TrendingUp,  bg: "bg-cyan-100",    text: "text-cyan-700" },
-  other:          { label: "Other",          icon: CreditCard,  bg: "bg-slate-100",   text: "text-slate-600" },
+const METHOD_CONFIG: Record<PaymentMethod, { label: string; icon: React.ElementType; tile: string }> = {
+  cash:           { label: "Cash",           icon: Banknote,    tile: "green" },
+  bank_transfer:  { label: "Bank transfer",  icon: Building2,   tile: "blue" },
+  mobile_banking: { label: "Mobile banking", icon: Smartphone,  tile: "orchid" },
+  credit_card:    { label: "Credit card",    icon: CreditCard,  tile: "deep" },
+  debit_card:     { label: "Debit card",     icon: CreditCard,  tile: "violet" },
+  cheque:         { label: "Cheque",         icon: FileText,    tile: "ink" },
+  online_gateway: { label: "Online",         icon: TrendingUp,  tile: "teal" },
+  other:          { label: "Other",          icon: CreditCard,  tile: "ink" },
 };
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; bg: string; text: string }> = {
-  pending:              { label: "Pending",    bg: "bg-yellow-100", text: "text-yellow-700" },
-  completed:            { label: "Completed",  bg: "bg-emerald-100",text: "text-emerald-700" },
-  failed:               { label: "Failed",     bg: "bg-red-100",    text: "text-red-700" },
-  refunded:             { label: "Refunded",   bg: "bg-slate-100",  text: "text-slate-600" },
-  partially_refunded:   { label: "Part. Refunded", bg: "bg-orange-100", text: "text-orange-700" },
+  pending:            { label: "Pending",        bg: "#FBF2FA", text: "#9E3A8C" },
+  completed:          { label: "Received",       bg: "#E9F5EF", text: "#1F8A5B" },
+  failed:             { label: "Failed",         bg: "#FDECEF", text: "#C2304F" },
+  refunded:           { label: "Refunded",       bg: "#EEEDF2", text: "#4A4658" },
+  partially_refunded: { label: "Part. refunded", bg: "#FBF2FA", text: "#9E3A8C" },
 };
 
 const PAYMENT_TYPES = [
@@ -79,7 +79,7 @@ const PAYMENT_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-import { formatCurrency, localDateStr } from "@/lib/format";
+import { formatCurrency, localDateStr, fmtDate } from "@/lib/format";
 function fmt(n: number, cur = "BDT") { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return localDateStr(); }
@@ -390,165 +390,65 @@ function DeleteDialog({
   );
 }
 
-// ─── Payment Row (Table) ─────────────────────────────────────────────────────
+// ─── Payment row (Apple style) ──────────────────────────────────────────────
 
-function PaymentRow({
+function PaymentListRow({
   payment, onEdit, onDelete,
 }: { payment: Payment; onEdit: (p: Payment) => void; onDelete: (p: Payment) => void; }) {
-  const M = METHOD_CONFIG[payment.paymentMethod];
-  const S = STATUS_CONFIG[payment.paymentStatus];
-  const MIcon = M.icon;
-  const dateStr = new Date(payment.paymentDate).toLocaleDateString("en-US", { dateStyle: "medium" });
-
+  const M = METHOD_CONFIG[payment.paymentMethod] ?? METHOD_CONFIG.other;
+  const S = STATUS_CONFIG[payment.paymentStatus] ?? STATUS_CONFIG.completed;
+  const dateStr = fmtDate(payment.paymentDate);
+  const type = payment.paymentType.replace("_", " ");
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-      <td className="py-3 px-4">
-        <p className="text-sm font-semibold text-slate-900">{fmt(payment.amount, payment.currency)}</p>
-        <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium mt-1", S.bg, S.text)}>
-          {S.label}
-        </span>
-      </td>
-      <td className="py-3 px-4 hidden sm:table-cell">
-        <div>
-          <p className="text-xs font-mono text-slate-400">{payment.booking.bookingNumber}</p>
-          <p className="text-sm text-slate-700 truncate max-w-[160px]">{payment.booking.eventName || "Untitled"}</p>
-          <p className="text-xs text-slate-400">{clientName(payment.client)}</p>
-        </div>
-      </td>
-      <td className="py-3 px-4 hidden md:table-cell">
-        <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium", M.bg, M.text)}>
-          <MIcon className="w-3.5 h-3.5" />{M.label}
-        </span>
-      </td>
-      <td className="py-3 px-4 hidden lg:table-cell">
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          <Calendar className="w-3.5 h-3.5" />{dateStr}
-        </div>
-        {payment.referenceNumber && (
-          <p className="text-xs text-slate-400 mt-0.5">Ref: {payment.referenceNumber}</p>
-        )}
-      </td>
-      <td className="py-3 px-4 hidden lg:table-cell">
-        <span className="text-xs text-slate-500 capitalize">{payment.paymentType.replace("_", " ")}</span>
-      </td>
-      <td className="py-3 px-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-              <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem className="gap-2 text-sm" onClick={() => onEdit(payment)}>
-              <Edit3 className="w-4 h-4" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-sm text-red-600" onClick={() => onDelete(payment)}>
-              <Trash2 className="w-4 h-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </td>
-    </tr>
-  );
-}
-
-// ─── Payment Card (Mobile) ───────────────────────────────────────────────────
-
-function PaymentCard({
-  payment, onEdit, onDelete,
-}: { payment: Payment; onEdit: (p: Payment) => void; onDelete: (p: Payment) => void; }) {
-  const M = METHOD_CONFIG[payment.paymentMethod];
-  const S = STATUS_CONFIG[payment.paymentStatus];
-  const MIcon = M.icon;
-  const dateStr = new Date(payment.paymentDate).toLocaleDateString("en-US", { dateStyle: "medium" });
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <p className="font-bold text-slate-900 text-lg leading-none">{fmt(payment.amount, payment.currency)}</p>
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium", M.bg, M.text)}>
-              <MIcon className="w-3 h-3" />{M.label}
-            </span>
-            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", S.bg, S.text)}>
-              {S.label}
-            </span>
-          </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem className="gap-2 text-sm" onClick={() => onEdit(payment)}><Edit3 className="w-4 h-4" /> Edit</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-sm text-red-600" onClick={() => onDelete(payment)}><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div role="button" tabIndex={0} onClick={() => onEdit(payment)} onKeyDown={e => { if (e.key === "Enter") onEdit(payment); }}
+      className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+      <Tile icon={M.icon} color={M.tile} size={36} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#17151F] truncate">{payment.booking.eventName || payment.booking.bookingNumber}</p>
+        <p className="text-xs text-[#6B6680] truncate mt-0.5">
+          {clientName(payment.client)} · {M.label} · <span className="capitalize">{type}</span>
+          {payment.referenceNumber ? ` · Ref ${payment.referenceNumber}` : ""}
+        </p>
       </div>
-
-      <div className="space-y-1 border-t border-slate-100 pt-3">
-        <div className="flex items-center gap-2">
-          <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-          <span className="text-xs font-mono text-slate-400">{payment.booking.bookingNumber}</span>
-          <span className="text-xs text-slate-600 truncate">{payment.booking.eventName || "Untitled"}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-          <span className="text-xs text-slate-500">{dateStr}</span>
-          <span className="text-xs text-slate-400 capitalize">· {payment.paymentType.replace("_", " ")}</span>
-        </div>
-        {payment.referenceNumber && (
-          <p className="text-xs text-slate-400">Ref: {payment.referenceNumber}</p>
-        )}
+      <div className="text-right flex-shrink-0">
+        <p className={cn("text-sm font-bold tabular-nums", payment.paymentType === "refund" ? "text-[#C2304F]" : "text-[#1F8A5B]")}>
+          {payment.paymentType === "refund" ? "−" : "+"}{fmt(payment.amount, payment.currency)}
+        </p>
+        <p className="text-xs text-[#6B6680]">{dateStr}</p>
+      </div>
+      {payment.paymentStatus !== "completed" && (
+        <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: S.bg, color: S.text }}>{S.label}</span>
+      )}
+      <div onClick={e => e.stopPropagation()} className="flex-shrink-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button aria-label="More" className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 rounded-[16px] p-1">
+            <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px]" onClick={() => onEdit(payment)}><Edit3 className="w-4 h-4" /> Edit</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px] text-[#C2304F]" onClick={() => onDelete(payment)}><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
 }
 
-// ─── Stats Cards ──────────────────────────────────────────────────────────────
+// ─── Numbers ──────────────────────────────────────────────────────────────────
 
 function StatsRow({ stats, currency = "BDT" }: { stats: Stats; currency?: string }) {
-  const topMethod = stats.methodBreakdown.sort((a, b) => b.total - a.total)[0];
-
+  const topMethod = [...stats.methodBreakdown].sort((a, b) => b.total - a.total)[0];
+  const top = topMethod ? METHOD_CONFIG[topMethod.method as PaymentMethod] : null;
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <p className="text-xs text-slate-400 font-medium">Total Collected</p>
-        <p className="text-xl font-bold text-slate-900 mt-1">{fmt(stats.totalCollected, currency)}</p>
-        <p className="text-xs text-slate-400 mt-1">All time</p>
-      </div>
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <p className="text-xs text-slate-400 font-medium">This Month</p>
-        <p className="text-xl font-bold text-emerald-600 mt-1">{fmt(stats.thisMonth, currency)}</p>
-        <p className="text-xs text-slate-400 mt-1">{new Date().toLocaleString("en-US", { month: "long" })}</p>
-      </div>
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <p className="text-xs text-slate-400 font-medium">Top Method</p>
-        {topMethod ? (
-          <>
-            <p className="text-base font-bold text-slate-900 mt-1 capitalize">{METHOD_CONFIG[topMethod.method as PaymentMethod]?.label ?? topMethod.method}</p>
-            <p className="text-xs text-slate-400 mt-1">{topMethod.count} {topMethod.count === 1 ? "payment" : "payments"}</p>
-          </>
-        ) : (
-          <p className="text-slate-300 text-sm mt-1">—</p>
-        )}
-      </div>
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <p className="text-xs text-slate-400 font-medium">Transactions</p>
-        <p className="text-xl font-bold text-slate-900 mt-1">
-          {stats.methodBreakdown.reduce((a, m) => a + m.count, 0)}
-        </p>
-        <p className="text-xs text-slate-400 mt-1">Recorded</p>
-      </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
+      <StatCard icon={Banknote} color="green" label="Total received" value={fmt(stats.totalCollected, currency)} sub="All time" />
+      <StatCard icon={Calendar} color="violet" label="This month" value={fmt(stats.thisMonth, currency)} sub={new Date().toLocaleString("en-US", { month: "long" })} />
+      <StatCard icon={top?.icon ?? CreditCard} color={top?.tile ?? "ink"} label="Most used" value={top?.label ?? "—"}
+        sub={topMethod ? `${topMethod.count} payment${topMethod.count === 1 ? "" : "s"}` : "No payments yet"} />
+      <StatCard icon={FileText} color="blue" label="Payments" value={String(stats.methodBreakdown.reduce((a, m) => a + m.count, 0))} sub="Recorded" />
     </div>
   );
 }
@@ -617,113 +517,34 @@ export default function PaymentsPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-[1180px]">
+      <PageHeader icon={CreditCard} color="green" title="Payments"
+        sub={total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search payments" />
+        <MainButton icon={Plus} onClick={openNew}>Record payment</MainButton>
+      </PageHeader>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Payments</h1>
-          <p className="text-slate-400 text-xs mt-0.5">{total} total transactions</p>
-        </div>
-        <Button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Record Payment</span>
-        </Button>
-      </div>
-
-      {/* Stats */}
       <StatsRow stats={stats} />
 
-      {/* Toolbar */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search payments…"
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm bg-white border-slate-200" />
-        </div>
+      <Chips label="Filter by method" value={methodFilter || "all"} onChange={v => setMethodFilter(v === "all" ? "" : v)}
+        options={[{ value: "all", label: "All methods" }, ...Object.entries(METHOD_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))]} />
 
-        {/* Method filter */}
-        <select value={methodFilter} onChange={e => setMethodFilter(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 focus:outline-none focus:border-indigo-400 cursor-pointer flex-shrink-0">
-          <option value="">All Methods</option>
-          {Object.entries(METHOD_CONFIG).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
-
-        <Button variant="outline" size="sm" className="gap-1.5 border-slate-200 text-slate-600 h-9 flex-shrink-0">
-          <Filter className="w-4 h-4" />
-          <span className="hidden sm:inline">Filter</span>
-        </Button>
-      </div>
-
-      {/* Content */}
       {loading ? (
-        <TableSkeleton rows={6} />
+        <RowsSkeleton n={6} />
       ) : payments.length === 0 ? (
-        <div className="text-center py-16">
-          <CreditCard className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm font-medium">No payments found</p>
-          <p className="text-slate-300 text-xs mt-1">
-            {search ? "Try a different search" : "Record your first payment to get started"}
-          </p>
-          {!search && (
-            <Button onClick={openNew} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-              <Plus className="w-4 h-4" /> Record Payment
-            </Button>
-          )}
-        </div>
+        search || methodFilter ? (
+          <EmptyState icon={Search} title={search ? `No payments match "${search}"` : "No payments with this method"} text="Try another word or method." />
+        ) : (
+          <EmptyState icon={CreditCard} title="No payments yet" text="Record the first payment from a client."
+            action={<MainButton icon={Plus} onClick={openNew}>Record payment</MainButton>} />
+        )
       ) : (
-        <>
-          {/* Table — sm+ */}
-          <div className="hidden sm:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Booking</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Method</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Date</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Type</th>
-                    <th className="py-3 px-4 w-10" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map(p => (
-                    <PaymentRow key={p.id} payment={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Cards — mobile */}
-          <div className="sm:hidden space-y-3">
-            {payments.map(p => (
-              <PaymentCard key={p.id} payment={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-1">
-              <p className="text-xs text-slate-400">Page {page} of {totalPages} · {total} records</p>
-              <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                  className="h-8 w-8 p-0 border-slate-200">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                  className="h-8 w-8 p-0 border-slate-200">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+        <Group>
+          {payments.map(p => <PaymentListRow key={p.id} payment={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} />)}
+        </Group>
       )}
+
+      <Pager page={page} pages={totalPages} onChange={setPage} />
 
       {/* Drawers */}
       <PaymentDrawer

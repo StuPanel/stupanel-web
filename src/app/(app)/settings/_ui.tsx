@@ -9,6 +9,7 @@
 import { createContext, useContext, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tile } from "@/components/ui/apple";
 
 // ─── Save context ─────────────────────────────────────────────────────────────
 export type SaveState = "idle" | "saving" | "saved" | "error";
@@ -21,15 +22,8 @@ type Ctx = { data: Company; patch: Patch; state: SaveState };
 export const SettingsCtx = createContext<Ctx>({ data: {}, patch: async () => false, state: "idle" });
 export const useSettings = () => useContext(SettingsCtx);
 
-// ─── Icon tile ────────────────────────────────────────────────────────────────
-export function Tile({ icon: Icon, color, size = 28 }: { icon: React.ElementType; color: string; size?: number }) {
-  return (
-    <span className="inline-flex items-center justify-center flex-shrink-0 shadow-[inset_0_-1px_0_rgba(0,0,0,.12)]"
-      style={{ width: size, height: size, borderRadius: size * 0.28, background: color }}>
-      <Icon className="text-white" style={{ width: size * 0.56, height: size * 0.56 }} strokeWidth={2.2} />
-    </span>
-  );
-}
+// ─── Icon tile (shared, see components/ui/apple.tsx) ─────────────────────────
+export { Tile } from "@/components/ui/apple";
 
 // ─── Pane header ──────────────────────────────────────────────────────────────
 export function PaneHeader({ icon, color, title, sub, onBack }: {

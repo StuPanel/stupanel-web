@@ -15,49 +15,50 @@ import { API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
 import { StudioLogo } from "@/components/studio-logo";
+import { Tile, type TileColor } from "@/components/ui/apple";
 
 export const navigation = [
   {
     title: "Main",
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Programs", href: "/programs", icon: Camera },
-      { name: "Calendar", href: "/calendar", icon: CalendarDays },
-      { name: "Chat", href: "/chat", icon: MessageCircle },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "violet" as TileColor },
+      { name: "Programs", href: "/programs", icon: Camera, color: "deep" as TileColor },
+      { name: "Calendar", href: "/calendar", icon: CalendarDays, color: "red" as TileColor },
+      { name: "Chat", href: "/chat", icon: MessageCircle, color: "green" as TileColor },
     ],
   },
   {
     title: "Studio",
     items: [
-      { name: "Clients", href: "/clients", icon: Users },
-      { name: "Referrals", href: "/referrals", icon: Handshake },
-      { name: "Quotes", href: "/quotes", icon: FileText },
-      { name: "Invoices", href: "/invoices", icon: Receipt },
-      { name: "Payments", href: "/payments", icon: CreditCard },
-      { name: "Team", href: "/team", icon: UserCog },
-      { name: "Packages", href: "/packages", icon: Package },
-      { name: "Delivery", href: "/delivery", icon: ImageIcon },
+      { name: "Clients", href: "/clients", icon: Users, color: "blue" as TileColor },
+      { name: "Referrals", href: "/referrals", icon: Handshake, color: "teal" as TileColor },
+      { name: "Quotes", href: "/quotes", icon: FileText, color: "deep" as TileColor },
+      { name: "Invoices", href: "/invoices", icon: Receipt, color: "orchid" as TileColor },
+      { name: "Payments", href: "/payments", icon: CreditCard, color: "green" as TileColor },
+      { name: "Team", href: "/team", icon: UserCog, color: "blue" as TileColor },
+      { name: "Packages", href: "/packages", icon: Package, color: "violet" as TileColor },
+      { name: "Delivery", href: "/delivery", icon: ImageIcon, color: "teal" as TileColor },
     ],
   },
   {
     title: "Tools",
     items: [
-      { name: "Checklist", href: "/checklist", icon: ClipboardList },
-      { name: "Equipment", href: "/equipment", icon: Wrench },
-      { name: "Salary", href: "/salary", icon: Banknote },
-      { name: "Expenses", href: "/expenses", icon: Wallet },
+      { name: "Checklist", href: "/checklist", icon: ClipboardList, color: "orchid" as TileColor },
+      { name: "Equipment", href: "/equipment", icon: Wrench, color: "ink" as TileColor },
+      { name: "Salary", href: "/salary", icon: Banknote, color: "green" as TileColor },
+      { name: "Expenses", href: "/expenses", icon: Wallet, color: "red" as TileColor },
     ],
   },
   {
     title: "Manage",
     items: [
-      { name: "Reports", href: "/reports", icon: BarChart3 },
-      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText },
-      { name: "Notifications", href: "/notifications", icon: Bell },
-      { name: "Support", href: "/support", icon: LifeBuoy },
-      { name: "Plan & Billing", href: "/billing", icon: Crown },
-      { name: "Settings", href: "/settings", icon: Settings },
-      { name: "My Account", href: "/account", icon: CircleUserRound },
+      { name: "Reports", href: "/reports", icon: BarChart3, color: "blue" as TileColor },
+      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText, color: "green" as TileColor },
+      { name: "Notifications", href: "/notifications", icon: Bell, color: "red" as TileColor },
+      { name: "Support", href: "/support", icon: LifeBuoy, color: "teal" as TileColor },
+      { name: "Plan & Billing", href: "/billing", icon: Crown, color: "violet" as TileColor },
+      { name: "Settings", href: "/settings", icon: Settings, color: "ink" as TileColor },
+      { name: "My Account", href: "/account", icon: CircleUserRound, color: "deep" as TileColor },
     ],
   },
 ];
@@ -155,13 +156,13 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-4", wide ? "px-3" : "px-2")}>
+      <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-3.5", wide ? "px-2.5" : "px-2")}>
         {navigation.map((group) => (
           <div key={group.title}>
             {wide
-              ? <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.08em] px-2.5 mb-1.5">{group.title}</p>
+              ? <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
               : <div className="h-px bg-slate-100 mx-2 mb-2" />}
-            <ul className="space-y-0.5">
+            <ul className="space-y-px">
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
@@ -171,18 +172,13 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
                       title={collapsed ? item.name : undefined}
                       onClick={isMobile ? onClose : undefined}
                       className={cn(
-                        "group relative flex items-center rounded-xl text-sm font-medium transition-colors",
-                        wide ? "gap-3 px-2.5 py-2" : "justify-center p-2.5",
-                        isActive ? "bg-violet-50 text-violet-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        "group relative flex items-center rounded-[12px] text-sm transition-colors",
+                        wide ? "gap-3 px-2 h-10" : "justify-center p-1.5",
+                        isActive ? "bg-[#EEE8FD] text-[#5B3FD0] font-bold" : "text-[#17151F] font-medium hover:bg-[#F5F3FA]"
                       )}
                     >
-                      {isActive && wide && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-violet-600" />}
-                      <span className={cn(
-                        "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                        isActive ? "bg-violet-600 text-white shadow-sm shadow-violet-600/30" : "text-slate-400 group-hover:text-violet-600"
-                      )}>
-                        <item.icon className="w-[17px] h-[17px]" />
-                      </span>
+                      <Tile icon={item.icon} color={item.color} size={wide ? 26 : 30}
+                        className={cn("transition-transform", !isActive && "group-hover:scale-105")} />
                       {wide && <span className="flex-1 truncate">{item.name}</span>}
                       {item.href === "/chat" && chatUnread > 0 && !isActive && (
                         wide

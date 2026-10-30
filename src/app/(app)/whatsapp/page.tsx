@@ -132,7 +132,7 @@ function TemplateForm({ initial, onSave, onCancel }: {
           placeholder={`Assalamu Alaikum {{clientName}} bhai/apu,\n\nApnar booking confirm hoyeche! 🎉\n\nBooking: {{bookingNumber}}\nEvent: {{eventName}}\nDate: {{eventDate}}\nLocation: {{eventLocation}}\nPackage: {{package}}\n\nTotal: {{totalAmount}}\nPaid: {{paidAmount}}\nDue: {{dueAmount}}\n\nThank you for choosing {{companyName}}! 🙏`}
           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 resize-y font-mono leading-relaxed"
         />
-        <p className="text-xs text-slate-400 flex items-center gap-1">
+        <p className="text-xs text-[#6B6680] flex items-center gap-1">
           <Info className="w-3 h-3" />{body.length} characters · Variables will be auto-filled when sending
         </p>
       </div>
@@ -212,7 +212,7 @@ export default function WhatsAppPage() {
       {/* Header */}
       <PageHeader icon={HeaderIcon} color="green" title="WhatsApp Templates" sub={<>{templates.length} templates · Send to clients from Programs page</>}>
         {!showForm && !editing && (
-          <Button onClick={() => setShowForm(true)} className="h-9 bg-green-600 hover:bg-green-700 text-white gap-2 text-sm">
+          <Button onClick={() => setShowForm(true)} className="h-10 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white gap-2 text-sm font-semibold">
             <Plus className="w-4 h-4" />New Template
           </Button>
         )}
@@ -229,8 +229,8 @@ export default function WhatsAppPage() {
 
       {/* Create/Edit form */}
       {(showForm || editing) && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h3 className="font-bold text-slate-900 mb-4">{editing ? "Edit Template" : "New Template"}</h3>
+        <div className="bg-white rounded-[20px] p-5 shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+          <h3 className="font-bold text-[#17151F] mb-4">{editing ? "Edit Template" : "New Template"}</h3>
           <TemplateForm
             initial={editing ?? undefined}
             onSave={onSaved}
@@ -243,14 +243,14 @@ export default function WhatsAppPage() {
       {!loading && templates.length > 0 && (
         <div className="flex gap-1.5 flex-wrap">
           <button onClick={() => setCategoryFilter("all")}
-            className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all",
-              categoryFilter === "all" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200")}>
+            className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold transition-colors whitespace-nowrap",
+              categoryFilter === "all" ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
             All · {templates.length}
           </button>
           {CATEGORIES.filter(c => templates.some(t => t.category === c.key)).map(c => (
             <button key={c.key} onClick={() => setCategoryFilter(c.key)}
-              className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all",
-                categoryFilter === c.key ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200")}>
+              className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold transition-colors whitespace-nowrap",
+                categoryFilter === c.key ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
               {c.label} · {templates.filter(t => t.category === c.key).length}
             </button>
           ))}
@@ -262,10 +262,10 @@ export default function WhatsAppPage() {
 
       {/* Empty */}
       {!loading && templates.length === 0 && !showForm && (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
+        <div className="text-center py-16 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
           <MessageCircle className="sp-empty-icon" />
           <p className="font-semibold text-slate-600 mb-1">No templates yet</p>
-          <p className="text-sm text-slate-400 mb-4">Create your first WhatsApp message template</p>
+          <p className="text-sm text-[#6B6680] mb-4">Create your first WhatsApp message template</p>
           <div className="flex items-center justify-center gap-2">
             <Button onClick={() => setShowForm(true)} className="bg-green-600 hover:bg-green-700 text-white gap-2 text-sm">
               <Plus className="w-4 h-4" />Create First Template
@@ -284,25 +284,25 @@ export default function WhatsAppPage() {
           <div key={cat} className="space-y-2">
             <div className="flex items-center gap-2">
               <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", cc.color)}>{cc.label}</span>
-              <span className="text-xs text-slate-400">· {items.length}</span>
+              <span className="text-xs text-[#6B6680]">· {items.length}</span>
             </div>
             {items.map(t => (
-              <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <div key={t.id} className="bg-white rounded-[20px] p-4 shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-900 text-sm">{t.name}</p>
+                    <p className="font-bold text-[#17151F] text-sm">{t.name}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => copyBody(t)} title="Copy body"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-[#6B6680] hover:text-slate-600 transition-colors">
                       {copiedId === t.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <button onClick={() => { setEditing(t); setShowForm(false); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors">
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-[#6B6680] hover:text-blue-600 transition-colors">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => del(t.id)} disabled={deleting === t.id}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#6B6680] hover:text-red-500 transition-colors">
                       {deleting === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   </div>

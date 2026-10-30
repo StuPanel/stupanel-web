@@ -115,12 +115,12 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-2">
           {visible.length > 0 && (
             <button onClick={dismissAll}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white text-xs font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] transition-colors">
               <CheckCheck className="w-3.5 h-3.5" />Clear all
             </button>
           )}
           <button onClick={() => fetchData(true)} disabled={refreshing}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] transition-colors">
             <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
           </button>
         </div>
@@ -135,10 +135,9 @@ export default function NotificationsPage() {
           if (tab.key !== "all" && count === 0) return null;
           return (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
-              className={cn("h-7 px-3 rounded-full text-xs font-medium border transition-all",
+              className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold transition-colors whitespace-nowrap",
                 filter === tab.key
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300")}>
+                  ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
               {tab.label} · {count}
             </button>
           );
@@ -147,12 +146,12 @@ export default function NotificationsPage() {
 
       {/* Empty state */}
       {visible.length === 0 && (
-        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-2xl">
+        <div className="text-center py-20 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
           <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
             <CheckCheck className="w-7 h-7 text-emerald-500" />
           </div>
           <p className="font-semibold text-slate-700">All clear!</p>
-          <p className="text-sm text-slate-400 mt-1">No active notifications</p>
+          <p className="text-sm text-[#6B6680] mt-1">No active notifications</p>
           <button onClick={() => fetchData(true)}
             className="mt-4 flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-600 mx-auto">
             <RefreshCw className="w-3.5 h-3.5" />Refresh
@@ -171,10 +170,10 @@ export default function NotificationsPage() {
               <div className={cn("w-5 h-5 rounded-md flex items-center justify-center", cfg.bg)}>
                 <Icon className={cn("w-3 h-3", cfg.iconColor)} />
               </div>
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[#6B6680] uppercase tracking-wider">
                 {TYPE_LABEL[type] ?? type}
               </span>
-              <span className="text-xs text-slate-400">· {items.length}</span>
+              <span className="text-xs text-[#6B6680]">· {items.length}</span>
             </div>
 
             {/* Items */}
@@ -195,9 +194,9 @@ export default function NotificationsPage() {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900">{n.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
-                    <span className="inline-block mt-1.5 text-xs font-mono text-slate-400 bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>
+                    <p className="text-sm font-bold text-[#17151F]">{n.title}</p>
+                    <p className="text-xs text-[#6B6680] mt-0.5 leading-relaxed">{n.body}</p>
+                    <span className="inline-block mt-1.5 text-xs font-mono text-[#6B6680] bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>
                   </div>
 
                   {/* Actions */}
@@ -208,7 +207,7 @@ export default function NotificationsPage() {
                       View <ChevronRight className="w-3 h-3" />
                     </button>
                     <button onClick={() => dismiss(n.id)}
-                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors px-1">
+                      className="text-xs text-[#6B6680] hover:text-slate-600 transition-colors px-1">
                       Dismiss
                     </button>
                   </div>
@@ -225,7 +224,7 @@ export default function NotificationsPage() {
           {Object.entries(PRIORITY_DOT).map(([p, color]) => (
             <div key={p} className="flex items-center gap-1.5">
               <span className={cn("w-2 h-2 rounded-full", color)} />
-              <span className="text-xs text-slate-400 capitalize">{p} priority</span>
+              <span className="text-xs text-[#6B6680] capitalize">{p} priority</span>
             </div>
           ))}
         </div>

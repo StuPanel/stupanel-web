@@ -133,13 +133,13 @@ export default function ChecklistPage() {
       <PageHeader icon={HeaderIcon} color="orchid" title="Checklist" sub={<>Manage shoot day tasks and per-program checklists</>}>
         <div className="flex gap-2">
           <button onClick={() => setView("templates")}
-            className={cn("h-9 px-4 rounded-xl text-sm font-medium border transition-all",
-              view === "templates" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200")}>
+            className={cn("h-10 px-4 rounded-full text-sm font-semibold transition-colors",
+              view === "templates" ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
             Templates
           </button>
           <button onClick={() => setView("program")}
-            className={cn("h-9 px-4 rounded-xl text-sm font-medium border transition-all",
-              view === "program" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200")}>
+            className={cn("h-10 px-4 rounded-full text-sm font-semibold transition-colors",
+              view === "program" ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
             By Program
           </button>
         </div>
@@ -149,9 +149,9 @@ export default function ChecklistPage() {
       {view === "templates" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Default tasks auto-assigned to every new program checklist</p>
+            <p className="text-sm text-[#6B6680]">Default tasks auto-assigned to every new program checklist</p>
             <button onClick={() => setAddingFor("template")}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
+              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors">
               <Plus className="w-4 h-4" />Add Task
             </button>
           </div>
@@ -166,18 +166,18 @@ export default function ChecklistPage() {
                   options={CATEGORIES.map(c => ({ value: c.key, label: c.label }))}
                   className="h-10 rounded-xl border-indigo-200" />
               </div>
-              <button onClick={addItem} className="h-10 px-4 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">Save</button>
-              <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-slate-400" /></button>
+              <button onClick={addItem} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold">Save</button>
+              <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-[#6B6680]" /></button>
             </div>
           )}
 
           {loading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
           ) : templates.length === 0 ? (
-            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
+            <div className="text-center py-16 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
               <ClipboardList className="sp-empty-icon" />
-              <p className="text-slate-500 font-medium">No template tasks yet</p>
-              <p className="text-sm text-slate-400 mt-1 mb-4">Add tasks and they'll auto-populate every program</p>
+              <p className="text-[#6B6680] font-medium">No template tasks yet</p>
+              <p className="text-sm text-[#6B6680] mt-1 mb-4">Add tasks and they'll auto-populate every program</p>
               <button onClick={seedDefaults} disabled={seeding}
                 className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                 {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>✨</span>} Use Recommended Checklist
@@ -187,10 +187,10 @@ export default function ChecklistPage() {
             Object.entries(grouped(templates)).map(([cat, items]) => {
               const c = CATEGORY_MAP[cat] ?? { label: cat, color: CATEGORY_MAP.general.color };
               return (
-                <div key={cat} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div key={cat} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
                   <div className={cn("flex items-center gap-2 px-4 py-3 border-b border-slate-100")}>
                     <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full border", c.color)}>{c.label}</span>
-                    <span className="text-xs text-slate-400">{items.length} task{items.length > 1 ? "s" : ""}</span>
+                    <span className="text-xs text-[#6B6680]">{items.length} task{items.length > 1 ? "s" : ""}</span>
                   </div>
                   <ul className="divide-y divide-slate-50">
                     {items.map(item => (
@@ -217,26 +217,26 @@ export default function ChecklistPage() {
           {/* Program selector */}
           <div className="relative">
             <button onClick={() => setShowBookingList(o => !o)}
-              className="w-full flex items-center justify-between gap-3 h-12 px-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors text-left">
+              className="w-full flex items-center justify-between gap-3 h-12 px-4 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] hover:border-indigo-300 transition-colors text-left">
               <div className="flex items-center gap-2.5 min-w-0">
-                <Camera className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <Camera className="w-4 h-4 text-[#6B6680] flex-shrink-0" />
                 {programInfo ? (
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-slate-800 block truncate">{programInfo.eventName || programInfo.bookingNumber}</span>
-                    <span className="text-xs text-slate-400">{programInfo.bookingNumber}</span>
+                    <span className="text-xs text-[#6B6680]">{programInfo.bookingNumber}</span>
                   </div>
                 ) : (
-                  <span className="text-sm text-slate-400">Select a program…</span>
+                  <span className="text-sm text-[#6B6680]">Select a program…</span>
                 )}
               </div>
-              {showBookingList ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+              {showBookingList ? <ChevronUp className="w-4 h-4 text-[#6B6680] flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#6B6680] flex-shrink-0" />}
             </button>
 
             {showBookingList && (
-              <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] shadow-xl overflow-hidden">
                 <div className="p-2 border-b border-slate-100">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680]" />
                     <input value={bookingSearch} onChange={e => setBookingSearch(e.target.value)}
                       placeholder="Search program…" autoFocus
                       className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
@@ -250,22 +250,22 @@ export default function ChecklistPage() {
                         <Camera className="w-4 h-4 text-slate-300 flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{b.eventName || b.bookingNumber}</p>
-                          <p className="text-xs text-slate-400">{b.bookingNumber}</p>
+                          <p className="text-xs text-[#6B6680]">{b.bookingNumber}</p>
                         </div>
                       </button>
                     </li>
                   ))}
-                  {filteredBookings.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-400">No programs found</li>}
+                  {filteredBookings.length === 0 && <li className="px-4 py-8 text-center text-sm text-[#6B6680]">No programs found</li>}
                 </ul>
               </div>
             )}
           </div>
 
           {!selectedBookingId ? (
-            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
+            <div className="text-center py-16 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
               <Camera className="sp-empty-icon" />
-              <p className="text-slate-500 font-medium">Select a program above</p>
-              <p className="text-sm text-slate-400 mt-1">to view and manage its checklist</p>
+              <p className="text-[#6B6680] font-medium">Select a program above</p>
+              <p className="text-sm text-[#6B6680] mt-1">to view and manage its checklist</p>
             </div>
           ) : loading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
@@ -273,7 +273,7 @@ export default function ChecklistPage() {
             <>
               {/* Progress */}
               {progTotal > 0 && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -289,7 +289,7 @@ export default function ChecklistPage() {
 
               <div className="flex justify-end">
                 <button onClick={() => setAddingFor("program")}
-                  className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
+                  className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors">
                   <Plus className="w-4 h-4" />Add Task
                 </button>
               </div>
@@ -304,18 +304,18 @@ export default function ChecklistPage() {
                       options={CATEGORIES.map(c => ({ value: c.key, label: c.label }))}
                       className="h-10 rounded-xl border-indigo-200" />
                   </div>
-                  <button onClick={addItem} className="h-10 px-4 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">Save</button>
-                  <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-slate-400" /></button>
+                  <button onClick={addItem} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold">Save</button>
+                  <button onClick={() => setAddingFor(null)} className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50"><X className="w-4 h-4 text-[#6B6680]" /></button>
                 </div>
               )}
 
               {Object.entries(grouped(programItems)).map(([cat, items]) => {
                 const c = CATEGORY_MAP[cat] ?? { label: cat, color: CATEGORY_MAP.general.color };
                 return (
-                  <div key={cat} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <div key={cat} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
                     <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
                       <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full border", c.color)}>{c.label}</span>
-                      <span className="text-xs text-slate-400">{items.filter(i => i.isChecked).length}/{items.length} done</span>
+                      <span className="text-xs text-[#6B6680]">{items.filter(i => i.isChecked).length}/{items.length} done</span>
                     </div>
                     <ul className="divide-y divide-slate-50">
                       {items.map(item => (
@@ -325,7 +325,7 @@ export default function ChecklistPage() {
                               ? <CheckSquare className="w-5 h-5 text-emerald-500" />
                               : <Square className="w-5 h-5 text-slate-300 hover:text-indigo-400" />}
                           </button>
-                          <span className={cn("flex-1 text-sm", item.isChecked ? "text-slate-400 line-through" : "text-slate-700")}>
+                          <span className={cn("flex-1 text-sm", item.isChecked ? "text-[#6B6680] line-through" : "text-slate-700")}>
                             {item.label}
                           </span>
                           <button onClick={() => deleteItem(item.id, true)}
@@ -340,9 +340,9 @@ export default function ChecklistPage() {
               })}
 
               {programItems.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl">
-                  <p className="text-slate-400 text-sm">No checklist items for this program</p>
-                  <p className="text-xs text-slate-400 mt-1">Add template tasks or click "Add Task" above</p>
+                <div className="text-center py-12 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+                  <p className="text-[#6B6680] text-sm">No checklist items for this program</p>
+                  <p className="text-xs text-[#6B6680] mt-1">Add template tasks or click "Add Task" above</p>
                 </div>
               )}
             </>

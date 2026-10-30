@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
+import { uploadToDrive } from "@/lib/drive-uploader";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
 import { notify } from "@/components/feedback";
@@ -37,7 +38,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   const [driveFolderUrl, setDriveFolderUrl] = useState("");
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
-  const [driveUploads, setDriveUploads] = useState<UploadItem[]>([]);
+  const [driveUploadsStarted, setDriveUploadsStarted] = useState(false);
   const [driveDragOver, setDriveDragOver] = useState(false);
   const [driveExpandedFolders, setDriveExpandedFolders] = useState<Record<string, boolean>>({});
   const [driveZipDownloading, setDriveZipDownloading] = useState<string | null>(null);
@@ -63,13 +64,12 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const inProgress = driveUploads.some(u => !u.done && !u.error) ||
-                       uploads.some(u => !u.done && !u.error);
+    const inProgress = uploads.some(u => !u.done && !u.error);
     if (!inProgress) return;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [driveUploads, uploads]);
+  }, [uploads]);
 
   useEffect(() => {
     if (booking) {
@@ -197,83 +197,22 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     } catch { /* ignore */ }
   }
 
-  async function uploadDriveFile(file: File) {
-    const uid = crypto.randomUUID();
-    const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-    const folderName = webkitPath ? webkitPath.split("/")[0] : (driveTargetFolder || undefined);
-
-    const localItem: UploadItem = { file, progress: 0, done: false };
-    setDriveUploads(prev => [localItem, ...prev]);
-    const updateLocal = (patch: Partial<UploadItem>) =>
-      setDriveUploads(prev => prev.map(u => u.file === file ? { ...u, ...patch } : u));
-
-    uploadStore.add({
-      id: uid, fileName: file.name, progress: 0, done: false,
-      type: "drive", bookingId: booking!.id,
+  // Files go straight to Google Drive in pieces (resumable — see lib/drive-uploader).
+  // Progress shows in the bottom-right panel, so this window can be closed.
+  function handleDriveFiles(files: FileList | null) {
+    if (!files?.length) return;
+    uploadToDrive({
+      files: Array.from(files),
+      bookingId: booking!.id,
       bookingName: booking!.eventName ?? booking!.bookingNumber,
-      folderName,
+      folderFor: (file) => {
+        const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+        if (wp && wp.includes("/")) return wp.split("/").slice(0, -1).join("/");
+        return driveTargetFolder || undefined;
+      },
+      onDone: (data) => setDriveFiles(prev => [...prev, data as DriveFile]),
     });
-
-    try {
-      const token = localStorage.getItem("access_token") ?? "";
-      const formData = new FormData();
-      formData.append("file", file);
-      const qs = folderName ? `?folderName=${encodeURIComponent(folderName)}` : "";
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        uploadStore.registerXhr(uid, xhr);
-        xhr.open("POST", `${API}/google-drive/upload/${booking!.id}${qs}`);
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 90);
-            updateLocal({ progress: pct });
-            uploadStore.update(uid, { progress: pct });
-          }
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const data: DriveFile = JSON.parse(xhr.responseText);
-              setDriveFiles(prev => [...prev, data]);
-              updateLocal({ progress: 100, done: true });
-              uploadStore.update(uid, { progress: 100, done: true });
-              resolve();
-            } catch { reject(new Error("Invalid response")); }
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText);
-              reject(new Error(err.message || "Upload failed"));
-            } catch { reject(new Error(`Upload failed: ${xhr.status}`)); }
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error"));
-        xhr.onabort = () => reject(new Error("Cancelled"));
-        xhr.send(formData);
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
-      updateLocal({ error: msg });
-      uploadStore.update(uid, { error: msg });
-    }
-  }
-
-  async function handleDriveFiles(files: FileList | null) {
-    if (!files) return;
-    const arr = Array.from(files);
-    const groups = new Map<string, File[]>();
-    for (const file of arr) {
-      const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-      const key = wp ? wp.split("/")[0] : (driveTargetFolder || "__root__");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(file);
-    }
-    await Promise.all(
-      Array.from(groups.values()).map(async (groupFiles) => {
-        for (const file of groupFiles) await uploadDriveFile(file);
-      })
-    );
+    setDriveUploadsStarted(true);
   }
 
   function addLink() { setLinks(prev => [...prev, { id: crypto.randomUUID(), title: "", url: "" }]); }
@@ -828,25 +767,10 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       onChange={e => handleDriveFiles(e.target.files)}
                     />
 
-                    {driveUploads.filter(u => !u.done).length > 0 && (
-                      <div className="space-y-2">
-                        {driveUploads.filter(u => !u.done).map((u, i) => (
-                          <div key={i} className="bg-slate-50 rounded-xl px-3 py-2.5">
-                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                              <span className="text-xs font-medium text-slate-700 truncate flex-1">{u.file.name}</span>
-                              {u.error
-                                ? <span className="text-xs text-red-500 flex-shrink-0">{u.error}</span>
-                                : <span className="text-xs text-slate-400 flex-shrink-0">{u.progress}%</span>
-                              }
-                            </div>
-                            {!u.error && (
-                              <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${u.progress}%` }} />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                    {driveUploadsStarted && (
+                      <p className="text-xs text-[#4A4658] bg-[#EEE8FD] rounded-2xl px-3 py-2.5">
+                        Uploading straight to Google Drive — progress is at the bottom-right. You can close this window; if the internet drops it continues by itself.
+                      </p>
                     )}
 
                     {driveDeletingFolder && (

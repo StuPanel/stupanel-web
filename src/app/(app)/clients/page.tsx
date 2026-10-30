@@ -5,14 +5,12 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Search, Plus, Filter, Phone, Mail, MapPin, Star, MoreVertical,
-  Camera, CreditCard, Building2, User, Loader2, X, AlertTriangle,
-  Edit3, Trash2, Eye, ChevronLeft, ChevronRight, LayoutGrid, List,
-  Link2, Check,
+  Search, Plus, Phone, Mail, MapPin, Star, MoreHorizontal, Users,
+  Camera, Building2, User, Loader2, X, AlertTriangle,
+  Edit3, Trash2, Eye, Link2,
 } from "lucide-react";
-import { CardGridSkeleton } from "@/components/ui/page-skeleton";
+import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -400,9 +398,9 @@ function DeleteDialog({
   );
 }
 
-// ─── Client Row (Table) ─────────────────────────────────────────────────────
+// ─── Client row (Apple style) ───────────────────────────────────────────────
 
-function ClientRow({
+function ClientListRow({
   client, onView, onEdit, onDelete,
 }: {
   client: Client;
@@ -410,125 +408,44 @@ function ClientRow({
   onEdit: (c: Client) => void;
   onDelete: (c: Client) => void;
 }) {
-  const color = avatarColor(client.id);
-
+  const n = client.bookings?.length ?? 0;
+  const sub = [client.phone, client.city].filter(Boolean).join(" · ") || client.email || "No contact yet";
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer"
-      onClick={() => onView(client)}>
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0", color)}>
-            {initials(client)}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-medium text-slate-900 text-sm truncate">{fullName(client)}</span>
-              {client.vipStatus && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 flex-shrink-0" />}
-            </div>
-            <p className="text-xs text-slate-400 capitalize">{client.source?.replace("_", " ") || "—"}</p>
-          </div>
-        </div>
-      </td>
-      <td className="py-3 px-4 hidden md:table-cell">
-        <div className="space-y-0.5">
-          {client.phone && <p className="text-xs text-slate-600 flex items-center gap-1"><Phone className="w-3 h-3" />{client.phone}</p>}
-          {client.email && <p className="text-xs text-slate-400 flex items-center gap-1 truncate max-w-[160px]"><Mail className="w-3 h-3" />{client.email}</p>}
-        </div>
-      </td>
-      <td className="py-3 px-4 hidden lg:table-cell">
-        {client.city ? (
-          <span className="text-xs text-slate-600 flex items-center gap-1"><MapPin className="w-3 h-3" />{client.city}</span>
-        ) : <span className="text-slate-300 text-xs">—</span>}
-      </td>
-      <td className="py-3 px-4 hidden lg:table-cell">
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          <Camera className="w-3.5 h-3.5" />
-          {client.bookings?.length ?? 0}
-        </div>
-      </td>
-      <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+    <div role="button" tabIndex={0} onClick={() => onView(client)} onKeyDown={e => { if (e.key === "Enter") onView(client); }}
+      className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
+      <span className="w-11 h-11 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-sm font-bold flex items-center justify-center flex-shrink-0">
+        {initials(client)}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#17151F] truncate flex items-center gap-1.5">
+          {fullName(client)}
+          {client.vipStatus && <span className="text-[11px] font-bold text-[#9E3A8C] bg-[#FBF2FA] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5"><Star className="w-3 h-3 fill-current" />VIP</span>}
+        </p>
+        <p className="text-xs text-[#6B6680] truncate mt-0.5">{sub}</p>
+      </div>
+      <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-[#4A4658] bg-[#F5F3FA] px-2.5 py-1 rounded-full flex-shrink-0">
+        <Camera className="w-3.5 h-3.5" />{n} program{n === 1 ? "" : "s"}
+      </span>
+      {client.phone && (
+        <a href={`tel:${client.phone}`} onClick={e => e.stopPropagation()} aria-label={`Call ${fullName(client)}`}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-[#1F8A5B] hover:bg-[#E9F5EF] flex-shrink-0">
+          <Phone className="w-4 h-4" />
+        </a>
+      )}
+      <div onClick={e => e.stopPropagation()} className="flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-              <MoreVertical className="w-4 h-4 text-slate-400" />
+            <button aria-label={`More for ${fullName(client)}`} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+              <MoreHorizontal className="w-4 h-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem className="gap-2 text-sm" onClick={() => onView(client)}>
-              <Eye className="w-4 h-4" /> View Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 text-sm" onClick={() => onEdit(client)}>
-              <Edit3 className="w-4 h-4" /> Edit
-            </DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-44 rounded-[16px] p-1">
+            <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px]" onClick={() => onView(client)}><Eye className="w-4 h-4" /> Open profile</DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px]" onClick={() => onEdit(client)}><Edit3 className="w-4 h-4" /> Edit</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-sm text-red-600" onClick={() => onDelete(client)}>
-              <Trash2 className="w-4 h-4" /> Delete
-            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px] text-[#C2304F]" onClick={() => onDelete(client)}><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </td>
-    </tr>
-  );
-}
-
-// ─── Client Card ────────────────────────────────────────────────────────────
-
-function ClientCard({
-  client, onView, onEdit, onDelete,
-}: {
-  client: Client;
-  onView: (c: Client) => void;
-  onEdit: (c: Client) => void;
-  onDelete: (c: Client) => void;
-}) {
-  const color = avatarColor(client.id);
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4"
-      onClick={() => onView(client)}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0", color)}>
-            {initials(client)}
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-900 text-sm">{fullName(client)}</span>
-              {client.vipStatus && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />}
-            </div>
-            {client.city && <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" />{client.city}</p>}
-          </div>
-        </div>
-        <div onClick={e => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
-                <MoreVertical className="w-4 h-4 text-slate-400" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem className="gap-2 text-sm" onClick={() => onView(client)}><Eye className="w-4 h-4" /> View Profile</DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 text-sm" onClick={() => onEdit(client)}><Edit3 className="w-4 h-4" /> Edit</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 text-sm text-red-600" onClick={() => onDelete(client)}><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="space-y-1 mb-3">
-        {client.phone && <p className="text-xs text-slate-500 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-slate-400" />{client.phone}</p>}
-        {client.email && <p className="text-xs text-slate-500 flex items-center gap-1.5 truncate"><Mail className="w-3.5 h-3.5 text-slate-400" />{client.email}</p>}
-      </div>
-
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          <Camera className="w-3.5 h-3.5" />
-          {client.bookings?.length ?? 0} booking{(client.bookings?.length ?? 0) !== 1 ? "s" : ""}
-        </div>
-        {client.source && (
-          <span className="text-xs text-slate-400 capitalize">{client.source.replace("_", " ")}</span>
-        )}
       </div>
     </div>
   );
@@ -544,7 +461,6 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
-  const [view, setView] = useState<"table" | "card">("table");
   const [loading, setLoading] = useState(true);
 
   const [drawer, setDrawer] = useState(false);
@@ -600,140 +516,37 @@ export default function ClientsPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-[1180px]">
+      <PageHeader icon={Users} color="blue" title="Clients"
+        sub={total ? `${total} client${total === 1 ? "" : "s"}` : "Everyone you work with"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search name or phone" />
+        <MainButton icon={Plus} onClick={openNew}>Add client</MainButton>
+      </PageHeader>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Clients</h1>
-          <p className="text-slate-400 text-xs mt-0.5">{total} total clients</p>
-        </div>
-        <Button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Add Client</span>
-        </Button>
-      </div>
+      <Chips label="Filter clients" value={vipOnly ? "vip" : "all"} onChange={v => setVipOnly(v === "vip")}
+        options={[{ value: "all", label: "All clients" }, { value: "vip", label: "VIP", dot: "#9E3A8C" }]} />
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search name, phone…"
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm bg-white border-slate-200" />
-        </div>
-
-        {/* VIP filter */}
-        <button
-          onClick={() => setVipOnly(v => !v)}
-          className={cn("flex items-center gap-1.5 h-9 px-3 rounded-lg border text-xs font-medium transition-colors flex-shrink-0",
-            vipOnly ? "bg-yellow-100 border-yellow-300 text-yellow-700" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-          )}
-        >
-          <Star className={cn("w-3.5 h-3.5", vipOnly ? "fill-yellow-500 text-yellow-500" : "text-slate-400")} />
-          VIP
-        </button>
-
-        <Button variant="outline" size="sm" className="gap-1.5 border-slate-200 text-slate-600 h-9 flex-shrink-0">
-          <Filter className="w-4 h-4" />
-          <span className="hidden sm:inline">Filter</span>
-        </Button>
-
-        {/* View toggle — desktop only */}
-        <div className="hidden sm:flex border border-slate-200 rounded-lg p-0.5 bg-white flex-shrink-0">
-          <button onClick={() => setView("table")}
-            className={cn("p-1.5 rounded-md transition-colors",
-              view === "table" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"
-            )}>
-            <List className="w-4 h-4" />
-          </button>
-          <button onClick={() => setView("card")}
-            className={cn("p-1.5 rounded-md transition-colors",
-              view === "card" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"
-            )}>
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
       {loading ? (
-        <CardGridSkeleton cards={6} />
+        <RowsSkeleton n={6} />
       ) : clients.length === 0 ? (
-        <div className="text-center py-16">
-          <User className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm font-medium">No clients found</p>
-          <p className="text-slate-300 text-xs mt-1">
-            {search ? "Try a different search term" : "Add your first client to get started"}
-          </p>
-          {!search && (
-            <Button onClick={openNew} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
-              <Plus className="w-4 h-4" /> Add Client
-            </Button>
-          )}
-        </div>
+        search || vipOnly ? (
+          <EmptyState icon={Search} title={search ? `No clients match "${search}"` : "No VIP clients yet"} text="Try another name or phone number." />
+        ) : (
+          <EmptyState icon={User} title="No clients yet" text="Add your first client to get started."
+            action={<MainButton icon={Plus} onClick={openNew}>Add client</MainButton>} />
+        )
       ) : (
-        <>
-          {/* Table — desktop default, hidden on mobile */}
-          <div className={cn("hidden", view === "table" ? "sm:block" : "")}>
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50">
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Contact</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">City</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Bookings</th>
-                      <th className="py-3 px-4 w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.map(c => (
-                      <ClientRow key={c.id} client={c}
-                        onView={c => setViewTarget(c)}
-                        onEdit={openEdit}
-                        onDelete={c => setDeleteTarget(c)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Card grid — mobile always, desktop when toggled */}
-          <div className={cn(
-            "grid grid-cols-1 gap-3",
-            view === "table" ? "sm:hidden" : "sm:grid-cols-2 xl:grid-cols-3"
-          )}>
-            {clients.map(c => (
-              <ClientCard key={c.id} client={c}
-                onView={c => setViewTarget(c)}
-                onEdit={openEdit}
-                onDelete={c => setDeleteTarget(c)}
-              />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-1">
-              <p className="text-xs text-slate-400">Page {page} of {totalPages} · {total} clients</p>
-              <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                  className="h-8 w-8 p-0 border-slate-200">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                  className="h-8 w-8 p-0 border-slate-200">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+        <Group>
+          {clients.map(c => (
+            <ClientListRow key={c.id} client={c}
+              onView={c => setViewTarget(c)}
+              onEdit={openEdit}
+              onDelete={c => setDeleteTarget(c)} />
+          ))}
+        </Group>
       )}
+
+      <Pager page={page} pages={totalPages} onChange={setPage} />
 
       {/* Drawers & Dialogs */}
       <ClientDrawer

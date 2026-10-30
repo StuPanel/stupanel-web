@@ -50,7 +50,7 @@ export function PageHeader({ icon, color, title, sub, children, className }: {
           {sub && <p className="text-sm text-[#6B6680] mt-0.5">{sub}</p>}
         </div>
       </div>
-      {children && <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">{children}</div>}
+      {children && <div className="flex items-center gap-2 w-full sm:w-auto">{children}</div>}
     </div>
   );
 }
@@ -115,4 +115,121 @@ export function StatCard({ icon, color, label, value, sub, href }: {
   );
   const cls = cn("block bg-white rounded-[20px] p-4", CARD_SHADOW, href && "transition-transform hover:-translate-y-0.5");
   return href ? <Link href={href} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+// ─── List-page pieces ─────────────────────────────────────────────────────────
+
+/** Calendar-style date block: "NOV / 15". */
+export function DateBox({ date }: { date?: string | Date | null }) {
+  const dt = date ? new Date(date) : null;
+  const ok = dt && !isNaN(dt.getTime());
+  return (
+    <span className="w-12 flex-shrink-0 rounded-[12px] bg-[#FDECEF] text-center py-1.5" aria-hidden="true">
+      <span className="block text-[11px] font-bold text-[#C2304F] leading-none">
+        {ok ? new Intl.DateTimeFormat("en-GB", { month: "short" }).format(dt!).toUpperCase() : "—"}
+      </span>
+      <span className="block text-lg font-extrabold text-[#17151F] leading-tight tabular-nums">{ok ? dt!.getDate() : ""}</span>
+    </span>
+  );
+}
+
+/** Round initial avatar. */
+export function Initial({ name, size = 40 }: { name?: string | null; size?: number }) {
+  return (
+    <span className="rounded-full bg-[#EEE8FD] text-[#5B3FD0] font-bold flex items-center justify-center flex-shrink-0"
+      style={{ width: size, height: size, fontSize: size * 0.38 }} aria-hidden="true">
+      {(name ?? "?").trim().charAt(0).toUpperCase() || "?"}
+    </span>
+  );
+}
+
+/** White search pill for page headers. */
+export function SearchField({ value, onChange, placeholder, className }: {
+  value: string; onChange: (v: string) => void; placeholder: string; className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680] pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder}
+        className="w-full h-10 pl-10 pr-9 rounded-full bg-white text-sm text-[#17151F] placeholder:text-[#6B6680] shadow-[0_1px_2px_rgba(22,18,40,.06)] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+      {value && (
+        <button type="button" onClick={() => onChange("")} aria-label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Filter chips in one scrollable line (iOS segmented feel). */
+export function Chips<T extends string>({ value, onChange, options, label }: {
+  value: T; onChange: (v: T) => void; label: string;
+  options: { value: T; label: string; count?: number; dot?: string }[];
+}) {
+  return (
+    <div role="tablist" aria-label={label} className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-4 [scrollbar-width:none]">
+      {options.map(o => {
+        const on = o.value === value;
+        return (
+          <button key={o.value} role="tab" aria-selected={on} type="button" onClick={() => onChange(o.value)}
+            className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0",
+              on ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] hover:text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
+            {o.dot && <span className="w-2 h-2 rounded-full" style={{ background: o.dot }} />}
+            {o.label}
+            {o.count !== undefined && <span className={cn("tabular-nums", on ? "text-white/70" : "text-[#6B6680]")}>{o.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function RowsSkeleton({ n = 5 }: { n?: number }) {
+  return (
+    <div className={cn("bg-white rounded-[20px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)} aria-busy="true" aria-label="Loading">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px]">
+          <div className="sp-skel w-11 h-11 rounded-[12px]" />
+          <div className="flex-1 space-y-2"><div className="sp-skel h-3.5 w-44 rounded-full" /><div className="sp-skel h-3 w-28 rounded-full" /></div>
+          <div className="sp-skel h-6 w-20 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function EmptyState({ icon: Icon, title, text, action }: {
+  icon: React.ElementType; title: string; text?: string; action?: React.ReactNode;
+}) {
+  return (
+    <div className={cn("bg-white rounded-[20px] py-12 px-6 text-center", CARD_SHADOW)}>
+      <span className="w-14 h-14 rounded-full bg-[#EEE8FD] flex items-center justify-center mx-auto"><Icon className="w-6 h-6 text-[#5B3FD0]" /></span>
+      <p className="mt-4 text-base font-bold text-[#17151F]">{title}</p>
+      {text && <p className="text-sm text-[#6B6680] mt-1">{text}</p>}
+      {action && <div className="mt-5 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
+export function Pager({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
+  if (pages <= 1) return null;
+  const btn = "h-10 px-4 rounded-full bg-white text-sm font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] disabled:opacity-40 hover:bg-[#F7F5FB]";
+  return (
+    <div className="flex items-center justify-center gap-3 mt-2 mb-6">
+      <button className={btn} disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</button>
+      <span className="text-sm text-[#6B6680] tabular-nums">{page} of {pages}</span>
+      <button className={btn} disabled={page >= pages} onClick={() => onChange(page + 1)}>Next</button>
+    </div>
+  );
+}
+
+/** Violet main-action pill (one per screen). */
+export function MainButton({ onClick, children, icon: Icon }: { onClick: () => void; children: React.ReactNode; icon?: React.ElementType }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] active:scale-[.97] text-white text-sm font-semibold inline-flex items-center gap-1.5 transition-all flex-shrink-0">
+      {Icon && <Icon className="w-4 h-4" />}{children}
+    </button>
+  );
 }

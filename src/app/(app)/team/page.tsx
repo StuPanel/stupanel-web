@@ -3,6 +3,7 @@
 import { UserCog as HeaderIcon } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchField, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, MoreDetails, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { notify } from "@/components/feedback";
 
 import { apiFetch } from "@/lib/api";
 
@@ -40,8 +41,8 @@ function roleConfig(id: string, customRoles: string[] = []) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Member {
-  id: string; memberId: string; username: string;
-  email: string;
+  id: string; memberId: string; username: string | null;
+  email: string; memberType?: string;
   firstName: string; lastName?: string; phone?: string;
   bio?: string; memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
@@ -84,7 +85,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setUnCheck({ checking: false, available: null, suggestions: [] });
     setShowRoleInput(false);
     setNewRoleInput("");
-    setMemberType("staff");
+    setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
     if (editing) {
       const realEmail = editing.email?.includes(".internal") ? "" : (editing.email ?? "");
@@ -92,7 +93,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
         ? editing.roleRates.map(r => ({ roleId: r.roleId, rate: String(r.rate ?? ""), rateType: r.rateType ?? "per_program", note: r.note ?? "" }))
         : [];
       setForm({ firstName: editing.firstName, lastName: editing.lastName ?? "",
-        phone: editing.phone ?? "", email: realEmail, username: editing.username,
+        phone: editing.phone ?? "", email: realEmail, username: editing.username ?? "",
         password: "", bio: editing.bio ?? "", memberRoles: editing.memberRoles,
         payRate: editing.payRate ? String(editing.payRate) : "",
         payRateType: editing.payRateType ?? "per_program",
@@ -165,10 +166,14 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.firstName.trim()) { setError("Name is required."); return; }
-    if (!form.username.trim()) { setError("Username is required."); return; }
-    if (unCheck.available === false) { setError("Please choose an available username."); return; }
-    if (!isEdit && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const freelancer = memberType === "freelancer";
+    if (!form.firstName.trim()) { setError("Please write their name."); return; }
+    if (freelancer && !form.phone.trim()) { setError("A freelancer needs a phone number — it's their ID."); return; }
+    if (!freelancer) {
+      if (!form.username.trim()) { setError("Please choose a username for their login."); return; }
+      if (unCheck.available === false) { setError("That username is taken — pick another."); return; }
+      if (!isEdit && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    }
     setError(""); setLoading(true);
     try {
       const payRateVal = form.payRate ? parseFloat(form.payRate) : undefined;
@@ -183,12 +188,15 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
         roleRates: cleanRoleRates,
       };
       const body = isEdit
-        ? { ...base, username: form.username || undefined }
-        : { ...base, username: form.username, password: form.password };
+        ? { ...base, username: freelancer ? undefined : (form.username || undefined) }
+        : freelancer
+          ? { ...base, memberType: "freelancer" }
+          : { ...base, memberType: "staff", username: form.username, password: form.password };
       const url = isEdit ? `${API}/team/${editing!.id}` : `${API}/team`;
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { const msg = d.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
+      notify(isEdit ? "Saved" : freelancer ? `${form.firstName} added as a freelancer` : `${form.firstName} added to the team`);
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
     finally { setLoading(false); }
@@ -524,7 +532,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
       {open && (
         <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1 [&>button]:rounded-[12px] [&>button]:h-10 [&>button]:py-0">
           <button onClick={() => act(onEdit)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit3 className="w-4 h-4 text-slate-400" />Edit Info</button>
-          <button onClick={() => act(onReset)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><KeyRound className="w-4 h-4 text-slate-400" />Reset Password</button>
+          {member.memberType !== "freelancer" && <button onClick={() => act(onReset)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><KeyRound className="w-4 h-4 text-slate-400" />Reset Password</button>}
           <button onClick={() => act(onToggle)} className={cn("w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-slate-50", member.isActive ? "text-amber-600" : "text-emerald-600")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
@@ -539,15 +547,17 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
 
 // ─── Member row (Apple style) ──────────────────────────────────────────────────
 function rateLine(m: Member, customRoles: string[]) {
-  if (Array.isArray(m.roleRates) && m.roleRates.some(r => r.rate)) {
-    return m.roleRates.filter(r => r.rate).map(r => {
+  const parts: string[] = [];
+  if (m.payRateType === "monthly" && m.payRate) parts.push(`Salary ${formatCurrency(Number(m.payRate))}/month`);
+  if (Array.isArray(m.roleRates)) {
+    for (const r of m.roleRates.filter(r => r.rate)) {
       const lbl = [...DEFAULT_ROLES, ...customRoles.map(cr => ({ id: cr, label: cr }))].find(x => x.id === r.roleId)?.label ?? r.roleId;
       const type = r.rateType === "per_program" ? "program" : r.rateType === "per_day" ? "day" : r.rateType === "per_shift" ? "shift" : "month";
-      return `${lbl} ${formatCurrency(Number(r.rate))}/${type}`;
-    }).join(" · ");
+      parts.push(`${lbl}: ${formatCurrency(Number(r.rate))}/${type}`);
+    }
   }
-  if (m.payRate) return `${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}`;
-  return null;
+  if (!parts.length && m.payRate) parts.push(`${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}`);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete }: {
@@ -564,6 +574,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#17151F] truncate flex items-center gap-2">
           {m.firstName} {m.lastName ?? ""}
+          {m.memberType === "freelancer" && <span className="text-[11px] font-bold text-[#9E3A8C] bg-[#FBF2FA] px-1.5 py-0.5 rounded-full">Freelancer</span>}
           {!m.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Inactive</span>}
         </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
@@ -634,7 +645,7 @@ export default function TeamPage() {
     const q = search.toLowerCase();
     const matchSearch = !q ||
       `${m.firstName} ${m.lastName ?? ""}`.toLowerCase().includes(q) ||
-      m.username.toLowerCase().includes(q) ||
+      (m.username ?? "").toLowerCase().includes(q) ||
       (m.phone ?? "").includes(q) ||
       m.memberId.toLowerCase().includes(q);
     const matchRole = roleFilter === "all" || m.memberRoles.includes(roleFilter);

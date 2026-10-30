@@ -517,7 +517,7 @@ export default function PaymentsPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       <PageHeader icon={CreditCard} color="green" title="Payments"
         sub={total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search payments" />

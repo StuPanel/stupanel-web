@@ -624,7 +624,7 @@ export default function PackagesPage() {
   function openEdit(p: Pkg) { setEditTarget(p); setDrawer(true); }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <PageHeader icon={HeaderIcon} color="violet" title="Packages" sub={<>{packages.length} service packages</>}>
         <Button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm gap-1.5 h-9">
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">New Package</span>

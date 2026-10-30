@@ -120,7 +120,7 @@ export default function BillingPage() {
   const yearlySaving = (p: Plan) => Math.max(0, p.priceMonthly * 12 - p.priceYearly);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       <PageHeader icon={HeaderIcon} color="violet" title="Plan & Billing"
         sub="Pay with bKash, Nagad or Rocket. Your plan starts as soon as we confirm the payment." />
 

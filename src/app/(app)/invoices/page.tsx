@@ -949,7 +949,7 @@ export default function InvoicesPage() {
   const totalPages = Math.ceil(total / 20);
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       <PageHeader icon={Receipt} color="orchid" title="Invoices" sub={total ? `${total} invoice${total === 1 ? "" : "s"}` : "Bills you send to clients"}>

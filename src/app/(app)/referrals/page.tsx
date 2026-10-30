@@ -47,7 +47,7 @@ export default function ReferralsPage() {
   );
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+    <div>
       <PageHeader icon={HeaderIcon} color="teal" title="Referrals" sub={<>See who's bringing you business — clients referred by each person.</>} />
 
       {!loading && groups.length > 0 && (

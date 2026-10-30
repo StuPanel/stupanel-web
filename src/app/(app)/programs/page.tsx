@@ -97,7 +97,7 @@ export default function ProgramsPage() {
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       <PageHeader icon={Camera} color="deep" title="Programs"
         sub={meta.total ? `${meta.total} program${meta.total === 1 ? "" : "s"}` : "All your shoots and events"}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} placeholder="Search programs"

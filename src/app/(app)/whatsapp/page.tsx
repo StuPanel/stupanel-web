@@ -208,7 +208,7 @@ export default function WhatsAppPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-4">
       {/* Header */}
       <PageHeader icon={HeaderIcon} color="green" title="WhatsApp Templates" sub={<>{templates.length} templates · Send to clients from Programs page</>}>
         {!showForm && !editing && (

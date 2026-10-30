@@ -123,7 +123,7 @@ export default function DashboardPage() {
   const now = new Date();
 
   return (
-    <div className="max-w-[1180px]">
+    <div>
       <PageHeader icon={LayoutDashboard} color="violet" title="Dashboard" sub="Here's what's happening in your studio.">
         <button onClick={toggleAmounts} aria-pressed={!showAmounts}
           className="h-10 px-4 rounded-full bg-white text-sm font-semibold text-[#17151F] inline-flex items-center gap-2 shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB]">

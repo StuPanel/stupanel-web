@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Send, Loader2, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { portalHeaders } from "@/lib/portal-session";
 
 function fmtTime(iso: string) {
   const d = new Date(iso);
@@ -32,7 +33,7 @@ export function PortalChat({ token, brand, companyName }: { token: string; brand
   const load = useCallback(async (withSpinner = false) => {
     if (withSpinner) setLoading(true);
     try {
-      const res = await fetch(`${API}/public/portal/${token}/messages`);
+      const res = await fetch(`${API}/public/portal/${token}/messages`, { headers: portalHeaders(token) });
       const data = await res.json();
       setMessages(Array.isArray(data) ? data : []);
     } finally {
@@ -55,7 +56,7 @@ export function PortalChat({ token, brand, companyName }: { token: string; brand
     setSending(true);
     try {
       await fetch(`${API}/public/portal/${token}/messages`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: text.trim() }),
+        method: "POST", headers: portalHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify({ content: text.trim() }),
       });
       setText("");
       textareaRef.current?.focus();

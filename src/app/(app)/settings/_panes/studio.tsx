@@ -6,6 +6,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { StudioLogo } from "@/components/studio-logo";
 import { BRAND, safeLogo } from "@/lib/brand";
+import { LanguageGroup } from "./studio-setup";
 import { Group, Row, Select, TextArea, TextField, useSettings, useSynced } from "../_ui";
 
 const CURRENCIES = [
@@ -54,6 +55,8 @@ export function GeneralPane() {
         <Row id="currency" label="Currency"><Select label="Currency" value={data.currency ?? "BDT"} options={CURRENCIES} onChange={v => patch({ currency: v })} /></Row>
         <Row id="timezone" label="Time zone" hint="Used for dates, reminders and reports"><Select label="Time zone" value={data.timezone ?? "Asia/Dhaka"} options={TIMEZONES} onChange={v => patch({ timezone: v })} /></Row>
       </Group>
+
+      <LanguageGroup />
     </>
   );
 }

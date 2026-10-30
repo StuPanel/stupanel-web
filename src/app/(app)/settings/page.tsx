@@ -13,15 +13,17 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { GROUPS, paneById, searchSettings, type PaneId } from "./_registry";
-import { PaneHeader, SettingsCtx, Tile, type Company, type SaveState } from "./_ui";
+import { PaneHeader, SettingsCtx, Tile, type Company, type SaveState, type StudioSettings } from "./_ui";
 import { BrandingPane, GeneralPane, OnlinePane } from "./_panes/studio";
 import { CatalogPane, InvoicesPane, PaymentPane, QuotesPane, TaxPane } from "./_panes/money";
 import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
 import { IntegrationsPane, SecurityPane } from "./_panes/account";
+import { DeliveryRulesPane, FeaturesPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
 
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   general: GeneralPane, branding: BrandingPane, online: OnlinePane,
   payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, tax: TaxPane, catalog: CatalogPane,
+  features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   security: SecurityPane, integrations: IntegrationsPane,
 };
@@ -42,6 +44,7 @@ function paneFromUrl(): PaneId | null {
 
 export default function SettingsPage() {
   const [data, setData] = useState<Company | null>(null);
+  const [studio, setStudio] = useState<StudioSettings | null>(null);
   const [failed, setFailed] = useState(false);
   const [pane, setPane] = useState<PaneId>("general");
   const [mobileOpen, setMobileOpen] = useState(false); // mobile: showing a pane (not the list)
@@ -61,7 +64,39 @@ export default function SettingsPage() {
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(setData)
       .catch(() => setFailed(true));
+    apiFetch(`${API}/companies/settings`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setStudio(d))
+      .catch(() => setStudio(null));
   }, []);
+
+  const savedOk = useCallback(() => {
+    setState("saved");
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setState("idle"), 1800);
+  }, []);
+
+  // Studio settings (features, work types, shifts…): send only the changed section.
+  const patchStudio = useCallback(async <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => {
+    let before: StudioSettings | null = null;
+    setStudio(s => { before = s; return s ? { ...s, [key]: value } : s; });
+    setState("saving");
+    try {
+      const r = await apiFetch(`${API}/companies/settings`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save");
+      setStudio(d as StudioSettings);
+      savedOk();
+      return true;
+    } catch (e) {
+      if (before) setStudio(before);
+      setState("error");
+      notify(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "Couldn't save — check your internet", { error: true });
+      return false;
+    }
+  }, [savedOk]);
 
   // Save one or more fields. Shows the change at once; puts it back if saving fails.
   const patch = useCallback(async (payload: Record<string, unknown>) => {
@@ -196,7 +231,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <SettingsCtx.Provider value={{ data, patch, state }}>
+    <SettingsCtx.Provider value={{ data, patch, state, studio, patchStudio }}>
       <div className="max-w-[1120px] md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
 
         {/* ── Desktop sidebar ── */}

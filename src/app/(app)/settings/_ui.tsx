@@ -18,8 +18,23 @@ export type Patch = (payload: Record<string, unknown>) => Promise<boolean>;
 // Company settings as the API returns them (many loosely-typed fields).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Company = Record<string, any>;
-type Ctx = { data: Company; patch: Patch; state: SaveState };
-export const SettingsCtx = createContext<Ctx>({ data: {}, patch: async () => false, state: "idle" });
+/** Studio settings from GET /companies/settings (defaults already filled in). */
+export type Shift = { id: string; name: string };
+export type ShiftTemplate = { id: string; name: string; shifts: Shift[] };
+export type WorkType = { id: string; name: string; active: boolean };
+export type StudioSettings = {
+  language: { ui: "en" | "bn-smart" };
+  features: { photoSelection: boolean; musicSelection: boolean; albumTracking: boolean; faceRecognition: boolean };
+  workTypes: WorkType[];
+  shiftTemplates: ShiftTemplate[];
+  teamPay: { mode: "per_shift" | "per_program" };
+  booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean };
+  delivery: { lockWhenDue: boolean; managerCanUnlock: boolean };
+};
+type PatchStudio = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => Promise<boolean>;
+
+type Ctx = { data: Company; patch: Patch; state: SaveState; studio: StudioSettings | null; patchStudio: PatchStudio };
+export const SettingsCtx = createContext<Ctx>({ data: {}, patch: async () => false, state: "idle", studio: null, patchStudio: async () => false });
 export const useSettings = () => useContext(SettingsCtx);
 
 // ─── Icon tile (shared, see components/ui/apple.tsx) ─────────────────────────

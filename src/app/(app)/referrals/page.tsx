@@ -1,12 +1,12 @@
 "use client";
 
 import { Handshake as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { EmptyState, Group, Initial, PageHeader, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Handshake, Search, ChevronDown, ChevronUp, User, Users, Wallet, Calendar } from "lucide-react";
+import { Handshake, ChevronDown, ChevronUp, Users, Wallet, Calendar } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate } from "@/lib/format";
 
@@ -48,103 +48,58 @@ export default function ReferralsPage() {
 
   return (
     <div>
-      <PageHeader icon={HeaderIcon} color="teal" title="Referrals" sub={<>See who's bringing you business — clients referred by each person.</>} />
+      <PageHeader icon={HeaderIcon} color="teal" title="Referrals" sub={<>Who brings you business — clients referred by each person</>}>
+        {groups.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search referrer" />}
+      </PageHeader>
 
       {!loading && groups.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1"><Handshake className="w-3.5 h-3.5" /> Referrers</div>
-            <p className="text-xl font-bold text-slate-900">{groups.length}</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1"><Users className="w-3.5 h-3.5" /> Clients Referred</div>
-            <p className="text-xl font-bold text-slate-900">{totals.clients}</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1"><Wallet className="w-3.5 h-3.5" /> Revenue from Referrals</div>
-            <p className="text-xl font-bold text-emerald-600">{formatCurrency(totals.revenue, "BDT")}</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-7">
+          <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
+          <StatCard icon={Users} color="blue" label="Clients referred" value={String(totals.clients)} sub={`${totals.bookings} programs`} />
+          <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue, "BDT")} />
         </div>
       )}
 
-      <div className="relative mb-4">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search referrer name..."
-          className="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400"
-        />
-      </div>
-
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        <RowsSkeleton n={4} />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Handshake className="sp-empty-icon" />
-          <p className="text-slate-500 font-medium">{groups.length === 0 ? "No referrals tracked yet" : "No matching referrer"}</p>
-          <p className="text-sm text-slate-400 mt-1">Set a client's Source to &quot;Referral&quot; and name who referred them to start tracking.</p>
-        </div>
+        <EmptyState icon={Handshake} title={groups.length === 0 ? "No referrals yet" : `No one matches "${search}"`}
+          text={groups.length === 0 ? "Set a client's Source to \"Referral\" and add who referred them." : "Try another name."} />
       ) : (
-        <div className="space-y-2">
+        <Group>
           {filtered.map(g => {
             const isOpen = expanded === g.key;
             return (
-              <div key={g.key} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setExpanded(isOpen ? null : g.key)}
-                  className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 hover:bg-slate-50/60 text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold flex-shrink-0">
-                      {g.name[0]?.toUpperCase() ?? "?"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-semibold text-slate-900 text-sm truncate">{g.name}</p>
-                        {g.referrerClientId && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-0.5 flex-shrink-0">
-                            <User className="w-2.5 h-2.5" /> Client
-                          </span>
-                        )}
-                      </div>
-                      {g.phone && <p className="text-xs text-slate-400">{g.phone}</p>}
-                    </div>
-                    <div className="sm:hidden flex-shrink-0">
-                      {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 sm:gap-6 pl-[3.25rem] sm:pl-0">
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-slate-900">{g.clientCount}</p>
-                      <p className="text-xs text-slate-400">Clients</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-slate-900">{g.bookingCount}</p>
-                      <p className="text-xs text-slate-400">Programs</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-600">{formatCurrency(g.revenue, "BDT")}</p>
-                      <p className="text-xs text-slate-400">Revenue</p>
-                    </div>
-                    <div className="hidden sm:block flex-shrink-0">
-                      {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    </div>
-                  </div>
+              <div key={g.key}>
+                <button onClick={() => setExpanded(isOpen ? null : g.key)} aria-expanded={isOpen}
+                  className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] text-left hover:bg-[#F7F5FB] transition-colors">
+                  <Initial name={g.name} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-[#17151F] truncate">
+                      {g.name}
+                      {g.referrerClientId && <span className="ml-2 text-[11px] font-bold text-[#126B66] bg-[#E0F2F1] px-1.5 py-0.5 rounded-full">Client</span>}
+                    </span>
+                    <span className="block text-xs text-[#6B6680] truncate mt-0.5">
+                      {g.clientCount} client{g.clientCount === 1 ? "" : "s"} · {g.bookingCount} program{g.bookingCount === 1 ? "" : "s"}{g.phone ? ` · ${g.phone}` : ""}
+                    </span>
+                  </span>
+                  <span className="text-sm font-bold text-[#1F8A5B] tabular-nums flex-shrink-0">{formatCurrency(g.revenue, "BDT")}</span>
+                  {isOpen ? <ChevronUp className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
                 </button>
                 {isOpen && (
-                  <div className="border-t border-slate-100 divide-y divide-slate-50">
+                  <div className="bg-[#FBFAFE] border-t border-[#EEEBF4] divide-y divide-[#EEEBF4]">
                     {g.clients.map(c => (
-                      <div key={c.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 pl-12 sm:pl-[4.25rem]">
-                        <p className="text-sm text-slate-700 truncate">{c.name}</p>
-                        <p className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" /> {fmtDate(c.createdAt)}</p>
-                      </div>
+                      <a key={c.id} href={`/clients?view=${c.id}`} className="flex items-center justify-between gap-3 pl-[4.25rem] pr-5 py-2.5 hover:bg-[#F5F3FA]">
+                        <span className="text-sm text-[#17151F] truncate">{c.name}</span>
+                        <span className="text-xs text-[#6B6680] flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" />Added {fmtDate(c.createdAt)}</span>
+                      </a>
                     ))}
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
+        </Group>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { Banknote as HeaderIcon } from "lucide-react";
-import { PageHeader } from "@/components/ui/apple";
+import { EmptyState, Group, Initial, MainButton, PageHeader, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
+import { PillSelect } from "@/components/ui/pill-select";
 
 import { apiFetch } from "@/lib/api";
 
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { askConfirm } from "@/components/feedback";
-import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
+import { matches } from "@/components/list-ui";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
@@ -110,7 +111,7 @@ export default function SalaryPage() {
   const totalDraft = slips.filter(s => s.status !== "paid").reduce((s, x) => s + Number(x.netSalary), 0);
 
   return (
-    <div className="space-y-5">
+    <div>
       {toast && (
         <div className={cn("sp-toast",
           toast.ok ? "" : "sp-toast--err")}>
@@ -119,54 +120,31 @@ export default function SalaryPage() {
         </div>
       )}
 
-      {/* Header */}
-      <PageHeader icon={HeaderIcon} color="green" title="Salary Slips" sub={<>Generate and track team member salary payments</>}>
-        <button onClick={() => { setBonusBreakdown([]); setModal(true); }}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />Generate Slip
-        </button>
+      <PageHeader icon={HeaderIcon} color="green" title="Salary" sub={<>Salary slips and payments for your team</>}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder="Search team member" />
+        <MainButton icon={Plus} onClick={() => { setBonusBreakdown([]); setModal(true); }}>New slip</MainButton>
       </PageHeader>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-          <p className="text-xs text-emerald-600 font-medium">Total Paid</p>
-          <p className="text-xl font-extrabold text-emerald-700 mt-1">{fmt(totalPaid)}</p>
-        </div>
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-          <p className="text-xs text-amber-600 font-medium">Pending Payment</p>
-          <p className="text-xl font-extrabold text-amber-700 mt-1">{fmt(totalDraft)}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-7">
+        <StatCard icon={BadgeCheck} color="green" label="Paid" value={fmt(totalPaid)} />
+        <StatCard icon={Banknote} color="orchid" label="Still to pay" value={fmt(totalDraft)} sub="Slips not paid yet" />
       </div>
 
-      {/* Filters */}
-      <SearchPill value={q} onChange={setQ} placeholder="Search by team member…" />
-      <div className="flex items-center gap-2">
-        <select value={yearFilter} onChange={e => setYearFilter(+e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none">
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <select value={monthFilter} onChange={e => setMonthFilter(+e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none">
-          <option value={0}>All Months</option>
-          {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-        </select>
+      <div className="flex items-center gap-2 mb-4">
+        <PillSelect label="Year" value={String(yearFilter)} onChange={v => setYearFilter(+v)} options={years.map(y => ({ value: String(y), label: String(y) }))} />
+        <PillSelect label="Month" value={String(monthFilter)} onChange={v => setMonthFilter(+v)}
+          options={[{ value: "0", label: "All months" }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))]} />
       </div>
 
-      {/* Slips */}
       {loading ? (
-        <ListSkeleton />
+        <RowsSkeleton n={4} />
       ) : slips.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
-          <Banknote className="sp-empty-icon" />
-          <p className="text-slate-500 font-medium">No salary slips yet</p>
-          <p className="text-sm text-slate-400 mt-1">Generate slips for your team members</p>
-        </div>
+        <EmptyState icon={Banknote} title="No salary slips yet" text="Make a slip for a team member — base pay, program bonus and deductions."
+          action={<MainButton icon={Plus} onClick={() => { setBonusBreakdown([]); setModal(true); }}>New slip</MainButton>} />
+      ) : slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).length === 0 ? (
+        <EmptyState icon={Banknote} title={`No slips match "${q}"`} text="Try another name." />
       ) : (
-        <div className="space-y-3">
-          {slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).length === 0 && (
-            <p className="text-center text-sm text-[#6B6680] py-10">No salary slips match &ldquo;{q}&rdquo;</p>
-          )}
+        <Group>
           {slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).map(slip => {
             const net = Number(slip.netSalary);
             const base = Number(slip.baseSalary);
@@ -174,67 +152,40 @@ export default function SalaryPage() {
             const ded = Number(slip.deductions);
             const isPaid = slip.status === "paid";
             return (
-              <div key={slip.id} className={cn("bg-white border rounded-2xl overflow-hidden", isPaid ? "border-emerald-200" : "border-slate-200")}>
-                <div className="flex items-start gap-4 p-4">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0",
-                    isPaid ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700")}>
-                    {slip.teamMember.firstName[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <p className="font-semibold text-slate-900">{slip.teamMember.firstName} {slip.teamMember.lastName}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{MONTHS[slip.month - 1]} {slip.year}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-lg font-extrabold text-slate-900">{fmt(net)}</p>
-                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full inline-block mt-0.5",
-                          isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                          {isPaid ? "PAID" : "DRAFT"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                      <div className="bg-slate-50 rounded-lg p-2">
-                        <p className="text-slate-400">Base Salary</p>
-                        <p className="font-bold text-slate-700 mt-0.5">{fmt(base)}</p>
-                      </div>
-                      <div className="bg-blue-50 rounded-lg p-2">
-                        <p className="text-blue-400">Program Bonus</p>
-                        <p className="font-bold text-blue-700 mt-0.5">+ {fmt(bonus)}</p>
-                      </div>
-                      <div className="bg-red-50 rounded-lg p-2">
-                        <p className="text-red-400">Deductions</p>
-                        <p className="font-bold text-red-700 mt-0.5">- {fmt(ded)}</p>
-                      </div>
-                    </div>
-
-                    {slip.notes && <p className="text-xs text-slate-400 mt-2 italic">Note: {slip.notes}</p>}
-                    {isPaid && slip.paidAt && <p className="text-xs text-emerald-500 mt-1">Paid on {fmtDate(slip.paidAt)}</p>}
-
-                    <div className="flex items-center gap-2 mt-3">
-                      {!isPaid && (
-                        <button onClick={() => markPaid(slip.id)}
-                          className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors">
-                          <BadgeCheck className="w-3.5 h-3.5" />Mark Paid
-                        </button>
-                      )}
-                      <button onClick={() => window.print()}
-                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-600 transition-colors">
-                        <Printer className="w-3.5 h-3.5" />Print
-                      </button>
-                      <button onClick={() => deleteSlip(slip.id)}
-                        className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center ml-auto">
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                      </button>
-                    </div>
-                  </div>
+              <div key={slip.id} className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px]">
+                <Initial name={slip.teamMember.firstName} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#17151F] truncate">{slip.teamMember.firstName} {slip.teamMember.lastName}</p>
+                  <p className="text-xs text-[#6B6680] truncate mt-0.5">
+                    {MONTHS[slip.month - 1]} {slip.year} · Base {fmt(base)}{bonus ? ` + bonus ${fmt(bonus)}` : ""}{ded ? ` − ${fmt(ded)}` : ""}
+                  </p>
+                  {isPaid && slip.paidAt
+                    ? <p className="text-xs font-semibold text-[#1F8A5B] mt-0.5">Paid {fmtDate(slip.paidAt)}</p>
+                    : slip.notes ? <p className="text-xs text-[#6B6680] italic truncate mt-0.5">{slip.notes}</p> : null}
                 </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-[#17151F] tabular-nums">{fmt(net)}</p>
+                  <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5",
+                    isPaid ? "bg-[#E9F5EF] text-[#1F8A5B]" : "bg-[#FBF2FA] text-[#9E3A8C]")}>{isPaid ? "Paid" : "Not paid"}</span>
+                </div>
+                {!isPaid && (
+                  <button onClick={() => markPaid(slip.id)}
+                    className="hidden sm:inline-flex h-9 px-3.5 rounded-full bg-[#1F8A5B] hover:opacity-90 text-white text-xs font-semibold items-center gap-1.5 flex-shrink-0">
+                    <BadgeCheck className="w-3.5 h-3.5" />Mark paid
+                  </button>
+                )}
+                <button onClick={() => window.print()} aria-label="Print"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA] flex-shrink-0"><Printer className="w-4 h-4" /></button>
+                <button onClick={() => deleteSlip(slip.id)} aria-label="Delete slip"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                {!isPaid && (
+                  <button onClick={() => markPaid(slip.id)} aria-label="Mark paid"
+                    className="sm:hidden w-9 h-9 rounded-full flex items-center justify-center text-[#1F8A5B] hover:bg-[#E9F5EF] flex-shrink-0"><BadgeCheck className="w-4 h-4" /></button>
+                )}
               </div>
             );
           })}
-        </div>
+        </Group>
       )}
 
       {/* Generate Modal */}

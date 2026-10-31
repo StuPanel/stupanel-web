@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
-import { RateEditor, SetupEditor, firstLine, isEditorRole, uid, unitLabel, type RateLine, type SetupItem } from "./_components/rate-card";
+import { RateEditor, SetupEditor, firstLine, linesToRates, ratesToLines, uid, unitLabel, type RateLine, type SavedRate, type SetupItem } from "./_components/rate-card";
 import { formatCurrency } from "@/lib/format";
 
 
@@ -73,6 +73,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   const [userTouched, setUserTouched] = useState(false);
   const [defaultUnit, setDefaultUnit] = useState("per_program");
   const [workTypes, setWorkTypes] = useState<{ id: string; name: string }[]>([]);
+  const [studioRates, setStudioRates] = useState<SavedRate[]>([]);
   const [lines, setLines] = useState<RateLine[]>([]);
   const [setup, setSetup] = useState<SetupItem[]>([]);
   const [tab, setTab] = useState<"who" | "pay" | "setup" | "login">("who");
@@ -84,6 +85,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
       .then(d => {
         if (d?.teamPay?.mode) setDefaultUnit(d.teamPay.mode);
         if (Array.isArray(d?.workTypes)) setWorkTypes(d.workTypes.filter((w: { active?: boolean }) => w.active !== false));
+        if (Array.isArray(d?.studioRates)) setStudioRates(d.studioRates);
       }).catch(() => {});
   }, [open]);
 
@@ -96,10 +98,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
     setTab("who");
-    setLines(Array.isArray(editing?.roleRates) ? editing!.roleRates!.map(r => ({
-      id: uid(), roleId: r.roleId, unit: r.rateType || "per_program", rate: r.rate ? String(r.rate) : "",
-      withSetup: r.withSetup != null ? String(r.withSetup) : "", workType: r.workType ?? "", label: r.label ?? "",
-    })) : []);
+    setLines(ratesToLines(editing?.roleRates));
     setSetup(Array.isArray(editing?.setup) ? editing!.setup!.map(g => ({ id: g.id || uid(), category: g.category, name: g.name, rent: g.rent ? String(g.rent) : "", rentUnit: g.rentUnit || "per_shift" })) : []);
     if (editing) {
       const realEmail = editing.email?.includes(".internal") ? "" : (editing.email ?? "");
@@ -176,14 +175,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setError(""); setLoading(true);
     try {
       const payRateVal = form.payRate ? parseFloat(form.payRate) : undefined;
-      const cleanRoleRates = lines
-        .filter(l => form.memberRoles.includes(l.roleId) && (l.rate.trim() !== "" || l.withSetup.trim() !== ""))
-        .map(l => ({
-          roleId: l.roleId, rateType: l.unit, rate: parseFloat(l.rate) || 0,
-          ...(l.withSetup.trim() !== "" && !isEditorRole(l.roleId) ? { withSetup: parseFloat(l.withSetup) } : {}),
-          ...(l.workType ? { workType: l.workType } : {}),
-          ...(l.unit === "custom" && l.label.trim() ? { label: l.label.trim() } : {}),
-        }));
+      const cleanRoleRates = linesToRates(lines, form.memberRoles);
       const cleanSetup = setup.filter(g => g.name.trim()).map(g => ({ id: g.id, category: g.category, name: g.name.trim(), rent: parseFloat(g.rent) || 0, rentUnit: g.rentUnit }));
       const base = {
         firstName: form.firstName, lastName: form.lastName || undefined,
@@ -342,9 +334,9 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
 
         {tab === "pay" && <>
         <FormGroup title="Prices" note={form.memberRoles.length
-          ? <>Put a price in <strong>Work only</strong> (they use someone else&apos;s gear) and/or <strong>With own setup</strong>. Use &quot;All programs&quot; or pick a program type for a different price. These fill in by themselves when you put them on a program — you can still change them there.</>
+          ? <>Put a price in <strong>Work only</strong> (they use someone else&apos;s gear) and/or <strong>With own setup</strong>. Use &quot;All programs&quot; or pick a program type for a different price. <strong>Leave a box empty to use the studio price</strong> (shown in grey, set in Settings → Team &amp; Pay). These fill in by themselves when you put them on a program — you can still change them there.</>
           : undefined}>
-          <RateEditor roles={pickedRoles} lines={lines} onChange={setLines} workTypes={workTypes} />
+          <RateEditor roles={pickedRoles} lines={lines} onChange={setLines} workTypes={workTypes} fallback={studioRates} />
           {!form.memberRoles.length && (
             <div className="px-4 pb-4"><button type="button" onClick={() => setTab("who")} className="text-[13px] font-semibold text-[#5B3FD0]">← Pick what they do</button></div>
           )}

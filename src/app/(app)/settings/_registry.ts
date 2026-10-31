@@ -50,7 +50,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face ফিচার" },
       { id: "worktypes", title: "Work Types & Shifts", sub: "Kinds of work you do and the shifts of an event", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye শিফট" },
       { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event প্রোগ্রাম বুকিং" },
-      { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment টিম বেতন" },
+      { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices টিম বেতন দাম" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
       { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন payment reminder রিমাইন্ডার" },
@@ -93,6 +93,7 @@ export const ENTRIES: Entry[] = [
 
   // Team
   { id: "teamPay", pane: "team", section: "Pay", label: "Pay team by", keywords: "per shift per program rate salary" },
+  { id: "studio-rates", pane: "team", section: "Studio prices", label: "Studio prices for each kind of work", keywords: "rate price photographer cinematographer drone editor setup gear দাম রেট" },
 
   // Delivery
   { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid বকেয়া" },

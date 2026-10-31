@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
+import { RateEditor, SetupEditor, firstLine, isEditorRole, uid, unitLabel, type RateLine, type SetupItem } from "./_components/rate-card";
 import { formatCurrency } from "@/lib/format";
 
 
@@ -46,11 +47,11 @@ interface Member {
   firstName: string; lastName?: string; phone?: string;
   bio?: string; memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
-  roleRates?: { roleId: string; rate: number; rateType: string; note?: string }[];
+  roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
+  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
   createdAt: string;
 }
 
-interface RoleRate { roleId: string; rate: string; rateType: string; note: string; }
 
 // ─── Member Drawer ─────────────────────────────────────────────────────────────
 function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRolesChange }: {
@@ -58,7 +59,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   customRoles: string[]; onCustomRolesChange: (roles: string[]) => void;
 }) {
   const isEdit = !!editing;
-  const blank = { firstName: "", lastName: "", phone: "", email: "", username: "", password: "", bio: "", memberRoles: [] as string[], payRate: "", payRateType: "per_program", roleRates: [] as RoleRate[] };
+  const blank = { firstName: "", lastName: "", phone: "", email: "", username: "", password: "", bio: "", memberRoles: [] as string[], payRate: "", payRateType: "per_program" };
   const [form, setForm] = useState(blank);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,12 +72,19 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   const [memberType, setMemberType] = useState<"staff" | "freelancer">("staff");
   const [userTouched, setUserTouched] = useState(false);
   const [defaultUnit, setDefaultUnit] = useState("per_program");
+  const [workTypes, setWorkTypes] = useState<{ id: string; name: string }[]>([]);
+  const [lines, setLines] = useState<RateLine[]>([]);
+  const [setup, setSetup] = useState<SetupItem[]>([]);
+  const [tab, setTab] = useState<"who" | "pay" | "setup" | "login">("who");
 
-  // Rates follow Settings → Team & Pay (per shift or per program)
+  // Rates follow Settings → Team & Pay (per shift or per program); program types from Settings → Work types
   useEffect(() => {
     if (!open) return;
     apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.teamPay?.mode) setDefaultUnit(d.teamPay.mode); }).catch(() => {});
+      .then(d => {
+        if (d?.teamPay?.mode) setDefaultUnit(d.teamPay.mode);
+        if (Array.isArray(d?.workTypes)) setWorkTypes(d.workTypes.filter((w: { active?: boolean }) => w.active !== false));
+      }).catch(() => {});
   }, [open]);
 
   useEffect(() => {
@@ -87,17 +95,19 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setNewRoleInput("");
     setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
+    setTab("who");
+    setLines(Array.isArray(editing?.roleRates) ? editing!.roleRates!.map(r => ({
+      id: uid(), roleId: r.roleId, unit: r.rateType || "per_program", rate: r.rate ? String(r.rate) : "",
+      withSetup: r.withSetup != null ? String(r.withSetup) : "", workType: r.workType ?? "", label: r.label ?? "",
+    })) : []);
+    setSetup(Array.isArray(editing?.setup) ? editing!.setup!.map(g => ({ id: g.id || uid(), category: g.category, name: g.name, rent: g.rent ? String(g.rent) : "", rentUnit: g.rentUnit || "per_shift" })) : []);
     if (editing) {
       const realEmail = editing.email?.includes(".internal") ? "" : (editing.email ?? "");
-      const existingRates: RoleRate[] = Array.isArray(editing.roleRates)
-        ? editing.roleRates.map(r => ({ roleId: r.roleId, rate: String(r.rate ?? ""), rateType: r.rateType ?? "per_program", note: r.note ?? "" }))
-        : [];
       setForm({ firstName: editing.firstName, lastName: editing.lastName ?? "",
         phone: editing.phone ?? "", email: realEmail, username: editing.username ?? "",
         password: "", bio: editing.bio ?? "", memberRoles: editing.memberRoles,
         payRate: editing.payRate ? String(editing.payRate) : "",
-        payRateType: editing.payRateType ?? "per_program",
-        roleRates: existingRates });
+        payRateType: editing.payRateType ?? "per_program" });
     } else {
       setForm(blank);
     }
@@ -145,47 +155,43 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   }
 
   function toggleRole(rid: string) {
-    setForm(p => {
-      const hasRole = p.memberRoles.includes(rid);
-      return {
-        ...p,
-        memberRoles: hasRole ? p.memberRoles.filter(r => r !== rid) : [...p.memberRoles, rid],
-        roleRates: hasRole
-          ? p.roleRates.filter(r => r.roleId !== rid)
-          : [...p.roleRates, { roleId: rid, rate: "", rateType: defaultUnit, note: "" }],
-      };
-    });
-  }
-
-  function updateRoleRate(roleId: string, field: keyof RoleRate, value: string) {
-    setForm(p => ({
-      ...p,
-      roleRates: p.roleRates.map(r => r.roleId === roleId ? { ...r, [field]: value } : r),
-    }));
+    const hasRole = form.memberRoles.includes(rid);
+    setForm(p => ({ ...p, memberRoles: hasRole ? p.memberRoles.filter(r => r !== rid) : [...p.memberRoles, rid] }));
+    setLines(ls => hasRole ? ls.filter(l => l.roleId !== rid) : ls.some(l => l.roleId === rid) ? ls : [...ls, firstLine(rid, defaultUnit)]);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const freelancer = memberType === "freelancer";
-    if (!form.firstName.trim()) { setError("Please write their name."); return; }
-    if (freelancer && !form.phone.trim()) { setError("A freelancer needs a phone number — it's their ID."); return; }
+    const fail = (msg: string, t: typeof tab) => { setError(msg); setTab(t); };
+    if (!form.firstName.trim()) return fail("Please write their name.", "who");
+    if (freelancer && !form.phone.trim()) return fail("A freelancer needs a phone number — it's their ID.", "who");
+    if (lines.some(l => l.unit === "custom" && !l.label.trim() && (l.rate || l.withSetup))) return fail("Please name each \"Other\" price.", "pay");
+    if (setup.some(g => !g.name.trim() && g.rent)) return fail("Please write a name for each piece of gear.", "setup");
     if (!freelancer) {
-      if (!form.username.trim()) { setError("Please choose a username for their login."); return; }
-      if (unCheck.available === false) { setError("That username is taken — pick another."); return; }
-      if (!isEdit && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+      if (!form.username.trim()) return fail("Please choose a username for their login.", "login");
+      if (unCheck.available === false) return fail("That username is taken — pick another.", "login");
+      if (!isEdit && form.password.length < 6) return fail("Password must be at least 6 characters.", "login");
     }
     setError(""); setLoading(true);
     try {
       const payRateVal = form.payRate ? parseFloat(form.payRate) : undefined;
-      const cleanRoleRates = form.roleRates
-        .filter(r => r.rate.trim() !== "")
-        .map(r => ({ roleId: r.roleId, rate: parseFloat(r.rate), rateType: r.rateType, note: r.note || undefined }));
+      const cleanRoleRates = lines
+        .filter(l => form.memberRoles.includes(l.roleId) && (l.rate.trim() !== "" || l.withSetup.trim() !== ""))
+        .map(l => ({
+          roleId: l.roleId, rateType: l.unit, rate: parseFloat(l.rate) || 0,
+          ...(l.withSetup.trim() !== "" && !isEditorRole(l.roleId) ? { withSetup: parseFloat(l.withSetup) } : {}),
+          ...(l.workType ? { workType: l.workType } : {}),
+          ...(l.unit === "custom" && l.label.trim() ? { label: l.label.trim() } : {}),
+        }));
+      const cleanSetup = setup.filter(g => g.name.trim()).map(g => ({ id: g.id, category: g.category, name: g.name.trim(), rent: parseFloat(g.rent) || 0, rentUnit: g.rentUnit }));
       const base = {
         firstName: form.firstName, lastName: form.lastName || undefined,
         phone: form.phone || undefined, email: form.email || undefined,
         bio: form.bio || undefined, memberRoles: form.memberRoles,
         payRate: payRateVal, payRateType: payRateVal ? form.payRateType : undefined,
         roleRates: cleanRoleRates,
+        setup: cleanSetup,
       };
       const body = isEdit
         ? { ...base, username: freelancer ? undefined : (form.username || undefined) }
@@ -204,8 +210,15 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
 
   const allRoles = [...DEFAULT_ROLES, ...customRoles.filter(cr => !DEFAULT_ROLES.some(d => d.id === cr)).map(cr => roleConfig(cr, customRoles))];
   const isStaff = memberType === "staff";
-  const salaryOn = form.payRateType === "monthly" && !!form.payRate;
-  const UNIT_LABEL: Record<string, string> = { per_shift: "Per shift", per_program: "Per program", per_day: "Per day" };
+  const pickedRoles = form.memberRoles.map(rid => { const rc = roleConfig(rid, customRoles); return { id: rid, label: rc.label, icon: rc.icon, tile: rc.tile }; });
+  const priced = lines.filter(l => form.memberRoles.includes(l.roleId) && (l.rate || l.withSetup)).length;
+  const gearCount = setup.filter(g => g.name.trim()).length;
+  const TABS = [
+    { v: "who" as const, l: "Who" },
+    { v: "pay" as const, l: "Rates", n: priced },
+    { v: "setup" as const, l: "Setup", n: gearCount },
+    ...(isStaff ? [{ v: "login" as const, l: "Login" }] : []),
+  ];
 
   return (
     <FormDrawer open={open} onClose={onClose} icon={UserCog} color="blue"
@@ -246,6 +259,19 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
           </div>
         )}
 
+        <div role="tablist" aria-label="Sections" className="sticky top-0 z-10 -mx-1 px-1 pt-1 pb-3 bg-[#F5F3FA]">
+          <div className="grid gap-1 p-1 rounded-[14px] bg-[#E9E6F0]" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
+            {TABS.map(t => (
+              <button key={t.v} type="button" role="tab" aria-selected={tab === t.v} onClick={() => setTab(t.v)}
+                className={cn("h-9 rounded-[11px] text-[13px] font-semibold whitespace-nowrap transition-all inline-flex items-center justify-center gap-1.5",
+                  tab === t.v ? "bg-white text-[#17151F] shadow-[0_1px_3px_rgba(22,18,40,.12)]" : "text-[#6B6680] hover:text-[#17151F]")}>
+                {t.l}{"n" in t && t.n ? <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#7D5CEF] text-white text-[11px] font-bold inline-flex items-center justify-center">{t.n}</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tab === "who" && <>
         <FormGroup title="Who">
           <Field label="Name" required>
             {id => (
@@ -268,7 +294,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
           </Field>
         </FormGroup>
 
-        <FormGroup title="What they do" note="Pick every kind of work they can do.">
+        <FormGroup title="What they do" note={form.memberRoles.length ? <>Set a price for each in <button type="button" onClick={() => setTab("pay")} className="font-semibold text-[#5B3FD0]">Rates</button>.</> : "Pick every kind of work they can do."}>
           <div className="px-4 py-3.5">
             <div className="flex flex-wrap gap-2">
               {allRoles.map(r => {
@@ -304,54 +330,47 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
           </div>
         </FormGroup>
 
-        <FormGroup title="Pay" note={form.memberRoles.length
-          ? "These rates fill in by themselves when you put them on a program — you can still change them per program."
-          : "Pick their work above to set a rate for each."}>
-          {form.memberRoles.length === 0 && !isStaff && <p className="px-4 py-3.5 text-sm text-[#A29DB3]">No work picked yet</p>}
-          {form.memberRoles.map(rid => {
-            const rc = roleConfig(rid, customRoles);
-            const rr = form.roleRates.find(r => r.roleId === rid) ?? { roleId: rid, rate: "", rateType: defaultUnit, note: "" };
-            return (
-              <div key={rid} className="px-4 py-3.5">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <Tile icon={rc.icon} color={rc.tile as TileColor} size={26} />
-                  <p className="text-[14px] font-semibold text-[#17151F]">{rc.label}</p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1 min-w-0">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                    <input type="number" inputMode="numeric" min="0" step="100" value={rr.rate} aria-label={`${rc.label} rate`}
-                      onChange={e => updateRoleRate(rid, "rate", e.target.value)} placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
-                  </div>
-                  <select value={rr.rateType === "monthly" ? defaultUnit : rr.rateType} aria-label={`${rc.label} rate unit`}
-                    onChange={e => updateRoleRate(rid, "rateType", e.target.value)}
-                    className={cn(inputCls, "w-[140px] flex-shrink-0 pr-8 cursor-pointer")}>
-                    {Object.entries(UNIT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </div>
-              </div>
-            );
-          })}
-          {isStaff && (
-            <>
-              <SwitchRow label="Monthly salary" hint="For staff paid every month, on top of or instead of per-program pay"
-                on={form.payRateType === "monthly"} onChange={v => setForm(p => ({ ...p, payRateType: v ? "monthly" : "per_program", payRate: v ? p.payRate : "" }))} />
-              {form.payRateType === "monthly" && (
-                <Field label="Salary per month">
-                  {id => (
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                      <input id={id} type="number" inputMode="numeric" min="0" step="500" value={form.payRate} onChange={set("payRate")}
-                        placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
-                    </div>
-                  )}
-                </Field>
-              )}
-            </>
+        <MoreDetails sub={form.bio ? "1 filled" : "Note about this person"} defaultOpen={!!form.bio}>
+          <FormGroup>
+            <Field label="Note" hint="Only you and managers see this.">
+              {id => <textarea id={id} rows={3} value={form.bio} onChange={set("bio")} placeholder="Best at, availability, anything to remember…"
+                className={inputCls + " h-auto py-2.5 resize-none"} />}
+            </Field>
+          </FormGroup>
+        </MoreDetails>
+        </>}
+
+        {tab === "pay" && <>
+        <FormGroup title="Prices" note={form.memberRoles.length
+          ? <>Put a price in <strong>Work only</strong> (they use someone else&apos;s gear) and/or <strong>With own setup</strong>. Use &quot;All programs&quot; or pick a program type for a different price. These fill in by themselves when you put them on a program — you can still change them there.</>
+          : undefined}>
+          <RateEditor roles={pickedRoles} lines={lines} onChange={setLines} workTypes={workTypes} />
+          {!form.memberRoles.length && (
+            <div className="px-4 pb-4"><button type="button" onClick={() => setTab("who")} className="text-[13px] font-semibold text-[#5B3FD0]">← Pick what they do</button></div>
           )}
         </FormGroup>
-
         {isStaff && (
+          <FormGroup title="Monthly salary">
+            <SwitchRow label="Pays a monthly salary" hint="On top of, or instead of, the prices above"
+              on={form.payRateType === "monthly"} onChange={v => setForm(p => ({ ...p, payRateType: v ? "monthly" : "per_program", payRate: v ? p.payRate : "" }))} />
+            {form.payRateType === "monthly" && (
+              <Field label="Salary per month">
+                {id => (
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                    <input id={id} type="number" inputMode="numeric" min="0" step="500" value={form.payRate} onChange={set("payRate")}
+                      placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
+                  </div>
+                )}
+              </Field>
+            )}
+          </FormGroup>
+        )}
+        </>}
+
+        {tab === "setup" && <SetupEditor items={setup} onChange={setSetup} />}
+
+        {tab === "login" && isStaff && (
           <FormGroup title="App login" note={isEdit ? "To change the password, use Reset password in the member menu." : "Share these with them — they can log in at app.stupanel.com."}>
             <Field label="Username" required>
               {id => (
@@ -398,14 +417,6 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
           </FormGroup>
         )}
 
-        <MoreDetails sub={form.bio ? "1 filled" : "Note about this person"} defaultOpen={!!form.bio}>
-          <FormGroup>
-            <Field label="Note" hint="Only you and managers see this.">
-              {id => <textarea id={id} rows={3} value={form.bio} onChange={set("bio")} placeholder="Own gear, best at, availability…"
-                className={inputCls + " h-auto py-2.5 resize-none"} />}
-            </Field>
-          </FormGroup>
-        </MoreDetails>
       </form>
     </FormDrawer>
   );
@@ -549,14 +560,15 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
 function rateLine(m: Member, customRoles: string[]) {
   const parts: string[] = [];
   if (m.payRateType === "monthly" && m.payRate) parts.push(`Salary ${formatCurrency(Number(m.payRate))}/month`);
-  if (Array.isArray(m.roleRates)) {
-    for (const r of m.roleRates.filter(r => r.rate)) {
-      const lbl = [...DEFAULT_ROLES, ...customRoles.map(cr => ({ id: cr, label: cr }))].find(x => x.id === r.roleId)?.label ?? r.roleId;
-      const type = r.rateType === "per_program" ? "program" : r.rateType === "per_day" ? "day" : r.rateType === "per_shift" ? "shift" : "month";
-      parts.push(`${lbl}: ${formatCurrency(Number(r.rate))}/${type}`);
-    }
+  const rates = (m.roleRates ?? []).filter(r => (r.rate || r.withSetup) && !r.workType);
+  for (const r of rates.slice(0, 2)) {
+    const lbl = roleConfig(r.roleId, customRoles).label;
+    const price = r.rate ? formatCurrency(Number(r.rate)) : formatCurrency(Number(r.withSetup));
+    parts.push(`${lbl} ${price}${r.withSetup && r.rate ? ` (${formatCurrency(Number(r.withSetup))} with setup)` : r.withSetup && !r.rate ? " with setup" : ""} ${unitLabel(r.roleId, r.rateType, r.label).toLowerCase()}`);
   }
-  if (!parts.length && m.payRate) parts.push(`${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_program" ? "program" : m.payRateType === "per_day" ? "day" : "month"}`);
+  const more = (m.roleRates ?? []).filter(r => r.rate || r.withSetup).length - Math.min(rates.length, 2);
+  if (more > 0) parts.push(`+${more} more`);
+  if (!parts.length && m.payRate) parts.push(`${formatCurrency(Number(m.payRate))}/${m.payRateType === "per_day" ? "day" : "program"}`);
   return parts.length ? parts.join(" · ") : null;
 }
 

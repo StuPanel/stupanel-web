@@ -13,6 +13,7 @@ import { DateBox, Group, TILE, Tile, type TileColor } from "@/components/ui/appl
 import { ActionButton, Avatar, IdentityCard, InfoRow, MiniStat, ProfileShell, waLink } from "@/components/ui/profile-kit";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { STATUS_CFG } from "../../programs/_components/constants";
+import { SETUP_CATS, unitLabel } from "./rate-card";
 import { notify } from "@/components/feedback";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -21,7 +22,8 @@ interface Member {
   firstName: string; lastName?: string; phone?: string; bio?: string;
   memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
-  roleRates?: { roleId: string; rate: number; rateType: string; note?: string }[];
+  roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
+  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
   createdAt: string; adminNotes?: string;
 }
 
@@ -59,7 +61,6 @@ const ROLES: Record<string, { label: string; icon: React.ElementType; tile: Tile
   assistant:       { label: "Assistant",       icon: Briefcase,  tile: "ink" },
 };
 const role = (id: string) => ROLES[id] ?? { label: id.replace(/_/g, " "), icon: Tag, tile: "violet" as TileColor };
-const UNIT: Record<string, string> = { per_program: "program", per_day: "day", per_shift: "shift", monthly: "month" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // ─── Record a payment (salary slip) ─────────────────────────────────────────
@@ -198,7 +199,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
   const upcoming = data?.upcoming ?? [];
   const owed = stats?.pendingAmount ?? 0;
   const realEmail = m.email && !m.email.includes(".internal") ? m.email : "";
-  const rates = (m.roleRates ?? []).filter(r => r.rate);
+  const rates = (m.roleRates ?? []).filter(r => r.rate || r.withSetup);
   const shownPrograms = showAllPrograms ? programs : programs.slice(0, 5);
 
   return (
@@ -286,22 +287,45 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
             ))}
           </Group>
 
-          <Group title="Rates" action={<button type="button" onClick={() => onEdit(m)} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>
+          <Group title="Prices" action={<button type="button" onClick={() => onEdit(m)} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>
             {m.payRateType === "monthly" && m.payRate ? (
               <InfoRow left="Monthly salary" right={<p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(m.payRate))}<span className="text-xs font-medium text-[#6B6680]"> / month</span></p>} />
             ) : null}
             {rates.length === 0 && !(m.payRateType === "monthly" && m.payRate)
-              ? <InfoRow left={<span className="text-[#A29DB3]">No rates set</span>} />
-              : rates.map(r => {
+              ? <InfoRow left={<span className="text-[#A29DB3]">No prices set</span>} />
+              : rates.map((r, i) => {
                 const rc = role(r.roleId); const Icon = rc.icon;
                 return (
-                  <div key={r.roleId} className="flex items-center gap-3 px-4 py-3">
+                  <div key={`${r.roleId}-${r.rateType}-${r.workType ?? ""}-${i}`} className="flex items-center gap-3 px-4 py-3">
                     <Tile icon={Icon} color={rc.tile} size={28} />
-                    <p className="flex-1 text-[15px] font-medium text-[#17151F]">{rc.label}</p>
-                    <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}<span className="text-xs font-medium text-[#6B6680]"> / {UNIT[r.rateType] ?? "program"}</span></p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-medium text-[#17151F] truncate">{rc.label}</p>
+                      <p className="text-xs text-[#6B6680] truncate">{unitLabel(r.roleId, r.rateType, r.label)}{r.workType ? ` · ${r.workType}` : " · All programs"}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {r.rate ? <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}<span className="text-[11px] font-medium text-[#6B6680]">{r.withSetup != null ? " work only" : ""}</span></p> : null}
+                      {r.withSetup != null && <p className="text-xs font-semibold text-[#5B3FD0] tabular-nums">{formatCurrency(Number(r.withSetup))} with setup</p>}
+                    </div>
                   </div>
                 );
               })}
+          </Group>
+
+          <Group title="Own setup" action={<button type="button" onClick={() => onEdit(m)} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}
+            note={(m.setup?.length ?? 0) > 0 ? "Rent goes to them when someone else works with this gear." : undefined}>
+            {(m.setup?.length ?? 0) === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No gear added</span>} /> : m.setup!.map(g => {
+              const cat = SETUP_CATS.find(c => c.v === g.category) ?? SETUP_CATS[SETUP_CATS.length - 1];
+              return (
+                <div key={g.id} className="flex items-center gap-3 px-4 py-3">
+                  <Tile icon={cat.icon} color={cat.tile} size={28} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-[#17151F] truncate">{g.name}</p>
+                    <p className="text-xs text-[#6B6680]">{cat.l}</p>
+                  </div>
+                  <p className="text-[15px] font-bold text-[#17151F] tabular-nums flex-shrink-0">{formatCurrency(Number(g.rent))}<span className="text-xs font-medium text-[#6B6680]"> / {g.rentUnit === "per_program" ? "program" : g.rentUnit === "per_day" ? "day" : "shift"}</span></p>
+                </div>
+              );
+            })}
           </Group>
 
           <Group title="Details">

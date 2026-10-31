@@ -215,7 +215,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     ? `${user.firstName[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
     : "?";
   const displayName = user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Loading...";
-  const roleLabel = user?.role === "owner" ? "Studio Admin" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
+  const roleLabel = user?.role === "owner" ? "Studio Admin" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
+  const isOwner = user?.role === "owner";
 
   return (
     <>
@@ -359,12 +360,18 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
                     <User className="w-4 h-4 text-violet-600" /> Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2 rounded-lg">
-                    <Crown className="w-4 h-4 text-violet-600" /> Plan &amp; Billing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
-                    <Settings className="w-4 h-4 text-slate-500" /> Settings
-                  </DropdownMenuItem>
+                  {isOwner ? <>
+                    <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2 rounded-lg">
+                      <Crown className="w-4 h-4 text-violet-600" /> Plan &amp; Billing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
+                      <Settings className="w-4 h-4 text-slate-500" /> Settings
+                    </DropdownMenuItem>
+                  </> : user?.role === "manager" && (
+                    <DropdownMenuItem onClick={() => router.push("/member/dashboard")} className="cursor-pointer gap-2 rounded-lg">
+                      <Camera className="w-4 h-4 text-violet-600" /> My work &amp; pay
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="my-1" />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-lg text-[#C2304F] focus:text-[#C2304F] focus:bg-rose-50">
                     <LogOut className="w-4 h-4" /> Log out

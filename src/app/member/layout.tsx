@@ -33,6 +33,8 @@ type Profile = { firstName?: string; lastName?: string; memberRoles?: string[] }
 function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLogout }: {
   profile: Profile | null; chatUnread: number; pathname: string; isMobile?: boolean; onClose?: () => void; onLogout: () => void;
 }) {
+  const [isManager, setIsManager] = useState(false);
+  useEffect(() => { try { setIsManager(localStorage.getItem("user_role") === "manager"); } catch { /* ignore */ } }, []);
   return (
     <aside className={cn("flex flex-col w-full h-full bg-white overflow-hidden",
       !isMobile && "rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]")}>
@@ -95,6 +97,13 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       </nav>
 
       <div className="p-3 border-t border-slate-100">
+        {isManager && (
+          <Link href="/programs" onClick={onClose}
+            className="w-full flex items-center gap-3 px-2.5 py-2 mb-1 rounded-xl text-sm font-semibold text-violet-700 hover:bg-violet-50 transition-colors">
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center"><LayoutDashboard className="w-[17px] h-[17px]" /></span>
+            Studio app
+          </Link>
+        )}
         <button onClick={onLogout}
           className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
           <span className="w-7 h-7 rounded-lg flex items-center justify-center"><LogOut className="w-[17px] h-[17px]" /></span>
@@ -126,7 +135,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     const token = localStorage.getItem("access_token");
     if (!token) { router.replace("/login"); return; }
     const role = localStorage.getItem("user_role");
-    if (role !== "staff") { router.replace("/dashboard"); return; }
+    if (role !== "staff" && role !== "manager") { router.replace("/dashboard"); return; }
 
     apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)

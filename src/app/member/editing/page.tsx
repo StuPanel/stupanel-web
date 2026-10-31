@@ -64,7 +64,7 @@ export default function EditingPage() {
   useEffect(() => { fetchEditing(); }, [fetchEditing]);
 
   return (
-    <div className="p-5 md:p-7 space-y-4 max-w-3xl">
+    <div className="p-5 md:p-7 space-y-4 max-w-3xl mx-auto w-full">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Editing</h1>
         <p className="text-xs text-slate-400 mt-0.5">Your editing assignments</p>

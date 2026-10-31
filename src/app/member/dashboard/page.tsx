@@ -8,6 +8,7 @@ import {
   MapPin, Phone, ArrowRight, Wallet, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 
@@ -93,7 +94,7 @@ export default function MemberDashboardPage() {
   const nextDays = nextEvent ? daysUntil(nextEvent.eventDate) : null;
 
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-3xl">
+    <div className="p-5 md:p-7 space-y-6 max-w-3xl mx-auto w-full">
       <div>
         <h1 className="text-xl font-bold text-slate-900">My Dashboard</h1>
         <p className="text-sm text-slate-500 mt-0.5">Your assigned programs overview</p>
@@ -142,16 +143,16 @@ export default function MemberDashboardPage() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <p className="text-xs text-slate-400 mb-0.5">Total Earned</p>
-              <p className="font-extrabold text-slate-900 text-base">{earnings.totalEarned.toLocaleString()}</p>
+              <p className="font-extrabold text-slate-900 text-base">{formatCurrency(earnings.totalEarned)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-0.5">This Month</p>
-              <p className="font-extrabold text-indigo-700 text-base">{earnings.thisMonthEarned.toLocaleString()}</p>
+              <p className="font-extrabold text-indigo-700 text-base">{formatCurrency(earnings.thisMonthEarned)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-0.5">Pending</p>
               <p className={cn("font-extrabold text-base", earnings.pendingAmount > 0 ? "text-amber-600" : "text-emerald-600")}>
-                {earnings.pendingAmount.toLocaleString()}
+                {formatCurrency(earnings.pendingAmount)}
               </p>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Wallet, TrendingUp, Clock, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, formatCurrency } from "@/lib/format";
 
 function fmtMonth(month: number, year: number) {
   const dt = new Date(year, month - 1, 1);
@@ -27,9 +27,9 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "Completed", cancelled: "Cancelled",
 };
 
-interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; }
+interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; }
 interface SalarySlip { id: string; month: number; year: number; baseSalary: number; deductions: number; netSalary: number; notes?: string; status: string; paidAt?: string; }
-interface Program { id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; currency?: string; role: string; totalBill: number; clientName: string; }
+interface Program { id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; currency?: string; role: string; totalBill: number; clientName: string; paid?: number; due?: number; payments?: { id: string; amount: number; method: string; date: string }[]; }
 
 export default function EarningsPage() {
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,7 @@ export default function EarningsPage() {
   const currency = programs[0]?.currency ?? "BDT";
 
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-3xl">
+    <div className="p-5 md:p-7 space-y-6 max-w-3xl mx-auto w-full">
       <div>
         <h1 className="text-xl font-bold text-slate-900">My Earnings</h1>
         <p className="text-sm text-slate-500 mt-0.5">Your payment history and program earnings</p>
@@ -68,29 +68,30 @@ export default function EarningsPage() {
           <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-extrabold text-slate-900">{stats.totalEarned.toLocaleString()}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Total Earned ({currency})</p>
+          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.totalEarned)}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Total Earned</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
             <Wallet className="w-4 h-4 text-indigo-600" />
           </div>
-          <p className="text-2xl font-extrabold text-slate-900">{stats.thisMonthEarned.toLocaleString()}</p>
-          <p className="text-xs text-slate-500 mt-0.5">This Month ({currency})</p>
+          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.thisMonthEarned)}</p>
+          <p className="text-xs text-slate-500 mt-0.5">This Month</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
             <CheckCircle className="w-4 h-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-extrabold text-slate-900">{stats.totalPaid.toLocaleString()}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Total Paid ({currency})</p>
+          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.totalPaid)}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Total Paid</p>
+          {(stats.paidOnPrograms ?? 0) > 0 && <p className="text-[11px] text-slate-400">incl. {formatCurrency(stats.paidOnPrograms ?? 0)} on programs</p>}
         </div>
         <div className={cn("rounded-xl border p-4", stats.pendingAmount > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200")}>
           <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", stats.pendingAmount > 0 ? "bg-amber-100" : "bg-slate-100")}>
             <Clock className={cn("w-4 h-4", stats.pendingAmount > 0 ? "text-amber-600" : "text-slate-400")} />
           </div>
-          <p className={cn("text-2xl font-extrabold", stats.pendingAmount > 0 ? "text-amber-700" : "text-slate-900")}>{stats.pendingAmount.toLocaleString()}</p>
-          <p className={cn("text-xs mt-0.5", stats.pendingAmount > 0 ? "text-amber-600" : "text-slate-500")}>Pending ({currency})</p>
+          <p className={cn("text-2xl font-extrabold", stats.pendingAmount > 0 ? "text-amber-700" : "text-slate-900")}>{formatCurrency(stats.pendingAmount)}</p>
+          <p className={cn("text-xs mt-0.5", stats.pendingAmount > 0 ? "text-amber-600" : "text-slate-500")}>Pending</p>
         </div>
       </div>
 
@@ -128,7 +129,7 @@ export default function EarningsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="font-extrabold text-emerald-700">{Number(s.netSalary).toLocaleString()} {currency}</p>
+                    <p className="font-extrabold text-emerald-700">{formatCurrency(Number(s.netSalary))}</p>
                     <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
                       s.status === 'paid' ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
                       {s.status === 'paid' ? 'Paid' : 'Pending'}
@@ -141,17 +142,17 @@ export default function EarningsPage() {
                 <div className="px-4 pb-4 border-t border-slate-100 pt-3 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Base Amount</span>
-                    <span className="font-semibold text-slate-900">{Number(s.baseSalary).toLocaleString()} {currency}</span>
+                    <span className="font-semibold text-slate-900">{formatCurrency(Number(s.baseSalary))}</span>
                   </div>
                   {Number(s.deductions) > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Deductions</span>
-                      <span className="font-semibold text-red-600">- {Number(s.deductions).toLocaleString()} {currency}</span>
+                      <span className="font-semibold text-red-600">- {formatCurrency(Number(s.deductions))}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm border-t border-slate-100 pt-2">
                     <span className="font-bold text-slate-700">Net Payment</span>
-                    <span className="font-extrabold text-emerald-700">{Number(s.netSalary).toLocaleString()} {currency}</span>
+                    <span className="font-extrabold text-emerald-700">{formatCurrency(Number(s.netSalary))}</span>
                   </div>
                   {s.notes && <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2">{s.notes}</p>}
                 </div>
@@ -181,7 +182,9 @@ export default function EarningsPage() {
                   <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", STATUS_COLOR[p.status] ?? "bg-slate-100 text-slate-600")}>
                     {STATUS_LABEL[p.status] ?? p.status}
                   </span>
-                  <p className="font-extrabold text-emerald-700 text-sm">{p.totalBill.toLocaleString()} {p.currency ?? currency}</p>
+                  <p className="font-extrabold text-slate-900 text-sm">{formatCurrency(p.totalBill)}</p>
+                  {(p.paid ?? 0) > 0 && <p className="text-xs font-semibold text-emerald-700">Paid {formatCurrency(p.paid ?? 0)}</p>}
+                  {(p.due ?? 0) > 0 && <p className="text-xs font-semibold text-amber-700">Due {formatCurrency(p.due ?? 0)}</p>}
                   {p.role && <p className="text-xs text-slate-400 capitalize">{p.role}</p>}
                 </div>
               </div>

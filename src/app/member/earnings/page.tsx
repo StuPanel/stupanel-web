@@ -1,196 +1,137 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Wallet, TrendingUp, Clock, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Wallet, TrendingUp, CheckCircle2, Hourglass, Camera, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
+import { Chips, EmptyState, Group, PageHeader, StatCard } from "@/components/ui/apple";
+import { Spinner, StatusBadge } from "../_components/kit";
+import Link from "next/link";
 
-function fmtMonth(month: number, year: number) {
-  const dt = new Date(year, month - 1, 1);
-  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(dt);
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  inquiry: "bg-[#FDECEF] text-[#C2304F]",
-  confirmed: "bg-[#EEE8FD] text-[#5B3FD0]",
-  advance_received: "bg-[#EEE8FD] text-[#5B3FD0]",
-  in_progress: "bg-[#E0F2F1] text-[#126B66]",
-  editing: "bg-[#E6F0FB] text-[#1F5C99]",
-  ready_for_delivery: "bg-[#7D5CEF] text-white",
-  completed: "bg-[#EEEDF2] text-[#4A4658]",
-  cancelled: "bg-[#F3E3E3] text-[#8A2E2E]",
-};
-const STATUS_LABEL: Record<string, string> = {
-  inquiry: "Inquiry", confirmed: "Confirmed", advance_received: "Advance Paid",
-  in_progress: "Shooting", editing: "Editing", ready_for_delivery: "Ready",
-  completed: "Completed", cancelled: "Cancelled",
-};
+const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", other: "Other" };
+const fmtMonth = (m: number, y: number) => new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
 
 interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; }
 interface SalarySlip { id: string; month: number; year: number; baseSalary: number; deductions: number; netSalary: number; notes?: string; status: string; paidAt?: string; }
-interface Program { id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; currency?: string; role: string; totalBill: number; clientName: string; paid?: number; due?: number; payments?: { id: string; amount: number; method: string; date: string }[]; }
+interface Program {
+  id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; currency?: string;
+  role: string; totalBill: number; clientName: string; paid?: number; due?: number;
+  payments?: { id: string; amount: number; method: string; date: string }[];
+}
 
 export default function EarningsPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
   const [slips, setSlips] = useState<SalarySlip[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [tab, setTab] = useState<"slips" | "programs">("slips");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [tab, setTab] = useState<"programs" | "payments">("programs");
+  const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch(`${API}/member/earnings`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d) { setStats(d.stats); setSlips(d.salarySlips); setPrograms(d.programs); }
-      })
+      .then(d => { if (d) { setStats(d.stats); setSlips(d.salarySlips ?? []); setPrograms(d.programs ?? []); } })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-7 h-7 animate-spin text-indigo-400" /></div>;
+  if (loading) return <Spinner />;
+  if (!stats) return <EmptyState icon={Wallet} title="Couldn't load your earnings" text="Check your internet and refresh the page." />;
 
-  if (!stats) return <div className="p-6 text-center text-slate-400">Could not load earnings.</div>;
-
-  const currency = programs[0]?.currency ?? "BDT";
+  // Every payment you got: monthly slips + money paid on programs, newest first
+  const payments = [
+    ...slips.filter(s => s.status === "paid").map(s => ({ key: `s-${s.id}`, date: s.paidAt ?? `${s.year}-${String(s.month).padStart(2, "0")}-01`, amount: Number(s.netSalary), what: `Salary · ${fmtMonth(s.month, s.year)}`, how: s.notes ?? "" })),
+    ...programs.flatMap(p => (p.payments ?? []).map(x => ({ key: `p-${x.id}`, date: x.date, amount: x.amount, what: p.eventName || p.bookingNumber, how: METHOD[x.method] ?? x.method }))),
+  ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const pendingSlips = slips.filter(s => s.status !== "paid");
 
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-3xl mx-auto w-full">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">My Earnings</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Your payment history and program earnings</p>
+    <div>
+      <PageHeader icon={Wallet} color="green" title="My earnings" sub="What you earned, got paid and still have to get" />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
+        <StatCard icon={TrendingUp} color="green" label="This month" value={formatCurrency(stats.thisMonthEarned)} />
+        <StatCard icon={Wallet} color="blue" label="Total earned" value={formatCurrency(stats.totalEarned)} />
+        <StatCard icon={CheckCircle2} color="teal" label="Got paid" value={formatCurrency(stats.totalPaid)}
+          sub={(stats.paidOnPrograms ?? 0) > 0 ? `${formatCurrency(stats.paidOnPrograms ?? 0)} on programs` : undefined} />
+        <StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(stats.pendingAmount)} />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.totalEarned)}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Total Earned</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
-            <Wallet className="w-4 h-4 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.thisMonthEarned)}</p>
-          <p className="text-xs text-slate-500 mt-0.5">This Month</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-            <CheckCircle className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-2xl font-extrabold text-slate-900">{formatCurrency(stats.totalPaid)}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Total Paid</p>
-          {(stats.paidOnPrograms ?? 0) > 0 && <p className="text-[11px] text-slate-400">incl. {formatCurrency(stats.paidOnPrograms ?? 0)} on programs</p>}
-        </div>
-        <div className={cn("rounded-xl border p-4", stats.pendingAmount > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200")}>
-          <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", stats.pendingAmount > 0 ? "bg-amber-100" : "bg-slate-100")}>
-            <Clock className={cn("w-4 h-4", stats.pendingAmount > 0 ? "text-amber-600" : "text-slate-400")} />
-          </div>
-          <p className={cn("text-2xl font-extrabold", stats.pendingAmount > 0 ? "text-amber-700" : "text-slate-900")}>{formatCurrency(stats.pendingAmount)}</p>
-          <p className={cn("text-xs mt-0.5", stats.pendingAmount > 0 ? "text-amber-600" : "text-slate-500")}>Pending</p>
-        </div>
-      </div>
+      <Chips label="Show" value={tab} onChange={setTab}
+        options={[{ value: "programs", label: "By program", count: programs.length }, { value: "payments", label: "Payments", count: payments.length }]} />
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
-        {(["slips", "programs"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn("px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors",
-              tab === t ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700")}>
-            {t === "slips" ? `Payment History (${slips.length})` : `Program Earnings (${programs.length})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Salary Slips */}
-      {tab === "slips" && (
-        <div className="space-y-3">
-          {slips.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-              <Wallet className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-slate-400 text-sm">No payment records yet</p>
-            </div>
-          ) : slips.map(s => (
-            <div key={s.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <button className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
-                onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                    <Wallet className="w-4 h-4 text-indigo-600" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">{fmtMonth(s.month, s.year)}</p>
-                    <p className="text-xs text-slate-500">{s.status === 'paid' ? `Paid · ${fmtDate(s.paidAt)}` : 'Pending'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="font-extrabold text-emerald-700">{formatCurrency(Number(s.netSalary))}</p>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold",
-                      s.status === 'paid' ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                      {s.status === 'paid' ? 'Paid' : 'Pending'}
-                    </span>
-                  </div>
-                  {expanded === s.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                </div>
-              </button>
-              {expanded === s.id && (
-                <div className="px-4 pb-4 border-t border-slate-100 pt-3 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Base Amount</span>
-                    <span className="font-semibold text-slate-900">{formatCurrency(Number(s.baseSalary))}</span>
-                  </div>
-                  {Number(s.deductions) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Deductions</span>
-                      <span className="font-semibold text-red-600">- {formatCurrency(Number(s.deductions))}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm border-t border-slate-100 pt-2">
-                    <span className="font-bold text-slate-700">Net Payment</span>
-                    <span className="font-extrabold text-emerald-700">{formatCurrency(Number(s.netSalary))}</span>
-                  </div>
-                  {s.notes && <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2">{s.notes}</p>}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Program Earnings */}
-      {tab === "programs" && (
-        <div className="space-y-3">
-          {programs.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-              <TrendingUp className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-slate-400 text-sm">No program earnings yet</p>
-            </div>
-          ) : programs.map(p => (
-            <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 truncate">{p.eventName || "Event"}</p>
-                  <p className="text-xs text-slate-400 font-mono">{p.bookingNumber}</p>
-                  <p className="text-xs text-slate-500 mt-1">{p.clientName} · {fmtDate(p.eventDate)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", STATUS_COLOR[p.status] ?? "bg-slate-100 text-slate-600")}>
-                    {STATUS_LABEL[p.status] ?? p.status}
+      {tab === "programs" && (programs.length === 0 ? (
+        <EmptyState icon={Camera} title="No program pay yet" text="Your bill for each program shows up here." />
+      ) : (
+        <Group>
+          {programs.map(p => {
+            const isOpen = open === p.id;
+            return (
+              <div key={p.id}>
+                <button type="button" onClick={() => setOpen(isOpen ? null : p.id)} aria-expanded={isOpen}
+                  className="w-full flex items-center gap-3 px-4 sm:px-5 py-3.5 text-left hover:bg-[#F7F5FB] transition-colors">
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{p.eventName || "Program"}</span>
+                    <span className="block text-xs text-[#6B6680] truncate">{p.clientName} · {fmtDate(p.eventDate)}{p.role ? ` · ${p.role.replace(/_/g, " ")}` : ""}</span>
                   </span>
-                  <p className="font-extrabold text-slate-900 text-sm">{formatCurrency(p.totalBill)}</p>
-                  {(p.paid ?? 0) > 0 && <p className="text-xs font-semibold text-emerald-700">Paid {formatCurrency(p.paid ?? 0)}</p>}
-                  {(p.due ?? 0) > 0 && <p className="text-xs font-semibold text-amber-700">Due {formatCurrency(p.due ?? 0)}</p>}
-                  {p.role && <p className="text-xs text-slate-400 capitalize">{p.role}</p>}
-                </div>
+                  <span className="text-right flex-shrink-0">
+                    <span className="block text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(p.totalBill)}</span>
+                    {(p.due ?? 0) > 0
+                      ? <span className="block text-xs font-semibold text-[#B45309]">{formatCurrency(p.due ?? 0)} to get</span>
+                      : p.totalBill > 0 && <span className="block text-xs font-semibold text-[#1F8A5B]">Paid</span>}
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 text-[#B5B0C4] transition-transform", isOpen && "rotate-180")} />
+                </button>
+                {isOpen && (
+                  <div className="px-4 sm:px-5 pb-4 -mt-1 space-y-1.5">
+                    <div className="flex items-center gap-2"><StatusBadge status={p.status} /><span className="text-xs text-[#6B6680]">{p.bookingNumber}</span>
+                      <Link href={`/member/programs/${p.id}`} className="ml-auto text-xs font-semibold text-[#5B3FD0]">Open program</Link></div>
+                    {(p.payments ?? []).length === 0
+                      ? <p className="text-xs text-[#A29DB3]">Nothing paid on this program yet.</p>
+                      : p.payments!.map(x => (
+                        <div key={x.id} className="flex justify-between text-sm rounded-[12px] bg-[#FAF9FC] px-3 py-2">
+                          <span className="text-[#4A4658]">{fmtDate(x.date)} · {METHOD[x.method] ?? x.method}</span>
+                          <span className="font-semibold text-[#1F8A5B] tabular-nums">{formatCurrency(x.amount)}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            );
+          })}
+        </Group>
+      ))}
+
+      {tab === "payments" && (
+        <>
+          {payments.length === 0 ? (
+            <EmptyState icon={Wallet} title="No payments yet" text="Every taka the studio pays you shows up here." />
+          ) : (
+            <Group>
+              {payments.map(x => (
+                <div key={x.key} className="flex items-center gap-3 px-4 sm:px-5 py-3.5">
+                  <span className="w-9 h-9 rounded-full bg-[#E9F5EF] text-[#1F8A5B] flex items-center justify-center flex-shrink-0"><CheckCircle2 className="w-4 h-4" /></span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{x.what}</span>
+                    <span className="block text-xs text-[#6B6680] truncate">{fmtDate(x.date)}{x.how ? ` · ${x.how}` : ""}</span>
+                  </span>
+                  <span className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(x.amount)}</span>
+                </div>
+              ))}
+            </Group>
+          )}
+          {pendingSlips.length > 0 && (
+            <Group title="Salary not paid yet">
+              {pendingSlips.map(s => (
+                <div key={s.id} className="flex items-center justify-between px-4 sm:px-5 py-3.5">
+                  <span className="text-[15px] font-semibold text-[#17151F]">{fmtMonth(s.month, s.year)}</span>
+                  <span className="text-[15px] font-bold text-[#B45309] tabular-nums">{formatCurrency(Number(s.netSalary))}</span>
+                </div>
+              ))}
+            </Group>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Loader2, Save, Lock, Eye, EyeOff, CheckCircle, User,
-  Phone, FileText, ShieldCheck,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Loader2, Eye, EyeOff, CheckCircle, ShieldCheck, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/apple";
+import { Field, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { Avatar, IdentityCard } from "@/components/ui/profile-kit";
+import { Spinner } from "../_components/kit";
 import { apiFetch, API_URL as API } from "@/lib/api";
 
 interface Profile {
@@ -92,154 +90,71 @@ export default function MemberProfilePage() {
     setPwSaving(false);
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
-    </div>
-  );
+  if (loading) return <Spinner />;
+
+  const pwMismatch = !!confirmPw && newPw !== confirmPw;
+  const btn = "w-full h-12 rounded-full text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60 transition-colors";
 
   return (
-    <div className="p-5 md:p-7 max-w-xl mx-auto w-full space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">My Profile</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Update your personal info and password</p>
-      </div>
+    <div className="max-w-2xl">
+      <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details and password" />
 
-      {/* Avatar + username badge */}
-      <div className="flex items-center gap-4 bg-white rounded-xl border border-slate-200 p-4">
-        <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center font-bold text-2xl text-indigo-700 flex-shrink-0">
-          {(profile?.firstName?.[0] ?? "M").toUpperCase()}
-        </div>
-        <div>
-          <p className="font-bold text-slate-900">{profile?.firstName} {profile?.lastName ?? ""}</p>
-          <p className="text-sm text-slate-400 font-mono">@{profile?.username}</p>
-          {profile?.memberRoles?.length ? (
-            <div className="flex gap-1 mt-1 flex-wrap">
-              {profile.memberRoles.map(r => (
-                <span key={r} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium capitalize">{r}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <IdentityCard
+        avatar={<Avatar name={`${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`} size={64} />}
+        name={`${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || "Me"}
+        sub={profile?.username ? `@${profile.username}` : undefined}
+        chips={profile?.memberRoles?.map(r => (
+          <span key={r} className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-2.5 py-1 rounded-full font-semibold capitalize">{r.replace(/_/g, " ")}</span>
+        ))}
+      />
 
-      {/* Profile form */}
-      <form onSubmit={saveProfile} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <User className="w-4 h-4 text-slate-400" />Personal Info
-        </p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs font-medium text-slate-600">First Name *</Label>
-            <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Md Faisal" required className="h-9 text-sm" />
+      <form onSubmit={saveProfile} className="mb-7">
+        <FormGroup title="About me">
+          <div className="grid grid-cols-2">
+            <Field label="First name" required>{id => <input id={id} value={firstName} onChange={e => setFirstName(e.target.value)} required className={inputCls} />}</Field>
+            <Field label="Last name">{id => <input id={id} value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} />}</Field>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs font-medium text-slate-600">Last Name</Label>
-            <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Ahmed" className="h-9 text-sm" />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-600">Phone</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 234 567 8900" className="h-9 text-sm pl-9" />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-600">Bio / Note</Label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
-            <textarea value={bio} onChange={e => setBio(e.target.value)}
-              placeholder="Photographer, specializing in weddings..."
-              rows={2}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none" />
-          </div>
-        </div>
-
-        {saveErr && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{saveErr}</p>}
-
-        <Button type="submit" disabled={saving} className="w-full h-9 text-sm gap-2">
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-           savedOk ? <CheckCircle className="w-3.5 h-3.5" /> :
-           <Save className="w-3.5 h-3.5" />}
-          {savedOk ? "Saved!" : "Save Changes"}
-        </Button>
+          <Field label="Phone / WhatsApp">{id => <input id={id} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" className={inputCls} />}</Field>
+          <Field label="About you" hint="A line about your work — the studio sees this.">{id => <textarea id={id} rows={2} value={bio} onChange={e => setBio(e.target.value)} placeholder="Wedding photographer, Sony A7 IV" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}</Field>
+        </FormGroup>
+        {saveErr && <p role="alert" className="mb-3 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{saveErr}</p>}
+        <button type="submit" disabled={saving} className={cn(btn, "bg-[#7D5CEF] hover:bg-[#6C4BE0] text-white")}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedOk ? <CheckCircle className="w-4 h-4" /> : null}
+          {savedOk ? "Saved" : "Save"}
+        </button>
       </form>
 
-      {/* Password form */}
-      <form onSubmit={changePassword} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-slate-400" />Change Password
-        </p>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-600">Current Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input
-              type={showCurrent ? "text" : "password"}
-              value={currentPw}
-              onChange={e => setCurrentPw(e.target.value)}
-              placeholder="Enter current password"
-              required
-              className="h-9 text-sm pl-9 pr-9"
-            />
-            <button type="button" onClick={() => setShowCurrent(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-600">New Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input
-              type={showNew ? "text" : "password"}
-              value={newPw}
-              onChange={e => setNewPw(e.target.value)}
-              placeholder="Min. 6 characters"
-              required
-              className="h-9 text-sm pl-9 pr-9"
-            />
-            <button type="button" onClick={() => setShowNew(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-600">Confirm New Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input
-              type="password"
-              value={confirmPw}
-              onChange={e => setConfirmPw(e.target.value)}
-              placeholder="Re-enter new password"
-              required
-              className={cn("h-9 text-sm pl-9", confirmPw && newPw !== confirmPw ? "border-red-300 focus-visible:ring-red-400" : "")}
-            />
-          </div>
-          {confirmPw && newPw !== confirmPw && (
-            <p className="text-xs text-red-500">Passwords don't match</p>
-          )}
-        </div>
-
-        {pwErr && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{pwErr}</p>}
-
-        <Button type="submit" disabled={pwSaving || (!!confirmPw && newPw !== confirmPw)}
-          variant="outline" className="w-full h-9 text-sm gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-          {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-           pwOk ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> :
-           <ShieldCheck className="w-3.5 h-3.5" />}
-          {pwOk ? "Password Changed!" : "Change Password"}
-        </Button>
+      <form onSubmit={changePassword}>
+        <FormGroup title="Password" note="Signed in with Google only? You can skip this.">
+          <Field label="Current password" required>{id => (
+            <div className="relative">
+              <input id={id} type={showCurrent ? "text" : "password"} value={currentPw} onChange={e => setCurrentPw(e.target.value)} required autoComplete="current-password" className={cn(inputCls, "pr-11")} />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} aria-label={showCurrent ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          )}</Field>
+          <Field label="New password" required hint="At least 6 characters.">{id => (
+            <div className="relative">
+              <input id={id} type={showNew ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} required autoComplete="new-password" className={cn(inputCls, "pr-11")} />
+              <button type="button" onClick={() => setShowNew(p => !p)} aria-label={showNew ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          )}</Field>
+          <Field label="New password again" required>{id => (
+            <>
+              <input id={id} type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required autoComplete="new-password"
+                className={cn(inputCls, pwMismatch && "ring-2 ring-[#C2304F]/40")} />
+              {pwMismatch && <p className="mt-1.5 text-xs text-[#C2304F]">Passwords don&apos;t match.</p>}
+            </>
+          )}</Field>
+        </FormGroup>
+        {pwErr && <p role="alert" className="mb-3 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{pwErr}</p>}
+        <button type="submit" disabled={pwSaving || pwMismatch} className={cn(btn, "bg-white text-[#5B3FD0] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB]")}>
+          {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : pwOk ? <CheckCircle className="w-4 h-4 text-[#1F8A5B]" /> : <ShieldCheck className="w-4 h-4" />}
+          {pwOk ? "Password changed" : "Change password"}
+        </button>
       </form>
     </div>
   );

@@ -15,6 +15,7 @@ import { STATUS_CFG, fmtDate } from "./constants";
 import { formatCurrency } from "@/lib/format";
 import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
+import { TeamPaySection } from "./team-pay-section";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { EditableSelect } from "@/components/ui/editable-select";
@@ -649,20 +650,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
             )}
           </div>
 
-          {b.costEntries?.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Team Costs</p>
-              {b.costEntries.map(e => (
-                <div key={e.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl text-sm">
-                  <div>
-                    <p className="font-medium text-slate-800">{e.memberName}</p>
-                    {e.note && <p className="text-xs text-slate-400">{e.note}</p>}
-                  </div>
-                  <span className="font-bold text-slate-800">{formatCurrency(Number(e.totalBill), b.currency)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <TeamPaySection booking={b} onSaved={refreshBooking} />
 
           {Number(b.profitAmount) !== 0 && (
             <div className={cn("rounded-xl p-4 flex items-center justify-between", Number(b.profitAmount) >= 0 ? "bg-emerald-50 border border-emerald-200" : "bg-red-50 border border-red-200")}>

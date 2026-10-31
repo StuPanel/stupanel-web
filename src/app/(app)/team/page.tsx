@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 import { UserCog as HeaderIcon } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchField, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, MoreDetails, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -518,33 +520,60 @@ function DeleteDialog({ member, onClose, onDeleted }: { member: Member | null; o
 function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
   member: Member; onEdit: () => void; onReset: () => void; onToggle: () => void; onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  // The list card clips its content (rounded corners), so the menu is drawn on
+  // top of the page at the button's spot, and opens upward if there's no room below.
+  const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const open = !!pos;
   useEffect(() => {
     if (!open) return;
-    function close(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    function close(e: MouseEvent) {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !btn.current?.contains(t)) setPos(null);
+    }
+    const shut = () => setPos(null);
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setPos(null); };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    window.addEventListener("scroll", shut, true);
+    window.addEventListener("resize", shut);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", shut, true);
+      window.removeEventListener("resize", shut);
+    };
   }, [open]);
-  function act(fn: () => void) { fn(); setOpen(false); }
+  function toggle() {
+    if (open) { setPos(null); return; }
+    const r = btn.current!.getBoundingClientRect();
+    const MENU_H = 200, MENU_W = 200;
+    const up = window.innerHeight - r.bottom < MENU_H + 12 && r.top > MENU_H + 12;
+    setPos({ top: up ? r.top - 6 : r.bottom + 6, left: Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8)), up });
+  }
+  function act(fn: () => void) { fn(); setPos(null); }
+  const item = "w-full flex items-center gap-2.5 px-3.5 h-10 rounded-[12px] text-sm text-left";
   return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(o => !o)} aria-label="More" aria-expanded={open} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
+    <>
+      <button ref={btn} onClick={toggle} aria-label="More" aria-haspopup="menu" aria-expanded={open} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
         <MoreHorizontal className="w-4 h-4" />
       </button>
-      {open && (
-        <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1 [&>button]:rounded-[12px] [&>button]:h-10 [&>button]:py-0">
-          <button onClick={() => act(onEdit)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit3 className="w-4 h-4 text-slate-400" />Edit Info</button>
-          {member.memberType !== "freelancer" && <button onClick={() => act(onReset)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><KeyRound className="w-4 h-4 text-slate-400" />Reset Password</button>}
-          <button onClick={() => act(onToggle)} className={cn("w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-slate-50", member.isActive ? "text-amber-600" : "text-emerald-600")}>
+      {pos && typeof document !== "undefined" && createPortal(
+        <div ref={menu} role="menu" style={{ top: pos.top, left: pos.left, width: 200, transform: pos.up ? "translateY(-100%)" : undefined }}
+          className="fixed z-[80] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] p-1">
+          <button role="menuitem" onClick={() => act(onEdit)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit info</button>
+          {member.memberType !== "freelancer" && <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
+          <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#B45309]" : "text-[#1F8A5B]")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
           </button>
-          <div className="border-t border-slate-100" />
-          <button onClick={() => act(onDelete)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" />Remove</button>
-        </div>
+          <div className="my-1 border-t border-[#EEEBF4]" />
+          <button role="menuitem" onClick={() => act(onDelete)} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Remove</button>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
 
@@ -594,7 +623,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
           <MessageCircle className="w-4 h-4" />
         </a>
       )}
-      <div onClick={e => e.stopPropagation()} className="flex-shrink-0">
+      <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} className="flex-shrink-0">
         <ActionMenu member={m} onEdit={onEdit} onReset={onReset} onToggle={onToggle} onDelete={onDelete} />
       </div>
     </div>

@@ -90,7 +90,7 @@ export default function SchedulePage() {
   const nextDays = nextEvent ? daysUntil(nextEvent.eventDate) : null;
 
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-3xl">
+    <div className="p-5 md:p-7 space-y-6 max-w-3xl mx-auto w-full">
       <div>
         <h1 className="text-xl font-bold text-slate-900">My Schedule</h1>
         <p className="text-sm text-slate-500 mt-0.5">All programs you're assigned to</p>

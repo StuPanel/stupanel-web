@@ -99,7 +99,7 @@ export default function MemberProfilePage() {
   );
 
   return (
-    <div className="p-5 md:p-7 max-w-xl space-y-6">
+    <div className="p-5 md:p-7 max-w-xl mx-auto w-full space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">My Profile</h1>
         <p className="text-sm text-slate-500 mt-0.5">Update your personal info and password</p>

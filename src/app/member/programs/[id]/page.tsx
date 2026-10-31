@@ -5,18 +5,28 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Calendar, MapPin, Phone, Mail, User, Users,
   HardDrive, Link2, ExternalLink, FolderOpen, Monitor, Loader2,
-  CheckCircle2, Clock, AlertCircle,
+  CheckCircle2, Clock, AlertCircle, Wallet,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type ProgramHub = {
   id: string;
   bookingNumber: string;
   eventName?: string;
   status: string;
-  eventDays: { id: string; eventType: string; date?: string; location?: string }[];
+  eventDays: {
+    id: string; eventType: string; date?: string; location?: string;
+    shifts?: { id: string; label: string; people: { id: string; isMe: boolean; role: string; name: string; phone?: string | null; setup?: string | null; gear: string[] }[] }[];
+  }[];
+  currency?: string;
+  myPay?: {
+    role: string; bill: number; paid: number; due: number; note?: string;
+    lines: { label: string; amount: number; kind: string; note?: string }[];
+    payments: { id: string; amount: number; method: string; date: string }[];
+  } | null;
   client: { firstName: string; lastName?: string; phone?: string; email?: string; address?: string };
   team: { id: string; userId: string; roleInBooking: string; user: { firstName: string; lastName?: string; phone?: string } }[];
   editorAssignments: {
@@ -39,8 +49,10 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: React.Rea
   cancelled:  { label: "Cancelled",  color: "text-red-700 bg-red-100",        icon: <AlertCircle className="w-4 h-4" /> },
 };
 
+const SETUP_LABEL: Record<string, string> = { own: "own setup", other: "others' gear", rented: "rented gear" };
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", other: "Other" };
 const ROLE_CFG: Record<string, string> = {
-  photographer: "Photographer", videographer: "Videographer", assistant: "Assistant",
+  photographer: "Photographer", videographer: "Videographer", cinematographer: "Cinematographer", drone_pilot: "Drone", assistant: "Assistant",
   drone_operator: "Drone", photo_editor: "Photo Editor", video_editor: "Video Editor",
   album_designer: "Album Design", coordinator: "Coordinator",
 };
@@ -134,7 +146,49 @@ export default function ProgramHubPage() {
                     <p className="font-semibold text-sm text-slate-800">{day.eventType}</p>
                     {day.date && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(day.date)}</p>}
                     {day.location && <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" />{day.location}</p>}
+                    {(day.shifts ?? []).filter(sh => sh.people.length).map(sh => (
+                      <div key={sh.id} className="mt-2">
+                        {(day.shifts ?? []).length > 1 && <p className="text-[11px] font-semibold text-slate-500 mb-1">{sh.label}</p>}
+                        <div className="flex flex-wrap gap-1.5">
+                          {sh.people.map((pp, k) => (
+                            <span key={`${pp.id}-${k}`} className={cn("inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12px]", pp.isMe ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700")}>
+                              <span className="font-semibold">{pp.isMe ? "You" : pp.name}</span>
+                              <span className={pp.isMe ? "text-violet-100" : "text-slate-500"}>· {ROLE_CFG[pp.role] ?? pp.role.replace(/_/g, " ")}{pp.setup ? ` · ${SETUP_LABEL[pp.setup] ?? pp.setup}` : ""}{pp.gear.length ? ` (${pp.gear.join(", ")})` : ""}</span>
+                              {!pp.isMe && pp.phone && <a href={wa(pp.phone)} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${pp.name}`} className="ml-0.5 text-emerald-600"><Phone className="w-3 h-3" /></a>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* My pay on this program */}
+        {hub.myPay && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-emerald-500" />
+              <span className="font-semibold text-sm text-slate-800">My pay</span>
+              <span className={cn("ml-auto text-xs font-semibold px-2 py-0.5 rounded-full", hub.myPay.due > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+                {hub.myPay.due > 0 ? `Due ${formatCurrency(hub.myPay.due)}` : "Paid in full"}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {hub.myPay.lines.map((l, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <span className="text-slate-600">{l.label}{l.note ? <span className="text-xs text-slate-400"> · {l.note}</span> : null}</span>
+                  <span className={cn("font-semibold tabular-nums", l.kind === "deduction" ? "text-red-600" : "text-slate-900")}>{l.kind === "deduction" ? "− " : ""}{formatCurrency(l.amount)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between px-4 py-2.5 text-sm font-bold"><span>Total</span><span className="tabular-nums">{formatCurrency(hub.myPay.bill)}</span></div>
+              {hub.myPay.payments.map(p => (
+                <div key={p.id} className="flex items-center justify-between px-4 py-2 text-xs text-slate-500">
+                  <span>Paid {fmtDate(p.date)} · {METHOD_LABEL[p.method] ?? p.method}</span>
+                  <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(p.amount)}</span>
                 </div>
               ))}
             </div>

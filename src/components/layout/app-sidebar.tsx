@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { canOpen } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
 import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
 import { StudioLogo } from "@/components/studio-logo";
@@ -85,7 +86,11 @@ export function BrandMark({ size = 32, className }: { size?: number; className?:
 
 export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
-  const { companyLogo, companyName } = useAuth();
+  const { companyLogo, companyName, user } = useAuth();
+  // Managers only see the parts the owner gave them.
+  const groups = navigation
+    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href)) }))
+    .filter(g => g.items.length > 0);
   const [access, setAccess] = useState<BillingAccess | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
 
@@ -157,7 +162,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
 
       {/* Navigation */}
       <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-3.5", wide ? "px-2.5" : "px-2")}>
-        {navigation.map((group) => (
+        {groups.map((group) => (
           <div key={group.title}>
             {wide
               ? <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>

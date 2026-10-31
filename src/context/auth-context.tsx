@@ -12,6 +12,8 @@ export interface UserProfile {
   email: string;
   emailVerified: boolean;
   impersonatedBy?: string | null;
+  /** Manager only: areas the owner allowed. */
+  permissions?: string[];
   company: { name: string };
 }
 

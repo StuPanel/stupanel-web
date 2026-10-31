@@ -23,6 +23,8 @@ import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
 import { RateEditor, SetupEditor, firstLine, linesToRates, ratesToLines, uid, unitLabel, type RateLine, type SavedRate, type SetupItem } from "./_components/rate-card";
 import { formatCurrency } from "@/lib/format";
+import { useAuth } from "@/context/auth-context";
+import { AREAS } from "@/lib/access";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -51,6 +53,9 @@ interface Member {
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
+  role?: string;
+  /** Manager only: parts of the studio they can use. */
+  managerAreas?: string[];
   createdAt: string;
 }
 
@@ -79,6 +84,9 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
   const [lines, setLines] = useState<RateLine[]>([]);
   const [setup, setSetup] = useState<SetupItem[]>([]);
   const [tab, setTab] = useState<"who" | "pay" | "setup" | "login">("who");
+  const { user: me } = useAuth();
+  const isOwner = me?.role === "owner";
+  const [access, setAccess] = useState<{ manager: boolean; areas: string[] }>({ manager: false, areas: [] });
 
   // Rates follow Settings → Team & Pay (per shift or per program); program types from Settings → Work types
   useEffect(() => {
@@ -100,6 +108,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
     setTab("who");
+    setAccess({ manager: editing?.role === "manager", areas: editing?.managerAreas ?? [] });
     setLines(ratesToLines(editing?.roleRates));
     setSetup(Array.isArray(editing?.setup) ? editing!.setup!.map(g => ({ id: g.id || uid(), category: g.category, name: g.name, rent: g.rent ? String(g.rent) : "", rentUnit: g.rentUnit || "per_shift" })) : []);
     if (editing) {
@@ -196,6 +205,16 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { const msg = d.message; setError(Array.isArray(msg) ? msg[0] : (msg || "Failed to save.")); return; }
+      // Manager on/off + areas (owner only, staff with a login only)
+      const wasManager = editing?.role === "manager";
+      const areasChanged = JSON.stringify([...(editing?.managerAreas ?? [])].sort()) !== JSON.stringify([...access.areas].sort());
+      if (isOwner && !freelancer && (access.manager !== wasManager || (access.manager && areasChanged))) {
+        const ar = await apiFetch(`${API}/team/${isEdit ? editing!.id : d.id}/access`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ manager: access.manager, areas: access.manager ? access.areas : [] }),
+        });
+        if (!ar.ok) { const ad = await ar.json().catch(() => ({})); setError(Array.isArray(ad.message) ? ad.message[0] : ad.message || "Saved, but couldn't change manager access."); onSaved(); return; }
+      }
       notify(isEdit ? "Saved" : freelancer ? `${form.firstName} added as a freelancer` : `${form.firstName} added to the team`);
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
@@ -211,7 +230,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
     { v: "who" as const, l: "Who" },
     { v: "pay" as const, l: "Rates", n: priced },
     { v: "setup" as const, l: "Setup", n: gearCount },
-    ...(isStaff ? [{ v: "login" as const, l: "Login" }] : []),
+    ...(isStaff ? [{ v: "login" as const, l: isOwner ? "Login & access" : "Login" }] : []),
   ];
 
   return (
@@ -411,6 +430,33 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
           </FormGroup>
         )}
 
+        {tab === "login" && isStaff && isOwner && (
+          <FormGroup title="Manager" note={access.manager ? "They log in to the studio app and see only what you tick. Billing and Settings stay yours." : "Turn on to let them help run the studio."}>
+            <SwitchRow label="Make manager" hint="Gives access to parts of the studio app" on={access.manager}
+              onChange={v => setAccess(a => ({ manager: v, areas: v && !a.areas.length ? ["programs", "clients"] : a.areas }))} />
+            {access.manager && (
+              <div className="px-2 pb-2">
+                {AREAS.map(ar => {
+                  const on = access.areas.includes(ar.key);
+                  return (
+                    <button key={ar.key} type="button" role="checkbox" aria-checked={on}
+                      onClick={() => setAccess(a => ({ ...a, areas: on ? a.areas.filter(x => x !== ar.key) : [...a.areas, ar.key] }))}
+                      className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-[12px] hover:bg-[#F5F3FA] text-left">
+                      <span className={cn("w-5 h-5 rounded-[6px] border-2 flex items-center justify-center flex-shrink-0", on ? "bg-[#7D5CEF] border-[#7D5CEF]" : "border-[#D8D3E3]")}>
+                        {on && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[15px] font-medium text-[#17151F]">{ar.label}</span>
+                        <span className="block text-xs text-[#6B6680]">{ar.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </FormGroup>
+        )}
+
       </form>
     </FormDrawer>
   );
@@ -523,6 +569,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
   // The list card clips its content (rounded corners), so the menu is drawn on
   // top of the page at the button's spot, and opens upward if there's no room below.
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
+  const isOwner = useAuth().user?.role === "owner";
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const open = !!pos;
@@ -563,13 +610,15 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
         <div ref={menu} role="menu" style={{ top: pos.top, left: pos.left, width: 200, transform: pos.up ? "translateY(-100%)" : undefined }}
           className="fixed z-[80] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] p-1">
           <button role="menuitem" onClick={() => act(onEdit)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit info</button>
-          {member.memberType !== "freelancer" && <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
+          {isOwner && member.memberType !== "freelancer" && <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
           <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#B45309]" : "text-[#1F8A5B]")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
           </button>
-          <div className="my-1 border-t border-[#EEEBF4]" />
-          <button role="menuitem" onClick={() => act(onDelete)} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Remove</button>
+          {isOwner && <>
+            <div className="my-1 border-t border-[#EEEBF4]" />
+            <button role="menuitem" onClick={() => act(onDelete)} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Remove</button>
+          </>}
         </div>,
         document.body,
       )}
@@ -608,6 +657,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
         <p className="text-sm font-semibold text-[#17151F] truncate flex items-center gap-2">
           {m.firstName} {m.lastName ?? ""}
           {m.memberType === "freelancer" && <span className="text-[11px] font-bold text-[#9E3A8C] bg-[#FBF2FA] px-1.5 py-0.5 rounded-full">Freelancer</span>}
+          {m.role === "manager" && <span className="text-[11px] font-bold text-[#5B3FD0] bg-[#EEE8FD] px-1.5 py-0.5 rounded-full">Manager</span>}
           {!m.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Inactive</span>}
         </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">

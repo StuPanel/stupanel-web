@@ -15,16 +15,18 @@ export const inputCls =
   "border border-transparent outline-none transition-colors focus:bg-white focus:border-[#7D5CEF] focus:ring-4 focus:ring-[#7D5CEF]/12";
 
 /** Drawer page: lavender background, header with tile, sticky footer. */
-export function FormDrawer({ open, onClose, icon, color, title, sub, children, footer }: {
+export function FormDrawer({ open, onClose, icon, color, title, sub, children, footer, onTop }: {
   open: boolean; onClose: () => void;
+  /** Opened from inside another drawer — sit above it. */
+  onTop?: boolean;
   icon: React.ElementType; color: TileColor; title: string; sub?: React.ReactNode;
   children: React.ReactNode; footer: React.ReactNode;
 }) {
   if (!open) return null;
   return (
     <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={title} className="sp-drawer z-50 sm:max-w-[520px] flex flex-col bg-[#F5F3FA]">
+      <div className={cn("sp-backdrop", onTop ? "z-[60]" : "z-40")} onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label={title} className={cn("sp-drawer sm:max-w-[520px] flex flex-col bg-[#F5F3FA]", onTop ? "z-[70]" : "z-50")}>
         <div className="flex items-center gap-3 px-5 pt-5 pb-4">
           <Tile icon={icon} color={color} size={40} />
           <div className="flex-1 min-w-0">

@@ -7,20 +7,22 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search, Plus, Phone, Mail, MapPin, Star, MoreHorizontal, Users,
   Camera, Building2, User, Loader2, X, AlertTriangle,
-  Edit3, Trash2, Eye, Link2, Check,
+  Edit3, Trash2, Eye, Link2, Check, MessageCircle, Wallet, CheckCircle2, CalendarDays,
 } from "lucide-react";
-import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
+import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { CLIENT_SOURCES, ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { ActionButton, Avatar, IdentityCard, InfoRow, MiniStat, ProfileShell, waLink } from "@/components/ui/profile-kit";
+import { STATUS_CFG } from "../programs/_components/constants";
 import { FormDrawer } from "@/components/ui/form-kit";
 import { notify } from "@/components/feedback";
 import { API_URL as API } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, fmtDate } from "@/lib/format";
 import { PortalAccessModal } from "@/components/portal-access-modal";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -229,6 +231,15 @@ function ClientDrawer({
 
 // ─── View Profile Drawer ────────────────────────────────────────────────────
 
+type ClientDetail = Client & {
+  facebookProfile?: string;
+  stats?: { programs: number; total: number; paid: number; due: number; nextProgram: { id: string; eventName?: string; eventDate?: string } | null };
+  referrals?: { id: string; firstName: string; lastName?: string; createdAt: string }[];
+};
+type ClientPayment = { id: string; amount: number; currency?: string; paymentMethod?: string; paymentDate?: string; booking?: { eventName?: string; bookingNumber?: string } };
+
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", card: "Card", other: "Other" };
+
 function ProfileDrawer({
   client, onClose, onEdit,
 }: {
@@ -236,120 +247,120 @@ function ProfileDrawer({
   onClose: () => void;
   onEdit: (c: Client) => void;
 }) {
+  const router = useRouter();
   const [portalOpen, setPortalOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [detail, setDetail] = useState<ClientDetail | null>(null);
+  const [payments, setPayments] = useState<ClientPayment[]>([]);
+
+  useEffect(() => {
+    setDetail(null); setPayments([]); setMoreOpen(false);
+    if (!client) return;
+    apiFetch(`${API}/clients/${client.id}`).then(r => r.ok ? r.json() : null).then(d => d && setDetail(d)).catch(() => {});
+    apiFetch(`${API}/payments?clientId=${client.id}&limit=10`).then(r => r.ok ? r.json() : null)
+      .then(d => setPayments(Array.isArray(d?.data) ? d.data : [])).catch(() => {});
+  }, [client]);
 
   if (!client) return null;
-  const color = avatarColor(client.id);
+  const c: ClientDetail = { ...client, ...(detail ?? {}) };
+  const name = fullName(c);
+  const st = c.stats;
+  const bookings = c.bookings ?? [];
+  const src = CLIENT_SOURCES.find(s => s.value === c.source);
 
   return (
     <>
       {portalOpen && <PortalAccessModal client={client} onClose={() => setPortalOpen(false)} />}
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h2 className="font-bold text-slate-900 text-lg">Client Profile</h2>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setPortalOpen(true)}
-              className="gap-1.5 h-8 text-xs border-slate-200">
-              <Link2 className="w-3.5 h-3.5" /> Portal
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { onClose(); onEdit(client); }}
-              className="gap-1.5 h-8 text-xs border-slate-200">
-              <Edit3 className="w-3.5 h-3.5" /> Edit
-            </Button>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Avatar + Name */}
-          <div className="flex items-center gap-4">
-            <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-xl", color)}>
-              {initials(client)}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-900 text-xl">{fullName(client)}</h3>
-                {client.vipStatus && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-              </div>
-              {client.occupation && <p className="text-sm text-slate-500">{client.occupation}</p>}
-              {client.companyName && (
-                <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                  <Building2 className="w-3 h-3" /> {client.companyName}
-                </p>
+      <ProfileShell open onClose={onClose} label="Client">
+        <IdentityCard
+          avatar={<Avatar name={name} color="#1F5C99" />}
+          name={<span className="inline-flex items-center gap-2">{name}{c.vipStatus && <Star className="w-5 h-5 text-[#9E3A8C] fill-[#9E3A8C]" aria-label="VIP" />}</span>}
+          sub={[c.phone, c.companyName || c.occupation].filter(Boolean).join(" · ") || "No phone yet"}
+          chips={<>
+            {c.vipStatus && <span className="h-6 px-2.5 rounded-full bg-[#FBF2FA] text-[#9E3A8C] text-xs font-bold inline-flex items-center">VIP</span>}
+            {src && <span className="h-6 px-2.5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-xs font-semibold inline-flex items-center">From {src.label}{c.source === "referral" && (c.referredByClientName || c.referredByName) ? ` · ${c.referredByClientName || c.referredByName}` : ""}</span>}
+          </>}
+          actions={<>
+            <ActionButton icon={MessageCircle} label="WhatsApp" tone="green" href={waLink(c.phone)} disabled={!c.phone} />
+            <ActionButton icon={Phone} label="Call" tone="blue" href={c.phone ? `tel:${c.phone}` : undefined} disabled={!c.phone} />
+            <ActionButton icon={Camera} label="New program" tone="violet" onClick={() => router.push(`/programs?newFor=${c.id}`)} />
+            <div className="relative">
+              <ActionButton icon={MoreHorizontal} label="More" tone="ink" onClick={() => setMoreOpen(o => !o)} />
+              {moreOpen && (
+                <div role="menu" className="absolute right-0 top-[72px] w-52 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+                  <button role="menuitem" onClick={() => { setMoreOpen(false); onClose(); onEdit(client); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
+                  <button role="menuitem" onClick={() => { setMoreOpen(false); setPortalOpen(true); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Link2 className="w-4 h-4 text-[#6B6680]" />Client portal link</button>
+                </div>
               )}
             </div>
-          </div>
+          </>}
+        />
 
-          {/* Contact */}
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contact</p>
-            {client.phone && (
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <span className="text-sm text-slate-700">{client.phone}</span>
-              </div>
-            )}
-            {client.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <span className="text-sm text-slate-700">{client.email}</span>
-              </div>
-            )}
-            {client.city && (
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <span className="text-sm text-slate-700">{client.city}</span>
-              </div>
-            )}
-            {client.source && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Source:</span>
-                <span className="text-xs text-slate-600 font-medium capitalize">{client.source.replace("_", " ")}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Recent Bookings */}
-          {client.bookings && client.bookings.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent Bookings</p>
-              {client.bookings.map(b => (
-                <div key={b.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-mono text-slate-400">{b.bookingNumber}</p>
-                    <p className="text-sm font-medium text-slate-900">{b.eventName || "Untitled"}</p>
-                    {b.eventDate && (
-                      <p className="text-xs text-slate-400">
-                        {new Date(b.eventDate).toLocaleDateString("en-US", { dateStyle: "medium" })}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
-                    <p className={cn("text-xs font-medium",
-                      b.paidAmount >= b.grandTotal && b.grandTotal > 0 ? "text-emerald-600" : "text-orange-500"
-                    )}>
-                      {b.paidAmount >= b.grandTotal && b.grandTotal > 0 ? "Paid" : `Due ${formatCurrency(Math.max(0, b.grandTotal - b.paidAmount), b.currency)}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Notes */}
-          {client.notes && (
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-xs font-semibold text-blue-500 uppercase tracking-wide mb-1.5">Notes</p>
-              <p className="text-sm text-slate-700">{client.notes}</p>
-            </div>
-          )}
+        <div className="grid grid-cols-2 gap-3 mb-7">
+          <MiniStat icon={Wallet} color="red" label="Due now" value={formatCurrency(st?.due ?? 0)} tone={(st?.due ?? 0) > 0 ? "red" : undefined} sub={(st?.due ?? 0) > 0 ? "Across their programs" : "Nothing due"} />
+          <MiniStat icon={CheckCircle2} color="green" label="Paid so far" value={formatCurrency(st?.paid ?? 0)} sub={`of ${formatCurrency(st?.total ?? 0)}`} />
+          <MiniStat icon={Camera} color="deep" label="Programs" value={st?.programs ?? bookings.length} sub={c.createdAt ? `Client since ${fmtDate(c.createdAt)}` : undefined} />
+          <MiniStat icon={CalendarDays} color="blue" label="Next program" value={st?.nextProgram ? fmtDate(st.nextProgram.eventDate) : "—"} sub={st?.nextProgram?.eventName ?? "Nothing booked"} />
         </div>
-      </div>
+
+        <Group title="Programs" action={<button type="button" onClick={() => router.push(`/programs?newFor=${c.id}`)} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#5B3FD0]"><Plus className="w-3.5 h-3.5" />New</button>}>
+          {bookings.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No programs yet</span>} /> : bookings.map(b => {
+            const due = Math.max(0, Number(b.grandTotal) - Number(b.paidAmount));
+            return (
+              <button key={b.id} type="button" onClick={() => router.push(`/programs?view=${b.id}`)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FB] transition-colors">
+                <DateBox date={b.eventDate} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</p>
+                  <p className="text-xs text-[#6B6680] truncate mt-0.5">{b.bookingNumber} · {STATUS_CFG[b.status]?.label ?? b.status}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
+                  {Number(b.grandTotal) > 0 && (due > 0
+                    ? <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(due, b.currency)} due</p>
+                    : <p className="text-xs font-semibold text-[#1F8A5B]">Paid</p>)}
+                </div>
+              </button>
+            );
+          })}
+        </Group>
+
+        <Group title="Payments">
+          {payments.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments yet</span>} /> : payments.map(p => (
+            <InfoRow key={p.id}
+              left={p.booking?.eventName || p.booking?.bookingNumber || "Payment"}
+              sub={[fmtDate(p.paymentDate), METHOD_LABEL[p.paymentMethod ?? ""] ?? p.paymentMethod].filter(Boolean).join(" · ")}
+              right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(p.amount), p.currency)}</p>} />
+          ))}
+        </Group>
+
+        <Group title="Details" action={<button type="button" onClick={() => { onClose(); onEdit(client); }} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>
+          {c.phone && <InfoRow left={c.phone} sub="Phone / WhatsApp" />}
+          {c.phoneSecondary && <InfoRow left={c.phoneSecondary} sub="Second phone" />}
+          {c.email && <InfoRow left={<span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#6B6680]" />{c.email}</span>} sub="Email" />}
+          {c.facebookProfile && <InfoRow left={c.facebookProfile} sub="Facebook" />}
+          {(c.address || c.city) && <InfoRow left={[c.address, c.city].filter(Boolean).join(", ")} sub="Address" />}
+          {c.occupation && <InfoRow left={c.occupation} sub="Occupation" />}
+          {c.companyName && <InfoRow left={c.companyName} sub="Company / organisation" />}
+          {!c.phone && !c.email && !c.address && !c.city && <InfoRow left={<span className="text-[#A29DB3]">No details yet</span>} />}
+        </Group>
+
+        {(c.referrals?.length ?? 0) > 0 && (
+          <Group title={`Brought ${c.referrals!.length} client${c.referrals!.length === 1 ? "" : "s"}`} note="Clients who came through this person.">
+            {c.referrals!.map(r => (
+              <InfoRow key={r.id} left={`${r.firstName} ${r.lastName ?? ""}`.trim()} sub={`Added ${fmtDate(r.createdAt)}`}
+                onClick={() => router.push(`/clients?view=${r.id}`)} />
+            ))}
+          </Group>
+        )}
+
+        {(c.notes || c.internalNotes) && (
+          <Group title="Notes">
+            {c.notes && <InfoRow left={<span className="whitespace-normal">{c.notes}</span>} sub="Notes" />}
+            {c.internalNotes && <InfoRow left={<span className="whitespace-normal">{c.internalNotes}</span>} sub="Private — only your team" />}
+          </Group>
+        )}
+      </ProfileShell>
     </>
   );
 }

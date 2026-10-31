@@ -19,14 +19,27 @@ export interface TeamMember {
   memberId: string;
   firstName: string;
   lastName?: string;
+  phone?: string;
+  memberType?: string;
+  isActive?: boolean;
   memberRoles: string[];
-  roleRates?: { roleId: string; rate: number; rateType: string; note?: string }[];
+  roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
+  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
 }
 
+/** Whose gear a person uses on a shift. */
+export type SetupMode = "own" | "other" | "rented";
+
 export interface ShiftAssignment {
-  id: string;       // real team member id, or a synthetic "fl_..." id for freelancers
-  role: string;      // photographer | cinematographer | drone_pilot | assistant
-  name?: string;      // set only for freelancers (real members resolve their name via teamMembers)
+  id: string;       // real team member id, or a synthetic "fl_..." id for old free-text freelancers
+  role: string;      // photographer | cinematographer | drone_pilot | assistant | custom
+  name?: string;      // set only for old free-text freelancers
+  /** Their own gear (default), someone else's, or rented from outside. */
+  setup?: SetupMode;
+  /** For "other": which gear and whose (ownerId = member id or "studio"). */
+  gear?: { ownerId: string; itemId?: string; name: string }[];
+  /** For "rented": shop, item, amount; who paid (studio, or the member → refunded on their bill). */
+  rental?: { vendor: string; item: string; amount: number; paidBy: "studio" | "member" };
 }
 
 export interface Shift {
@@ -37,6 +50,8 @@ export interface Shift {
 
 export interface EventDay {
   id: string;
+  /** Program type id from Settings → Work types (e.g. "muslim-wedding"); same on every day. */
+  programType?: string;
   eventType: string;
   date: string;
   location: string;
@@ -51,6 +66,26 @@ export interface EditorDraft {
   studioNote?: string;
 }
 
+/** One line of a team member's bill on a program. */
+export interface BillLine {
+  id: string;
+  /** Stable key for auto lines, so a re-calculation keeps the user's typed amount. */
+  key?: string;
+  kind: "work" | "gear_rent" | "refund" | "extra" | "deduction";
+  auto?: boolean;
+  edited?: boolean;
+  role?: string;
+  setup?: SetupMode;
+  label: string;
+  qty?: number;
+  unit?: string;
+  unitPrice?: number;
+  amount: number;
+  note?: string;
+  days?: string[];
+  shifts?: number;
+}
+
 export interface CostEntry {
   id: string;
   role: string;
@@ -59,6 +94,8 @@ export interface CostEntry {
   totalBill: number;
   paidAmount?: number;
   note?: string;
+  /** Itemised bill (new form). totalBill = sum of lines (deductions subtract). */
+  lines?: BillLine[];
 }
 
 export interface Booking {

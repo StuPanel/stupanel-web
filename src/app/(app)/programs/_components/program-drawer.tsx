@@ -1,914 +1,858 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+/**
+ * New / edit program — one organised page.
+ * 1 Client · 2 Program (type, name, package) · 3 Days & team (shifts, who, setup) ·
+ * 4 Money · 5 Team pay (built from prices, editable) · 6 Other costs & notes.
+ * A live summary (money, team cost, profit) sits on the right on wide screens.
+ *
+ * Saves the same booking fields as before; the team bill is written to costEntries
+ * (with itemised lines), so profile / salary / reports / profit all stay in sync.
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, X, Loader2, Search, Check, AlertTriangle,
-  User, CalendarDays, DollarSign, BarChart2,
-  ChevronRight, Clock, Tag, ArrowRight,
-  TrendingUp, Film,
+  AlertTriangle, ArrowRight, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
+  Search, Store, Trash2, UserPlus, Users, Wallet, X, Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
-import { apiFetch } from "@/lib/api";
-import { API_URL as API } from "@/lib/api";
-import { EVENT_TYPES, ROLE_ICONS, ROLE_LABELS, SHOOT_ROLE_ORDER, EDITOR_ROLE_ORDER, fmtDate, uid } from "./constants";
+import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import type { Client, Package, TeamMember, EventDay, CostEntry, Booking, EditorDraft } from "./types";
+import { notify } from "@/components/feedback";
+import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
+import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/ui/form-kit";
+import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { TEAM_ROLES } from "../../team/_components/rate-card";
+import { EVENT_TYPES, fmtDate, uid } from "./constants";
+import { buildBill, findRate, ROLE_NAME, type Rate } from "./pricing";
+import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
 
-// ─── Wizard State ─────────────────────────────────────────────────────────────
-export function blankWizard() {
-  return {
-    clientMode: "search" as "search" | "new",
-    selectedClient: null as Client | null,
-    newClient: blankClientForm as ClientFormData,
-    eventDays: [] as EventDay[],
-    eventName: "",
-    packageId: "", currency: "BDT",
-    totalAmount: "", discountAmount: "", advanceAmount: "", advanceMethod: "cash",
-    costEntries: [] as CostEntry[],
-    transportCost: "", otherCost: "", albumCost: "", equipCost: "",
-    internalNotes: "",
-    editorAssignments: [] as EditorDraft[],
-  };
+type WorkType = { id: string; name: string; active: boolean };
+type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: string }[] };
+type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string };
+
+const SHIFT_PRESETS = ["Day", "Evening", "Night", "Full day"];
+const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "bKash / Nagad" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
+const role = (id: string) => TEAM_ROLES.find(r => r.id === id) ?? { id, label: id.replace(/_/g, " "), icon: Camera, tile: "violet" };
+const fullName = (m?: { firstName: string; lastName?: string | null }) => m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : "";
+const num = (v: string) => parseFloat(v) || 0;
+
+/** Old bookings stored member ids in shift.memberIds. */
+function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
+  return (days ?? []).map(d => ({ ...d, shifts: (d.shifts ?? []).map(s => ({ ...s, assignments: s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? [] })) }));
 }
 
-// Bookings created before shifts switched from memberIds to assignments still
-// have the old shape in stored JSON — normalize once here so every downstream
-// read can assume `assignments` is always an array.
-function normalizeEventDays(eventDays: EventDay[] | undefined | null): EventDay[] {
-  return (eventDays ?? []).map(day => ({
-    ...day,
-    shifts: (day.shifts ?? []).map(s => ({
-      ...s,
-      assignments: s.assignments ?? (s as any).memberIds ?? [],
-    })),
-  }));
+// ─── Section shell ────────────────────────────────────────────────────────────
+function Section({ n, title, sub, done, children, right }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <section className="mb-6">
+      <div className="flex items-center gap-2.5 px-1 mb-2.5">
+        <span className={cn("w-6 h-6 rounded-full text-[12px] font-bold flex items-center justify-center flex-shrink-0",
+          done ? "bg-[#1F8A5B] text-white" : "bg-[#17151F] text-white")}>{done ? <Check className="w-3.5 h-3.5" /> : n}</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[15px] font-bold text-[#17151F] leading-tight">{title}</h3>
+          {sub && <p className="text-xs text-[#6B6680] mt-0.5">{sub}</p>}
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
+}
+const Card = ({ children, className }: { children: React.ReactNode; className?: string }) =>
+  <div className={cn("bg-white rounded-[20px]", CARD_SHADOW, className)}>{children}</div>;
+
+function Money({ value, onChange, label, big, readOnly, placeholder }: { value: string; onChange?: (v: string) => void; label: string; big?: boolean; readOnly?: boolean; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+      <input type="number" inputMode="numeric" min="0" step="100" aria-label={label} value={value} readOnly={readOnly}
+        onChange={e => onChange?.(e.target.value)} placeholder={placeholder ?? "0"}
+        className={cn(inputCls, "pl-8 tabular-nums", big && "h-12 text-lg font-bold", readOnly && "opacity-70 cursor-not-allowed")} />
+    </div>
+  );
 }
 
-export function bookingToWizard(b: Booking): ReturnType<typeof blankWizard> {
-  return {
-    clientMode: "search",
-    selectedClient: b.client as Client,
-    newClient: blankClientForm,
-    eventDays: normalizeEventDays(b.eventDays as EventDay[]),
-    eventName: b.eventName ?? "",
-    packageId: b.program?.id ?? "",
-    currency: b.currency ?? "BDT",
-    totalAmount: String(Number(b.totalAmount) || ""),
-    discountAmount: String(Number(b.discountAmount) || ""),
-    advanceAmount: String(Number(b.advanceAmount) || ""), advanceMethod: "cash",
-    costEntries: (b.costEntries as CostEntry[]) ?? [],
-    transportCost: String(Number(b.transportCost) || ""),
-    otherCost: String(Number(b.otherCost) || ""),
-    albumCost: String(Number(b.albumCost) || ""),
-    equipCost: String(Number(b.equipCost) || ""),
-    internalNotes: b.internalNotes ?? "",
-    editorAssignments: [] as EditorDraft[],
-  };
-}
-
-interface BusyInfo {
-  busyMemberIds: string[];
-  busyDetails: Record<string, { bookingNumber: string; eventName?: string; shiftLabel: string }>;
-}
-
-// ─── Step 1: Client ───────────────────────────────────────────────────────────
-function Step1Client({ data, onChange }: { data: ReturnType<typeof blankWizard>; onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Client[]>([]);
-  const [searching, setSearching] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
+// ─── Client picker ────────────────────────────────────────────────────────────
+function ClientPicker({ client, onPick, mode, setMode, newClient, setNewClient }: {
+  client: Client | null; onPick: (c: Client | null) => void;
+  mode: "search" | "new"; setMode: (m: "search" | "new") => void;
+  newClient: ClientFormData; setNewClient: (c: ClientFormData) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [list, setList] = useState<Client[]>([]);
+  const [busy, setBusy] = useState(false);
+  const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    if (data.clientMode !== "search") { setResults([]); return; }
-    setSearching(true);
-    clearTimeout(timer.current);
-    const delay = query.trim() ? 300 : 0;
-    timer.current = setTimeout(async () => {
+    if (client || mode !== "search") return;
+    clearTimeout(t.current);
+    t.current = setTimeout(async () => {
+      setBusy(true);
       try {
-        const url = query.trim()
-          ? `${API}/clients?search=${encodeURIComponent(query)}&limit=100`
-          : `${API}/clients?limit=200`;
-        const r = await apiFetch(url, { headers: { "Content-Type": "application/json" } });
-        if (r.ok) { const d = await r.json(); setResults(d.data ?? []); }
-      } finally { setSearching(false); }
-    }, delay);
-  }, [query, data.clientMode]);
+        const r = await apiFetch(`${API}/clients?${q.trim() ? `search=${encodeURIComponent(q.trim())}&` : ""}limit=8`);
+        if (r.ok) { const d = await r.json(); setList(d.data ?? []); }
+      } finally { setBusy(false); }
+    }, q.trim() ? 250 : 0);
+    return () => clearTimeout(t.current);
+  }, [q, client, mode]);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <button onClick={() => onChange({ clientMode: "search", selectedClient: null })}
-          className={cn("flex-1 h-10 rounded-xl border text-sm font-medium transition-all",
-            data.clientMode === "search" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300")}>
-          Search Existing
-        </button>
-        <button onClick={() => onChange({ clientMode: "new", selectedClient: null })}
-          className={cn("flex-1 h-10 rounded-xl border text-sm font-medium transition-all",
-            data.clientMode === "new" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300")}>
-          + New Client
-        </button>
+  if (client) return (
+    <Card className="flex items-center gap-3 p-4">
+      <span className="w-11 h-11 rounded-full bg-[#1F5C99] text-white font-extrabold flex items-center justify-center">{client.firstName[0]?.toUpperCase()}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[15px] font-bold text-[#17151F] truncate">{fullName(client)}</p>
+        <p className="text-xs text-[#6B6680]">{client.phone ?? "No phone"}</p>
       </div>
+      <button type="button" onClick={() => onPick(null)} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#EEEBF4]">Change</button>
+    </Card>
+  );
 
-      {data.clientMode === "search" ? (
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or phone..." className="pl-9 h-11 border-slate-200" autoFocus />
-            {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />}
-          </div>
-          {data.selectedClient ? (
-            <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-              <div>
-                <p className="font-semibold text-indigo-900 text-sm">{data.selectedClient.firstName} {data.selectedClient.lastName ?? ""}</p>
-                <p className="text-xs text-indigo-500">{data.selectedClient.phone}</p>
-              </div>
-              <button onClick={() => onChange({ selectedClient: null })} className="text-indigo-400 hover:text-indigo-600"><X className="w-4 h-4" /></button>
-            </div>
-          ) : results.length > 0 ? (
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              {results.map(c => (
-                <button key={c.id} onClick={() => { onChange({ selectedClient: c }); setQuery(""); }}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left border-b border-slate-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{c.firstName} {c.lastName ?? ""}</p>
-                    <p className="text-xs text-slate-400">{c.phone}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                </button>
-              ))}
-            </div>
-          ) : !searching && results.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-4">
-              {query.trim() ? <>No clients found — <button className="text-indigo-500 underline" onClick={() => onChange({ clientMode: "new" })}>create new</button></> : "No clients yet"}
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <ClientFormFields
-          value={data.newClient}
-          onChange={updates => onChange({ newClient: { ...data.newClient, ...updates } })}
-          autoFocus
-          existingAction={{ label: "Use this client", onPick: c => onChange({ clientMode: "search", selectedClient: c as Client }) }}
-        />
-      )}
+  if (mode === "new") return (
+    <div>
+      <ClientFormFields value={newClient} onChange={u => setNewClient({ ...newClient, ...u })} autoFocus
+        existingAction={{ label: "Use this client", onPick: c => { onPick(c as Client); setMode("search"); } }} />
+      <button type="button" onClick={() => setMode("search")} className="text-[13px] font-semibold text-[#5B3FD0] px-1">← Pick an existing client instead</button>
     </div>
   );
-}
-
-// ─── Step 2: Event Days ───────────────────────────────────────────────────────
-function Step2EventDays({ data, onChange, teamMembers, editingBookingId }: {
-  data: ReturnType<typeof blankWizard>;
-  onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
-  teamMembers: TeamMember[];
-  editingBookingId?: string;
-}) {
-  const [busyMap, setBusyMap] = useState<Record<string, BusyInfo>>({});
-  const [freelancerInput, setFreelancerInput] = useState<Record<string, string>>({});
-
-  async function fetchBusy(dayId: string, date: string) {
-    if (!date) { setBusyMap(m => { const n = { ...m }; delete n[dayId]; return n; }); return; }
-    try {
-      const params = new URLSearchParams({ date });
-      if (editingBookingId) params.set("excludeBookingId", editingBookingId);
-      const r = await apiFetch(`${API}/bookings/busy-members?${params}`, { headers: { "Content-Type": "application/json" } });
-      if (r.ok) { const d = await r.json(); setBusyMap(m => ({ ...m, [dayId]: d })); }
-    } catch { /* silent */ }
-  }
-
-  function addDay() {
-    onChange({ eventDays: [...data.eventDays, { id: uid(), eventType: "Wedding", date: "", location: "", shifts: [] }] });
-  }
-  function removeDay(dayId: string) {
-    onChange({ eventDays: data.eventDays.filter(d => d.id !== dayId) });
-    setBusyMap(m => { const n = { ...m }; delete n[dayId]; return n; });
-  }
-  function updateDay(dayId: string, updates: Partial<EventDay>) {
-    if (updates.date !== undefined) fetchBusy(dayId, updates.date);
-    onChange({ eventDays: data.eventDays.map(d => d.id === dayId ? { ...d, ...updates } : d) });
-  }
-  function addShift(dayId: string, label: string) {
-    const day = data.eventDays.find(d => d.id === dayId);
-    if (!day || day.shifts.find(s => s.label === label)) return;
-    updateDay(dayId, { shifts: [...day.shifts, { id: uid(), label, assignments: [] }] });
-  }
-  function removeShift(dayId: string, shiftId: string) {
-    const day = data.eventDays.find(d => d.id === dayId)!;
-    updateDay(dayId, { shifts: day.shifts.filter(s => s.id !== shiftId) });
-  }
-  function toggleMember(dayId: string, shiftId: string, memberId: string, role: string) {
-    const day = data.eventDays.find(d => d.id === dayId)!;
-    updateDay(dayId, {
-      shifts: day.shifts.map(s => {
-        if (s.id !== shiftId) return s;
-        const exists = s.assignments.find(a => a.id === memberId && a.role === role);
-        return {
-          ...s,
-          assignments: exists
-            ? s.assignments.filter(a => !(a.id === memberId && a.role === role))
-            : [...s.assignments, { id: memberId, role }],
-        };
-      }),
-    });
-  }
-  function addFreelancer(dayId: string, shiftId: string, role: string, name: string) {
-    if (!name.trim()) return;
-    const day = data.eventDays.find(d => d.id === dayId)!;
-    updateDay(dayId, {
-      shifts: day.shifts.map(s => s.id === shiftId
-        ? { ...s, assignments: [...s.assignments, { id: `fl_${uid()}`, role, name: name.trim() }] }
-        : s),
-    });
-  }
-  function removeFreelancer(dayId: string, shiftId: string, freelancerId: string) {
-    const day = data.eventDays.find(d => d.id === dayId)!;
-    updateDay(dayId, {
-      shifts: day.shifts.map(s => s.id === shiftId
-        ? { ...s, assignments: s.assignments.filter(a => a.id !== freelancerId) }
-        : s),
-    });
-  }
-
-  function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
-    const exists = data.editorAssignments.find(e => e.userId === userId && e.role === role);
-    onChange({
-      editorAssignments: exists
-        ? data.editorAssignments.filter(e => !(e.userId === userId && e.role === role))
-        : [...data.editorAssignments, { userId, role }],
-    });
-  }
-
-  const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-slate-600">Program Name *</Label>
-        <Input value={data.eventName} onChange={e => onChange({ eventName: e.target.value })}
-          placeholder="e.g. James & Emma Wedding" className="h-11 border-slate-200" autoFocus />
+    <Card className="p-3">
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680]" />
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or phone…" aria-label="Search clients" className={cn(inputCls, "pl-10")} />
+        {busy && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#A29DB3]" />}
       </div>
-
-      {data.eventDays.length === 0 ? (
-        <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl">
-          <CalendarDays className="sp-empty-icon" />
-          <p className="text-slate-400 text-sm font-medium">No event days added</p>
-          <p className="text-slate-300 text-xs mt-1">Add each day of the event (Holud, Wedding, Reception...)</p>
-          <button onClick={addDay} className="mt-3 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-sm font-medium mx-auto">
-            <Plus className="w-4 h-4" />Add First Day
+      <div className="mt-2 max-h-64 overflow-y-auto">
+        {list.map(c => (
+          <button key={c.id} type="button" onClick={() => onPick(c)}
+            className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-[12px] hover:bg-[#F5F3FA] text-left">
+            <span className="w-8 h-8 rounded-full bg-[#E6F0FB] text-[#1F5C99] text-[13px] font-bold flex items-center justify-center">{c.firstName[0]?.toUpperCase()}</span>
+            <span className="flex-1 min-w-0"><span className="block text-sm font-semibold text-[#17151F] truncate">{fullName(c)}</span><span className="block text-xs text-[#6B6680]">{c.phone}</span></span>
+            <ArrowRight className="w-4 h-4 text-[#A29DB3]" />
           </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {data.eventDays.map((day, idx) => {
-            const busy = busyMap[day.id];
-            const busyCount = busy?.busyMemberIds?.length ?? 0;
-
-            return (
-              <div key={day.id} className="border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="bg-slate-50 px-4 py-3 flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{idx + 1}</div>
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <select value={day.eventType} onChange={e => updateDay(day.id, { eventType: e.target.value })}
-                      className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
-                      {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <Input type="date" value={day.date} onChange={e => updateDay(day.id, { date: e.target.value })} className="h-9 border-slate-200 text-sm" />
-                  </div>
-                  <button onClick={() => removeDay(day.id)} className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {busyCount > 0 && (
-                  <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                    <p className="text-xs text-amber-700 font-medium">
-                      {busyCount} member{busyCount > 1 ? "s are" : " is"} already booked on {fmtDate(day.date)} — shown in orange
-                    </p>
-                  </div>
-                )}
-
-                <div className="px-4 pb-4 pt-3 space-y-3">
-                  <Input value={day.location} onChange={e => updateDay(day.id, { location: e.target.value })}
-                    placeholder="Venue / Location" className="h-9 border-slate-200 text-sm" />
-
-                  <div className="space-y-2">
-                    {day.shifts.map(shift => (
-                      <div key={shift.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-xs font-semibold text-slate-700">{shift.label}</span>
-                            {shift.assignments.length > 0 && (
-                              <span className="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-medium">{shift.assignments.length} assigned</span>
-                            )}
-                          </div>
-                          <button onClick={() => removeShift(day.id, shift.id)} className="text-slate-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          {SHOOT_ROLE_ORDER.map(role => {
-                            const RoleIcon = ROLE_ICONS[role]?.icon ?? Tag;
-                            const roleMembers = teamMembers.filter(m => m.memberRoles.includes(role));
-                            const roleFreelancers = shift.assignments.filter(a => a.role === role && a.name);
-                            const inputKey = `${shift.id}:${role}`;
-                            return (
-                              <div key={role} className="bg-white rounded-lg border border-slate-200 p-2">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <RoleIcon className="w-3 h-3 text-slate-400" />
-                                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{ROLE_LABELS[role]}(S)</p>
-                                </div>
-                                <div className="space-y-0.5 max-h-28 overflow-y-auto">
-                                  {roleMembers.length === 0 && roleFreelancers.length === 0 && (
-                                    <p className="text-xs text-slate-300 px-1">No one tagged</p>
-                                  )}
-                                  {roleMembers.map(m => {
-                                    const selected = !!shift.assignments.find(a => a.id === m.id && a.role === role);
-                                    const isBusy = !selected && (busy?.busyMemberIds?.includes(m.id) ?? false);
-                                    const busyDetail = busy?.busyDetails?.[m.id];
-                                    return (
-                                      <label key={m.id}
-                                        title={isBusy ? `Busy: ${busyDetail?.bookingNumber ?? ""} — ${busyDetail?.shiftLabel ?? ""}` : undefined}
-                                        className={cn("flex items-center gap-1.5 text-xs px-1 py-1 rounded cursor-pointer",
-                                          isBusy ? "text-amber-700 bg-amber-50" : "text-slate-600 hover:bg-slate-50")}>
-                                        <input type="checkbox" checked={selected}
-                                          onChange={() => toggleMember(day.id, shift.id, m.id, role)}
-                                          className="w-3.5 h-3.5 rounded accent-indigo-600 flex-shrink-0" />
-                                        <span className="truncate">{m.firstName} {m.lastName ?? ""}</span>
-                                        {isBusy && <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-                                      </label>
-                                    );
-                                  })}
-                                  {roleFreelancers.map(f => (
-                                    <div key={f.id} className="flex items-center justify-between gap-1 text-xs px-1 py-1 rounded bg-violet-50 text-violet-700">
-                                      <span className="truncate">{f.name} <span className="text-violet-400">(Freelancer)</span></span>
-                                      <button onClick={() => removeFreelancer(day.id, shift.id, f.id)} className="text-violet-400 hover:text-red-500 flex-shrink-0">
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                                <div className="flex items-center gap-1 mt-1.5">
-                                  <input value={freelancerInput[inputKey] ?? ""}
-                                    onChange={e => setFreelancerInput(p => ({ ...p, [inputKey]: e.target.value }))}
-                                    onKeyDown={e => {
-                                      if (e.key !== "Enter") return;
-                                      addFreelancer(day.id, shift.id, role, freelancerInput[inputKey] ?? "");
-                                      setFreelancerInput(p => ({ ...p, [inputKey]: "" }));
-                                    }}
-                                    placeholder="+ Freelancer..."
-                                    className="flex-1 h-6 px-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-indigo-400 min-w-0" />
-                                  <button onClick={() => {
-                                    addFreelancer(day.id, shift.id, role, freelancerInput[inputKey] ?? "");
-                                    setFreelancerInput(p => ({ ...p, [inputKey]: "" }));
-                                  }} className="w-6 h-6 flex items-center justify-center rounded bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 flex-shrink-0">
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {shift.assignments.length > 0 && (
-                          <div className="mt-2.5 pt-2.5 border-t border-slate-200 space-y-1">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Assigned Crew</p>
-                            {shift.assignments.map(a => {
-                              const member = teamMembers.find(m => m.id === a.id);
-                              const name = a.name ?? (member ? `${member.firstName} ${member.lastName ?? ""}`.trim() : "Unknown");
-                              return (
-                                <div key={`${a.id}_${a.role}`} className="flex items-center gap-1.5 text-xs">
-                                  <span className="font-medium text-slate-700">{ROLE_LABELS[a.role] ?? a.role}:</span>
-                                  <span className="text-slate-600">{name}</span>
-                                  {a.name && <span className="text-xs text-violet-400">(Freelancer)</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    <div className="flex gap-2 flex-wrap">
-                      {["Day Shift", "Night Shift", "Morning", "Evening"].map(label => (
-                        !day.shifts.find(s => s.label === label) && (
-                          <button key={label} onClick={() => addShift(day.id, label)}
-                            className="flex items-center gap-1 h-7 px-2.5 rounded-full border border-dashed border-slate-300 text-xs text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
-                            <Plus className="w-3 h-3" />{label}
-                          </button>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          <button onClick={addDay} className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
-            <Plus className="w-4 h-4" />Add Another Day
-          </button>
-        </div>
-      )}
-
-      {editorMembers.length > 0 && (
-        <div className="border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="bg-slate-50 px-4 py-2.5 flex items-center gap-2">
-            <Film className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-xs font-semibold text-slate-700">Editing Assignment</span>
-            <span className="text-xs text-slate-400">(optional — can also assign later)</span>
-          </div>
-          <div className="px-4 py-3 space-y-2">
-            {editorMembers.map(m => (
-              <div key={m.id} className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-sm text-slate-700">{m.firstName} {m.lastName ?? ""}</span>
-                <div className="flex gap-1.5">
-                  {EDITOR_ROLE_ORDER.filter(role => m.memberRoles.includes(role)).map(role => {
-                    const selected = !!data.editorAssignments.find(e => e.userId === m.id && e.role === role);
-                    return (
-                      <button key={role} type="button" onClick={() => toggleEditor(m.id, role as "photo_editor" | "video_editor")}
-                        className={cn("h-7 px-2.5 rounded-full border text-xs font-medium transition-all",
-                          selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300")}>
-                        {ROLE_LABELS[role]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Step 3: Package & Financial ─────────────────────────────────────────────
-function Step3Financial({ data, onChange, packages, isEdit, teamMembers }: {
-  data: ReturnType<typeof blankWizard>;
-  onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
-  packages: Package[];
-  isEdit?: boolean;
-  teamMembers: TeamMember[];
-}) {
-  const total = parseFloat(data.totalAmount) || 0;
-  const disc = parseFloat(data.discountAmount) || 0;
-  const adv = parseFloat(data.advanceAmount) || 0;
-  const net = total - disc;
-  const due = net - adv;
-  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
-  const sym = SYMS[data.currency] ?? data.currency;
-
-  // Auto-add a cost entry for any crew assigned in Event Days that doesn't have one yet
-  useEffect(() => {
-    const allAssignments = data.eventDays.flatMap(d => d.shifts.flatMap(s => s.assignments));
-    const existingIds = new Set(data.costEntries.map(e => e.memberId).filter(Boolean));
-    const seen = new Set<string>();
-    const toAdd: CostEntry[] = [];
-    for (const a of allAssignments) {
-      if (existingIds.has(a.id) || seen.has(a.id)) continue;
-      seen.add(a.id);
-      const member = teamMembers.find(m => m.id === a.id);
-      const name = a.name ?? (member ? `${member.firstName} ${member.lastName ?? ""}`.trim() : "");
-      toAdd.push({ id: uid(), role: a.role, memberId: a.id, memberName: name, totalBill: 0, paidAmount: 0 });
-    }
-    if (toAdd.length > 0) onChange({ costEntries: [...data.costEntries, ...toAdd] });
-  }, [data.eventDays]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function updateCrewEntry(id: string, updates: Partial<CostEntry>) {
-    onChange({ costEntries: data.costEntries.map(e => e.id === id ? { ...e, ...updates } : e) });
-  }
-  function removeCrewEntry(id: string) {
-    onChange({ costEntries: data.costEntries.filter(e => e.id !== id) });
-  }
-  function rolesForMember(memberId: string) {
-    const roles = new Set<string>();
-    for (const d of data.eventDays) for (const s of d.shifts) for (const a of s.assignments) if (a.id === memberId) roles.add(a.role);
-    return Array.from(roles);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-slate-600">Package</Label>
-        <select value={data.packageId} onChange={e => {
-          const pkg = packages.find(p => p.id === e.target.value);
-          onChange({ packageId: e.target.value, totalAmount: pkg?.basePrice ? String(pkg.basePrice) : data.totalAmount });
-        }} className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
-          <option value="">No package selected</option>
-          {packages.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${formatCurrency(p.basePrice, data.currency)}` : ""}</option>)}
-        </select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-slate-600">Currency</Label>
-        <select value={data.currency} onChange={e => onChange({ currency: e.target.value })}
-          className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
-          <option value="BDT">BDT (৳)</option>
-          <option value="USD">USD ($)</option>
-          <option value="EUR">EUR (€)</option>
-          <option value="GBP">GBP (£)</option>
-          <option value="INR">INR (₹)</option>
-        </select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-slate-600">Contract Amount *</Label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
-          <Input type="number" min="0" value={data.totalAmount} onChange={e => onChange({ totalAmount: e.target.value })}
-            placeholder="0" className="pl-7 h-11 border-slate-200 text-base font-semibold" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Discount</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
-            <Input type="number" min="0" value={data.discountAmount} onChange={e => onChange({ discountAmount: e.target.value })}
-              placeholder="0" className="pl-7 h-11 border-slate-200" />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Net Amount</Label>
-          <div className="h-11 px-3 flex items-center bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-800">
-            {formatCurrency(net, data.currency)}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">
-            Advance{isEdit && <span className="text-slate-400 font-normal ml-1">(use Record Payment to add more)</span>}
-          </Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
-            <Input type="number" min="0" value={data.advanceAmount}
-              onChange={e => !isEdit && onChange({ advanceAmount: e.target.value })}
-              readOnly={isEdit}
-              placeholder="0" className={cn("pl-7 h-11 border-slate-200", isEdit && "bg-slate-50 cursor-not-allowed")} />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Due Amount</Label>
-          <div className={cn("h-11 px-3 flex items-center rounded-lg border text-sm font-bold",
-            due > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
-            {formatCurrency(due, data.currency)}
-          </div>
-        </div>
-      </div>
-
-      {!isEdit && (parseFloat(data.advanceAmount) || 0) > 0 && (
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Advance paid by</Label>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { v: "cash", l: "Cash" },
-              { v: "mobile_banking", l: "bKash / Nagad / Rocket" },
-              { v: "bank_transfer", l: "Bank" },
-              { v: "other", l: "Other" },
-            ].map(o => (
-              <button key={o.v} type="button" onClick={() => onChange({ advanceMethod: o.v })}
-                className={cn("h-9 px-3.5 rounded-full border text-sm font-medium transition-colors",
-                  (data.advanceMethod || "cash") === o.v
-                    ? "bg-violet-600 border-violet-600 text-white"
-                    : "bg-white border-slate-200 text-slate-600 hover:border-violet-300")}>
-                {o.l}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-slate-500">Saved as the first payment of this program.</p>
-        </div>
-      )}
-
-      {data.costEntries.length > 0 && (
-        <div className="space-y-2 pt-2">
-          <Label className="text-xs font-medium text-slate-600">Team Payments — Bill, Paid &amp; Due per person</Label>
-          <div className="space-y-2">
-            {data.costEntries.map(entry => {
-              const bill = parseFloat(String(entry.totalBill)) || 0;
-              const paid = parseFloat(String(entry.paidAmount ?? 0)) || 0;
-              const crewDue = bill - paid;
-              const liveRoles = entry.memberId ? rolesForMember(entry.memberId) : [];
-              const roleLabel = liveRoles.length > 0
-                ? liveRoles.map(r => ROLE_LABELS[r] ?? r.replace(/_/g, " ")).join(" + ")
-                : (ROLE_LABELS[entry.role] ?? entry.role.replace(/_/g, " "));
-              return (
-                <div key={entry.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input value={entry.memberName} onChange={e => updateCrewEntry(entry.id, { memberName: e.target.value })}
-                      placeholder="Name"
-                      className="flex-1 h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs font-medium focus:outline-none focus:border-indigo-400" />
-                    <span className="text-xs text-slate-400 px-1.5 whitespace-nowrap">{roleLabel}</span>
-                    <button onClick={() => removeCrewEntry(entry.id)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-xs text-slate-400 mb-0.5">Bill</p>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
-                        <input type="number" min="0" value={entry.totalBill || ""}
-                          onChange={e => updateCrewEntry(entry.id, { totalBill: parseFloat(e.target.value) || 0 })}
-                          placeholder="0" className="w-full h-8 pl-5 pr-1 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-0.5">Paid</p>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
-                        <input type="number" min="0" value={entry.paidAmount || ""}
-                          onChange={e => updateCrewEntry(entry.id, { paidAmount: parseFloat(e.target.value) || 0 })}
-                          placeholder="0" className="w-full h-8 pl-5 pr-1 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-0.5">Due</p>
-                      <div className={cn("h-8 px-2 flex items-center rounded-lg border text-xs font-semibold",
-                        crewDue > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
-                        {formatCurrency(crewDue, data.currency)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Step 4: Cost Entries + Profit ───────────────────────────────────────────
-function Step4Costs({ data, onChange }: {
-  data: ReturnType<typeof blankWizard>;
-  onChange: (u: Partial<ReturnType<typeof blankWizard>>) => void;
-}) {
-  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
-  const sym = SYMS[data.currency] ?? data.currency;
-  const net = (parseFloat(data.totalAmount) || 0) - (parseFloat(data.discountAmount) || 0);
-  const teamBill = data.costEntries.reduce((s, e) => s + (parseFloat(String(e.totalBill)) || 0), 0);
-  const transport = parseFloat(data.transportCost) || 0;
-  const other = parseFloat(data.otherCost) || 0;
-  const album = parseFloat(data.albumCost) || 0;
-  const equip = parseFloat(data.equipCost) || 0;
-  const totalCost = teamBill + transport + other + album + equip;
-  const profit = net - totalCost;
-  const margin = net > 0 ? Math.round((profit / net) * 100) : 0;
-
-  return (
-    <div className="space-y-5">
-      {data.costEntries.length > 0 && (
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-          <div className="flex items-center justify-between mb-1.5">
-            <Label className="text-xs font-medium text-slate-600">Team Cost ({data.costEntries.length} people)</Label>
-            <span className="text-sm font-bold text-slate-800">{formatCurrency(teamBill, data.currency)}</span>
-          </div>
-          <p className="text-xs text-slate-400">Edit individual bill / paid / due amounts in the Financial step.</p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "Transport", key: "transportCost" },
-          { label: "Equipment Rental", key: "equipCost" },
-          { label: "Album / Print", key: "albumCost" },
-          { label: "Other", key: "otherCost" },
-        ].map(({ label, key }) => (
-          <div key={key} className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">{label}</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{sym}</span>
-              <input type="number" min="0"
-                value={(data as any)[key] || ""}
-                onChange={e => onChange({ [key]: e.target.value } as any)}
-                placeholder="0"
-                className="w-full h-10 pl-6 pr-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400" />
-            </div>
-          </div>
         ))}
+        {!busy && list.length === 0 && <p className="px-2.5 py-3 text-sm text-[#A29DB3]">{q.trim() ? "No client found." : "No clients yet."}</p>}
       </div>
-
-      <div className="bg-slate-900 rounded-2xl p-4 text-white space-y-2.5">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Profit Summary</p>
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between"><span className="text-slate-400">Revenue</span><span className="font-semibold">{formatCurrency(net, data.currency)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Team Cost</span><span className="text-red-400">− {formatCurrency(teamBill, data.currency)}</span></div>
-          {transport > 0 && <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="text-red-400">− {formatCurrency(transport, data.currency)}</span></div>}
-          {equip > 0 && <div className="flex justify-between"><span className="text-slate-400">Equipment</span><span className="text-red-400">− {formatCurrency(equip, data.currency)}</span></div>}
-          {album > 0 && <div className="flex justify-between"><span className="text-slate-400">Album</span><span className="text-red-400">− {formatCurrency(album, data.currency)}</span></div>}
-          {other > 0 && <div className="flex justify-between"><span className="text-slate-400">Other</span><span className="text-red-400">− {formatCurrency(other, data.currency)}</span></div>}
-        </div>
-        <div className="border-t border-slate-700 pt-2.5 flex justify-between items-center">
-          <span className="font-bold text-base">Net Profit</span>
-          <div className="text-right">
-            <span className={cn("font-extrabold text-xl", profit >= 0 ? "text-emerald-400" : "text-red-400")}>{formatCurrency(profit, data.currency)}</span>
-            <span className={cn("ml-2 text-xs px-1.5 py-0.5 rounded-full font-medium", profit >= 0 ? "bg-emerald-900 text-emerald-300" : "bg-red-900 text-red-300")}>{margin}%</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-slate-600">Internal Notes</Label>
-        <textarea value={data.internalNotes} onChange={e => onChange({ internalNotes: e.target.value })} rows={2}
-          placeholder="Special instructions, reminders..."
-          className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-      </div>
-    </div>
+      <button type="button" onClick={() => { setMode("new"); const d = q.replace(/\D/g, ""); setNewClient({ ...blankClientForm, ...(d.length >= 6 ? { phone: q.trim() } : { firstName: q.trim() }) }); }}
+        className="mt-1 w-full h-11 rounded-[12px] bg-[#EEE8FD] text-[#5B3FD0] text-sm font-semibold inline-flex items-center justify-center gap-2">
+        <UserPlus className="w-4 h-4" />{q.trim() ? `Add "${q.trim()}" as a new client` : "New client"}
+      </button>
+    </Card>
   );
 }
 
-// ─── Program Drawer (create + edit) ──────────────────────────────────────────
-const STEPS = [
-  { icon: User,        label: "Client" },
-  { icon: CalendarDays,label: "Event Days" },
-  { icon: DollarSign,  label: "Financial" },
-  { icon: BarChart2,   label: "Costs" },
-];
+// ─── Add / edit a person on a shift ───────────────────────────────────────────
+type SlotRef = { dayId: string; shiftId: string };
+function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyIds, onSave, onNewFreelancer }: {
+  open: boolean; onClose: () => void; days: EventDay[]; start: SlotRef | null; team: TeamMember[]; studio: StudioSetup;
+  editing: { slot: SlotRef; a: ShiftAssignment } | null; busyIds: Set<string>;
+  onSave: (a: ShiftAssignment, slots: SlotRef[], replace?: { slot: SlotRef; a: ShiftAssignment }) => void;
+  onNewFreelancer: (m: TeamMember) => void;
+}) {
+  const [memberId, setMemberId] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [setup, setSetup] = useState<SetupMode>("own");
+  const [gear, setGear] = useState<{ ownerId: string; itemId?: string; name: string }[]>([]);
+  const [studioGear, setStudioGear] = useState("");
+  const [rental, setRental] = useState({ vendor: "", item: "", amount: "", paidBy: "studio" as "studio" | "member" });
+  const [slots, setSlots] = useState<string[]>([]);
+  const [q, setQ] = useState("");
+  const [fl, setFl] = useState<{ open: boolean; name: string; phone: string; saving: boolean; err: string }>({ open: false, name: "", phone: "", saving: false, err: "" });
 
+  useEffect(() => {
+    if (!open) return;
+    const a = editing?.a;
+    setMemberId(a?.id ?? ""); setRoleId(a?.role ?? ""); setSetup(a?.setup ?? "own");
+    setGear((a?.gear ?? []).filter(g => g.ownerId !== "studio"));
+    setStudioGear((a?.gear ?? []).find(g => g.ownerId === "studio")?.name ?? "");
+    setRental(a?.rental ? { ...a.rental, amount: String(a.rental.amount || "") } : { vendor: "", item: "", amount: "", paidBy: "studio" });
+    const s = editing?.slot ?? start;
+    setSlots(s ? [`${s.dayId}|${s.shiftId}`] : []);
+    setQ(""); setFl({ open: false, name: "", phone: "", saving: false, err: "" });
+  }, [open, editing, start]);
+
+  const member = team.find(m => m.id === memberId);
+  const roles = member?.memberRoles.filter(r => r !== "photo_editor" && r !== "video_editor").length
+    ? member.memberRoles.filter(r => r !== "photo_editor" && r !== "video_editor")
+    : ["photographer", "cinematographer", "drone_pilot", "assistant"];
+  useEffect(() => { if (member && !roleId) setRoleId(roles[0] ?? "photographer"); }, [memberId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const type = days[0]?.programType ?? "";
+  const rate = member && roleId ? (["per_shift", "per_day", "per_program"].map(u => findRate(member.roleRates as Rate[], studio.studioRates, roleId, u, type)).find(Boolean)) : undefined;
+  const otherGear = team.filter(m => m.id !== memberId && (m.setup?.length ?? 0) > 0);
+  const shown = team.filter(m => m.isActive !== false && (!q.trim() || fullName(m).toLowerCase().includes(q.toLowerCase()) || (m.phone ?? "").includes(q)))
+    .sort((a, b) => Number(busyIds.has(a.id)) - Number(busyIds.has(b.id)));
+
+  async function addFreelancer() {
+    if (!fl.name.trim() || !fl.phone.trim()) { setFl(f => ({ ...f, err: "Name and phone please." })); return; }
+    setFl(f => ({ ...f, saving: true, err: "" }));
+    try {
+      const existing = team.find(m => phoneKey(m.phone) === phoneKey(fl.phone));
+      if (existing) { setMemberId(existing.id); setFl(f => ({ ...f, open: false, saving: false })); return; }
+      const [first, ...rest] = fl.name.trim().split(/\s+/);
+      const r = await apiFetch(`${API}/team`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberType: "freelancer", firstName: first, lastName: rest.join(" ") || undefined, phone: fl.phone.trim(), memberRoles: ["photographer"] }) });
+      const d = await r.json();
+      if (!r.ok) { setFl(f => ({ ...f, saving: false, err: Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't add." })); return; }
+      onNewFreelancer(d); setMemberId(d.id); setRoleId("photographer");
+      setFl({ open: false, name: "", phone: "", saving: false, err: "" });
+      notify(`${first} added as a freelancer`);
+    } catch { setFl(f => ({ ...f, saving: false, err: "Something went wrong." })); }
+  }
+
+  function save() {
+    if (!memberId || !roleId || !slots.length) return;
+    const a: ShiftAssignment = { id: memberId, role: roleId, setup };
+    if (setup === "other") a.gear = [...gear, ...(studioGear.trim() ? [{ ownerId: "studio", name: studioGear.trim() }] : [])];
+    if (setup === "rented") a.rental = { vendor: rental.vendor.trim(), item: rental.item.trim(), amount: num(rental.amount), paidBy: rental.paidBy };
+    onSave(a, slots.map(s => { const [dayId, shiftId] = s.split("|"); return { dayId, shiftId }; }), editing ?? undefined);
+    onClose();
+  }
+
+  const allSlots = days.flatMap(d => d.shifts.map(s => ({ key: `${d.id}|${s.id}`, label: `${d.eventType || "Day"}${d.date ? ` · ${fmtDate(d.date)}` : ""} · ${s.label}` })));
+
+  return (
+    <FormDrawer open={open} onTop onClose={onClose} icon={Users} color="blue" title={editing ? "Edit person" : "Add a person"}
+      sub="Who, what work, and whose gear"
+      footer={<>
+        <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F]">Cancel</button>
+        <button type="button" onClick={save} disabled={!memberId || !roleId || !slots.length}
+          className="flex-[1.4] h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] disabled:opacity-50 text-white text-[15px] font-semibold">{editing ? "Save" : "Add"}</button>
+      </>}>
+      {!member ? (
+        <FormGroup title="Who">
+          <div className="p-3">
+            <div className="relative mb-2">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6680]" />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search team…" aria-label="Search team" className={cn(inputCls, "pl-10")} />
+            </div>
+            <div className="max-h-[46vh] overflow-y-auto">
+              {shown.map(m => {
+                const busy = busyIds.has(m.id);
+                const r0 = role(m.memberRoles[0] ?? "");
+                return (
+                  <button key={m.id} type="button" onClick={() => { setMemberId(m.id); setRoleId(""); }}
+                    className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-[12px] hover:bg-[#F5F3FA] text-left">
+                    <Tile icon={r0.icon} color={r0.tile as TileColor} size={32} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-[#17151F] truncate">{fullName(m)}{m.memberType === "freelancer" && <span className="ml-1.5 text-[11px] font-bold text-[#9E3A8C]">Freelancer</span>}</span>
+                      <span className="block text-xs text-[#6B6680] truncate">{m.memberRoles.map(r => role(r).label).join(", ") || "No work set"}</span>
+                    </span>
+                    {busy && <span className="text-[11px] font-bold text-[#C2304F] bg-[#FDECEF] px-2 py-0.5 rounded-full inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Busy</span>}
+                  </button>
+                );
+              })}
+              {shown.length === 0 && <p className="px-2.5 py-3 text-sm text-[#A29DB3]">No one found.</p>}
+            </div>
+            {fl.open ? (
+              <div className="mt-2 p-3 rounded-[14px] bg-[#FBF2FA] space-y-2">
+                <p className="text-[13px] font-bold text-[#9E3A8C]">New freelancer</p>
+                <input value={fl.name} onChange={e => setFl(f => ({ ...f, name: e.target.value }))} placeholder="Name" aria-label="Freelancer name" className={cn(inputCls, "bg-white")} />
+                <input value={fl.phone} onChange={e => setFl(f => ({ ...f, phone: e.target.value }))} placeholder="Phone / WhatsApp" type="tel" aria-label="Freelancer phone" className={cn(inputCls, "bg-white")} />
+                {fl.err && <p className="text-xs text-[#C2304F]">{fl.err}</p>}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setFl(f => ({ ...f, open: false }))} className="flex-1 h-10 rounded-full bg-white text-sm font-semibold text-[#17151F]">Cancel</button>
+                  <button type="button" onClick={addFreelancer} disabled={fl.saving} className="flex-1 h-10 rounded-full bg-[#9E3A8C] text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
+                    {fl.saving && <Loader2 className="w-4 h-4 animate-spin" />}Add</button>
+                </div>
+                <p className="text-[11px] text-[#6B6680]">Saved to your team (no login). Set their prices later in Team.</p>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setFl(f => ({ ...f, open: true, name: q }))} className="mt-2 w-full h-11 rounded-[12px] bg-[#FBF2FA] text-[#9E3A8C] text-sm font-semibold inline-flex items-center justify-center gap-2">
+                <Zap className="w-4 h-4" />New freelancer
+              </button>
+            )}
+          </div>
+        </FormGroup>
+      ) : (
+        <>
+          <Card className="flex items-center gap-3 p-4 mb-5">
+            <span className="w-11 h-11 rounded-full text-white font-extrabold flex items-center justify-center" style={{ background: TILE[role(member.memberRoles[0] ?? "").tile as TileColor] ?? "#7D5CEF" }}>{member.firstName[0]?.toUpperCase()}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold text-[#17151F] truncate">{fullName(member)}</p>
+              <p className="text-xs text-[#6B6680]">{member.memberType === "freelancer" ? "Freelancer" : "Team staff"}{busyIds.has(member.id) ? " · busy on another program that day" : ""}</p>
+            </div>
+            {!editing && <button type="button" onClick={() => setMemberId("")} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0]">Change</button>}
+          </Card>
+
+          <FormGroup title="Work">
+            <div className="p-3 flex flex-wrap gap-2">
+              {[...new Set([...roles, ...(roleId && !roles.includes(roleId) ? [roleId] : [])])].map(r => {
+                const rc = role(r); const on = roleId === r;
+                return (
+                  <button key={r} type="button" role="radio" aria-checked={on} onClick={() => setRoleId(r)}
+                    className={cn("inline-flex items-center gap-2 h-10 pl-1.5 pr-3.5 rounded-full text-[13px] font-semibold", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
+                    <Tile icon={rc.icon} color={rc.tile as TileColor} size={28} />{rc.label}
+                  </button>
+                );
+              })}
+            </div>
+          </FormGroup>
+
+          <FormGroup title="Whose gear?" note={rate ? <>Price: <strong>{formatCurrency(rate.rate)}</strong> work only{rate.withSetup != null && <> · <strong>{formatCurrency(rate.withSetup)}</strong> with own setup</>} ({rate.rateType.replace(/^per_/, "per ").replace("_", " ")})</> : "No price set for this work yet — you can type the amount in Team pay."}>
+            <div className="p-3 grid grid-cols-3 gap-2">
+              {([
+                { v: "own", l: "Own setup", d: "Brings their gear", icon: Camera },
+                { v: "other", l: "Someone else's", d: "Studio or a member", icon: Users },
+                { v: "rented", l: "Rented", d: "From a shop", icon: Store },
+              ] as const).map(o => {
+                const on = setup === o.v; const Icon = o.icon;
+                return (
+                  <button key={o.v} type="button" role="radio" aria-checked={on} onClick={() => setSetup(o.v)}
+                    className={cn("p-3 rounded-[14px] text-left transition-all", on ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "bg-[#F5F3FA] hover:bg-[#EEEBF4]")}>
+                    <Icon className={cn("w-4 h-4", on ? "text-[#5B3FD0]" : "text-[#6B6680]")} />
+                    <p className="mt-1.5 text-[13px] font-bold text-[#17151F] leading-tight">{o.l}</p>
+                    <p className="text-[11px] text-[#6B6680] leading-tight mt-0.5">{o.d}</p>
+                  </button>
+                );
+              })}
+            </div>
+            {setup === "other" && (
+              <div className="px-4 pb-4 space-y-3">
+                {otherGear.map(owner => (
+                  <div key={owner.id}>
+                    <p className="text-[12px] font-bold text-[#4A4658] mb-1.5">{fullName(owner)}&apos;s gear <span className="font-medium text-[#6B6680]">— rent goes to them</span></p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {owner.setup!.map(g => {
+                        const on = gear.some(x => x.ownerId === owner.id && x.itemId === g.id);
+                        return (
+                          <button key={g.id} type="button" role="checkbox" aria-checked={on}
+                            onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === owner.id && x.itemId === g.id)) : [...gear, { ownerId: owner.id, itemId: g.id, name: g.name }])}
+                            className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
+                            {on && <Check className="w-3 h-3" />}{g.name} · {formatCurrency(g.rent)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <p className="text-[12px] font-bold text-[#4A4658] mb-1.5">Studio gear <span className="font-medium text-[#6B6680]">— no rent</span></p>
+                  <input value={studioGear} onChange={e => setStudioGear(e.target.value)} placeholder="e.g. Studio Sony A7 III + gimbal" aria-label="Studio gear" className={inputCls} />
+                </div>
+              </div>
+            )}
+            {setup === "rented" && (
+              <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+                <input value={rental.vendor} onChange={e => setRental(r => ({ ...r, vendor: e.target.value }))} placeholder="Shop / person" aria-label="Rented from" className={inputCls} />
+                <input value={rental.item} onChange={e => setRental(r => ({ ...r, item: e.target.value }))} placeholder="Item, e.g. Sony FX3" aria-label="Rented item" className={inputCls} />
+                <Money value={rental.amount} onChange={v => setRental(r => ({ ...r, amount: v }))} label="Rent amount" placeholder="Rent this time" />
+                <select value={rental.paidBy} onChange={e => setRental(r => ({ ...r, paidBy: e.target.value as "studio" | "member" }))} aria-label="Who paid the rent" className={cn(inputCls, "cursor-pointer")}>
+                  <option value="studio">Studio pays the shop</option>
+                  <option value="member">{member.firstName} paid — refund</option>
+                </select>
+                <p className="col-span-2 text-[11px] text-[#6B6680]">Rent changes every time, so type it for this program. {rental.paidBy === "studio" ? "It goes to the program's equipment rent." : `It's added to ${member.firstName}'s bill as a refund.`}</p>
+              </div>
+            )}
+          </FormGroup>
+
+          {allSlots.length > 1 && (
+            <FormGroup title="Which shifts" note="Tick every shift they work — the price counts each one.">
+              <div className="p-3 space-y-1">
+                {allSlots.map(s => {
+                  const on = slots.includes(s.key);
+                  return (
+                    <button key={s.key} type="button" role="checkbox" aria-checked={on}
+                      onClick={() => setSlots(on ? slots.filter(x => x !== s.key) : [...slots, s.key])}
+                      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-[12px] hover:bg-[#F5F3FA] text-left">
+                      <span className={cn("w-5 h-5 rounded-[6px] border-2 flex items-center justify-center flex-shrink-0", on ? "bg-[#7D5CEF] border-[#7D5CEF]" : "border-[#D8D3E3]")}>{on && <Check className="w-3 h-3 text-white" />}</span>
+                      <span className="text-sm text-[#17151F]">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormGroup>
+          )}
+        </>
+      )}
+    </FormDrawer>
+  );
+}
+
+// ─── The drawer ───────────────────────────────────────────────────────────────
 export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient }: {
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-  packages: Package[];
-  teamMembers: TeamMember[];
+  open: boolean; onClose: () => void; onSaved: () => void;
+  packages: Package[]; teamMembers: TeamMember[];
   initialBooking?: Booking | null;
-  /** Start a new program for this client (skips the client step). */
+  /** Start a new program for this client. */
   initialClient?: Client | null;
 }) {
   const isEdit = !!initialBooking;
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState(blankWizard());
-  const [loading, setLoading] = useState(false);
+  const [client, setClient] = useState<Client | null>(null);
+  const [clientMode, setClientMode] = useState<"search" | "new">("search");
+  const [newClient, setNewClient] = useState<ClientFormData>(blankClientForm);
+  const [programType, setProgramType] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
+  const [packageId, setPackageId] = useState("");
+  const [days, setDays] = useState<EventDay[]>([]);
+  const [money, setMoney] = useState({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
+  const [notes, setNotes] = useState("");
+  const [kept, setKept] = useState<CostEntry[]>([]);
+  const [editors, setEditors] = useState<EditorDraft[]>([]);
+  const [studio, setStudio] = useState<StudioSetup>({ workTypes: [], shiftTemplates: [], studioRates: [], payMode: "per_shift" });
+  const [team, setTeam] = useState<TeamMember[]>(teamMembers);
+  const [busy, setBusy] = useState<Record<string, string[]>>({});
+  const [assign, setAssign] = useState<{ open: boolean; start: SlotRef | null; editing: { slot: SlotRef; a: ShiftAssignment } | null }>({ open: false, start: null, editing: null });
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [openBill, setOpenBill] = useState<string | null>(null);
 
+  useEffect(() => { setTeam(teamMembers); }, [teamMembers]);
+
+  // Fresh team (with prices + gear) and studio settings each time it opens
   useEffect(() => {
-    if (open) {
-      setStep(0); setError("");
-      setData(isEdit && initialBooking ? bookingToWizard(initialBooking)
-        : initialClient ? { ...blankWizard(), selectedClient: initialClient } : blankWizard());
-      if (!isEdit && initialClient) setStep(1);
-      if (isEdit && initialBooking) {
-        apiFetch(`${API}/bookings/${initialBooking.id}/editors`)
-          .then(r => r.ok ? r.json() : [])
-          .then((rows: { userId: string; role: "photo_editor" | "video_editor" }[]) => {
-            onChange({ editorAssignments: rows.map(r => ({ userId: r.userId, role: r.role })) });
-          })
-          .catch(() => {});
-      }
+    if (!open) return;
+    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null).then(d => d && setStudio({
+      workTypes: (d.workTypes ?? []).filter((w: WorkType) => w.active), shiftTemplates: d.shiftTemplates ?? [],
+      studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
+    })).catch(() => {});
+    apiFetch(`${API}/team`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setTeam(d)).catch(() => {});
+  }, [open]);
+
+  // Fill the form
+  useEffect(() => {
+    if (!open) return;
+    setError(""); setClientMode("search"); setNewClient(blankClientForm); setOpenBill(null);
+    if (isEdit && initialBooking) {
+      const b = initialBooking;
+      const d = normalizeDays(b.eventDays);
+      setClient(b.client as Client); setEventName(b.eventName ?? ""); setNameTouched(true);
+      setProgramType(d[0]?.programType ?? ""); setPackageId(b.program?.id ?? ""); setDays(d);
+      setKept((b.costEntries ?? []) as CostEntry[]);
+      // Rent from rented gear is added again from the shifts, so only keep the rest as "extra"
+      let rented = 0;
+      for (const day of d) for (const s of day.shifts) for (const a of s.assignments) if (a.setup === "rented" && a.rental?.paidBy !== "member") rented += a.rental?.amount ?? 0;
+      setMoney({
+        total: String(Number(b.totalAmount) || ""), discount: String(Number(b.discountAmount) || ""), advance: String(Number(b.advanceAmount) || ""),
+        method: "cash", transport: String(Number(b.transportCost) || ""), album: String(Number(b.albumCost) || ""),
+        equipExtra: String(Math.max(0, Number(b.equipCost) - rented) || ""), other: String(Number(b.otherCost) || ""),
+      });
+      setNotes(b.internalNotes ?? "");
+      apiFetch(`${API}/bookings/${b.id}/editors`).then(r => r.ok ? r.json() : []).then((rows: EditorDraft[]) => setEditors(rows.map(r => ({ userId: r.userId, role: r.role })))).catch(() => {});
+    } else {
+      setClient(initialClient ?? null); setEventName(""); setNameTouched(false); setProgramType(""); setPackageId("");
+      setDays([]); setKept([]); setEditors([]); setNotes("");
+      setMoney({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
     }
   }, [open, initialBooking, initialClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function onChange(u: Partial<ReturnType<typeof blankWizard>>) { setData(p => ({ ...p, ...u })); }
-
-  function canNext() {
-    if (step === 0) {
-      if (data.clientMode === "search") return !!data.selectedClient;
-      return !!data.newClient.firstName.trim() && !!data.newClient.phone.trim();
+  // Who is busy on each date
+  useEffect(() => {
+    if (!open) return;
+    for (const d of days) {
+      if (!d.date || busy[d.date]) continue;
+      const qs = new URLSearchParams({ date: d.date }); if (initialBooking) qs.set("excludeBookingId", initialBooking.id);
+      apiFetch(`${API}/bookings/busy-members?${qs}`).then(r => r.ok ? r.json() : null).then(x => x && setBusy(b => ({ ...b, [d.date]: x.busyMemberIds ?? [] }))).catch(() => {});
     }
-    if (step === 1) return !!data.eventName.trim() && data.eventDays.length > 0 && data.eventDays.every(d => d.date);
-    if (step === 2) return !!(parseFloat(data.totalAmount) > 0);
-    return true;
+  }, [days, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Program type on every day; bill from shifts + prices
+  const typedDays = useMemo(() => days.map(d => ({ ...d, programType: programType || undefined })), [days, programType]);
+  const bill = useMemo(() => buildBill({ days: typedDays, team, studioRates: studio.studioRates, payMode: studio.payMode, keep: kept, editors }),
+    [typedDays, team, studio, kept, editors]);
+
+  const typeName = studio.workTypes.find(w => w.id === programType)?.name ?? "";
+  const clientName = client ? fullName(client) : fullName({ firstName: newClient.firstName, lastName: newClient.lastName });
+  // Suggest a name until the user types one
+  useEffect(() => {
+    if (nameTouched) return;
+    const first = clientName.split(" ")[0];
+    setEventName(first && typeName ? `${first}'s ${typeName.replace(/^(Muslim|Sanatani|Hindu) /, "")}` : first ? `${first}'s program` : "");
+  }, [clientName, typeName, nameTouched]);
+
+  const template = studio.shiftTemplates.find(t => t.id === programType || t.name.toLowerCase() === typeName.toLowerCase());
+
+  // ── days & shifts ──
+  const setDay = (id: string, p: Partial<EventDay>) => setDays(ds => ds.map(d => d.id === id ? { ...d, ...p } : d));
+  const addDay = (eventType = "") => setDays(ds => [...ds, { id: uid(), eventType, date: "", location: ds[ds.length - 1]?.location ?? "", shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] }]);
+  const addTemplate = () => template && setDays(ds => [...ds, ...template.shifts.map(s => ({ id: uid(), eventType: s.name, date: "", location: "", shifts: [{ id: uid(), label: "Day", assignments: [] }] }))]);
+  const addShift = (dayId: string, label: string) => setDays(ds => ds.map(d => d.id === dayId && !d.shifts.some(s => s.label === label) ? { ...d, shifts: [...d.shifts, { id: uid(), label, assignments: [] }] } : d));
+  const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
+  const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
+  function savePerson(a: ShiftAssignment, slots: SlotRef[], replace?: { slot: SlotRef; a: ShiftAssignment }) {
+    setDays(ds => ds.map(d => ({ ...d, shifts: d.shifts.map(s => {
+      let list = s.assignments;
+      if (replace && replace.slot.dayId === d.id && replace.slot.shiftId === s.id) list = list.filter(x => !(x.id === replace.a.id && x.role === replace.a.role));
+      if (slots.some(sl => sl.dayId === d.id && sl.shiftId === s.id)) list = [...list.filter(x => !(x.id === a.id && x.role === a.role)), a];
+      return { ...s, assignments: list };
+    }) })));
   }
 
-  async function submit() {
-    setError(""); setLoading(true);
-    try {
-      let clientId = data.selectedClient?.id;
-      if (!clientId) {
-        const cr = await apiFetch(`${API}/clients`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: data.newClient.firstName.trim(),
-            lastName: data.newClient.lastName.trim() || undefined,
-            phone: data.newClient.phone.trim(),
-            phoneSecondary: data.newClient.phoneSecondary.trim() || undefined,
-            email: data.newClient.email.trim() || undefined,
-            facebookProfile: data.newClient.facebookProfile.trim() || undefined,
-            city: data.newClient.city.trim() || undefined,
-            source: data.newClient.source || undefined,
-            referredByClientId: data.newClient.source === "referral" && data.newClient.referredByClientId ? data.newClient.referredByClientId : undefined,
-            referredByName: data.newClient.source === "referral" && !data.newClient.referredByClientId && data.newClient.referredByName.trim() ? data.newClient.referredByName.trim() : undefined,
-            address: data.newClient.address.trim() || undefined,
-            occupation: data.newClient.occupation.trim() || undefined,
-            companyName: data.newClient.companyName.trim() || undefined,
-            vipStatus: data.newClient.vipStatus,
-            notes: data.newClient.notes.trim() || undefined,
-            internalNotes: data.newClient.internalNotes.trim() || undefined,
-          }),
-        });
-        const cd = await cr.json();
-        if (!cr.ok) { setError(cd.message || "Failed to create client."); return; }
-        clientId = cd.id;
-      }
+  // ── bill edits (stored as kept entries; buildBill merges them back) ──
+  function patchEntry(memberId: string, fn: (lines: BillLine[]) => BillLine[]) {
+    const e = bill.entries.find(x => x.memberId === memberId);
+    if (!e) return;
+    setKept(k => [...k.filter(x => x.memberId !== memberId), { ...e, lines: fn(e.lines ?? []) }]);
+  }
+  const editLine = (mid: string, lid: string, amount: number) => patchEntry(mid, ls => ls.map(l => l.id === lid ? { ...l, amount, edited: l.auto ? true : l.edited } : l));
+  const renameLine = (mid: string, lid: string, label: string) => patchEntry(mid, ls => ls.map(l => l.id === lid ? { ...l, label } : l));
+  const removeLine = (mid: string, lid: string) => patchEntry(mid, ls => ls.filter(l => l.id !== lid));
+  const addLine = (mid: string, kind: "extra" | "deduction") => patchEntry(mid, ls => [...ls, { id: uid(), kind, label: kind === "extra" ? "Extra (bonus, transport, food…)" : "Cut (advance taken…)", amount: 0 }]);
 
-      const firstDay = data.eventDays[0];
+  // ── totals ──
+  const total = num(money.total), discount = num(money.discount), advance = num(money.advance);
+  const net = total - discount;
+  const paidSoFar = isEdit ? Number(initialBooking?.paidAmount ?? 0) : advance;
+  const due = net - paidSoFar;
+  const teamCost = bill.entries.reduce((s, e) => s + e.totalBill, 0);
+  const equip = bill.rentedFromOutside + num(money.equipExtra);
+  const otherCosts = num(money.transport) + num(money.album) + equip + num(money.other);
+  const profit = net - teamCost - otherCosts;
+  const people = new Set(days.flatMap(d => d.shifts.flatMap(s => s.assignments.map(a => a.id)))).size;
+  const datedDays = days.filter(d => d.date).sort((a, b) => a.date.localeCompare(b.date));
+
+  const step1 = !!client || (clientMode === "new" && !!newClient.firstName.trim() && !!newClient.phone.trim());
+  const step2 = !!eventName.trim();
+  const step3 = days.length > 0 && days.every(d => d.date);
+  const step4 = total > 0;
+
+  async function submit() {
+    setError("");
+    if (!step1) { setError("Pick a client, or add a new one with name and phone."); return; }
+    if (!step2) { setError("Give the program a name."); return; }
+    if (!days.length) { setError("Add at least one day."); return; }
+    if (!step3) { setError("Every day needs a date."); return; }
+    if (!step4) { setError("Write the contract amount."); return; }
+    if (!isEdit && advance > net) { setError("Advance can't be more than the total."); return; }
+    setSaving(true);
+    try {
+      let clientId = client?.id;
+      if (!clientId) {
+        const nc = newClient;
+        const r = await apiFetch(`${API}/clients`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          firstName: nc.firstName.trim(), lastName: nc.lastName.trim() || undefined, phone: nc.phone.trim(), email: nc.email.trim() || undefined,
+          phoneSecondary: nc.phoneSecondary.trim() || undefined, facebookProfile: nc.facebookProfile.trim() || undefined, city: nc.city.trim() || undefined,
+          source: nc.source || undefined, referredByClientId: nc.source === "referral" && nc.referredByClientId ? nc.referredByClientId : undefined,
+          referredByName: nc.source === "referral" && !nc.referredByClientId && nc.referredByName.trim() ? nc.referredByName.trim() : undefined,
+          address: nc.address.trim() || undefined, occupation: nc.occupation.trim() || undefined, companyName: nc.companyName.trim() || undefined,
+          vipStatus: nc.vipStatus, notes: nc.notes.trim() || undefined, internalNotes: nc.internalNotes.trim() || undefined,
+        }) });
+        const d = await r.json();
+        if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save the client."); return; }
+        clientId = d.id;
+      }
+      const sorted = [...typedDays].sort((a, b) => a.date.localeCompare(b.date));
       const body = {
-        clientId,
-        programId: data.packageId || undefined,
-        eventName: data.eventName,
-        eventDate: firstDay?.date || undefined,
-        eventLocation: firstDay?.location || undefined,
-        currency: data.currency,
-        totalAmount: parseFloat(data.totalAmount) || 0,
-        discountAmount: parseFloat(data.discountAmount) || 0,
-        advanceAmount: isEdit ? undefined : (parseFloat(data.advanceAmount) || 0),
-        advanceMethod: isEdit || !(parseFloat(data.advanceAmount) > 0) ? undefined : (data.advanceMethod || "cash"),
-        transportCost: parseFloat(data.transportCost) || 0,
-        otherCost: parseFloat(data.otherCost) || 0,
-        albumCost: parseFloat(data.albumCost) || 0,
-        equipCost: parseFloat(data.equipCost) || 0,
-        internalNotes: data.internalNotes || undefined,
-        eventDays: data.eventDays,
-        costEntries: data.costEntries.filter(e => e.memberName || e.totalBill > 0),
+        clientId, programId: packageId || undefined, eventName: eventName.trim(),
+        eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: "BDT",
+        totalAmount: total, discountAmount: discount,
+        advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
+        transportCost: num(money.transport), otherCost: num(money.other), albumCost: num(money.album), equipCost: equip,
+        internalNotes: notes || undefined, eventDays: typedDays,
+        costEntries: bill.entries.filter(e => e.memberName || e.totalBill),
         ...(isEdit ? {} : { status: "confirmed" }),
       };
-
       const url = isEdit ? `${API}/bookings/${initialBooking!.id}` : `${API}/bookings`;
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
-      if (!r.ok) { setError(d.message || "Failed to save program."); return; }
-
-      const bookingId = isEdit ? initialBooking!.id : d.id;
-      if (bookingId) {
-        await apiFetch(`${API}/bookings/${bookingId}/editors`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ editors: data.editorAssignments }),
-        }).catch(() => {});
-      }
-
+      if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save the program."); return; }
+      const id = isEdit ? initialBooking!.id : d.id;
+      if (id) await apiFetch(`${API}/bookings/${id}/editors`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ editors }) }).catch(() => {});
+      notify(isEdit ? "Program saved" : "Program created");
       onSaved(); onClose();
-    } catch { setError("Something went wrong."); }
-    finally { setLoading(false); }
+    } catch { setError("Something went wrong. Please try again."); }
+    finally { setSaving(false); }
   }
 
   if (!open) return null;
+  const editorPeople = team.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
+  const assignDay = days.find(d => d.id === (assign.editing?.slot.dayId ?? assign.start?.dayId));
+
+  const summary = (
+    <Card className="p-5">
+      <p className="text-[13px] font-bold text-[#6B6680]">Summary</p>
+      <p className="mt-1 text-[17px] font-extrabold text-[#17151F] leading-tight truncate">{eventName || "New program"}</p>
+      <p className="text-xs text-[#6B6680] truncate">{[clientName, typeName].filter(Boolean).join(" · ") || "—"}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="h-6 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] font-semibold text-[#4A4658] inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{days.length} day{days.length === 1 ? "" : "s"}</span>
+        <span className="h-6 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] font-semibold text-[#4A4658] inline-flex items-center gap-1"><Users className="w-3 h-3" />{people} {people === 1 ? "person" : "people"}</span>
+        {datedDays[0] && <span className="h-6 px-2.5 rounded-full bg-[#FDECEF] text-[12px] font-semibold text-[#C2304F] inline-flex items-center">{fmtDate(datedDays[0].date)}{datedDays.length > 1 ? ` – ${fmtDate(datedDays[datedDays.length - 1].date)}` : ""}</span>}
+      </div>
+      <div className="mt-4 space-y-1.5 text-sm">
+        <Row l="Contract" v={formatCurrency(total)} />
+        {discount > 0 && <Row l="Discount" v={`− ${formatCurrency(discount)}`} />}
+        <Row l={isEdit ? "Paid so far" : "Advance"} v={formatCurrency(paidSoFar)} />
+        <Row l="Client still owes" v={formatCurrency(Math.max(0, due))} strong tone={due > 0 ? "red" : "green"} />
+      </div>
+      <div className="mt-4 pt-3 border-t border-[#EEEBF4] space-y-1.5 text-sm">
+        <Row l="Team pay" v={`− ${formatCurrency(teamCost)}`} />
+        {equip > 0 && <Row l="Equipment rent" v={`− ${formatCurrency(equip)}`} />}
+        {otherCosts - equip > 0 && <Row l="Other costs" v={`− ${formatCurrency(otherCosts - equip)}`} />}
+        <Row l="Profit" v={formatCurrency(profit)} strong tone={profit >= 0 ? "green" : "red"} sub={net > 0 ? `${Math.round((profit / net) * 100)}%` : undefined} />
+      </div>
+    </Card>
+  );
+
   return (
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Program" : "New Program"}</h2>
-            {isEdit && <p className="text-xs text-slate-400 font-mono mt-0.5">{initialBooking?.bookingNumber}</p>}
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Edit program" : "New program"} className="sp-drawer z-50 sm:max-w-[1100px] flex flex-col bg-[#F5F3FA]">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+          <Tile icon={Camera} color="deep" size={40} />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit program" : "New program"}</h2>
+            <p className="text-[13px] text-[#6B6680] truncate">{isEdit ? initialBooking?.bookingNumber : "Fill top to bottom — everything adds up on the right."}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
+          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-6">
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+            <div className="min-w-0">
+              {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
+
+              <Section n={1} title="Client" done={step1}>
+                <ClientPicker client={client} onPick={c => setClient(c)} mode={clientMode} setMode={setClientMode} newClient={newClient} setNewClient={setNewClient} />
+              </Section>
+
+              <Section n={2} title="Program" sub="The type picks the right prices and the usual days" done={step2}>
+                <Card>
+                  <div className="p-4">
+                    <p className="text-[13px] font-semibold text-[#4A4658] mb-2">Type</p>
+                    <div role="radiogroup" aria-label="Program type" className="flex flex-wrap gap-2">
+                      {studio.workTypes.map(w => (
+                        <button key={w.id} type="button" role="radio" aria-checked={programType === w.id} onClick={() => setProgramType(programType === w.id ? "" : w.id)}
+                          className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold", programType === w.id ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>{w.name}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-[#EEEBF4] grid sm:grid-cols-[1fr_240px]">
+                    <Field label="Name" required>{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
+                    <Field label="Package">{id => (
+                      <select id={id} value={packageId} onChange={e => { const p = packages.find(x => x.id === e.target.value); setPackageId(e.target.value); if (p?.basePrice) setMoney(m => ({ ...m, total: String(p.basePrice) })); }}
+                        className={cn(inputCls, "cursor-pointer")}>
+                        <option value="">No package</option>
+                        {packages.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${formatCurrency(p.basePrice)}` : ""}</option>)}
+                      </select>
+                    )}</Field>
+                  </div>
+                </Card>
+              </Section>
+
+              <Section n={3} title="Days & team" sub="Each day, its shifts, and who works them" done={step3 && people > 0}
+                right={days.length > 0 ? <button type="button" onClick={() => addDay()} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Plus className="w-3.5 h-3.5" />Day</button> : undefined}>
+                {days.length === 0 && (
+                  <Card className="p-5 text-center">
+                    <Calendar className="w-7 h-7 text-[#A29DB3] mx-auto" />
+                    <p className="mt-2 text-sm font-semibold text-[#17151F]">No days yet</p>
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
+                      {template && <button type="button" onClick={addTemplate} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add {template.shifts.map(s => s.name).join(", ")}</button>}
+                      <button type="button" onClick={() => addDay()} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add a day</button>
+                    </div>
+                  </Card>
+                )}
+                <div className="space-y-3">
+                  {days.map((d, i) => {
+                    const busyHere = new Set(d.date ? busy[d.date] ?? [] : []);
+                    return (
+                      <Card key={d.id}>
+                        <div className="p-3 grid grid-cols-[28px_1fr_36px] sm:grid-cols-[28px_1fr_160px_1fr_36px] gap-2 items-center border-b border-[#EEEBF4]">
+                          <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
+                          <input list="sp-day-names" value={d.eventType} onChange={e => setDay(d.id, { eventType: e.target.value })} placeholder="Day name — Holud, Wedding…" aria-label={`Day ${i + 1} name`} className={cn(inputCls, "h-10 text-sm font-semibold")} />
+                          <button type="button" onClick={() => setDays(ds => ds.filter(x => x.id !== d.id))} aria-label="Remove day" className="sm:order-last w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Trash2 className="w-4 h-4" /></button>
+                          <input type="date" value={d.date} onChange={e => setDay(d.id, { date: e.target.value })} aria-label={`Day ${i + 1} date`} className={cn(inputCls, "h-10 text-sm col-start-2 sm:col-start-auto", !d.date && "ring-1 ring-[#C2304F]/30")} />
+                          <div className="relative col-start-2 sm:col-start-auto">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
+                            <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
+                          </div>
+                        </div>
+                        <div className="divide-y divide-[#EEEBF4]">
+                          {d.shifts.map(s => (
+                            <div key={s.id} className="px-3 py-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[13px] font-bold text-[#4A4658]">{s.label}</span>
+                                <span className="text-xs text-[#9893A8]">{s.assignments.length ? `${s.assignments.length} on this shift` : "nobody yet"}</span>
+                                <span className="flex-1" />
+                                {d.shifts.length > 1 && <button type="button" onClick={() => removeShift(d.id, s.id)} aria-label={`Remove ${s.label} shift`} className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Minus className="w-3.5 h-3.5" /></button>}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {s.assignments.map(a => {
+                                  const m = team.find(t => t.id === a.id); const rc = role(a.role);
+                                  const setupLabel = a.setup === "rented" ? `Rented${a.rental?.amount ? ` ৳${a.rental.amount}` : ""}` : a.setup === "other" ? (a.gear?.length ? `${a.gear[0].name}${a.gear.length > 1 ? ` +${a.gear.length - 1}` : ""}` : "Others' gear") : "Own setup";
+                                  return (
+                                    <div key={`${a.id}-${a.role}`} className="inline-flex items-center gap-2 h-11 pl-1.5 pr-1 rounded-full bg-[#F5F3FA]">
+                                      <button type="button" onClick={() => setAssign({ open: true, start: null, editing: { slot: { dayId: d.id, shiftId: s.id }, a } })} className="inline-flex items-center gap-2 text-left">
+                                        <Tile icon={rc.icon} color={rc.tile as TileColor} size={30} />
+                                        <span className="leading-tight">
+                                          <span className="block text-[13px] font-semibold text-[#17151F]">{m ? fullName(m) : a.name ?? "Unknown"}{busyHere.has(a.id) && <AlertTriangle className="inline w-3 h-3 ml-1 text-[#C2304F]" aria-label="Busy on another program" />}</span>
+                                          <span className="block text-[11px] text-[#6B6680]">{rc.label} · <span className={cn(a.setup === "rented" ? "text-[#9E3A8C]" : a.setup === "other" ? "text-[#1F5C99]" : "text-[#1F8A5B]")}>{setupLabel}</span></span>
+                                        </span>
+                                      </button>
+                                      <button type="button" onClick={() => removePerson({ dayId: d.id, shiftId: s.id }, a)} aria-label="Remove from shift" className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-white hover:text-[#C2304F]"><X className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                  );
+                                })}
+                                <button type="button" onClick={() => setAssign({ open: true, start: { dayId: d.id, shiftId: s.id }, editing: null })}
+                                  className="h-11 px-4 rounded-full border border-dashed border-[#C9C2DA] text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 hover:bg-[#F5F3FA]">
+                                  <Plus className="w-4 h-4" />Add person
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="px-3 py-2.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[12px] text-[#6B6680] mr-1">Add shift:</span>
+                            {SHIFT_PRESETS.filter(p => !d.shifts.some(s => s.label === p)).map(p => (
+                              <button key={p} type="button" onClick={() => addShift(d.id, p)} className="h-7 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] font-semibold text-[#4A4658] hover:bg-[#EEEBF4] inline-flex items-center gap-1"><Plus className="w-3 h-3" />{p}</button>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+                <datalist id="sp-day-names">{[...new Set([...(template?.shifts.map(s => s.name) ?? []), ...EVENT_TYPES])].map(n => <option key={n} value={n} />)}</datalist>
+
+                {editorPeople.length > 0 && (
+                  <Card className="mt-3 p-4">
+                    <p className="text-[13px] font-bold text-[#4A4658]">Editing <span className="font-medium text-[#6B6680]">— optional, can be set later</span></p>
+                    <div className="mt-2 space-y-2">
+                      {editorPeople.map(m => (
+                        <div key={m.id} className="flex items-center gap-2 flex-wrap">
+                          <span className="flex-1 min-w-[120px] text-sm text-[#17151F]">{fullName(m)}</span>
+                          {(["photo_editor", "video_editor"] as const).filter(r => m.memberRoles.includes(r)).map(r => {
+                            const on = editors.some(e => e.userId === m.id && e.role === r);
+                            return (
+                              <button key={r} type="button" role="checkbox" aria-checked={on}
+                                onClick={() => setEditors(on ? editors.filter(e => !(e.userId === m.id && e.role === r)) : [...editors, { userId: m.id, role: r }])}
+                                className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
+                                {on && <Check className="w-3 h-3" />}{ROLE_NAME[r]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </Section>
+
+              <Section n={4} title="Money from the client" done={step4}>
+                <Card>
+                  <div className="grid sm:grid-cols-2">
+                    <Field label="Contract amount" required>{() => <Money value={money.total} onChange={v => setMoney(m => ({ ...m, total: v }))} label="Contract amount" big />}</Field>
+                    <Field label="Discount">{() => <Money value={money.discount} onChange={v => setMoney(m => ({ ...m, discount: v }))} label="Discount" />}</Field>
+                  </div>
+                  <div className="border-t border-[#EEEBF4] grid sm:grid-cols-2">
+                    <Field label={isEdit ? "Advance (use Record payment for more)" : "Advance received now"}>{() => <Money value={money.advance} onChange={v => setMoney(m => ({ ...m, advance: v }))} label="Advance" readOnly={isEdit} />}</Field>
+                    {!isEdit && advance > 0 ? (
+                      <Field label="Paid by">{() => (
+                        <div className="flex flex-wrap gap-1.5">
+                          {METHODS.map(o => <button key={o.v} type="button" onClick={() => setMoney(m => ({ ...m, method: o.v }))}
+                            className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", money.method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
+                        </div>
+                      )}</Field>
+                    ) : (
+                      <div className="px-4 py-3.5 flex flex-col justify-center">
+                        <p className="text-[13px] font-semibold text-[#4A4658]">Still owes</p>
+                        <p className={cn("text-xl font-extrabold tabular-nums", due > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>{formatCurrency(Math.max(0, due))}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </Section>
+
+              <Section n={5} title="Team pay" sub="Built from each person's prices — change any amount" done={bill.entries.length > 0}>
+                {bill.entries.length === 0 ? (
+                  <Card className="p-4 text-sm text-[#A29DB3]">Add people to shifts above — their pay shows here.</Card>
+                ) : (
+                  <Card className="divide-y divide-[#EEEBF4]">
+                    {bill.entries.map(e => {
+                      const m = team.find(t => t.id === e.memberId);
+                      const r0 = role((e.role || "").split(", ")[0] || m?.memberRoles[0] || "");
+                      const isOpen = openBill === e.id;
+                      const missing = (e.lines ?? []).some(l => l.auto && !l.amount);
+                      return (
+                        <div key={e.id}>
+                          <button type="button" onClick={() => setOpenBill(isOpen ? null : e.id)} aria-expanded={isOpen} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FB]">
+                            <Tile icon={r0.icon} color={r0.tile as TileColor} size={32} />
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-[15px] font-semibold text-[#17151F] truncate">{e.memberName}</span>
+                              <span className="block text-xs text-[#6B6680] truncate">{(e.lines ?? []).map(l => l.label).join(" · ") || e.role}</span>
+                            </span>
+                            {missing && <span className="text-[11px] font-bold text-[#C2304F] bg-[#FDECEF] px-2 py-0.5 rounded-full">Price missing</span>}
+                            <span className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(e.totalBill)}</span>
+                            <ChevronDown className={cn("w-4 h-4 text-[#6B6680] transition-transform", isOpen && "rotate-180")} />
+                          </button>
+                          {isOpen && e.memberId && (
+                            <div className="px-4 pb-4 space-y-2">
+                              {(e.lines ?? []).map(l => (
+                                <div key={l.id} className="flex items-center gap-2 rounded-[12px] bg-[#FAF9FC] border border-[#EEEBF4] px-3 py-2">
+                                  <div className="flex-1 min-w-0">
+                                    {l.auto ? <p className="text-[13px] font-semibold text-[#17151F] truncate">{l.label}</p>
+                                      : <input value={l.label} onChange={ev => renameLine(e.memberId!, l.id, ev.target.value)} aria-label="Line name" className="w-full bg-transparent text-[13px] font-semibold text-[#17151F] outline-none" />}
+                                    <p className="text-[11px] text-[#6B6680] truncate">
+                                      {l.kind === "deduction" ? "Taken off the bill" : [l.unitPrice ? `${l.qty} × ${formatCurrency(l.unitPrice)}` : "", l.note, l.edited ? "changed by you" : ""].filter(Boolean).join(" · ")}
+                                    </p>
+                                  </div>
+                                  <div className="w-[120px]"><Money value={String(l.amount || "")} onChange={v => editLine(e.memberId!, l.id, num(v))} label={`${l.label} amount`} /></div>
+                                  {!l.auto && <button type="button" onClick={() => removeLine(e.memberId!, l.id)} aria-label="Remove line" className="w-8 h-8 rounded-full flex items-center justify-center text-[#A29DB3] hover:text-[#C2304F]"><Trash2 className="w-4 h-4" /></button>}
+                                </div>
+                              ))}
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <button type="button" onClick={() => addLine(e.memberId!, "extra")} className="h-8 px-3 rounded-full bg-[#E9F5EF] text-[#1F8A5B] text-[12px] font-semibold inline-flex items-center gap-1"><Plus className="w-3 h-3" />Extra</button>
+                                <button type="button" onClick={() => addLine(e.memberId!, "deduction")} className="h-8 px-3 rounded-full bg-[#FDECEF] text-[#C2304F] text-[12px] font-semibold inline-flex items-center gap-1"><Minus className="w-3 h-3" />Cut</button>
+                                {(e.paidAmount ?? 0) > 0 && <span className="ml-auto text-xs text-[#6B6680] self-center">Paid {formatCurrency(e.paidAmount ?? 0)} · owes {formatCurrency(Math.max(0, e.totalBill - (e.paidAmount ?? 0)))}</span>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#FAF9FC] rounded-b-[20px]">
+                      <span className="text-[13px] font-bold text-[#4A4658]">Team total</span>
+                      <span className="text-[15px] font-extrabold text-[#17151F] tabular-nums">{formatCurrency(teamCost)}</span>
+                    </div>
+                  </Card>
+                )}
+              </Section>
+
+              <Section n={6} title="Other costs & notes">
+                <Card>
+                  <div className="grid grid-cols-2">
+                    <Field label="Transport">{() => <Money value={money.transport} onChange={v => setMoney(m => ({ ...m, transport: v }))} label="Transport" />}</Field>
+                    <Field label="Album / print">{() => <Money value={money.album} onChange={v => setMoney(m => ({ ...m, album: v }))} label="Album / print" />}</Field>
+                    <Field label="Equipment rent" hint={bill.rentedFromOutside > 0 ? `+ ${formatCurrency(bill.rentedFromOutside)} from rented gear on shifts` : undefined}>{() => <Money value={money.equipExtra} onChange={v => setMoney(m => ({ ...m, equipExtra: v }))} label="Equipment rent" />}</Field>
+                    <Field label="Other">{() => <Money value={money.other} onChange={v => setMoney(m => ({ ...m, other: v }))} label="Other cost" />}</Field>
+                  </div>
+                  <div className="border-t border-[#EEEBF4]">
+                    <Field label="Private notes" hint="Only your team sees these.">{id => <textarea id={id} rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Special instructions, reminders…" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}</Field>
+                  </div>
+                </Card>
+              </Section>
+
+              <div className="lg:hidden">{summary}</div>
+            </div>
+            <aside className="hidden lg:block"><div className="sticky top-0">{summary}</div></aside>
+          </div>
+        </div>
+
+        <div className="px-4 sm:px-5 py-4 bg-white/80 backdrop-blur border-t border-[#EEEBF4] flex items-center gap-3">
+          <div className="hidden sm:block flex-1 min-w-0">
+            <p className="text-xs text-[#6B6680]">Client owes <strong className="text-[#17151F]">{formatCurrency(Math.max(0, due))}</strong> · Profit <strong className={profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]"}>{formatCurrency(profit)}</strong></p>
+          </div>
+          <button type="button" onClick={onClose} className="flex-1 sm:flex-none sm:w-32 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={submit} disabled={saving}
+            className="flex-[1.4] sm:flex-none sm:w-52 h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><Wallet className="w-4 h-4" />{isEdit ? "Save changes" : "Create program"}</>}
           </button>
         </div>
-
-        <div className="px-5 pt-4 pb-3 border-b border-slate-100">
-          <div className="flex items-center justify-between">
-            {STEPS.map((s, i) => {
-              const Icon = s.icon;
-              const done = i < step;
-              const active = i === step;
-              return (
-                <div key={i} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center">
-                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                      done ? "bg-indigo-600" : active ? "bg-indigo-600 ring-4 ring-indigo-100" : "bg-slate-100")}>
-                      {done ? <Check className="w-4 h-4 text-white" /> : <Icon className={cn("w-4 h-4", active ? "text-white" : "text-slate-400")} />}
-                    </div>
-                    <span className={cn("text-xs mt-1 font-medium", active ? "text-indigo-600" : done ? "text-slate-500" : "text-slate-300")}>{s.label}</span>
-                  </div>
-                  {i < STEPS.length - 1 && <div className={cn("flex-1 h-0.5 mx-2 mb-4", i < step ? "bg-indigo-600" : "bg-slate-200")} />}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
-          {error && <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
-          {step === 0 && <Step1Client data={data} onChange={onChange} />}
-          {step === 1 && <Step2EventDays data={data} onChange={onChange} teamMembers={teamMembers} editingBookingId={initialBooking?.id} />}
-          {step === 2 && <Step3Financial data={data} onChange={onChange} packages={packages} isEdit={isEdit} teamMembers={teamMembers} />}
-          {step === 3 && <Step4Costs data={data} onChange={onChange} />}
-        </div>
-
-        <div className="px-5 py-4 border-t border-slate-200 flex gap-3">
-          {step > 0 ? (
-            <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1 h-11 border-slate-200">← Back</Button>
-          ) : (
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-          )}
-          {step < 3 ? (
-            <Button onClick={() => setStep(s => s + 1)} disabled={!canNext()} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-1">
-              Next <ArrowRight className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button onClick={submit} disabled={loading} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : isEdit ? "Save Changes" : "Create Program"}
-            </Button>
-          )}
-        </div>
       </div>
+
+      <AssignDrawer open={assign.open} onClose={() => setAssign({ open: false, start: null, editing: null })} days={typedDays}
+        start={assign.start} editing={assign.editing} team={team} studio={studio}
+        busyIds={new Set(assignDay?.date ? busy[assignDay.date] ?? [] : [])}
+        onSave={savePerson} onNewFreelancer={m => setTeam(t => [...t, m])} />
     </>
+  );
+}
+
+function Row({ l, v, strong, tone, sub }: { l: string; v: string; strong?: boolean; tone?: "red" | "green"; sub?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className={cn("text-[#6B6680]", strong && "font-semibold text-[#17151F]")}>{l}</span>
+      <span className={cn("tabular-nums", strong ? "text-[16px] font-extrabold" : "font-semibold text-[#17151F]", tone === "red" && "text-[#C2304F]", tone === "green" && "text-[#1F8A5B]")}>
+        {v}{sub && <span className="ml-1 text-xs font-semibold text-[#6B6680]">{sub}</span>}
+      </span>
+    </div>
   );
 }

@@ -11,6 +11,7 @@ import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { BillingBanner } from "@/components/billing/billing-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { canOpen, homeFor } from "@/lib/access";
 
 // Mobile bottom tab bar — labels always visible; "More" opens the full menu.
 const mobileTabs = [
@@ -125,13 +126,14 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     const role = localStorage.getItem("user_role");
     if (!token) { router.replace("/login"); return; }
     if (role === "staff") { router.replace("/member/dashboard"); return; }
+    if (user?.role === "manager" && !canOpen(user, pathname)) { router.replace(homeFor(user)); return; }
     if (!user) {
       // auth/me failed (bad token)
       localStorage.removeItem("access_token");
       localStorage.removeItem("user_role");
       router.replace("/login");
     }
-  }, [ready, user, router]);
+  }, [ready, user, router, pathname]);
 
   if (!ready) return <AppLayoutSkeleton collapsed={collapsed} />;
 
@@ -177,7 +179,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 min-w-0 overflow-x-clip px-3 sm:px-4 lg:px-0 pt-1 pb-28 lg:pb-8">
           <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <ErrorBoundary>{canOpen(user, pathname) ? children : null}</ErrorBoundary>
           </div>
         </main>
 
@@ -186,7 +188,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
           <div className="pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
-            {mobileTabs.map((item) => {
+            {mobileTabs.filter(t => canOpen(user, t.href)).map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.name} href={item.href}

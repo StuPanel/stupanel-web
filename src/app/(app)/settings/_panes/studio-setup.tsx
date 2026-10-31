@@ -4,8 +4,11 @@
  * Settings that live in companies.settings (GET/PATCH /companies/settings):
  * features, work types, shift templates, team pay and delivery rules.
  */
-import { useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Plus, Tag, Trash2 } from "lucide-react";
+import { apiFetch, API_URL as API } from "@/lib/api";
+import { Tile, type TileColor } from "@/components/ui/apple";
+import { RateEditor, TEAM_ROLES, firstLine, linesToRates, ratesToLines, type RateLine, type RoleInfo } from "../../team/_components/rate-card";
 import { askConfirm } from "@/components/feedback";
 import { Group, Row, Segmented, SoonRow, Switch, useSettings, useSynced, type ShiftTemplate, type WorkType } from "../_ui";
 
@@ -166,14 +169,65 @@ function TeamPay() {
   const { studio, patchStudio } = useSettings();
   const mode = studio!.teamPay.mode;
   return (
-    <Group title="Pay" note={mode === "per_shift"
-      ? "Example: a photographer's rate is ৳3,000 a shift. A wedding with Holud + Wedding + Reception = ৳9,000."
-      : "Example: a photographer's rate is ৳8,000 a program, however many shifts it has."}>
-      <Row id="teamPay" label="Pay team by" hint="Rates are set on each team member's profile">
-        <Segmented label="Pay team by" value={mode} onChange={v => patchStudio("teamPay", { mode: v })}
-          options={[{ value: "per_shift", label: "Per shift" }, { value: "per_program", label: "Per program" }]} />
-      </Row>
-    </Group>
+    <>
+      <Group title="Pay" note={mode === "per_shift"
+        ? "Example: a photographer's rate is ৳3,000 a shift. A wedding with Holud + Wedding + Reception = ৳9,000."
+        : "Example: a photographer's rate is ৳8,000 a program, however many shifts it has."}>
+        <Row id="teamPay" label="Pay team by" hint="New prices start with this unit — you can pick another for each price">
+          <Segmented label="Pay team by" value={mode} onChange={v => patchStudio("teamPay", { mode: v })}
+            options={[{ value: "per_shift", label: "Per shift" }, { value: "per_program", label: "Per program" }]} />
+        </Row>
+      </Group>
+      <StudioRates />
+    </>
+  );
+}
+
+/** Studio-wide prices: used for any member who has no price of their own for that work. */
+function StudioRates() {
+  const { studio, patchStudio } = useSettings();
+  const [lines, setLines] = useState<RateLine[]>(() => ratesToLines(studio!.studioRates));
+  const [customRoles, setCustomRoles] = useState<string[]>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const workTypes = studio!.workTypes.filter(w => w.active);
+
+  useEffect(() => {
+    apiFetch(`${API}/team/custom-roles`).then(r => r.ok ? r.json() : []).then(d => setCustomRoles(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  function change(next: RateLine[]) {
+    setLines(next);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => patchStudio("studioRates", linesToRates(next)), 900);
+  }
+
+  const roles: RoleInfo[] = [...TEAM_ROLES, ...customRoles.map(c => ({ id: c, label: c, icon: Tag, tile: "violet" }))];
+  const withLines = roles.filter(r => lines.some(l => l.roleId === r.id));
+  const without = roles.filter(r => !lines.some(l => l.roleId === r.id));
+
+  return (
+    <>
+      <Group title="Studio prices" note={<>One price list for the whole studio. A member uses these unless their own profile has a different price. <strong>Work only</strong> = they use someone else&apos;s gear; <strong>With own setup</strong> = they bring their own. Saved by itself.</>}>
+        <RateEditor roles={withLines} lines={lines} onChange={change} workTypes={workTypes}
+          emptyText="No studio prices yet — add the kinds of work below." />
+      </Group>
+      {without.length > 0 && (
+        <div className="-mt-4 mb-8">
+          <p className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Add prices for</p>
+          <div className="flex flex-wrap gap-2">
+            {without.map(r => {
+              const Icon = r.icon;
+              return (
+                <button key={r.id} type="button" onClick={() => change([...lines, firstLine(r.id, studio!.teamPay.mode)])}
+                  className="inline-flex items-center gap-2 h-10 pl-1.5 pr-3.5 rounded-full bg-white text-[13px] font-semibold text-[#4A4658] hover:bg-[#EEEBF4] shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+                  <Tile icon={Icon} color={r.tile as TileColor} size={28} /><Plus className="w-3 h-3 -mr-1" />{r.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

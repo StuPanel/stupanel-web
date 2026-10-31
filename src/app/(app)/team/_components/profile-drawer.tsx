@@ -151,6 +151,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
   const [payOpen, setPayOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showAllPrograms, setShowAllPrograms] = useState(false);
+  const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [notesState, setNotesState] = useState<"" | "saving" | "saved">("");
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -169,6 +170,9 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
     if (!member) { setData(null); return; }
     setShowAllPrograms(false); setMoreOpen(false);
     fetchProfile();
+    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null).then(d => {
+      if (Array.isArray(d?.workTypes)) setTypeNames(Object.fromEntries(d.workTypes.map((w: { id: string; name: string }) => [w.id, w.name])));
+    }).catch(() => {});
   }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveNotes(value: string) {
@@ -300,7 +304,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
                     <Tile icon={Icon} color={rc.tile} size={28} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-[#17151F] truncate">{rc.label}</p>
-                      <p className="text-xs text-[#6B6680] truncate">{unitLabel(r.roleId, r.rateType, r.label)}{r.workType ? ` · ${r.workType}` : " · All programs"}</p>
+                      <p className="text-xs text-[#6B6680] truncate">{unitLabel(r.roleId, r.rateType, r.label)}{r.workType ? ` · ${typeNames[r.workType] ?? r.workType}` : " · All programs"}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       {r.rate ? <p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}<span className="text-[11px] font-medium text-[#6B6680]">{r.withSetup != null ? " work only" : ""}</span></p> : null}

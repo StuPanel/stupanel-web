@@ -1,32 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  Loader2, Camera, CalendarDays, MapPin, Phone,
-  ChevronLeft, ChevronRight, ArrowRight, ChevronRight as NavArrow,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { Camera, Loader2, MapPin, Phone } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
-
-const STATUS_CFG: Record<string, { label: string; color: string }> = {
-  inquiry:            { label: "Inquiry",      color: "bg-[#FDECEF] text-[#C2304F]" },
-  confirmed:          { label: "Confirmed",    color: "bg-[#EEE8FD] text-[#5B3FD0]" },
-  advance_received:   { label: "Advance Paid", color: "bg-[#EEE8FD] text-[#5B3FD0]" },
-  in_progress:        { label: "Shooting",     color: "bg-[#E0F2F1] text-[#126B66]" },
-  editing:            { label: "Editing",      color: "bg-[#E6F0FB] text-[#1F5C99]" },
-  ready_for_delivery: { label: "Ready",        color: "bg-[#7D5CEF] text-white" },
-  completed:          { label: "Completed",    color: "bg-[#EEEDF2] text-[#4A4658]" },
-  cancelled:          { label: "Cancelled",    color: "bg-[#F3E3E3] text-[#8A2E2E]" },
-};
+import { Chips, DateBox, EmptyState, PageHeader, Pager, RowsSkeleton } from "@/components/ui/apple";
+import { Card, StatusBadge } from "../_components/kit";
+import Link from "next/link";
 
 const NEXT_TRANSITIONS: Record<string, string> = {
   confirmed: "editing", advance_received: "editing", in_progress: "editing", editing: "ready_for_delivery",
 };
-const TRANSITION_LABELS: Record<string, string> = {
-  editing: "Mark as Editing", ready_for_delivery: "Mark Ready",
-};
+const TRANSITION_LABELS: Record<string, string> = { editing: "Mark editing", ready_for_delivery: "Mark ready" };
 
 interface Booking {
   id: string; bookingNumber: string; eventName?: string;
@@ -36,7 +20,7 @@ interface Booking {
   program?: { id: string; name: string; category?: string };
 }
 
-const STATUS_FILTERS = [
+const FILTERS = [
   { value: "all", label: "All" },
   { value: "confirmed", label: "Confirmed" },
   { value: "in_progress", label: "Shooting" },
@@ -46,7 +30,6 @@ const STATUS_FILTERS = [
 ];
 
 export default function MemberProgramsPage() {
-  const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -72,140 +55,61 @@ export default function MemberProgramsPage() {
   async function updateStatus(bookingId: string, newStatus: string) {
     setUpdatingId(bookingId);
     const res = await apiFetch(`${API}/member/programs/${bookingId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
     });
-    if (res.ok) {
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-    }
+    if (res.ok) setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     setUpdatingId(null);
   }
 
   return (
-    <div className="p-5 md:p-7 space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">My Programs</h1>
-        <p className="text-sm text-slate-500 mt-0.5">All programs assigned to you</p>
-      </div>
+    <div>
+      <PageHeader icon={Camera} color="deep" title="My programs" sub="Every program you work on" />
+      <Chips label="Filter by status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1); }} options={FILTERS} />
 
-      {/* Status filter */}
-      <div className="flex gap-2 flex-wrap">
-        {STATUS_FILTERS.map(f => (
-          <button key={f.value}
-            onClick={() => { setStatusFilter(f.value); setPage(1); }}
-            className={cn(
-              "text-xs px-3 py-1.5 rounded-full font-semibold border transition-colors",
-              statusFilter === f.value
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
-            )}>
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-          <Camera className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-          <p className="text-slate-400 text-sm">No programs found</p>
-        </div>
+      {loading ? <RowsSkeleton /> : bookings.length === 0 ? (
+        <EmptyState icon={Camera} title="No programs here" text={statusFilter === "all" ? "When the studio adds you to a program, it shows up here." : "Try another filter."} />
       ) : (
         <div className="space-y-3">
           {bookings.map(b => {
-            const cfg = STATUS_CFG[b.status] ?? { label: b.status, color: "bg-slate-100 text-slate-600" };
-            const nextStatus = NEXT_TRANSITIONS[b.status];
-            const nextLabel = nextStatus ? TRANSITION_LABELS[nextStatus] : null;
-            const isUpdating = updatingId === b.id;
-
+            const next = NEXT_TRANSITIONS[b.status];
             return (
-              <div key={b.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                {/* Clickable top → Program Hub page */}
-                <button className="w-full text-left p-4 hover:bg-slate-50 transition-colors"
-                  onClick={() => router.push(`/member/programs/${b.id}`)}>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <p className="font-bold text-slate-900">{b.eventName || "Event"}</p>
-                      <p className="text-xs text-slate-400 font-mono">{b.bookingNumber}</p>
-                      {b.program && (
-                        <p className="text-xs text-slate-400 mt-0.5">{b.program.name}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", cfg.color)}>{cfg.label}</span>
-                      <NavArrow className="w-3.5 h-3.5 text-slate-300" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="w-3.5 h-3.5" />{fmtDate(b.eventDate)}
+              <Card key={b.id} className="overflow-hidden">
+                <Link href={`/member/programs/${b.id}`} className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-[#F7F5FB] transition-colors">
+                  <DateBox date={b.eventDate} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{b.eventName || "Program"}</span>
+                    <span className="block text-xs text-[#6B6680] truncate">
+                      {b.client.firstName} {b.client.lastName ?? ""}{b.program ? ` · ${b.program.name}` : ""}
+                      {b.eventLocation && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</>}
                     </span>
-                    {b.eventLocation && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" />{b.eventLocation}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                {/* Bottom action row */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                      {b.client.firstName[0]}
-                    </div>
-                    {b.client.firstName} {b.client.lastName ?? ""}
+                  </span>
+                  <StatusBadge status={b.status} />
+                </Link>
+                {(b.client.phone || b.deliveryLink || next) && (
+                  <div className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border-t border-[#EEEBF4] bg-[#FAF9FC]">
                     {b.client.phone && (
-                      <a href={`tel:${b.client.phone}`} onClick={e => e.stopPropagation()}
-                        className="flex items-center gap-0.5 text-slate-400 hover:text-indigo-600 ml-1">
-                        <Phone className="w-3 h-3" />
+                      <a href={`tel:${b.client.phone}`} className="h-8 px-3 rounded-full bg-white text-[12px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+                        <Phone className="w-3.5 h-3.5" />Call client
                       </a>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
                     {b.deliveryLink && (
-                      <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                        className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:underline">
-                        Delivery <ArrowRight className="w-3 h-3" />
-                      </a>
+                      <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer" className="h-8 px-3 rounded-full bg-white text-[12px] font-semibold text-[#5B3FD0] inline-flex items-center shadow-[0_1px_2px_rgba(22,18,40,.06)]">Delivery</a>
                     )}
-                    {nextLabel && (
-                      <button
-                        onClick={e => { e.stopPropagation(); updateStatus(b.id, nextStatus!); }}
-                        disabled={isUpdating}
-                        className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-60 flex items-center gap-1">
-                        {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                        {nextLabel}
+                    <span className="flex-1" />
+                    {next && (
+                      <button type="button" onClick={() => updateStatus(b.id, next)} disabled={updatingId === b.id}
+                        className="h-8 px-3.5 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+                        {updatingId === b.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{TRANSITION_LABELS[next]}
                       </button>
                     )}
                   </div>
-                </div>
-              </div>
+                )}
+              </Card>
             );
           })}
         </div>
       )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      <div className="mt-4"><Pager page={page} pages={totalPages} onChange={setPage} /></div>
     </div>
   );
 }

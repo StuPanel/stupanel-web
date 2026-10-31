@@ -1,37 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import { Camera, CalendarDays, Clock, LayoutDashboard, Wallet, TrendingUp, Hourglass, ArrowRight, MapPin } from "lucide-react";
+import { apiFetch, API_URL as API } from "@/lib/api";
+import { formatCurrency, fmtDate } from "@/lib/format";
+import { DateBox, EmptyState, Group, ListRow, PageHeader, StatCard } from "@/components/ui/apple";
+import { NextUp, Spinner, StatusBadge, daysUntil } from "../_components/kit";
 import Link from "next/link";
-import {
-  Loader2, Camera, CalendarDays, Clock,
-  MapPin, Phone, ArrowRight, Wallet, TrendingUp,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/format";
-import { API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
-
-
-
-const STATUS_CFG: Record<string, { label: string; color: string; dot: string }> = {
-  inquiry:            { label: "Inquiry",      color: "bg-[#FDECEF] text-[#C2304F]",   dot: "bg-[#C2304F]" },
-  confirmed:          { label: "Confirmed",    color: "bg-[#EEE8FD] text-[#5B3FD0]",     dot: "bg-[#7D5CEF]" },
-  advance_received:   { label: "Advance Paid", color: "bg-[#EEE8FD] text-[#5B3FD0]",     dot: "bg-[#5B3FD0]" },
-  in_progress:        { label: "Shooting",     color: "bg-[#E0F2F1] text-[#126B66]",   dot: "bg-[#126B66]" },
-  editing:            { label: "Editing",      color: "bg-[#E6F0FB] text-[#1F5C99]", dot: "bg-[#1F5C99]" },
-  ready_for_delivery: { label: "Ready",        color: "bg-[#7D5CEF] text-white", dot: "bg-[#7D5CEF]" },
-  completed:          { label: "Completed",    color: "bg-[#EEEDF2] text-[#4A4658]",dot:"bg-[#1F8A5B]" },
-  cancelled:          { label: "Cancelled",    color: "bg-[#F3E3E3] text-[#8A2E2E]",       dot: "bg-[#8A2E2E]" },
-};
-
-function daysUntil(d: string | null | undefined): number | null {
-  if (!d) return null;
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return null;
-  const now = new Date(); now.setHours(0, 0, 0, 0); dt.setHours(0, 0, 0, 0);
-  return Math.ceil((dt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
 
 interface DashData {
   total: number;
@@ -44,23 +19,9 @@ interface DashData {
     client: { firstName: string; lastName?: string; phone?: string };
   }[];
 }
-
 interface EarningStats { totalEarned: number; pendingAmount: number; thisMonthEarned: number; totalPaid: number; }
 
-function StatCard({ icon: Icon, label, value, color, bg, className }: {
-  icon: React.ElementType; label: string; value: number;
-  color: string; bg: string; className?: string;
-}) {
-  return (
-    <div className={cn("bg-white rounded-xl border border-slate-200 p-4", className)}>
-      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", bg)}>
-        <Icon className={cn("w-4 h-4", color)} />
-      </div>
-      <p className="text-2xl font-extrabold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{label}</p>
-    </div>
-  );
-}
+const ACTIVE = ["confirmed", "advance_received", "in_progress", "editing", "ready_for_delivery"];
 
 export default function MemberDashboardPage() {
   const [data, setData] = useState<DashData | null>(null);
@@ -77,170 +38,46 @@ export default function MemberDashboardPage() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
-    </div>
-  );
+  if (loading) return <Spinner />;
+  if (!data) return <EmptyState icon={LayoutDashboard} title="Couldn't load your dashboard" text="Check your internet and refresh the page." />;
 
-  if (!data) return (
-    <div className="p-6 text-center text-slate-400">Could not load dashboard.</div>
-  );
-
-  const activeStatuses = ["confirmed","advance_received","in_progress","editing","ready_for_delivery"];
-  const activeCount = activeStatuses.reduce((s, k) => s + (data.statusCounts[k] ?? 0), 0);
-
-  const nextEvent = data.recentUpcoming[0] ?? null;
-  const nextDays = nextEvent ? daysUntil(nextEvent.eventDate) : null;
+  const activeCount = ACTIVE.reduce((s, k) => s + (data.statusCounts[k] ?? 0), 0);
+  const next = data.recentUpcoming[0] ?? null;
+  const nextDays = next ? daysUntil(next.eventDate) : null;
 
   return (
-    <div className="p-5 md:p-7 space-y-6 max-w-3xl mx-auto w-full">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">My Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Your assigned programs overview</p>
-      </div>
+    <div>
+      <PageHeader icon={LayoutDashboard} color="violet" title="My dashboard" sub="Your programs and pay at a glance" />
 
-      {/* Next event countdown */}
-      {nextEvent && nextDays !== null && nextDays >= 0 && (
-        <div className={cn("rounded-xl p-4 flex items-center gap-4 border",
-          nextDays === 0 ? "bg-red-50 border-red-200" :
-          nextDays <= 3 ? "bg-amber-50 border-amber-200" :
-          "bg-indigo-50 border-indigo-200")}>
-          <div className={cn("w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 font-bold",
-            nextDays === 0 ? "bg-red-100 text-red-700" :
-            nextDays <= 3 ? "bg-amber-100 text-amber-700" :
-            "bg-indigo-100 text-indigo-700")}>
-            <span className="text-xl leading-none">{nextDays === 0 ? "!" : nextDays}</span>
-            <span className="text-xs uppercase tracking-wide mt-0.5">{nextDays === 0 ? "Today" : nextDays === 1 ? "day" : "days"}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn("text-xs font-semibold mb-0.5",
-              nextDays === 0 ? "text-red-600" : nextDays <= 3 ? "text-amber-600" : "text-indigo-600")}>
-              {nextDays === 0 ? "Program today!" : nextDays <= 3 ? "Coming up soon" : "Next program"}
-            </p>
-            <p className="font-bold text-slate-900 truncate">{nextEvent.eventName || "Event"}</p>
-            <p className="text-xs text-slate-500">{nextEvent.client.firstName} {nextEvent.client.lastName ?? ""} · {fmtDate(nextEvent.eventDate)}</p>
-          </div>
-        </div>
+      {next && nextDays !== null && nextDays >= 0 && (
+        <NextUp days={nextDays} title={next.eventName || "Program"} href={`/member/programs/${next.id}`}
+          sub={`${next.client.firstName} ${next.client.lastName ?? ""} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <StatCard icon={Camera} label="Total Programs" value={data.total} color="text-indigo-600" bg="bg-indigo-50" />
-        <StatCard icon={CalendarDays} label="Upcoming (30d)" value={data.upcoming} color="text-blue-600" bg="bg-blue-50" />
-        <StatCard icon={Clock} label="Active" value={activeCount} color="text-amber-600" bg="bg-amber-50" className="col-span-2 md:col-span-1" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+        <StatCard icon={Camera} color="deep" label="All programs" value={data.total} href="/member/programs" />
+        <StatCard icon={CalendarDays} color="red" label="Next 30 days" value={data.upcoming} href="/member/schedule" />
+        <div className="col-span-2 lg:col-span-1"><StatCard icon={Clock} color="teal" label="In progress" value={activeCount} /></div>
       </div>
 
-      {/* Earnings quick view */}
       {earnings && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">My Earnings</p>
-            <Link href="/member/earnings" className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:underline">
-              Details <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="text-xs text-slate-400 mb-0.5">Total Earned</p>
-              <p className="font-extrabold text-slate-900 text-base">{formatCurrency(earnings.totalEarned)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-0.5">This Month</p>
-              <p className="font-extrabold text-indigo-700 text-base">{formatCurrency(earnings.thisMonthEarned)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-0.5">Pending</p>
-              <p className={cn("font-extrabold text-base", earnings.pendingAmount > 0 ? "text-amber-600" : "text-emerald-600")}>
-                {formatCurrency(earnings.pendingAmount)}
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-7">
+          <StatCard icon={TrendingUp} color="green" label="Earned this month" value={formatCurrency(earnings.thisMonthEarned)} href="/member/earnings" />
+          <StatCard icon={Wallet} color="blue" label="Total earned" value={formatCurrency(earnings.totalEarned)} sub={`Paid ${formatCurrency(earnings.totalPaid)}`} href="/member/earnings" />
+          <div className="col-span-2 lg:col-span-1"><StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(earnings.pendingAmount)} href="/member/earnings" /></div>
         </div>
       )}
 
-      {/* Status breakdown */}
-      {Object.keys(data.statusCounts).length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Status Breakdown</p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(data.statusCounts).map(([status, count]) => {
-              const cfg = STATUS_CFG[status] ?? { label: status, color: "bg-slate-100 text-slate-600", dot: "bg-slate-400" };
-              return (
-                <span key={status} className={cn("flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full font-semibold", cfg.color)}>
-                  <span className={cn("w-2 h-2 rounded-full flex-shrink-0", cfg.dot)} />
-                  {cfg.label} · {count}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Upcoming */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-bold text-slate-800">Upcoming Programs</p>
-          <Link href="/member/programs" className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:underline">
-            View all <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-
+      <Group title="Coming up" action={<Link href="/member/programs" className="text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1">All programs <ArrowRight className="w-3.5 h-3.5" /></Link>}>
         {data.recentUpcoming.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-xl border border-slate-200">
-            <Camera className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-            <p className="text-slate-400 text-sm">No upcoming programs</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data.recentUpcoming.map(b => {
-              const cfg = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-              return (
-                <div key={b.id} className="bg-white rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div>
-                      <p className="font-bold text-slate-900">{b.eventName || "Event"}</p>
-                      <p className="text-xs text-slate-400 font-mono">{b.bookingNumber}</p>
-                    </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0", cfg.color)}>
-                      {cfg.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-500 mb-2">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="w-3.5 h-3.5" />{fmtDate(b.eventDate)}
-                    </span>
-                    {b.eventLocation && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" />{b.eventLocation}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                      <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                        {b.client.firstName[0]}
-                      </div>
-                      {b.client.firstName} {b.client.lastName ?? ""}
-                      {b.client.phone && (
-                        <a href={`tel:${b.client.phone}`} className="flex items-center gap-1 text-slate-400 hover:text-indigo-600 ml-1">
-                          <Phone className="w-3 h-3" />{b.client.phone}
-                        </a>
-                      )}
-                    </div>
-                    {b.deliveryLink && (
-                      <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
-                        className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
-                        Delivery <ArrowRight className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+          <p className="px-5 py-8 text-center text-sm text-[#A29DB3]">No programs coming up.</p>
+        ) : data.recentUpcoming.map(b => (
+          <ListRow key={b.id} href={`/member/programs/${b.id}`}
+            title={<span className="flex items-center gap-3"><DateBox date={b.eventDate} /><span className="min-w-0"><span className="block truncate">{b.eventName || "Program"}</span>
+              <span className="block text-xs font-normal text-[#6B6680] truncate">{b.client.firstName} {b.client.lastName ?? ""}{b.eventLocation ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</> : null}</span></span></span>}
+            right={<StatusBadge status={b.status} />} />
+        ))}
+      </Group>
     </div>
   );
 }

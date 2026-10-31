@@ -10,15 +10,21 @@ import {
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
+import { Tile, type TileColor } from "@/components/ui/apple";
 
-const navItems = [
-  { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard },
-  { label: "My Programs", href: "/member/programs",  icon: Camera },
-  { label: "Editing",     href: "/member/editing",   icon: Video },
-  { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays },
-  { label: "My Earnings", href: "/member/earnings",  icon: Wallet },
-  { label: "Chat",        href: "/member/chat",      icon: MessageCircle },
-  { label: "My Profile",  href: "/member/profile",   icon: UserCircle },
+// Same look as the studio app sidebar: each page has its own coloured tile.
+const navGroups: { title: string; items: { label: string; href: string; icon: React.ElementType; color: TileColor }[] }[] = [
+  { title: "My work", items: [
+    { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard, color: "violet" },
+    { label: "My Programs", href: "/member/programs",  icon: Camera,          color: "deep" },
+    { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays,    color: "red" },
+    { label: "Editing",     href: "/member/editing",   icon: Video,           color: "blue" },
+  ] },
+  { title: "Me", items: [
+    { label: "My Earnings", href: "/member/earnings",  icon: Wallet,          color: "green" },
+    { label: "Chat",        href: "/member/chat",      icon: MessageCircle,   color: "teal" },
+    { label: "My Profile",  href: "/member/profile",   icon: UserCircle,      color: "orchid" },
+  ] },
 ];
 
 const mobileTabs = [
@@ -56,7 +62,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       {profile && (
         <div className="px-3 pb-3">
           <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-100 p-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center font-bold text-sm text-violet-700">
+            <div className="w-8 h-8 rounded-lg bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
               {(profile.firstName?.[0] ?? "M").toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -64,49 +70,52 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
                 {profile.firstName} {profile.lastName ?? ""}
               </p>
               {profile.memberRoles?.[0] && (
-                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5">{profile.memberRoles[0]}</p>
+                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5">{profile.memberRoles[0].replace(/_/g, " ")}</p>
               )}
             </div>
           </div>
         </div>
       )}
 
-      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5">
-        {navItems.map(item => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link key={item.href} href={item.href} onClick={onClose}
-              className={cn(
-                "group relative flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors",
-                active ? "bg-violet-50 text-violet-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}>
-              {active && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-violet-600" />}
-              <span className={cn("w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                active ? "bg-violet-600 text-white shadow-sm shadow-violet-600/30" : "text-slate-400 group-hover:text-violet-600")}>
-                <item.icon className="w-[17px] h-[17px]" />
-              </span>
-              <span className="flex-1">{item.label}</span>
-              {item.href === "/member/chat" && chatUnread > 0 && !active && (
-                <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
-                  {chatUnread > 9 ? "9+" : chatUnread}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-3.5">
+        {navGroups.map(group => (
+          <div key={group.title}>
+            <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
+            <ul className="space-y-px">
+              {group.items.map(item => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <li key={item.href}>
+                    <Link href={item.href} onClick={onClose}
+                      className={cn("group relative flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm transition-colors",
+                        active ? "bg-[#EEE8FD] text-[#5B3FD0] font-bold" : "text-[#17151F] font-medium hover:bg-[#F5F3FA]")}>
+                      <Tile icon={item.icon} color={item.color} size={26} className={cn("transition-transform", !active && "group-hover:scale-105")} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {item.href === "/member/chat" && chatUnread > 0 && !active && (
+                        <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">
+                          {chatUnread > 9 ? "9+" : chatUnread}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       <div className="p-3 border-t border-slate-100">
         {isManager && (
           <Link href="/programs" onClick={onClose}
-            className="w-full flex items-center gap-3 px-2.5 py-2 mb-1 rounded-xl text-sm font-semibold text-violet-700 hover:bg-violet-50 transition-colors">
-            <span className="w-7 h-7 rounded-lg flex items-center justify-center"><LayoutDashboard className="w-[17px] h-[17px]" /></span>
+            className="w-full flex items-center gap-3 px-2 h-10 mb-1 rounded-[12px] text-sm font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD] transition-colors">
+            <Tile icon={LayoutGrid} color="ink" size={26} />
             Studio app
           </Link>
         )}
         <button onClick={onLogout}
-          className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-          <span className="w-7 h-7 rounded-lg flex items-center justify-center"><LogOut className="w-[17px] h-[17px]" /></span>
+          className="w-full flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm font-medium text-[#C2304F] hover:bg-[#FDECEF] transition-colors">
+          <span className="w-[26px] h-[26px] rounded-[8px] bg-[#FDECEF] flex items-center justify-center"><LogOut className="w-[15px] h-[15px]" /></span>
           Log out
         </button>
       </div>
@@ -159,7 +168,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-[#F5F3FA]">
       {/* Desktop floating sidebar */}
       <div className="hidden lg:block fixed top-3 bottom-3 left-3 w-[248px] z-30">
         <MemberSidebar profile={profile} chatUnread={chatUnread} pathname={pathname} onLogout={logout} />
@@ -177,17 +186,17 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
       <div className="lg:ml-[272px] lg:mr-3 min-h-full flex flex-col">
         {/* Mobile top bar */}
-        <div className="lg:hidden sticky top-0 z-20 bg-slate-50/85 backdrop-blur-md flex items-center justify-between px-4 h-16">
+        <div className="lg:hidden sticky top-0 z-20 bg-[#F5F3FA]/85 backdrop-blur-md flex items-center justify-between px-4 h-16">
           <Link href="/member/dashboard" className="flex items-center gap-2">
             <BrandMark size={30} />
             <span className="font-extrabold text-[16px] tracking-tight text-slate-900">StuPanel</span>
           </Link>
-          <Link href="/member/profile" className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-sm text-violet-700">
+          <Link href="/member/profile" className="w-10 h-10 rounded-full bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
             {(profile?.firstName?.[0] ?? "M").toUpperCase()}
           </Link>
         </div>
 
-        <main className="flex-1 min-w-0 pb-28 lg:pb-6 lg:pt-3">
+        <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-0 pt-1 lg:pt-6 pb-28 lg:pb-8">
           <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">{children}</div>
         </main>
 

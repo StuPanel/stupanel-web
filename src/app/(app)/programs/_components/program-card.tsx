@@ -107,8 +107,9 @@ export function DeleteDialog({ booking, onClose, onDeleted }: {
   );
 }
 
-export function StatusPipeline({ current, bookingId, onChanged }: {
+export function StatusPipeline({ current, bookingId, onChanged, hideTitle }: {
   current: string;
+  hideTitle?: boolean;
   bookingId: string;
   onChanged: () => void;
 }) {
@@ -128,7 +129,7 @@ export function StatusPipeline({ current, bookingId, onChanged }: {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</p>
+      {!hideTitle && <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</p>}
       {isCancelled ? (
         <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-red-200 bg-red-50">
           <span className="text-sm font-semibold text-red-700 capitalize">{current}</span>

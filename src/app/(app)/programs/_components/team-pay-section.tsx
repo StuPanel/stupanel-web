@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { notify } from "@/components/feedback";
+import { CARD_SHADOW } from "@/components/ui/apple";
 import { FormDrawer, FormGroup, Field, inputCls } from "@/components/ui/form-kit";
 import { fmtDate } from "./constants";
 import { BILL_LOCKED_STATUSES, type Booking, type CostEntry } from "./types";
@@ -39,17 +40,17 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <p className="flex-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Team pay</p>
+        <h2 className="flex-1 px-1 text-[13px] font-bold text-[#4A4658]">Team pay</h2>
         {locked && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"><Lock className="w-3 h-3" />Bill locked</span>}
       </div>
-      <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+      <div className={cn("bg-white rounded-[20px] divide-y divide-[#EEEBF4] overflow-hidden", CARD_SHADOW)}>
         {entries.map(e => {
           const bill = Number(e.totalBill || 0), p = Number(e.paidAmount || 0), due = Math.max(0, bill - p);
           return (
-            <div key={e.id} className="px-3 py-2.5">
+            <div key={e.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{e.memberName}</p>
+                  <p className="text-[15px] font-semibold text-[#17151F] truncate">{e.memberName}</p>
                   <p className="text-xs text-slate-500 truncate">
                     Bill {formatCurrency(bill, booking.currency)}{p > 0 && <> · paid {formatCurrency(p, booking.currency)}</>}
                   </p>
@@ -85,7 +86,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
             </div>
           );
         })}
-        <div className="flex items-center justify-between px-3 py-2 bg-slate-50 text-xs">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAF9FC] text-xs">
           <span className="text-slate-500">Total {formatCurrency(total, booking.currency)} · paid {formatCurrency(paid, booking.currency)}</span>
           <span className={cn("font-bold", total - paid > 0 ? "text-red-600" : "text-emerald-700")}>Owe {formatCurrency(Math.max(0, total - paid), booking.currency)}</span>
         </div>

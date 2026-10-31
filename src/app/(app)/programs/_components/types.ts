@@ -86,6 +86,11 @@ export interface BillLine {
   shifts?: number;
 }
 
+export interface TeamPayment { id: string; amount: number; method: string; date: string; note?: string }
+
+/** The team bill can't be changed after these (owner can unlock in Edit). */
+export const BILL_LOCKED_STATUSES = ["delivered", "completed"];
+
 export interface CostEntry {
   id: string;
   role: string;
@@ -93,6 +98,8 @@ export interface CostEntry {
   memberName: string;
   totalBill: number;
   paidAmount?: number;
+  /** Payouts to this member for this program (server-managed). */
+  payments?: TeamPayment[];
   note?: string;
   /** Itemised bill (new form). totalBill = sum of lines (deductions subtract). */
   lines?: BillLine[];

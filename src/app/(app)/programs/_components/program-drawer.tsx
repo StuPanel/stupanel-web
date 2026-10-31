@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowRight, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
+  AlertTriangle, ArrowRight, Lock, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
   Search, Store, Trash2, UserPlus, Users, Wallet, X, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { ClientFormFields, blankClientForm, type ClientFormData } from "@/compon
 import { TEAM_ROLES } from "../../team/_components/rate-card";
 import { EVENT_TYPES, fmtDate, uid } from "./constants";
 import { buildBill, findRate, ROLE_NAME, type Rate } from "./pricing";
+import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
 
 type WorkType = { id: string; name: string; active: boolean };
@@ -396,6 +397,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [openBill, setOpenBill] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => { setTeam(teamMembers); }, [teamMembers]);
 
@@ -412,7 +414,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // Fill the form
   useEffect(() => {
     if (!open) return;
-    setError(""); setClientMode("search"); setNewClient(blankClientForm); setOpenBill(null);
+    setError(""); setUnlocked(false); setClientMode("search"); setNewClient(blankClientForm); setOpenBill(null);
     if (isEdit && initialBooking) {
       const b = initialBooking;
       const d = normalizeDays(b.eventDays);
@@ -494,7 +496,10 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const net = total - discount;
   const paidSoFar = isEdit ? Number(initialBooking?.paidAmount ?? 0) : advance;
   const due = net - paidSoFar;
-  const teamCost = bill.entries.reduce((s, e) => s + e.totalBill, 0);
+  // A finished program's team bill is locked: show what was saved, unless the owner unlocks it.
+  const billLocked = isEdit && BILL_LOCKED_STATUSES.includes(initialBooking?.status ?? "") && !unlocked;
+  const entries = billLocked ? kept : bill.entries;
+  const teamCost = entries.reduce((s, e) => s + Number(e.totalBill || 0), 0);
   const equip = bill.rentedFromOutside + num(money.equipExtra);
   const otherCosts = num(money.transport) + num(money.album) + equip + num(money.other);
   const profit = net - teamCost - otherCosts;
@@ -539,7 +544,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
         transportCost: num(money.transport), otherCost: num(money.other), albumCost: num(money.album), equipCost: equip,
         internalNotes: notes || undefined, eventDays: typedDays,
-        costEntries: bill.entries.filter(e => e.memberName || e.totalBill),
+        ...(billLocked ? {} : { costEntries: bill.entries.filter(e => e.memberName || e.totalBill), ...(unlocked ? { unlockBill: true } : {}) }),
         ...(isEdit ? {} : { status: "confirmed" }),
       };
       const url = isEdit ? `${API}/bookings/${initialBooking!.id}` : `${API}/bookings`;
@@ -751,12 +756,13 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                 </Card>
               </Section>
 
-              <Section n={5} title="Team pay" sub="Built from each person's prices — change any amount" done={bill.entries.length > 0}>
-                {bill.entries.length === 0 ? (
+              <Section n={5} title="Team pay" sub={billLocked ? "Program is finished — the bill is locked" : "Built from each person's prices — change any amount"} done={entries.length > 0}
+                right={billLocked ? <button type="button" onClick={() => setUnlocked(true)} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold text-[#C2304F] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Lock className="w-3.5 h-3.5" />Unlock to edit</button> : undefined}>
+                {entries.length === 0 ? (
                   <Card className="p-4 text-sm text-[#A29DB3]">Add people to shifts above — their pay shows here.</Card>
                 ) : (
                   <Card className="divide-y divide-[#EEEBF4]">
-                    {bill.entries.map(e => {
+                    {entries.map(e => {
                       const m = team.find(t => t.id === e.memberId);
                       const r0 = role((e.role || "").split(", ")[0] || m?.memberRoles[0] || "");
                       const isOpen = openBill === e.id;
@@ -773,7 +779,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             <span className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(e.totalBill)}</span>
                             <ChevronDown className={cn("w-4 h-4 text-[#6B6680] transition-transform", isOpen && "rotate-180")} />
                           </button>
-                          {isOpen && e.memberId && (
+                          {isOpen && e.memberId && !billLocked && (
                             <div className="px-4 pb-4 space-y-2">
                               {(e.lines ?? []).map(l => (
                                 <div key={l.id} className="flex items-center gap-2 rounded-[12px] bg-[#FAF9FC] border border-[#EEEBF4] px-3 py-2">

@@ -40,6 +40,8 @@ export default function ProgramsPage() {
   const [newForClient, setNewForClient] = useState<Client | null>(null);
   const [viewTarget, setViewTarget] = useState<Booking | null>(null);
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
+  /** Edit opened from a program's page — go back to it after Cancel / Save. */
+  const [backToView, setBackToView] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
 
   const fetchAll = useCallback(async () => {
@@ -109,6 +111,13 @@ export default function ProgramsPage() {
 
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 
+
+  function reopenView() {
+    const id = backToView;
+    setBackToView(null);
+    if (!id) return;
+    apiFetch(`${API}/bookings/${id}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setViewTarget(d); }).catch(() => {});
+  }
   return (
     <div>
       <PageHeader icon={Camera} color="deep" title="Programs"
@@ -152,8 +161,8 @@ export default function ProgramsPage() {
         initialClient={newForClient} />
       <ProgramDrawer
         open={!!editTarget}
-        onClose={() => setEditTarget(null)}
-        onSaved={() => { fetchAll(); setEditTarget(null); }}
+        onClose={() => { setEditTarget(null); reopenView(); }}
+        onSaved={() => { fetchAll(); setEditTarget(null); reopenView(); }}
         packages={packages}
         teamMembers={teamMembers}
         initialBooking={editTarget}
@@ -161,7 +170,7 @@ export default function ProgramsPage() {
       <ViewDrawer
         booking={viewTarget}
         onClose={() => setViewTarget(null)}
-        onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
+        onEdit={() => { setEditTarget(viewTarget); setBackToView(viewTarget?.id ?? null); setViewTarget(null); }}
         onRefresh={fetchAll}
         r2Enabled={r2Enabled}
         teamMembers={teamMembers}

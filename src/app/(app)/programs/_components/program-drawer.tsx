@@ -39,7 +39,11 @@ const num = (v: string) => parseFloat(v) || 0;
 
 /** Old bookings stored member ids in shift.memberIds. */
 function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
-  return (days ?? []).map(d => ({ ...d, shifts: (d.shifts ?? []).map(s => ({ ...s, assignments: s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? [] })) }));
+  return (days ?? []).map(d => {
+    const shifts = (d.shifts ?? []).map(s => ({ ...s, assignments: s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? [] }));
+    // Old days may have no shift at all — give them one so people can be added straight away.
+    return { ...d, shifts: shifts.length ? shifts : [{ id: uid(), label: "Day", assignments: [] }] };
+  });
 }
 
 // ─── Section shell ────────────────────────────────────────────────────────────

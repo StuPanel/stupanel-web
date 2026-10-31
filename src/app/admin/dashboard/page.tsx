@@ -19,9 +19,15 @@ interface DashData {
   activeStudios: number;
   trialingStudios: number;
   suspendedStudios: number;
+  endingStudios?: number;
+  expiredStudios?: number;
   totalUsers: number;
   totalBookings: number;
   totalRevenue: number;
+  revenueThisMonth?: number;
+  mrr?: number;
+  pendingRequests?: number;
+  clientPaymentsTotal?: number;
   newStudiosThisMonth: number;
 }
 
@@ -78,16 +84,23 @@ export default function AdminDashboard() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Building2} label="Total Studios" value={data?.totalStudios ?? 0} color="bg-indigo-600" />
-        <StatCard icon={Activity} label="Active Studios" value={data?.activeStudios ?? 0} color="bg-emerald-600" />
-        <StatCard icon={AlertTriangle} label="On Trial" value={data?.trialingStudios ?? 0} color="bg-amber-600" />
-        <StatCard icon={AlertTriangle} label="Suspended" value={data?.suspendedStudios ?? 0} color="bg-red-600" />
+        <StatCard icon={Activity} label="Paid (active)" value={data?.activeStudios ?? 0} color="bg-emerald-600" />
+        <StatCard icon={AlertTriangle} label="On trial" value={data?.trialingStudios ?? 0} color="bg-amber-600" />
+        <StatCard icon={AlertTriangle} label="Expired / view-only" value={(data?.expiredStudios ?? 0) + (data?.endingStudios ?? 0)} color="bg-orange-600" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Users} label="Total Users" value={data?.totalUsers ?? 0} color="bg-purple-600" />
-        <StatCard icon={BookOpen} label="Total Bookings" value={data?.totalBookings ?? 0} color="bg-sky-600" />
-        <StatCard icon={DollarSign} label="Total Revenue" value={formatCurrency(Number(data?.totalRevenue ?? 0))} color="bg-teal-600" />
-        <StatCard icon={TrendingUp} label="New This Month" value={data?.newStudiosThisMonth ?? 0} color="bg-violet-600" />
+        <StatCard icon={DollarSign} label="StuPanel income (all time)" value={formatCurrency(Number(data?.totalRevenue ?? 0))} color="bg-teal-600" />
+        <StatCard icon={DollarSign} label="Income this month" value={formatCurrency(Number(data?.revenueThisMonth ?? 0))} color="bg-teal-600" />
+        <StatCard icon={TrendingUp} label="Monthly recurring (MRR)" value={formatCurrency(Number(data?.mrr ?? 0))} color="bg-indigo-600" />
+        <StatCard icon={AlertTriangle} label="Plan payments to approve" value={data?.pendingRequests ?? 0} color="bg-amber-600" />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Users} label="Studio users" value={data?.totalUsers ?? 0} color="bg-purple-600" />
+        <StatCard icon={BookOpen} label="Programs (all studios)" value={data?.totalBookings ?? 0} color="bg-sky-600" />
+        <StatCard icon={AlertTriangle} label="Suspended" value={data?.suspendedStudios ?? 0} color="bg-red-600" />
+        <StatCard icon={TrendingUp} label="New studios this month" value={data?.newStudiosThisMonth ?? 0} color="bg-violet-600" />
       </div>
 
       {/* Quick links */}

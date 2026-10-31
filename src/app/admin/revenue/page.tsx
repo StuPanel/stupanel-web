@@ -12,7 +12,7 @@ function authH() { return { Authorization: `Bearer ${getToken()}` }; }
 interface RevenueData {
   monthly: { month: string; total: number }[];
   topStudios: { companyId: string; name: string; total: number; payments: number }[];
-  summary: { totalRevenue: number; totalStudios: number; activeStudios: number; mrr: number };
+  summary: { totalRevenue: number; totalStudios: number; activeStudios: number; mrr: number; revenueThisMonth?: number; clientPaymentsTotal?: number };
 }
 
 function StatCard({ icon: Icon, label, value, sub, color }: any) {
@@ -59,20 +59,20 @@ export default function AdminRevenuePage() {
     <div className="p-6 md:p-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Revenue Reports</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Platform-wide payment analytics</p>
+        <p className="text-sm text-slate-400 mt-0.5">StuPanel income from approved plan payments</p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={DollarSign} label="Total Revenue" value={f(data.summary.totalRevenue)} color="bg-emerald-600" />
-        <StatCard icon={TrendingUp} label="Avg Monthly" value={f(data.summary.mrr)} sub="Last 12 months avg" color="bg-indigo-600" />
+        <StatCard icon={DollarSign} label="StuPanel income" value={f(data.summary.totalRevenue)} sub={`This month ${f(data.summary.revenueThisMonth ?? 0)}`} color="bg-emerald-600" />
+        <StatCard icon={TrendingUp} label="Monthly recurring (MRR)" value={f(data.summary.mrr)} sub="Active paid plans, per month" color="bg-indigo-600" />
         <StatCard icon={Building2} label="Total Studios" value={data.summary.totalStudios} color="bg-purple-600" />
         <StatCard icon={BarChart3} label="Active Studios" value={data.summary.activeStudios} sub="Paid subscriptions" color="bg-teal-600" />
       </div>
 
       {/* Monthly bar chart */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
-        <h2 className="font-semibold text-white mb-5">Monthly Revenue — Last 12 Months</h2>
+        <h2 className="font-semibold text-white mb-5">StuPanel income — last 12 months</h2>
         <div className="flex items-end gap-2 h-40">
           {data.monthly.map(m => {
             const pct = maxMonthly > 0 ? (m.total / maxMonthly) * 100 : 0;

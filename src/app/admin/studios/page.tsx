@@ -448,6 +448,16 @@ function ArchivedTab() {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+/** Real access right now (from the API), not the stored status text. */
+const ACCESS_LABEL: Record<string, string> = { paid: "Paid", trial: "Trial", ending: "Ending (grace)", expired: "Expired · view-only", suspended: "Suspended" };
+const ACCESS_COLOR: Record<string, string> = {
+  paid: "bg-emerald-900/40 text-emerald-300 border-emerald-700",
+  trial: "bg-amber-900/40 text-amber-300 border-amber-700",
+  ending: "bg-orange-900/40 text-orange-300 border-orange-700",
+  expired: "bg-red-900/40 text-red-300 border-red-700",
+  suspended: "bg-slate-700 text-slate-300 border-slate-600",
+};
+
 export default function AdminStudiosPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
@@ -590,8 +600,9 @@ export default function AdminStudiosPage() {
                         </td>
                         <td className="px-4 py-3 text-slate-300 text-xs">{studio.email ?? "—"}</td>
                         <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium", statusColors[studio.subscriptionStatus] ?? "bg-slate-700 text-slate-400 border-slate-600")}>
-                            {studio.subscriptionStatus}
+                          <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium", (studio.access ? ACCESS_COLOR[studio.access.state] : statusColors[studio.subscriptionStatus]) ?? "bg-slate-700 text-slate-400 border-slate-600")}>
+                            {studio.access ? ACCESS_LABEL[studio.access.state] ?? studio.subscriptionStatus : studio.subscriptionStatus}
+                            {studio.access?.daysLeft != null && studio.access.state !== "expired" && studio.access.state !== "suspended" && <span className="opacity-70">· {studio.access.daysLeft}d</span>}
                           </span>
                           {!studio.isActive && (
                             <span className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-900/40 text-red-400 border border-red-800 font-medium">

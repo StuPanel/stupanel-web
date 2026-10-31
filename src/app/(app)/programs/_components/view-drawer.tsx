@@ -5,7 +5,7 @@ import {
   X, Edit3, DollarSign, MessageCircle, FileText,
   Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
   ExternalLink, Calendar, Monitor, FolderOpen, Users, Check,
-  Clapperboard, Palette,
+  Clapperboard, Palette, Camera, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -19,7 +19,9 @@ import { TeamPaySection } from "./team-pay-section";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { EditableSelect } from "@/components/ui/editable-select";
-import type { Booking } from "./types";
+import type { Booking, ShiftAssignment } from "./types";
+import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
+import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
 
 function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -514,6 +516,21 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   );
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  photographer: "Photographer", cinematographer: "Cinematographer", drone_pilot: "Drone", assistant: "Assistant",
+  photo_editor: "Photo editor", video_editor: "Video editor",
+};
+const SETUP_LABEL: Record<string, string> = { own: "Own setup", other: "Others' gear", rented: "Rented gear" };
+
+function Row({ l, v, strong, tone, sub }: { l: React.ReactNode; v: React.ReactNode; strong?: boolean; tone?: "red" | "green"; sub?: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-4 py-3">
+      <span className={cn("text-[15px]", strong ? "font-semibold text-[#17151F]" : "text-[#4A4658]")}>{l}{sub && <span className="block text-xs text-[#6B6680]">{sub}</span>}</span>
+      <span className={cn("tabular-nums", strong ? "text-[17px] font-extrabold" : "text-[15px] font-semibold text-[#17151F]", tone === "red" && "text-[#C2304F]", tone === "green" && "text-[#1F8A5B]")}>{v}</span>
+    </div>
+  );
+}
+
 export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, teamMembers }: {
   booking: Booking | null;
   onClose: () => void;
@@ -527,9 +544,16 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [genInvoicing, setGenInvoicing] = useState(false);
   const [localBooking, setLocalBooking] = useState<Booking | null>(null);
+  const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const router = useRouter();
 
   useEffect(() => { setLocalBooking(booking); }, [booking]);
+  useEffect(() => {
+    if (!booking) return;
+    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null)
+      .then(d => d && setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name]))))
+      .catch(() => {});
+  }, [booking?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function refreshBooking() {
     if (!localBooking) return;
@@ -540,153 +564,139 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
     onRefresh();
   }
 
+  async function makeInvoice() {
+    if (!b) return;
+    setGenInvoicing(true);
+    try {
+      const r = await apiFetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST" });
+      const d = await r.json();
+      if (r.ok || d.message?.includes("already exists")) router.push("/invoices");
+    } catch { /* silent */ } finally { setGenInvoicing(false); }
+  }
+
   const b = localBooking;
   if (!b) return null;
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-  const due = Number(b.grandTotal) - Number(b.paidAmount);
+  const net = Number(b.grandTotal);
+  const paid = Number(b.paidAmount);
+  const due = net - paid;
+  const profit = Number(b.profitAmount);
+  const teamCost = (b.costEntries ?? []).reduce((s, e) => s + Number(e.totalBill || 0), 0);
+  const costs: [string, number][] = ([["Team pay", teamCost], ["Equipment rent", Number(b.equipCost)], ["Transport", Number(b.transportCost)], ["Album / print", Number(b.albumCost)], ["Other", Number(b.otherCost)]] as [string, number][]).filter(([, v]) => v > 0);
+  const days = [...(b.eventDays ?? [])].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+  const typeId = days.find(d => d.programType)?.programType;
+  const typeName = typeId ? typeNames[typeId] ?? typeId.replace(/-/g, " ") : "";
+  const who = (id: string, fallback?: string) => {
+    const m = teamMembers?.find(t => t.id === id);
+    return m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : fallback ?? "Someone";
+  };
+  const clientName = `${b.client.firstName} ${b.client.lastName ?? ""}`.trim();
+  const dateText = days.length
+    ? days[0].date ? `${fmtDate(days[0].date)}${days.length > 1 && days[days.length - 1].date !== days[0].date ? ` – ${fmtDate(days[days.length - 1].date)}` : ""}` : "No date"
+    : b.eventDate ? fmtDate(b.eventDate) : "No date";
 
   return (
     <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-200 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="font-bold text-slate-900 leading-snug break-words">{b.eventName ?? b.bookingNumber}</h2>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
-                <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
-              </div>
-            </div>
-            <button onClick={onClose} aria-label="Close" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {due > 0 && (
-              <button onClick={() => setPaymentOpen(true)}
-                className="h-8 px-3 rounded-lg border border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" />Pay
-              </button>
-            )}
-            <button
-              disabled={genInvoicing}
-              onClick={async () => {
-                setGenInvoicing(true);
-                try {
-                  const r = await apiFetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("access_token") ?? ""}` } });
-                  const d = await r.json();
-                  if (r.ok || d.message?.includes("already exists")) {
-                    router.push("/invoices");
-                  }
-                } catch { /* silent */ } finally { setGenInvoicing(false); }
-              }}
-              className="h-8 px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 flex items-center gap-1.5 disabled:opacity-50">
-              {genInvoicing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}Invoice
-            </button>
-            {b.client?.phone && (
-              <button onClick={() => setWaOpen(true)}
-                className="h-8 px-3 rounded-lg border border-green-300 bg-green-50 text-xs font-semibold text-green-700 hover:bg-green-100 flex items-center gap-1.5">
-                <MessageCircle className="w-3.5 h-3.5" />WA
-              </button>
-            )}
-            <button onClick={onEdit} className="h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
-              <Edit3 className="w-3.5 h-3.5" />Edit
-            </button>
-          </div>
+      <ProfileShell open label="Program" onClose={onClose}>
+        <IdentityCard
+          avatar={<Tile icon={Camera} color="deep" size={64} className="rounded-[20px]" />}
+          name={b.eventName ?? b.bookingNumber}
+          sub={<>{clientName}{b.client.phone ? ` · ${b.client.phone}` : ""}</>}
+          chips={<>
+            <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
+            {typeName && <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-[#F5F3FA] text-[#4A4658]">{typeName}</span>}
+            <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-[#F5F3FA] text-[#4A4658] inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{dateText}</span>
+            <span className="text-xs px-2 py-1 rounded-full font-mono text-[#6B6680]">{b.bookingNumber}</span>
+          </>}
+          actions={<>
+            <ActionButton icon={DollarSign} label="Payment" tone="green" onClick={() => setPaymentOpen(true)} disabled={due <= 0} />
+            <ActionButton icon={MessageCircle} label="WhatsApp" tone="green" onClick={() => setWaOpen(true)} disabled={!b.client?.phone} />
+            <ActionButton icon={genInvoicing ? Loader2 : FileText} label="Invoice" tone="blue" onClick={makeInvoice} disabled={genInvoicing} />
+            <ActionButton icon={Edit3} label="Edit" tone="violet" onClick={onEdit} />
+          </>}
+        />
+
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <MiniStat icon={Wallet} color="blue" label="Contract" value={formatCurrency(net, b.currency)} sub={Number(b.discountAmount) > 0 ? `after ${formatCurrency(Number(b.discountAmount), b.currency)} discount` : undefined} />
+          <MiniStat icon={Check} color="green" label="Client paid" value={formatCurrency(paid, b.currency)} />
+          <MiniStat icon={DollarSign} color="red" label="Client owes" value={formatCurrency(Math.max(0, due), b.currency)} tone={due > 0 ? "red" : "green"} />
+          <MiniStat icon={TrendingUp} color="violet" label="Profit" value={formatCurrency(profit, b.currency)} tone={profit >= 0 ? "green" : "red"} sub={net > 0 ? `${Math.round((profit / net) * 100)}% of contract` : undefined} />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <StatusPipeline current={b.status} bookingId={b.id} onChanged={refreshBooking} />
-
-          <div className="bg-slate-50 rounded-xl p-4">
-            <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Client</p>
-            <p className="font-bold text-slate-900">{b.client.firstName} {b.client.lastName ?? ""}</p>
-            {b.client.phone && <p className="text-sm text-slate-500">{b.client.phone}</p>}
+        <section className="mb-6">
+          <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Status</h2>
+          <div className={cn("bg-white rounded-[20px] p-3", CARD_SHADOW)}>
+            <StatusPipeline current={b.status} bookingId={b.id} onChanged={refreshBooking} hideTitle />
           </div>
+        </section>
 
-          {b.eventDays?.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Event Days</p>
-              {b.eventDays.map((day, i) => (
-                <div key={day.id} className="border border-slate-200 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                    <span className="font-semibold text-sm text-slate-800">{day.eventType}</span>
-                    {day.date && <span className="text-xs text-slate-400">{fmtDate(day.date)}</span>}
+        <Group title="Days & team" action={<button type="button" onClick={onEdit} className="text-[13px] font-semibold text-[#5B3FD0]">Change</button>}>
+          {days.length === 0 && <p className="px-4 py-4 text-sm text-[#A29DB3]">No days added yet.</p>}
+          {days.map((day, i) => {
+            const people = day.shifts.flatMap(s => (s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? []).map(a => ({ a, shift: s.label })));
+            return (
+              <div key={day.id} className="px-4 py-3.5">
+                <div className="flex items-start gap-3">
+                  <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-semibold text-[#17151F]">{day.eventType || `Day ${i + 1}`}</p>
+                    <p className="text-xs text-[#6B6680] flex flex-wrap items-center gap-x-2">
+                      <span>{day.date ? fmtDate(day.date) : "No date"}</span>
+                      {day.location && <span className="inline-flex items-center gap-0.5"><MapPin className="w-3 h-3" />{day.location}</span>}
+                    </p>
+                    {people.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {people.map(({ a, shift }, k) => (
+                          <span key={`${a.id}-${a.role}-${k}`} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] text-[#17151F]">
+                            <Users className="w-3 h-3 text-[#6B6680]" />
+                            <span className="font-semibold">{who(a.id, a.name)}</span>
+                            <span className="text-[#6B6680]">· {ROLE_LABEL[a.role] ?? a.role.replace(/_/g, " ")}{day.shifts.length > 1 ? ` · ${shift}` : ""}{a.setup ? ` · ${SETUP_LABEL[a.setup] ?? a.setup}` : ""}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : <p className="mt-1.5 text-xs text-[#A29DB3]">Nobody on this day yet.</p>}
                   </div>
-                  {day.location && <p className="text-xs text-slate-400 ml-7 flex items-center gap-1"><MapPin className="w-3 h-3" />{day.location}</p>}
-                  {day.shifts.map(s => (
-                    <div key={s.id} className="ml-7 mt-1.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{s.label}</span>
-                      <span className="text-xs text-slate-400">{(s.assignments ?? (s as any).memberIds ?? []).length} members</span>
-                    </div>
-                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })}
+        </Group>
 
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Financials</p>
-            <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Contract</span><span className="font-semibold">{formatCurrency(Number(b.totalAmount), b.currency)}</span></div>
-              {Number(b.discountAmount) > 0 && <div className="flex justify-between"><span className="text-slate-500">Discount</span><span className="text-red-500">− {formatCurrency(Number(b.discountAmount), b.currency)}</span></div>}
-              <div className="flex justify-between font-bold"><span>Net</span><span>{formatCurrency(Number(b.grandTotal), b.currency)}</span></div>
-              <div className="border-t border-slate-200 pt-2 flex justify-between">
-                <span className="text-slate-500">Paid</span>
-                <span className="text-emerald-600 font-semibold">{formatCurrency(Number(b.paidAmount), b.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Due</span>
-                <span className={cn("font-bold", due > 0 ? "text-red-600" : "text-emerald-600")}>{formatCurrency(due, b.currency)}</span>
-              </div>
-            </div>
-            {due > 0 && (
-              <button onClick={() => setPaymentOpen(true)}
-                className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
-                <DollarSign className="w-4 h-4" />Record Payment
-              </button>
-            )}
+        <Group title="Money">
+          <Row l="Contract" v={formatCurrency(Number(b.totalAmount), b.currency)} />
+          {Number(b.discountAmount) > 0 && <Row l="Discount" v={`− ${formatCurrency(Number(b.discountAmount), b.currency)}`} />}
+          <Row l="Client paid" v={formatCurrency(paid, b.currency)} tone="green" />
+          <Row l="Client still owes" v={formatCurrency(Math.max(0, due), b.currency)} strong tone={due > 0 ? "red" : "green"} />
+          {costs.map(([l, v]) => <Row key={l} l={l} v={`− ${formatCurrency(v, b.currency)}`} />)}
+          <Row l="Profit" v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
+        </Group>
+
+        <div className="mb-7"><TeamPaySection booking={b} onSaved={refreshBooking} /></div>
+
+        <section className="mb-7 space-y-3">
+          <h2 className="px-1 text-[13px] font-bold text-[#4A4658]">Editing & files</h2>
+          <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
+            <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
+            <RawFilesSection booking={b} onSaved={refreshBooking} />
+            <CreativeBriefSection booking={b} onSaved={refreshBooking} />
           </div>
+        </section>
 
-          <TeamPaySection booking={b} onSaved={refreshBooking} />
-
-          {Number(b.profitAmount) !== 0 && (
-            <div className={cn("rounded-xl p-4 flex items-center justify-between", Number(b.profitAmount) >= 0 ? "bg-emerald-50 border border-emerald-200" : "bg-red-50 border border-red-200")}>
-              <div className="flex items-center gap-2">
-                <TrendingUp className={cn("w-5 h-5", Number(b.profitAmount) >= 0 ? "text-emerald-600" : "text-red-500")} />
-                <span className="font-semibold text-sm text-slate-800">Net Profit</span>
-              </div>
-              <span className={cn("font-extrabold text-lg", Number(b.profitAmount) >= 0 ? "text-emerald-700" : "text-red-600")}>
-                {formatCurrency(Number(b.profitAmount), b.currency)}
-              </span>
-            </div>
-          )}
-
-          <RawFilesSection booking={b} onSaved={refreshBooking} />
-          <CreativeBriefSection booking={b} onSaved={refreshBooking} />
-          <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Delivery</p>
+        <section className="mb-7">
+          <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Delivery</h2>
+          <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
             <DeliveryOverview booking={b} />
-            <button
-              onClick={() => setDeliveryOpen(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition-colors"
-            >
-              Manage Delivery →
-            </button>
+            <button type="button" onClick={() => setDeliveryOpen(true)}
+              className="w-full h-11 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-sm font-semibold">Manage delivery</button>
           </div>
+        </section>
 
-          {b.internalNotes && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-amber-600 mb-1 uppercase tracking-wider">Internal Notes</p>
-              <p className="text-sm text-amber-900">{b.internalNotes}</p>
-            </div>
-          )}
-        </div>
-      </div>
+        {b.internalNotes && (
+          <Group title="Private notes">
+            <p className="px-4 py-3.5 text-sm text-[#17151F] whitespace-pre-wrap">{b.internalNotes}</p>
+          </Group>
+        )}
+      </ProfileShell>
 
       <PaymentModal
         booking={paymentOpen ? b : null}
@@ -700,7 +710,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
       <DeliveryModal
         booking={deliveryOpen ? (b as any) : null}
         onClose={() => setDeliveryOpen(false)}
-        onSaved={(updated) => { refreshBooking(); setDeliveryOpen(false); }}
+        onSaved={() => { refreshBooking(); setDeliveryOpen(false); }}
       />
     </>
   );

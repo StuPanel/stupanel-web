@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -496,22 +497,6 @@ export default function AdminStudiosPage() {
     setActionLoading(null);
   }
 
-  async function impersonate(studioId: string) {
-    setActionLoading(studioId);
-    // Open tab immediately on click (before await) to avoid popup blocker
-    const tab = window.open("", "_blank");
-    const res = await fetch(`${API}/admin/studios/${studioId}/impersonate`, { method: "POST", headers: authH() });
-    const d = await res.json();
-    setActionLoading(null);
-    if (d.token && tab) {
-      localStorage.setItem("access_token", d.token);
-      localStorage.setItem("user_role", "owner");
-      tab.location.href = "/dashboard";
-    } else if (tab) {
-      tab.close();
-    }
-  }
-
   function onR2Saved(updated: any) {
     setItems(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
   }
@@ -588,7 +573,7 @@ export default function AdminStudiosPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <div>
-                              <p className="font-medium text-white">{studio.name}</p>
+                              <Link href={`/admin/studios/${studio.id}`} className="font-medium text-white hover:text-indigo-300 hover:underline">{studio.name}</Link>
                               <p className="text-xs text-slate-500">/{studio.slug}</p>
                             </div>
                             {isOwnStudio && (
@@ -624,10 +609,10 @@ export default function AdminStudiosPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             {!isOwnStudio && (
-                              <Button size="sm" variant="ghost" onClick={() => impersonate(studio.id)} disabled={actionLoading === studio.id}
-                                className="h-7 px-2 text-indigo-400 hover:bg-indigo-600/20 gap-1 text-xs">
-                                {actionLoading === studio.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}View
-                              </Button>
+                              <Link href={`/admin/studios/${studio.id}`}
+                                className="h-7 px-2 rounded-md text-indigo-400 hover:bg-indigo-600/20 inline-flex items-center gap-1 text-xs font-medium">
+                                <ExternalLink className="w-3 h-3" />Open
+                              </Link>
                             )}
                             {!isOwnStudio && (
                               <Button size="sm" variant="ghost" onClick={() => toggleSuspend(studio)} disabled={actionLoading === studio.id}

@@ -39,7 +39,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     panes: [
       { id: "payment", title: "Payment Methods", sub: "How clients pay you — shown on quotes and invoices", icon: CreditCard, color: C.green, keywords: "bank bkash nagad" },
       { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote কোটেশন" },
-      { id: "invoices", title: "Invoices", sub: "Numbering, due date and how invoices look", icon: Receipt, color: C.orchid, keywords: "invoice ইনভয়েস বিল" },
+      { id: "invoices", title: "Invoices", sub: "Invoice designer, due date and numbering", icon: Receipt, color: C.orchid, keywords: "invoice ইনভয়েস বিল" },
       { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat ভ্যাট" },
       { id: "catalog", title: "Service Catalog", sub: "Ready-made services for quick invoice lines", icon: BookOpen, color: C.teal, keywords: "services price" },
     ],
@@ -126,15 +126,10 @@ export const ENTRIES: Entry[] = [
   { id: "defaultTerms", pane: "quotes", section: "Terms", label: "Terms & conditions", keywords: "terms policy শর্ত" },
 
   // Invoices
+  { id: "invoiceDesign", pane: "invoices", section: "Design", label: "Invoice designer", keywords: "template design colour color font logo signature paper size a4 a5 pos vat look ডিজাইন সই" },
+  { id: "invoiceDueDays", pane: "invoices", section: "Payment", label: "Payment due", keywords: "due days deadline last event" },
   { id: "invoicePrefix", pane: "invoices", section: "Numbering", label: "Invoice prefix", keywords: "number INV" },
   { id: "invoiceStartNumber", pane: "invoices", section: "Numbering", label: "Starting number", keywords: "number serial" },
-  { id: "invoiceDueDays", pane: "invoices", section: "Payment", label: "Payment due in", keywords: "due days deadline" },
-  { id: "invoiceShowPayment", pane: "invoices", section: "Payment", label: "Show payment details", keywords: "bank bkash on invoice" },
-  { id: "invoiceHeaderStyle", pane: "invoices", section: "Look", label: "Header style", keywords: "design color dark light" },
-  { id: "invoiceShowLogo", pane: "invoices", section: "Look", label: "Show logo", keywords: "logo" },
-  { id: "invoiceShowSignature", pane: "invoices", section: "Look", label: "Thank-you note", keywords: "signature" },
-  { id: "invoiceSignatureText", pane: "invoices", section: "Look", label: "Thank-you text", keywords: "signature" },
-  { id: "invoiceFooter", pane: "invoices", section: "Look", label: "Footer text", keywords: "footer bottom" },
 
   // Tax
   { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label ভ্যাট" },

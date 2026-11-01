@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { BookOpen, ChevronRight, Loader2, Paintbrush, Pencil, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { SearchPill, matches } from "@/components/list-ui";
-import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import { Group, NumberField, Row, Segmented, Switch, TextArea, TextField, useSettings } from "../_ui";
+import { Group, NumberField, Row, TextArea, TextField, useSettings } from "../_ui";
 
 // ─── Payment methods ──────────────────────────────────────────────────────────
 export function PaymentPane() {
@@ -74,61 +74,32 @@ export function InvoicesPane() {
   const pfx = (data.invoicePrefix || "INV").trim();
   const start = Number(data.invoiceStartNumber ?? 1);
   const pad = (n: number) => String(n).padStart(3, "0");
-  const style = (data.invoiceHeaderStyle ?? "dark") as "dark" | "brand" | "light";
-  const head = { dark: { bg: "#16141D", fg: "#FFFFFF" }, brand: { bg: BRAND, fg: "#FFFFFF" }, light: { bg: "#F5F3FA", fg: "#17151F" } }[style];
-  const showSig = data.invoiceShowSignature ?? true;
 
   return (
     <>
-      <Group title="Numbering" note={<>Next invoices: <span className="font-mono font-semibold text-[#17151F]">{pfx}-{pad(start)}, {pfx}-{pad(start + 1)}, {pfx}-{pad(start + 2)}…</span></>}>
+      <Group title="Design">
+        <Link id="set-invoiceDesign" href="/settings/invoice-design" className="flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-[#F7F5FB]">
+          <span className="w-11 h-11 rounded-[14px] bg-[#FBF2FA] text-[#9E3A8C] flex items-center justify-center flex-shrink-0"><Paintbrush className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-[#17151F]">Invoice designer</span>
+            <span className="block text-xs text-[#6B6680] mt-0.5">Template, colours, fonts, logo, signature, paper size, VAT — with a live preview</span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-[#A29DB3]" />
+        </Link>
+      </Group>
+
+      <Group title="Payment">
+        <Row id="invoiceDueDays" label="Payment due" hint="Days after the program's last event day">
+          <NumberField label="Payment due" value={Number(data.invoiceDueDays ?? 60)} min={1} max={365} suffix="days" onCommit={v => patch({ invoiceDueDays: v })} />
+        </Row>
+      </Group>
+
+      <Group title="Numbering" note={<>A program&apos;s invoice uses the program number. Invoices made by hand (album, prints…): <span className="font-mono font-semibold text-[#17151F]">{pfx}-{pad(start)}, {pfx}-{pad(start + 1)}…</span></>}>
         <Row id="invoicePrefix" label="Prefix" hint="Letters before the number, like INV or SP">
           <TextField label="Invoice prefix" value={data.invoicePrefix ?? "INV"} maxLength={20} mono align="right" onCommit={v => patch({ invoicePrefix: v || "INV" })} />
         </Row>
         <Row id="invoiceStartNumber" label="Starting number">
           <NumberField label="Starting number" value={start} min={1} max={999999} onCommit={v => patch({ invoiceStartNumber: v })} />
-        </Row>
-      </Group>
-
-      <Group title="Payment">
-        <Row id="invoiceDueDays" label="Payment due in" hint="Days after the invoice date">
-          <NumberField label="Payment due in" value={Number(data.invoiceDueDays ?? 7)} min={1} max={365} suffix="days" onCommit={v => patch({ invoiceDueDays: v })} />
-        </Row>
-        <Row id="invoiceShowPayment" label="Show payment details" hint="Bank, bKash and Nagad from Payment Methods">
-          <Switch label="Show payment details" on={data.invoiceShowPayment ?? true} onChange={v => patch({ invoiceShowPayment: v })} />
-        </Row>
-      </Group>
-
-      <Group title="Look">
-        <Row id="invoiceHeaderStyle" label="Header style">
-          <Segmented label="Header style" value={style} onChange={v => patch({ invoiceHeaderStyle: v })}
-            options={[{ value: "dark", label: "Dark" }, { value: "brand", label: "Violet" }, { value: "light", label: "Light" }]} />
-        </Row>
-        <div className="px-4 sm:px-5 py-4">
-          <div className="rounded-[14px] border border-[#E3DFEC] overflow-hidden max-w-sm">
-            <div className="h-11 px-4 flex items-center justify-between text-xs font-extrabold tracking-wide" style={{ background: head.bg, color: head.fg }}>
-              <span>{(data.invoiceShowLogo ?? true) ? (data.name || "Your Studio") : ""}</span><span>INVOICE</span>
-            </div>
-            <div className="px-4 py-3 space-y-1.5">
-              <div className="h-2 rounded-full bg-[#EEEBF4] w-3/4" /><div className="h-2 rounded-full bg-[#EEEBF4] w-1/2" />
-              {showSig && <p className="pt-1 text-right text-xs italic text-[#5B3FD0]">{data.invoiceSignatureText || "Thank you for your business!"}</p>}
-            </div>
-          </div>
-        </div>
-        <Row id="invoiceShowLogo" label="Show logo" hint="Your studio logo in the invoice header">
-          <Switch label="Show logo" on={data.invoiceShowLogo ?? true} onChange={v => patch({ invoiceShowLogo: v })} />
-        </Row>
-        <Row id="invoiceShowSignature" label="Thank-you note" hint="A handwritten-style line at the bottom">
-          <Switch label="Thank-you note" on={showSig} onChange={v => patch({ invoiceShowSignature: v })} />
-        </Row>
-        {showSig && (
-          <Row id="invoiceSignatureText" label="Thank-you text">
-            <TextField label="Thank-you text" value={data.invoiceSignatureText ?? "Thank you for your business!"} maxLength={200}
-              onCommit={v => patch({ invoiceSignatureText: v })} />
-          </Row>
-        )}
-        <Row id="invoiceFooter" label="Footer text" hint="Optional — printed at the very bottom" stack>
-          <TextArea label="Footer text" rows={3} value={data.invoiceFooter ?? ""} placeholder="e.g. Payment within the due date is appreciated."
-            onCommit={v => patch({ invoiceFooter: v })} />
         </Row>
       </Group>
     </>

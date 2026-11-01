@@ -36,9 +36,11 @@ function Bars({ data, pick, fmt = (n: number) => String(n), color }: { data: Mon
       {data.map(m => {
         const v = pick(m);
         return (
-          <div key={m.month} className="flex-1 flex flex-col items-center gap-1 min-w-0 group">
+          <div key={m.month} className="flex-1 h-full flex flex-col items-center gap-1 min-w-0 group">
             <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums whitespace-nowrap">{fmt(v)}</span>
-            <div className={cn("w-full rounded-t-md transition-all", color, v === 0 && "opacity-20")} style={{ height: `${Math.max(3, (v / max) * 100)}%` }} title={`${m.month}: ${fmt(v)}`} />
+            <div className="w-full flex-1 flex items-end">
+              <div className={cn("w-full rounded-t-md transition-all", color, v === 0 && "opacity-20")} style={{ height: `${Math.max(3, (v / max) * 100)}%` }} title={`${m.month}: ${fmt(v)}`} />
+            </div>
             <span className="text-[10px] text-slate-500">{monthLabel(m.month)}</span>
           </div>
         );

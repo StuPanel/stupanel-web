@@ -86,7 +86,7 @@ export interface BillLine {
   shifts?: number;
 }
 
-export interface TeamPayment { id: string; amount: number; method: string; date: string; note?: string }
+export interface TeamPayment { id: string; amount: number; method: string; date: string; note?: string; walletId?: string; walletName?: string }
 
 /** The team bill can't be changed after these (owner can unlock in Edit). */
 export const BILL_LOCKED_STATUSES = ["delivered", "completed"];

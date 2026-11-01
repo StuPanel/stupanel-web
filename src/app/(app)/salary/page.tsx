@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency } from "@/lib/format";
+import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { askConfirm } from "@/components/feedback";
 import { matches } from "@/components/list-ui";
+import { AccountPicker } from "@/components/account-picker";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
@@ -42,6 +43,8 @@ export default function SalaryPage() {
   const [bonusBreakdown, setBonusBreakdown] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [paying, setPaying] = useState<SalarySlip | null>(null);
+  const [pay, setPay] = useState({ walletId: "", date: localDateStr() });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -92,9 +95,28 @@ export default function SalaryPage() {
     setSaving(false);
   }
 
-  async function markPaid(id: string) {
-    const r = await apiFetch(`${API}/salary/${id}/pay`, { method: "PATCH", headers: { "Content-Type": "application/json" } });
-    if (r.ok) { loadAll(); setToast({ msg: "Marked as paid!", ok: true }); }
+  function markPaid(id: string) {
+    const s = slips.find(x => x.id === id);
+    if (!s) return;
+    setPay({ walletId: "", date: localDateStr() });
+    setPaying(s);
+  }
+
+  async function confirmPay() {
+    if (!paying) return;
+    if (!pay.walletId) { setToast({ msg: "Pick the account the salary was paid from.", ok: false }); return; }
+    setSaving(true);
+    try {
+      const r = await apiFetch(`${API}/salary/${paying.id}/pay`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletId: pay.walletId, date: pay.date }),
+      });
+      if (r.ok) { setPaying(null); loadAll(); setToast({ msg: "Salary paid.", ok: true }); }
+      else {
+        const d = await r.json().catch(() => ({}));
+        setToast({ msg: (Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save.", ok: false });
+      }
+    } finally { setSaving(false); }
   }
 
   async function deleteSlip(id: string) {
@@ -186,6 +208,42 @@ export default function SalaryPage() {
             );
           })}
         </Group>
+      )}
+
+      {/* Pay salary */}
+      {paying && (
+        <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setPaying(null); }}>
+          <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h2 className="font-bold text-slate-900">Pay salary</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{paying.teamMember.firstName} {paying.teamMember.lastName} · {MONTHS[paying.month - 1]} {paying.year}</p>
+              </div>
+              <button onClick={() => setPaying(null)} aria-label="Close" className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between px-3 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <span className="text-xs text-emerald-700">Salary to pay</span>
+                <span className="font-bold text-emerald-800">{fmt(Number(paying.netSalary))}</span>
+              </div>
+              <AccountPicker label="Paid from" value={pay.walletId} method="cash" onChange={w => setPay(p => ({ ...p, walletId: w }))} />
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium text-slate-600">Date</span>
+                <input type="date" value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+              </label>
+            </div>
+            <div className="px-6 pb-6 flex gap-3 mt-auto">
+              <button onClick={() => setPaying(null)} className="flex-1 h-11 rounded-full bg-[#EEEBF4] text-sm font-semibold text-[#17151F]">Cancel</button>
+              <button onClick={confirmPay} disabled={saving}
+                className="flex-[1.4] h-11 rounded-full bg-[#1F8A5B] hover:opacity-90 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}Pay salary
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Generate Modal */}

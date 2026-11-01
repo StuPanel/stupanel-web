@@ -18,6 +18,7 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 import { askConfirm } from "@/components/feedback";
+import { AccountPicker } from "@/components/account-picker";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
@@ -271,6 +272,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
   const [ref, setRef] = useState("");
   const [txn, setTxn] = useState("");
   const [notes, setNotes] = useState("");
+  const [walletId, setWalletId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const balance = Number(inv.balanceDue);
@@ -278,6 +280,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
 
   async function save() {
     if (!amount || Number(amount) <= 0) { setError("Amount must be > 0"); return; }
+    if (!walletId) { setError("Pick the account the money went into."); return; }
     if (Number(amount) > balance) { setError(`Cannot exceed balance (${c}${balance.toLocaleString()})`); return; }
     setSaving(true); setError("");
     try {
@@ -289,6 +292,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
           referenceNumber: ref || undefined,
           transactionId: txn || undefined,
           notes: notes || undefined,
+          walletId,
         }),
       });
       const d = await r.json();
@@ -328,6 +332,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
           <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
             className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
         </div>
+        <AccountPicker className="col-span-full" value={walletId} onChange={setWalletId} method={method} />
         <div className="space-y-1">
           <Label className="text-xs text-slate-500">Reference</Label>
           <input value={ref} onChange={e => setRef(e.target.value)} placeholder="Ref / TXN ID"

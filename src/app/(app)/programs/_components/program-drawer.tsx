@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { notify } from "@/components/feedback";
+import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/ui/form-kit";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
@@ -390,6 +391,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [nameTouched, setNameTouched] = useState(false);
   const [packageId, setPackageId] = useState("");
   const [days, setDays] = useState<EventDay[]>([]);
+  const [advanceWallet, setAdvanceWallet] = useState("");
   const [money, setMoney] = useState({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
   const [notes, setNotes] = useState("");
   const [kept, setKept] = useState<CostEntry[]>([]);
@@ -546,6 +548,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: "BDT",
         totalAmount: total, discountAmount: discount,
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
+        advanceWalletId: isEdit || !(advance > 0) ? undefined : advanceWallet || undefined,
         transportCost: num(money.transport), otherCost: num(money.other), albumCost: num(money.album), equipCost: equip,
         internalNotes: notes || undefined, eventDays: typedDays,
         ...(billLocked ? {} : { costEntries: bill.entries.filter(e => e.memberName || e.totalBill), ...(unlocked ? { unlockBill: true } : {}) }),
@@ -745,9 +748,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     <Field label={isEdit ? "Advance (use Record payment for more)" : "Advance received now"}>{() => <Money value={money.advance} onChange={v => setMoney(m => ({ ...m, advance: v }))} label="Advance" readOnly={isEdit} />}</Field>
                     {!isEdit && advance > 0 ? (
                       <Field label="Paid by">{() => (
-                        <div className="flex flex-wrap gap-1.5">
-                          {METHODS.map(o => <button key={o.v} type="button" onClick={() => setMoney(m => ({ ...m, method: o.v }))}
-                            className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", money.method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {METHODS.map(o => <button key={o.v} type="button" onClick={() => setMoney(m => ({ ...m, method: o.v }))}
+                              className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", money.method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
+                          </div>
+                          <AccountPicker value={advanceWallet} onChange={setAdvanceWallet} method={money.method} />
                         </div>
                       )}</Field>
                     ) : (

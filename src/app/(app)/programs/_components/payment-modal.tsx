@@ -10,6 +10,7 @@ import { API_URL as API } from "@/lib/api";
 import { PAYMENT_METHODS } from "./constants";
 import type { Booking } from "./types";
 import { formatCurrency, localDateStr } from "@/lib/format";
+import { AccountPicker } from "@/components/account-picker";
 
 export function PaymentModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -21,6 +22,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
   const [date, setDate] = useState(localDateStr());
   const [ref, setRef] = useState("");
   const [note, setNote] = useState("");
+  const [walletId, setWalletId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -42,6 +44,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
   async function submit() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
+    if (!walletId) { setError("Pick the account the money went into."); return; }
     setError(""); setLoading(true);
     try {
       const r = await apiFetch(`${API}/payments`, {
@@ -55,6 +58,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
           referenceNumber: ref || undefined,
           notes: note || undefined,
           paymentStatus: "completed",
+          walletId,
         }),
       });
       const d = await r.json();
@@ -110,6 +114,8 @@ export function PaymentModal({ booking, onClose, onSaved }: {
                 <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-slate-200 text-sm" />
               </div>
             </div>
+
+            <AccountPicker value={walletId} onChange={setWalletId} method={method} />
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-600">Reference / TrxID</Label>

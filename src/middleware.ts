@@ -83,6 +83,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
+  // The team panel lives only on admin.stupanel.com now
+  if (host === APP_HOST && (pathname.startsWith("/admin") || pathname.startsWith("/platform"))) {
+    const toAdmin: Record<string, string> = {
+      "/platform/login": "/login", "/platform/reset-password": "/reset-password", "/platform/invite": "/invite", "/admin/login": "/login",
+    };
+    return NextResponse.redirect(`https://${ADMIN_HOST}${toAdmin[pathname] ?? pathname}${search}`, 308);
+  }
+
   // Allow public routes through
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();

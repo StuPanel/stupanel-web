@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { AccountPicker } from "@/components/account-picker";
 import { API_URL as API } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -40,6 +41,9 @@ interface Payment {
   notes?: string;
   booking: Booking;
   client: Client;
+  wallet?: { id: string; name: string; type: string } | null;
+  receiptNumber?: string | null;
+  receiptToken?: string | null;
 }
 
 interface Stats {
@@ -103,7 +107,7 @@ function PaymentDrawer({
     paymentStatus: "completed" as PaymentStatus,
     paymentDate: today(),
     paymentType: "advance",
-    referenceNumber: "", transactionId: "", notes: "",
+    referenceNumber: "", transactionId: "", notes: "", walletId: "",
   };
 
   const [form, setForm] = useState(blank);
@@ -125,6 +129,7 @@ function PaymentDrawer({
           referenceNumber: editing.referenceNumber ?? "",
           transactionId: editing.transactionId ?? "",
           notes: editing.notes ?? "",
+          walletId: editing.wallet?.id ?? "",
         });
       } else {
         setForm(blank);
@@ -158,6 +163,7 @@ function PaymentDrawer({
     e.preventDefault();
     if (!form.bookingId) { setError("Please select a booking."); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { setError("Amount must be greater than 0."); return; }
+    if (!form.walletId) { setError("Pick the account the money went into."); return; }
     setError("");
     setLoading(true);
 
@@ -172,6 +178,7 @@ function PaymentDrawer({
       referenceNumber: form.referenceNumber || undefined,
       transactionId: form.transactionId || undefined,
       notes: form.notes || undefined,
+      walletId: form.walletId,
     };
 
     try {
@@ -284,6 +291,12 @@ function PaymentDrawer({
                 </select>
               </div>
             </div>
+
+            <AccountPicker key={editing?.id ?? "new"} value={form.walletId} method={form.paymentMethod}
+              onChange={id => setForm(prev => ({ ...prev, walletId: id }))} />
+            {isEdit && editing?.receiptNumber && (
+              <p className="text-[11px] text-slate-500 -mt-2">Receipt {editing.receiptNumber}. If you change the amount, date, method, account or TrxID, this receipt is cancelled and a new number is given.</p>
+            )}
 
             {/* Date + Status */}
             <div className="grid grid-cols-2 gap-3">
@@ -406,7 +419,8 @@ function PaymentListRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#17151F] truncate">{payment.booking.eventName || payment.booking.bookingNumber}</p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
-          {clientName(payment.client)} · {M.label} · <span className="capitalize">{type}</span>
+          {payment.receiptNumber && <span className="font-semibold text-[#4A4658]">{payment.receiptNumber} · </span>}
+          {clientName(payment.client)} · {payment.wallet ? payment.wallet.name : M.label} · <span className="capitalize">{type}</span>
           {payment.referenceNumber ? ` · Ref ${payment.referenceNumber}` : ""}
         </p>
       </div>

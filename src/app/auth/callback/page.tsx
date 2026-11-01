@@ -9,10 +9,14 @@ function CallbackHandler() {
   const params = useSearchParams();
 
   useEffect(() => {
-    const token = params.get("token");
-    const onboarding = params.get("onboarding");
-    const isNewUser = params.get("isNewUser");
-    const role = params.get("role") ?? "owner";
+    // Team "login as studio" passes the token in the #hash (never sent to any server)
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const pick = (k: string) => hash.get(k) ?? params.get(k);
+    const token = pick("token");
+    const onboarding = pick("onboarding");
+    const isNewUser = pick("isNewUser");
+    const role = pick("role") ?? "owner";
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
 
     if (!token) {
       window.location.href = "/login?error=google_failed";

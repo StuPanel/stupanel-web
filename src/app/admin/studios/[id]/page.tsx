@@ -174,7 +174,7 @@ export default function Studio360Page() {
       {/* Key numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat icon={HeartPulse} label="Health" value={`${health}/100`} sub={healthText} tone={healthTone} />
-        <Stat icon={Activity} label="Last sign-in" value={d.activity.daysSinceLogin == null ? "Never" : d.activity.daysSinceLogin === 0 ? "Today" : `${d.activity.daysSinceLogin}d ago`} sub={`${d.counts.logins30} sign-ins in 30 days`} tone="sky" />
+        <Stat icon={Activity} label="Last active" value={d.activity.daysSinceLogin == null ? "Never" : d.activity.daysSinceLogin === 0 ? "Today" : `${d.activity.daysSinceLogin}d ago`} sub={`${d.counts.logins30} sign-ins in 30 days`} tone="sky" />
         <Stat icon={Camera} label="Programs" value={d.counts.programs} sub={`${d.counts.programsLast30} added in 30 days`} />
         <Stat icon={Wallet} label="Paid to StuPanel" value={taka(d.money.planIncome)} sub={d.money.pendingRequests ? `${d.money.pendingRequests} payment waiting` : `${d.money.planPayments} payments`} tone="green" />
       </div>

@@ -55,15 +55,6 @@ function LoginForm() {
         return;
       }
 
-      // Super admin → separate token + redirect to admin panel
-      if (data.user.isSuperAdmin) {
-        // sessionStorage clears on browser close — safer than localStorage for admin token
-        sessionStorage.setItem("admin_token", data.accessToken);
-        sessionStorage.setItem("admin_name", `${data.user.firstName} ${data.user.lastName ?? ""}`.trim());
-        window.location.href = "/admin/dashboard";
-        return;
-      }
-
       localStorage.setItem("access_token", data.accessToken);
       localStorage.setItem("user_role", data.user.role);
       setAccessTokenCookie(data.accessToken);

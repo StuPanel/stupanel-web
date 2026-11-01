@@ -11,18 +11,11 @@ function CallbackHandler() {
   useEffect(() => {
     const token = params.get("token");
     const onboarding = params.get("onboarding");
-    const isSuperAdmin = params.get("isSuperAdmin");
     const isNewUser = params.get("isNewUser");
     const role = params.get("role") ?? "owner";
 
     if (!token) {
       window.location.href = "/login?error=google_failed";
-      return;
-    }
-
-    if (isSuperAdmin === "true") {
-      sessionStorage.setItem("admin_token", token);
-      window.location.href = "/admin/dashboard";
       return;
     }
 

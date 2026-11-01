@@ -6,13 +6,12 @@ import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, Sparkles,
+  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
-import { API_URL } from "@/lib/api";
 import {
-  can, getPlatformUser, installAdminFetchShim, isAdminHost, isPlatformMode, platformLogout, refreshPlatform,
+  can, getPlatformUser, installAdminFetchShim, isPlatformMode, loginPath, platformLogout, refreshPlatform,
   type PlatformUser,
 } from "@/lib/platform-api";
 
@@ -81,16 +80,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     let alive = true;
     installAdminFetchShim();
     (async () => {
-      // On admin.stupanel.com only the new team sign-in exists
-      if (isAdminHost() && isLogin) { router.replace("/login"); return; }
-      if (isLogin) { setReady(true); return; }
-      let mode: "platform" | "legacy" | null = null;
-      if (isPlatformMode() && getAdminToken()) mode = "platform";
-      else if (getAdminToken()) mode = "legacy";
-      else if (await refreshPlatform()) mode = "platform"; // new tab: the sign-in cookie is still valid
+      if (isLogin) { router.replace(loginPath()); return; }
+      const ok = (isPlatformMode() && getAdminToken()) ? true : await refreshPlatform();
       if (!alive) return;
-      if (!mode || (mode === "legacy" && isAdminHost())) { router.replace(isAdminHost() ? "/login" : "/admin/login"); return; }
-      const u = mode === "platform" ? getPlatformUser() : null;
+      if (!ok) { router.replace(loginPath()); return; }
+      const u = getPlatformUser();
       setStaff(u);
       setAdminName(u?.name ?? localStorage.getItem("admin_name") ?? "Admin");
       setReady(true);
@@ -105,24 +99,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => clearInterval(t);
   }, [staff]);
 
-  if (isLogin) {
-    return <>{children}</>;
-  }
-  if (!ready) {
+  if (!ready || isLogin) {
     return <div className="h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;
   }
 
   const visibleGroups = navGroups
-    .map(g => ({ ...g, items: g.items.filter(i => staff ? (!i.perm || can(staff, i.perm)) : !i.platformOnly) }))
+    .map(g => ({ ...g, items: g.items.filter(i => !i.perm || can(staff, i.perm)) }))
     .filter(g => g.items.length);
-  const roleLabel = staff ? (staff.isOwner ? "Owner" : staff.role?.name ?? "Staff") : "Super Admin";
+  const roleLabel = staff?.isOwner ? "Owner" : staff?.role?.name ?? "Staff";
 
-  function logout() {
-    if (staff) { platformLogout(); return; }
-    sessionStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_name");
-    router.replace("/admin/login");
-  }
+  function logout() { platformLogout(); }
 
   function Sidebar() {
     return (
@@ -224,7 +210,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <main className="flex-1 overflow-y-auto">
-          {!staff && <TeamSetupBanner />}
           {children}
         </main>
       </div>
@@ -232,43 +217,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 }
 
-/**
- * Old super-admin login only: one-time button that sends the first Owner invite
- * for the new team sign-in (works only while the team is still empty).
- */
-function TeamSetupBanner() {
-  const [state, setState] = useState<"idle" | "loading" | "sent" | "hidden">("idle");
-  const [msg, setMsg] = useState("");
-  useEffect(() => { try { if (localStorage.getItem("platform_setup_hidden") === "1") setState("hidden"); } catch {} }, []);
-  if (state === "hidden") return null;
-  async function start() {
-    setState("loading"); setMsg("");
-    try {
-      const r = await fetch(`${API_URL}/platform/auth/bootstrap`, { method: "POST", headers: { Authorization: `Bearer ${getAdminToken()}` } });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) { setMsg(d.message || "Could not start the setup."); setState("idle"); return; }
-      setMsg(`Invite sent to ${d.email}. Open the email (or the link below) to create your Owner account with two-step sign-in.`);
-      if (d.link) setMsg(m => m + "|" + d.link);
-      setState("sent");
-    } catch { setMsg("Could not reach the server."); setState("idle"); }
-  }
-  const [text, link] = msg.split("|");
-  return (
-    <div className="m-4 mb-0 rounded-xl border border-indigo-800/60 bg-indigo-950/40 p-4 text-sm text-indigo-100 flex flex-col sm:flex-row sm:items-center gap-3">
-      <Sparkles className="w-5 h-5 text-indigo-300 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold">New: StuPanel Admin team sign-in</p>
-        <p className="text-xs text-indigo-200/80 mt-0.5">{text || "Separate admin accounts with two-step sign-in, roles for your staff and a full activity log. Start by creating your Owner account."}</p>
-        {link && <a href={link} className="text-xs font-semibold text-indigo-300 underline break-all">Open my invite</a>}
-      </div>
-      {state !== "sent" && (
-        <div className="flex gap-2">
-          <button onClick={start} disabled={state === "loading"} className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
-            {state === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Set up team sign-in
-          </button>
-          <button onClick={() => { try { localStorage.setItem("platform_setup_hidden", "1"); } catch {} setState("hidden"); }} className="h-9 px-3 rounded-lg text-xs text-indigo-300 hover:bg-indigo-900/40">Later</button>
-        </div>
-      )}
-    </div>
-  );
-}

@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { BillingBanner } from "@/components/billing/billing-banner";
+import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { canOpen, homeFor } from "@/lib/access";
@@ -175,6 +176,9 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         {/* Trial / plan ending / view-only banner */}
         <div className="lg:rounded-xl lg:overflow-hidden lg:mb-3 empty:hidden">
           <BillingBanner />
+        </div>
+        <div className="lg:mb-3 empty:hidden">
+          <AnnouncementBanner />
         </div>
 
         <main className="flex-1 min-w-0 overflow-x-clip px-3 sm:px-4 lg:px-0 pt-1 pb-28 lg:pb-8">

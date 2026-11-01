@@ -1,258 +1,179 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Loader2, Plus, Trash2, X, Save, Megaphone, ToggleRight, ToggleLeft,
-  Info, AlertTriangle, CheckCircle, AlertOctagon,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, Info, Mail, Megaphone, Send, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { askConfirm } from "@/components/feedback";
+import { can, getPlatformUser } from "@/lib/platform-api";
+import { Btn, Msg, Page, Panel, fmtWhen, inp } from "../_components/staff-kit";
 
-function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
-function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
+const H = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  type: string;
-  targetAll: boolean;
-  targetPlanIds: string[];
-  isActive: boolean;
-  publishedAt?: string;
-  expiresAt?: string;
-  createdAt: string;
-}
-
-const typeConfig: Record<string, { icon: any; color: string; border: string; label: string }> = {
-  info:     { icon: Info, color: "bg-blue-500/20 text-blue-400", border: "border-blue-600/30", label: "Info" },
-  warning:  { icon: AlertTriangle, color: "bg-amber-500/20 text-amber-400", border: "border-amber-600/30", label: "Warning" },
-  success:  { icon: CheckCircle, color: "bg-emerald-500/20 text-emerald-400", border: "border-emerald-600/30", label: "Success" },
-  critical: { icon: AlertOctagon, color: "bg-red-500/20 text-red-400", border: "border-red-600/30", label: "Critical" },
+const SEGMENTS: { key: string; label: string; hint: string }[] = [
+  { key: "all", label: "All studios", hint: "Every studio that is not archived" },
+  { key: "paid", label: "Paying studios", hint: "Plan is paid and active" },
+  { key: "trial", label: "On trial", hint: "Free trial still running" },
+  { key: "trial_ending", label: "Trial ends in 3 days", hint: "Good time for a reminder or an offer" },
+  { key: "expired", label: "Plan ended", hint: "In grace days or view-only" },
+  { key: "inactive", label: "Not using the app", hint: "No use for more than 14 days" },
+  { key: "plan", label: "One plan", hint: "Studios on the plan you pick" },
+];
+const SEG_LABEL = Object.fromEntries(SEGMENTS.map(s => [s.key, s.label]));
+const TYPES: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; cls: string }> = {
+  info: { label: "Info", icon: Megaphone, cls: "text-indigo-300" },
+  success: { label: "Good news", icon: CheckCircle2, cls: "text-emerald-300" },
+  warning: { label: "Warning", icon: AlertTriangle, cls: "text-amber-300" },
+  critical: { label: "Important", icon: Info, cls: "text-red-300" },
 };
 
-const emptyForm = {
-  title: "", content: "", type: "info",
-  targetAll: true, targetPlanIds: "",
-  expiresAt: "",
-};
-
-function fmtDate(d?: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+interface Ann {
+  id: string; title: string; content: string; type: string; isActive: boolean; segment?: string | null; targetAll: boolean;
+  recipients: number | null; sentByName: string | null; createdAt: string; expiresAt?: string | null;
 }
 
-export default function AdminBroadcastPage() {
-  const router = useRouter();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+export default function BroadcastPage() {
+  const me = getPlatformUser();
+  const canSend = can(me, "communication.send");
+  const [list, setList] = useState<Ann[]>([]);
+  const [plans, setPlans] = useState<{ id: string; name: string }[]>([]);
+  const [f, setF] = useState({ title: "", content: "", type: "info", segment: "all", planId: "", expiresAt: "", sendEmail: false });
+  const [aud, setAud] = useState<{ count: number; studios: { id: string; name: string }[] } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
 
-  async function load() {
-    setLoading(true);
-    const res = await fetch(`${API}/admin/announcements`, { headers: authH() });
-    if (res.status === 401 || res.status === 403) { router.replace("/admin/login"); return; }
-    setAnnouncements(await res.json());
-    setLoading(false);
+  const load = useCallback(async () => {
+    const r = await fetch(`${API}/admin/announcements`, { headers: H() });
+    if (r.ok) setList(await r.json());
+  }, []);
+  useEffect(() => {
+    load();
+    fetch(`${API}/admin/plans`, { headers: H() }).then(r => r.ok ? r.json() : []).then((p: { id: string; name: string }[]) => setPlans(Array.isArray(p) ? p : [])).catch(() => {});
+  }, [load]);
+
+  useEffect(() => {
+    if (f.segment === "plan" && !f.planId) { setAud(null); return; }
+    const qs = new URLSearchParams({ segment: f.segment, ...(f.planId && f.segment === "plan" ? { planId: f.planId } : {}) });
+    let alive = true;
+    fetch(`${API}/admin/announcements/audience?${qs}`, { headers: H() }).then(r => r.ok ? r.json() : null).then(d => { if (alive) setAud(d); });
+    return () => { alive = false; };
+  }, [f.segment, f.planId]);
+
+  async function send() {
+    setMsg({});
+    if (!aud?.count) { setMsg({ error: "No studios are in this group." }); return; }
+    if (!(await askConfirm({ title: "Send message?", message: `Send "${f.title}" to ${aud.count} studio${aud.count === 1 ? "" : "s"}${f.sendEmail ? " and email their owners" : ""}?`, confirmLabel: "Send" }))) return;
+    setSending(true);
+    try {
+      const r = await fetch(`${API}/admin/announcements`, {
+        method: "POST", headers: H(),
+        body: JSON.stringify({
+          title: f.title.trim(), content: f.content.trim(), type: f.type, segment: f.segment,
+          planId: f.segment === "plan" ? f.planId : undefined,
+          expiresAt: f.expiresAt ? new Date(`${f.expiresAt}T23:59:59+06:00`).toISOString() : undefined,
+          sendEmail: f.sendEmail,
+        }),
+      });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(Array.isArray(b.message) ? b.message[0] : b.message || "Could not send.");
+      setMsg({ ok: `Sent to ${b.recipients} studio${b.recipients === 1 ? "" : "s"}${f.sendEmail ? ` · ${b.emailed} emails sent` : ""}.` });
+      setF({ title: "", content: "", type: "info", segment: "all", planId: "", expiresAt: "", sendEmail: false });
+      load();
+    } catch (e) { setMsg({ error: (e as Error).message }); } finally { setSending(false); }
   }
 
-  useEffect(() => { load(); }, []);
-
-  async function save() {
-    setSaving(true);
-    await fetch(`${API}/admin/announcements`, {
-      method: "POST",
-      headers: authH(),
-      body: JSON.stringify({
-        title: form.title.trim(),
-        content: form.content.trim(),
-        type: form.type,
-        targetAll: form.targetAll,
-        targetPlanIds: form.targetAll ? [] : form.targetPlanIds.split(",").map(s => s.trim()).filter(Boolean),
-        expiresAt: form.expiresAt || undefined,
-      }),
-    });
-    setSaving(false);
-    setShowForm(false);
-    setForm(emptyForm);
+  async function toggle(a: Ann) {
+    await fetch(`${API}/admin/announcements/${a.id}`, { method: "PATCH", headers: H(), body: JSON.stringify({ isActive: !a.isActive }) });
+    load();
+  }
+  async function remove(a: Ann) {
+    if (!(await askConfirm({ message: `Delete "${a.title}"? Studios will stop seeing it.`, danger: true }))) return;
+    await fetch(`${API}/admin/announcements/${a.id}`, { method: "DELETE", headers: H() });
     load();
   }
 
-  async function toggleActive(a: Announcement) {
-    setTogglingId(a.id);
-    await fetch(`${API}/admin/announcements/${a.id}`, {
-      method: "PATCH", headers: authH(),
-      body: JSON.stringify({ isActive: !a.isActive }),
-    });
-    setTogglingId(null);
-    load();
-  }
-
-  async function deleteAnnouncement(id: string) {
-    if (!(await askConfirm({ message: "Delete this announcement?", danger: true }))) return;
-    setDeleteId(id);
-    await fetch(`${API}/admin/announcements/${id}`, { method: "DELETE", headers: authH() });
-    setDeleteId(null);
-    load();
-  }
+  const ready = f.title.trim().length >= 3 && f.content.trim().length >= 3 && (f.segment !== "plan" || f.planId);
 
   return (
-    <div className="p-6 md:p-8 space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Broadcast</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Send announcements to all studios</p>
-        </div>
-        <Button onClick={() => { setForm(emptyForm); setShowForm(true); }} size="sm"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
-          <Plus className="w-4 h-4" />New Announcement
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
-      ) : announcements.length === 0 ? (
-        <div className="text-center py-16 bg-slate-800 border border-slate-700 rounded-xl">
-          <Megaphone className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-slate-500 mb-3">No announcements yet</p>
-          <Button onClick={() => setShowForm(true)} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1">
-            <Plus className="w-3.5 h-3.5" />Create First Announcement
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {announcements.map(a => {
-            const cfg = typeConfig[a.type] ?? typeConfig.info;
-            const Icon = cfg.icon;
-            return (
-              <div key={a.id} className={cn(
-                "bg-slate-800 border rounded-xl p-5",
-                a.isActive ? cfg.border : "border-slate-700/40 opacity-60"
-              )}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5", cfg.color)}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-semibold text-white">{a.title}</span>
-                        <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium border", cfg.color, cfg.border)}>
-                          {cfg.label}
-                        </span>
-                        {!a.isActive && (
-                          <span className="text-xs bg-slate-700 text-slate-400 border border-slate-600 px-1.5 py-0.5 rounded font-medium">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-300 line-clamp-2">{a.content}</p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                        <span>{a.targetAll ? "All Studios" : `Plans: ${a.targetPlanIds.join(", ")}`}</span>
-                        <span>·</span>
-                        <span>Published {fmtDate(a.publishedAt ?? a.createdAt)}</span>
-                        {a.expiresAt && <><span>·</span><span>Expires {fmtDate(a.expiresAt)}</span></>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => toggleActive(a)} disabled={togglingId === a.id}
-                      className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
-                      {togglingId === a.id
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : a.isActive ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4 text-slate-500" />}
-                    </button>
-                    <button onClick={() => deleteAnnouncement(a.id)} disabled={deleteId === a.id}
-                      className="p-1.5 rounded-lg hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition-colors">
-                      {deleteId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {showForm && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white text-lg">New Announcement</h2>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            {/* Live preview */}
-            {form.title && (
-              <div className={cn("rounded-xl p-4 border", typeConfig[form.type]?.border ?? "border-slate-700")}>
-                <div className={cn("flex items-center gap-2 text-sm font-semibold mb-1", typeConfig[form.type]?.color ?? "text-slate-300")}>
-                  {(() => { const I = typeConfig[form.type]?.icon ?? Info; return <I className="w-4 h-4" />; })()}
-                  {form.title}
-                </div>
-                {form.content && <p className="text-xs text-slate-300">{form.content}</p>}
-              </div>
-            )}
-
+    <Page title="Broadcast" sub="Send a message to a group of studios. It shows at the top of their app until they close it.">
+      <Msg {...msg} />
+      {canSend && (
+        <Panel title="New message">
+          <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
             <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Title *</label>
-                <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Scheduled maintenance on Jun 15" className="bg-slate-800 border-slate-700 text-white h-9" />
+              <label className="block space-y-1"><span className="text-xs text-slate-400">Title</span>
+                <input value={f.title} maxLength={255} onChange={e => setF({ ...f, title: e.target.value })} placeholder="e.g. New: send invoices on WhatsApp" className={inp} /></label>
+              <label className="block space-y-1"><span className="text-xs text-slate-400">Message</span>
+                <textarea value={f.content} rows={5} maxLength={5000} onChange={e => setF({ ...f, content: e.target.value })}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 p-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-indigo-500" /></label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="space-y-1"><span className="text-xs text-slate-400">Style</span>
+                  <select value={f.type} onChange={e => setF({ ...f, type: e.target.value })} className={inp}>
+                    {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select></label>
+                <label className="space-y-1"><span className="text-xs text-slate-400">Send to</span>
+                  <select value={f.segment} onChange={e => setF({ ...f, segment: e.target.value })} className={inp}>
+                    {SEGMENTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select></label>
+                <label className="space-y-1"><span className="text-xs text-slate-400">Hide after (optional)</span>
+                  <input type="date" value={f.expiresAt} onChange={e => setF({ ...f, expiresAt: e.target.value })} className={inp} /></label>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Content *</label>
-                <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-                  rows={4} placeholder="We will be performing scheduled maintenance..."
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Type</label>
-                  <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-md px-3 h-9 outline-none">
-                    <option value="info">Info</option>
-                    <option value="warning">Warning</option>
-                    <option value="success">Success</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Expires At (optional)</label>
-                  <Input type="date" value={form.expiresAt} onChange={e => setForm(p => ({ ...p, expiresAt: e.target.value }))}
-                    className="bg-slate-800 border-slate-700 text-white h-9" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.targetAll} onChange={e => setForm(p => ({ ...p, targetAll: e.target.checked }))} className="w-4 h-4 rounded" />
-                  <span className="text-sm text-slate-300">Target all studios</span>
-                </label>
-                {!form.targetAll && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-slate-400">Target Plan Slugs (comma-separated)</label>
-                    <Input value={form.targetPlanIds} onChange={e => setForm(p => ({ ...p, targetPlanIds: e.target.value }))}
-                      placeholder="pro, enterprise" className="bg-slate-800 border-slate-700 text-white h-9" />
-                  </div>
-                )}
-              </div>
+              {f.segment === "plan" && (
+                <label className="block space-y-1"><span className="text-xs text-slate-400">Plan</span>
+                  <select value={f.planId} onChange={e => setF({ ...f, planId: e.target.value })} className={inp}>
+                    <option value="">Pick a plan…</option>
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select></label>
+              )}
+              <label className="flex items-center gap-2 text-sm text-slate-300">
+                <input type="checkbox" checked={f.sendEmail} onChange={e => setF({ ...f, sendEmail: e.target.checked })} className="accent-indigo-500" />
+                <Mail className="w-4 h-4 text-slate-400" />Also email the studio owners
+              </label>
+              <Btn loading={sending} disabled={!ready || !aud?.count} onClick={send}><Send className="w-3.5 h-3.5" />Send{aud ? ` to ${aud.count}` : ""}</Btn>
             </div>
-
-            <Button onClick={save} disabled={saving || !form.title || !form.content}
-              className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />}
-              Publish Announcement
-            </Button>
+            <div className="rounded-lg bg-slate-900/60 border border-slate-700 p-3">
+              <p className="text-xs text-slate-400 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />Who gets it</p>
+              <p className="text-2xl font-bold text-white mt-1">{aud ? aud.count : "…"} <span className="text-sm font-normal text-slate-400">studios</span></p>
+              <p className="text-[11px] text-slate-500">{SEGMENTS.find(s => s.key === f.segment)?.hint}</p>
+              <ul className="mt-2 space-y-0.5 max-h-40 overflow-y-auto">
+                {aud?.studios.map(s => <li key={s.id} className="text-xs text-slate-300 truncate">· {s.name}</li>)}
+                {aud && aud.count > aud.studios.length && <li className="text-[11px] text-slate-500">…and {aud.count - aud.studios.length} more</li>}
+              </ul>
+            </div>
           </div>
-        </div>
+        </Panel>
       )}
-    </div>
+
+      <Panel title="Sent messages">
+        {list.length === 0 ? <p className="text-sm text-slate-500">Nothing sent yet.</p> : (
+          <div className="-m-5 divide-y divide-slate-700/60">
+            {list.map(a => {
+              const t = TYPES[a.type] ?? TYPES.info; const Icon = t.icon;
+              const expired = a.expiresAt && new Date(a.expiresAt) < new Date();
+              return (
+                <div key={a.id} className={cn("flex items-start gap-3 px-5 py-3.5", (!a.isActive || expired) && "opacity-55")}>
+                  <Icon className={cn("w-4 h-4 mt-0.5", t.cls)} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{a.title}</p>
+                    <p className="text-xs text-slate-400 line-clamp-2 whitespace-pre-wrap">{a.content}</p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {a.segment ? SEG_LABEL[a.segment] ?? a.segment : a.targetAll ? "All studios" : "Some plans"}
+                      {a.recipients != null && ` · ${a.recipients} studios`} · {fmtWhen(a.createdAt)}{a.sentByName && ` · by ${a.sentByName}`}
+                      {a.expiresAt && ` · hides ${fmtWhen(a.expiresAt)}`}{!a.isActive && " · hidden"}
+                    </p>
+                  </div>
+                  {canSend && (
+                    <div className="flex gap-1">
+                      <button onClick={() => toggle(a)} aria-label={a.isActive ? "Hide from studios" : "Show again"} title={a.isActive ? "Hide from studios" : "Show again"} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-700">{a.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                      <button onClick={() => remove(a)} aria-label="Delete" className="p-1.5 rounded-lg text-slate-400 hover:text-red-300 hover:bg-slate-700"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+    </Page>
   );
 }

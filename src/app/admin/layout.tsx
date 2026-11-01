@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2,
+  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
@@ -26,6 +26,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Overview",
     items: [
       { label: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard, perm: "dashboard.view" },
+      { label: "Growth",     href: "/admin/growth",    icon: TrendingUp, perm: "reports.view" },
       { label: "Revenue",    href: "/admin/revenue", icon: BarChart2, perm: "billing.view" },
       { label: "Payments",   href: "/admin/billing", icon: Wallet, perm: "billing.view" },
     ],

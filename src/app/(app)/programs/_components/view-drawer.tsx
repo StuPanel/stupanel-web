@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/format";
 import { StatusPipeline } from "./program-card";
 import { PaymentModal } from "./payment-modal";
 import { TeamPaySection } from "./team-pay-section";
+import { InvoiceCard } from "./invoice-card";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { EditableSelect } from "@/components/ui/editable-select";
@@ -570,7 +571,8 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
     try {
       const r = await apiFetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST" });
       const d = await r.json();
-      if (r.ok || d.message?.includes("already exists")) router.push("/invoices");
+      if (r.ok && d.publicToken) window.open(`/inv/${d.publicToken}`, "_blank");
+      else if (!r.ok) router.push("/invoices");
     } catch { /* silent */ } finally { setGenInvoicing(false); }
   }
 
@@ -670,6 +672,8 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           {costs.map(([l, v]) => <Row key={l} l={l} v={`− ${formatCurrency(v, b.currency)}`} />)}
           <Row l="Profit" v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
         </Group>
+
+        <InvoiceCard bookingId={b.id} version={`${b.status}|${b.paidAmount}|${b.grandTotal}|${(b.eventDays ?? []).map(d => d.date).join(",")}`} />
 
         <div className="mb-7"><TeamPaySection booking={b} onSaved={refreshBooking} /></div>
 

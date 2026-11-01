@@ -34,6 +34,14 @@ const ADMIN_PREFIXES = ["/admin"];
 const MARKETING_HOSTS = ["stupanel.com", "www.stupanel.com"];
 const APP_HOST = "app.stupanel.com";
 
+// StuPanel Admin (our own team) lives on its own subdomain
+const ADMIN_HOST = "admin.stupanel.com";
+const ADMIN_AUTH_PAGES: Record<string, string> = {
+  "/login": "/platform/login",
+  "/reset-password": "/platform/reset-password",
+  "/invite": "/platform/invite",
+};
+
 // Public routes (never redirect)
 const PUBLIC_PREFIXES = [
   "/login",
@@ -59,6 +67,20 @@ export function middleware(request: NextRequest) {
   if (MARKETING_HOSTS.includes(host)) {
     const target = pathname === "/" ? `https://${APP_HOST}/login` : `https://${APP_HOST}${pathname}${search}`;
     return NextResponse.redirect(target, 307);
+  }
+
+  // admin.stupanel.com: only the team sign-in pages and the admin panel
+  if (host === ADMIN_HOST) {
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.includes(".")) return NextResponse.next();
+    const auth = ADMIN_AUTH_PAGES[pathname];
+    if (auth) return NextResponse.rewrite(new URL(`${auth}${search}`, request.url));
+    if (pathname === "/account") return NextResponse.redirect(new URL("/admin/account", request.url));
+    if (pathname.startsWith("/admin") || pathname.startsWith("/platform")) {
+      const res = NextResponse.next();
+      res.headers.set("X-Robots-Tag", "noindex, nofollow");
+      return res;
+    }
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   // Allow public routes through

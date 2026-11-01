@@ -6,49 +6,64 @@ import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert, Wallet,
+  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
+import { API_URL } from "@/lib/api";
+import {
+  can, getPlatformUser, installAdminFetchShim, isAdminHost, isPlatformMode, platformLogout, refreshPlatform,
+  type PlatformUser,
+} from "@/lib/platform-api";
 
 function getAdminToken() {
   return typeof window !== "undefined" ? sessionStorage.getItem("admin_token") ?? "" : "";
 }
 
-const navGroups = [
+interface NavItem { label: string; href: string; icon: React.ComponentType<{ className?: string }>; perm?: string; platformOnly?: boolean }
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard },
-      { label: "Revenue",    href: "/admin/revenue",   icon: BarChart2 },
-      { label: "Payments",   href: "/admin/billing",   icon: Wallet },
+      { label: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard, perm: "dashboard.view" },
+      { label: "Revenue",    href: "/admin/revenue", icon: BarChart2, perm: "billing.view" },
+      { label: "Payments",   href: "/admin/billing", icon: Wallet, perm: "billing.view" },
     ],
   },
   {
     label: "Manage",
     items: [
-      { label: "Studios",       href: "/admin/studios",       icon: Building2 },
-      { label: "Users",         href: "/admin/users",         icon: Users },
-      { label: "Plans",         href: "/admin/plans",         icon: CreditCard },
-      { label: "Coupons",       href: "/admin/coupons",       icon: Tag },
+      { label: "Studios",       href: "/admin/studios", icon: Building2, perm: "studios.view" },
+      { label: "Users",         href: "/admin/users", icon: Users, perm: "users.view" },
+      { label: "Plans",         href: "/admin/plans", icon: CreditCard, perm: "billing.view" },
+      { label: "Coupons",       href: "/admin/coupons", icon: Tag, perm: "billing.view" },
     ],
   },
   {
     label: "Platform",
     items: [
-      { label: "Feature Flags", href: "/admin/feature-flags", icon: Flag },
-      { label: "Settings",      href: "/admin/settings",      icon: Settings },
-      { label: "Broadcast",     href: "/admin/broadcast",     icon: Megaphone },
-      { label: "Support",       href: "/admin/support",       icon: MessageCircle },
-      { label: "Audit Logs",    href: "/admin/audit-logs",    icon: ClipboardList },
+      { label: "Feature Flags", href: "/admin/feature-flags", icon: Flag, perm: "settings.manage" },
+      { label: "Settings",      href: "/admin/settings", icon: Settings, perm: "settings.manage" },
+      { label: "Broadcast",     href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
+      { label: "Support",       href: "/admin/support", icon: MessageCircle, perm: "support.view" },
+      { label: "Audit Logs",    href: "/admin/audit-logs", icon: ClipboardList, perm: "audit.view" },
+    ],
+  },
+  {
+    label: "Team",
+    items: [
+      { label: "Team",         href: "/admin/team",     icon: UsersRound, perm: "team.manage", platformOnly: true },
+      { label: "Activity log", href: "/admin/activity", icon: History,    perm: "audit.view",  platformOnly: true },
+      { label: "My account",   href: "/admin/account",  icon: UserCog,    platformOnly: true },
     ],
   },
   {
     label: "Monitoring",
     items: [
-      { label: "Storage",    href: "/admin/storage",    icon: HardDrive },
-      { label: "Email Logs", href: "/admin/email-logs", icon: Mail },
-      { label: "Security",   href: "/admin/security",   icon: ShieldAlert },
+      { label: "Storage",    href: "/admin/storage", icon: HardDrive, perm: "reports.view" },
+      { label: "Email Logs", href: "/admin/email-logs", icon: Mail, perm: "reports.view" },
+      { label: "Security",   href: "/admin/security", icon: ShieldAlert, perm: "security.manage" },
     ],
   },
 ];
@@ -58,21 +73,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [adminName, setAdminName] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [staff, setStaff] = useState<PlatformUser | null>(null);
+  const isLogin = pathname === "/admin/login";
 
   useEffect(() => {
-    const token = getAdminToken();
-    if (!token && !pathname.includes("/admin/login")) {
-      router.replace("/admin/login");
-      return;
-    }
-    setAdminName(localStorage.getItem("admin_name") ?? "Admin");
-  }, [router, pathname]);
+    let alive = true;
+    installAdminFetchShim();
+    (async () => {
+      // On admin.stupanel.com only the new team sign-in exists
+      if (isAdminHost() && isLogin) { router.replace("/login"); return; }
+      if (isLogin) { setReady(true); return; }
+      let mode: "platform" | "legacy" | null = null;
+      if (isPlatformMode() && getAdminToken()) mode = "platform";
+      else if (getAdminToken()) mode = "legacy";
+      else if (await refreshPlatform()) mode = "platform"; // new tab: the sign-in cookie is still valid
+      if (!alive) return;
+      if (!mode || (mode === "legacy" && isAdminHost())) { router.replace(isAdminHost() ? "/login" : "/admin/login"); return; }
+      const u = mode === "platform" ? getPlatformUser() : null;
+      setStaff(u);
+      setAdminName(u?.name ?? localStorage.getItem("admin_name") ?? "Admin");
+      setReady(true);
+    })();
+    return () => { alive = false; };
+  }, [router, pathname, isLogin]);
 
-  if (pathname === "/admin/login") {
+  // Keep the 15-minute token fresh while the panel is open
+  useEffect(() => {
+    if (!staff) return;
+    const t = setInterval(() => { refreshPlatform().then(ok => { if (ok) setStaff(getPlatformUser()); }); }, 12 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [staff]);
+
+  if (isLogin) {
     return <>{children}</>;
   }
+  if (!ready) {
+    return <div className="h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;
+  }
+
+  const visibleGroups = navGroups
+    .map(g => ({ ...g, items: g.items.filter(i => staff ? (!i.perm || can(staff, i.perm)) : !i.platformOnly) }))
+    .filter(g => g.items.length);
+  const roleLabel = staff ? (staff.isOwner ? "Owner" : staff.role?.name ?? "Staff") : "Super Admin";
 
   function logout() {
+    if (staff) { platformLogout(); return; }
     sessionStorage.removeItem("admin_token");
     localStorage.removeItem("admin_name");
     router.replace("/admin/login");
@@ -103,14 +149,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-none">{adminName}</p>
-              <span className="text-xs text-indigo-400 font-medium">Super Admin</span>
+              <span className="text-xs text-indigo-400 font-medium">{roleLabel}</span>
             </div>
           </div>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
-          {navGroups.map(group => (
+          {visibleGroups.map(group => (
             <div key={group.label}>
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 mb-1">{group.label}</p>
               <div className="space-y-0.5">
@@ -177,8 +223,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto">
+          {!staff && <TeamSetupBanner />}
+          {children}
+        </main>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Old super-admin login only: one-time button that sends the first Owner invite
+ * for the new team sign-in (works only while the team is still empty).
+ */
+function TeamSetupBanner() {
+  const [state, setState] = useState<"idle" | "loading" | "sent" | "hidden">("idle");
+  const [msg, setMsg] = useState("");
+  useEffect(() => { try { if (localStorage.getItem("platform_setup_hidden") === "1") setState("hidden"); } catch {} }, []);
+  if (state === "hidden") return null;
+  async function start() {
+    setState("loading"); setMsg("");
+    try {
+      const r = await fetch(`${API_URL}/platform/auth/bootstrap`, { method: "POST", headers: { Authorization: `Bearer ${getAdminToken()}` } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setMsg(d.message || "Could not start the setup."); setState("idle"); return; }
+      setMsg(`Invite sent to ${d.email}. Open the email (or the link below) to create your Owner account with two-step sign-in.`);
+      if (d.link) setMsg(m => m + "|" + d.link);
+      setState("sent");
+    } catch { setMsg("Could not reach the server."); setState("idle"); }
+  }
+  const [text, link] = msg.split("|");
+  return (
+    <div className="m-4 mb-0 rounded-xl border border-indigo-800/60 bg-indigo-950/40 p-4 text-sm text-indigo-100 flex flex-col sm:flex-row sm:items-center gap-3">
+      <Sparkles className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold">New: StuPanel Admin team sign-in</p>
+        <p className="text-xs text-indigo-200/80 mt-0.5">{text || "Separate admin accounts with two-step sign-in, roles for your staff and a full activity log. Start by creating your Owner account."}</p>
+        {link && <a href={link} className="text-xs font-semibold text-indigo-300 underline break-all">Open my invite</a>}
+      </div>
+      {state !== "sent" && (
+        <div className="flex gap-2">
+          <button onClick={start} disabled={state === "loading"} className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+            {state === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Set up team sign-in
+          </button>
+          <button onClick={() => { try { localStorage.setItem("platform_setup_hidden", "1"); } catch {} setState("hidden"); }} className="h-9 px-3 rounded-lg text-xs text-indigo-300 hover:bg-indigo-900/40">Later</button>
+        </div>
+      )}
     </div>
   );
 }

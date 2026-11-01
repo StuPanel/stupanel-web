@@ -5,8 +5,8 @@ import { Crown, MailPlus, MoreHorizontal, UserRound, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPlatformUser, pfetch, type PlatformUser } from "@/lib/platform-api";
 import { Btn, Msg, Page, Panel, fmtWhen, inp, useCodePrompt } from "../_components/staff-kit";
+import { RolesPanel, type Role } from "./roles-panel";
 
-interface Role { id: string; key: string; name: string; description?: string; permissions: string[] }
 interface Invite { id: string; email: string; name?: string | null; role: { key: string; name: string }; expiresAt: string; accessEndsAt?: string | null; createdAt: string }
 
 const ROLE_TONE: Record<string, string> = {
@@ -148,16 +148,7 @@ export default function TeamPage() {
         </Panel>
       )}
 
-      <Panel title="What each role can do">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {roles.map(r => (
-            <div key={r.key} className="rounded-lg bg-slate-900/60 border border-slate-700 p-3">
-              <span className={cn("text-[11px] px-2 py-0.5 rounded-full border font-semibold", ROLE_TONE[r.key])}>{r.name}</span>
-              <p className="text-xs text-slate-400 mt-2">{r.description}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
+      <RolesPanel roles={roles} ask={ask} onChange={done} />
     </Page>
   );
 }

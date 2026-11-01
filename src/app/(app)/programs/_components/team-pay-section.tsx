@@ -6,6 +6,7 @@
  * so the member's profile, salary page and reports see them too.
  */
 import { useState } from "react";
+import { AccountPicker } from "@/components/account-picker";
 import { Check, Loader2, Lock, Trash2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -73,7 +74,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
                 <div className="mt-1.5 space-y-1">
                   {e.payments!.map(x => (
                     <div key={x.id} className="flex items-center gap-2 text-xs text-slate-500 pl-2 border-l-2 border-emerald-200">
-                      <span className="flex-1 truncate">{fmtDate(x.date)} · {methodName(x.method)}{x.note ? ` · ${x.note}` : ""}</span>
+                      <span className="flex-1 truncate">{fmtDate(x.date)} · {x.walletName ?? methodName(x.method)}{x.note ? ` · ${x.note}` : ""}</span>
                       <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(x.amount, booking.currency)}</span>
                       <button type="button" onClick={() => undo(e, x.id)} disabled={busy === x.id} aria-label="Remove this payment"
                         className="w-6 h-6 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500">
@@ -98,13 +99,13 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
 
 function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; entry: CostEntry | null; onClose: () => void; onSaved: () => void }) {
   const due = entry ? Math.max(0, Number(entry.totalBill || 0) - Number(entry.paidAmount || 0)) : 0;
-  const [form, setForm] = useState({ amount: "", method: "cash", date: "", note: "" });
+  const [form, setForm] = useState({ amount: "", method: "cash", date: "", note: "", walletId: "" });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [forId, setForId] = useState<string | null>(null);
   if (entry && forId !== entry.id) {
     setForId(entry.id);
-    setForm({ amount: String(due), method: "cash", date: new Date().toISOString().slice(0, 10), note: "" });
+    setForm({ amount: String(due), method: "cash", date: new Date().toISOString().slice(0, 10), note: "", walletId: "" });
     setErr("");
   }
   if (!entry && forId) setForId(null);
@@ -112,12 +113,13 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
   async function save() {
     const amount = parseFloat(form.amount) || 0;
     if (amount <= 0) { setErr("Write the amount."); return; }
+    if (!form.walletId) { setErr("Pick the account the money was paid from."); return; }
     if (amount > due) { setErr(`Only ${formatCurrency(due, booking.currency)} is left to pay.`); return; }
     setSaving(true); setErr("");
     try {
       const r = await apiFetch(`${API}/bookings/${booking.id}/team-pay`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId: entry!.memberId, amount, method: form.method, date: form.date || undefined, note: form.note.trim() || undefined }),
+        body: JSON.stringify({ memberId: entry!.memberId, amount, method: form.method, date: form.date || undefined, note: form.note.trim() || undefined, walletId: form.walletId }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setErr(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save."); return; }
@@ -151,6 +153,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
               className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", form.method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
           </div>
         )}</Field>
+        <div className="px-4 py-3"><AccountPicker key={entry?.id ?? "none"} label="Paid from" value={form.walletId} method={form.method} onChange={w => setForm(f => ({ ...f, walletId: w }))} /></div>
         <Field label="Date">{id => <input id={id} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} />}</Field>
         <Field label="Note">{id => <input id={id} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="e.g. bKash TrxID" className={inputCls} />}</Field>
       </FormGroup>

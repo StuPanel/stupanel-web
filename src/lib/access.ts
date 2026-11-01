@@ -5,7 +5,8 @@
 export const AREAS = [
   { key: "programs", label: "Programs", hint: "Programs, calendar, checklist, delivery" },
   { key: "clients", label: "Clients", hint: "Clients and referrals" },
-  { key: "payments", label: "Money", hint: "Payments, invoices, quotes, expenses" },
+  { key: "payments", label: "Money", hint: "Payments, invoices, quotes" },
+  { key: "accounts", label: "Accounts", hint: "Cash & bank accounts, balances, expenses, transfers" },
   { key: "team", label: "Team & pay", hint: "Team, rates, team pay, salary" },
   { key: "reports", label: "Dashboard & reports", hint: "Home dashboard, profit, reports" },
   { key: "packages", label: "Packages", hint: "Packages and service list" },
@@ -18,7 +19,7 @@ const ROUTE_AREA: Record<string, AreaKey | "any" | "owner"> = {
   "/dashboard": "reports", "/reports": "reports",
   "/programs": "programs", "/calendar": "programs", "/checklist": "programs", "/delivery": "programs",
   "/clients": "clients", "/referrals": "clients",
-  "/payments": "payments", "/invoices": "payments", "/quotes": "payments", "/expenses": "payments",
+  "/payments": "payments", "/invoices": "payments", "/quotes": "payments", "/expenses": "accounts", "/accounts": "accounts",
   "/team": "team", "/salary": "team",
   "/packages": "packages", "/equipment": "equipment",
   "/chat": "chat", "/whatsapp": "chat",

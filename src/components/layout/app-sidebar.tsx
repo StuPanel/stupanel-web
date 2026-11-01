@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
-  CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Handshake, Receipt,
+  CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
   MessageSquareText, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,7 @@ export const navigation = [
       { name: "Checklist", href: "/checklist", icon: ClipboardList, color: "orchid" as TileColor },
       { name: "Equipment", href: "/equipment", icon: Wrench, color: "ink" as TileColor },
       { name: "Salary", href: "/salary", icon: Banknote, color: "green" as TileColor },
-      { name: "Expenses", href: "/expenses", icon: Wallet, color: "red" as TileColor },
+      { name: "Accounts", href: "/accounts", icon: Landmark, color: "blue" as TileColor },
     ],
   },
   {

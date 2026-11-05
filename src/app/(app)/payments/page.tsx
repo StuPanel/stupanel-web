@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Search, CreditCard, Loader2, X, AlertTriangle, MoreHorizontal,
-  Edit3, Trash2, Banknote, Smartphone,
+  Edit3, Trash2, Banknote, Smartphone, Receipt as ReceiptIcon,
   Building2, CheckCircle2, TrendingUp, Calendar, FileText,
 } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
@@ -441,6 +441,7 @@ function PaymentListRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40 rounded-[16px] p-1">
+            {payment.receiptToken && <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px]" onClick={() => window.open(`/r/${payment.receiptToken}`, "_blank")}><ReceiptIcon className="w-4 h-4" /> Money receipt</DropdownMenuItem>}
             <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px]" onClick={() => onEdit(payment)}><Edit3 className="w-4 h-4" /> Edit</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-sm h-10 rounded-[12px] text-[#C2304F]" onClick={() => onDelete(payment)}><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>

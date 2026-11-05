@@ -53,8 +53,9 @@ const PUBLIC_PREFIXES = [
   "/auth/callback",
   "/complete-profile",
   "/portal",
-  "/inv",
-  "/q",
+  "/inv/",
+  "/q/",
+  "/r/",
   "/track",
 ];
 

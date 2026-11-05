@@ -14,7 +14,7 @@ export interface ProgramInvoice {
   grandTotal: number; paidAmount: number; balanceDue: number; currency: string;
   dueDate?: string | null; dueDateManual: boolean; sentAt?: string | null; viewedAt?: string | null;
   changeLog?: { at: string; changes: string[] }[];
-  payments: { id: string; amount: number; paymentDate: string; paymentStatus?: string; receiptNumber?: string | null; wallet?: { name: string } | null }[];
+  payments: { id: string; amount: number; paymentDate: string; paymentStatus?: string; receiptNumber?: string | null; receiptToken?: string | null; wallet?: { name: string } | null }[];
 }
 
 export const STATE_LABEL: Record<string, { label: string; cls: string }> = {
@@ -132,7 +132,7 @@ export function InvoiceCard({ bookingId, version }: { bookingId: string; version
             {received.map(p => (
               <div key={p.id} className="flex items-center gap-2 text-[13px]">
                 <Receipt className="w-3.5 h-3.5 text-[#6B6680]" />
-                <span className="font-semibold">{p.receiptNumber ?? "—"}</span>
+                {p.receiptToken ? <a href={`/r/${p.receiptToken}`} target="_blank" rel="noreferrer" className="font-semibold text-[#5B3FD0] hover:underline">{p.receiptNumber}</a> : <span className="font-semibold">{p.receiptNumber ?? "—"}</span>}
                 <span className="text-[#6B6680] truncate flex-1">{fmtDate(p.paymentDate)}{p.wallet ? ` · ${p.wallet.name}` : ""}</span>
                 <span className="font-semibold tabular-nums text-[#1F8A5B]">{formatCurrency(Number(p.amount), inv.currency)}</span>
               </div>

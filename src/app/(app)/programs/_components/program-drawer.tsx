@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import { notify } from "@/components/feedback";
+import { askConfirm, notify } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/ui/form-kit";
@@ -28,7 +28,7 @@ import { buildBill, findRate, ROLE_NAME, type Rate } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
 
-type WorkType = { id: string; name: string; active: boolean };
+type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
 type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: string }[] };
 type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string };
 
@@ -468,12 +468,48 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     setEventName(first && typeName ? `${first}'s ${typeName.replace(/^(Muslim|Sanatani|Hindu) /, "")}` : first ? `${first}'s program` : "");
   }, [clientName, typeName, nameTouched]);
 
-  const template = studio.shiftTemplates.find(t => t.id === programType || t.name.toLowerCase() === typeName.toLowerCase());
+  /** The parts (days) a program type usually has; none → one day named after the type. */
+  const partsOf = (typeId: string) => {
+    const w = studio.workTypes.find(x => x.id === typeId);
+    if (!w) return [] as string[];
+    const ev = (w.events ?? []).map(e => e.name);
+    if (ev.length) return ev;
+    // Older settings: a shift template with the same id or name
+    const t = studio.shiftTemplates.find(x => x.id === w.id || x.name.toLowerCase() === w.name.toLowerCase());
+    return t ? t.shifts.map(x => x.name) : [w.name];
+  };
+  const parts = programType ? partsOf(programType) : [];
+  const missingParts = parts.filter(n => !days.some(d => d.eventType.trim().toLowerCase() === n.toLowerCase()));
+  const makeDay = (eventType: string, location = ""): EventDay => ({ id: uid(), eventType, date: "", location, shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] });
+  const untouched = (ds: EventDay[]) => ds.every(d => !d.date && !d.location.trim() && d.shifts.every(x => x.assignments.length === 0));
+
+  /** Pick a type: its parts fill in as days. Asks first before replacing days that already have dates, places or team. */
+  async function pickType(id: string) {
+    const next = programType === id ? "" : id;
+    setProgramType(next);
+    if (!next) { if (!isEdit && untouched(days)) setDays([]); return; }
+    const want = partsOf(next);
+    if (!days.length) { setDays(want.map(n => makeDay(n))); return; }
+    if (isEdit) return; // a saved program never changes its days by itself — the "+ part" buttons are there
+    if (untouched(days)) { setDays(want.map(n => makeDay(n))); return; }
+    const name = studio.workTypes.find(w => w.id === next)?.name ?? "this type";
+    if (await askConfirm({
+      title: `Use ${name}'s days?`,
+      message: `Your days will become: ${want.join(", ")}. Dates, places and team you already added will be removed.`,
+      confirmLabel: "Replace days", cancelLabel: "Keep my days",
+    })) setDays(want.map(n => makeDay(n)));
+  }
 
   // ── days & shifts ──
   const setDay = (id: string, p: Partial<EventDay>) => setDays(ds => ds.map(d => d.id === id ? { ...d, ...p } : d));
   const addDay = (eventType = "") => setDays(ds => [...ds, { id: uid(), eventType, date: "", location: ds[ds.length - 1]?.location ?? "", shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] }]);
-  const addTemplate = () => template && setDays(ds => [...ds, ...template.shifts.map(s => ({ id: uid(), eventType: s.name, date: "", location: "", shifts: [{ id: uid(), label: "Day", assignments: [] }] }))]);
+  const addPart = (n: string) => setDays(ds => {
+    // Keep the type's order: put the part before the first later part that is already there.
+    const order = parts.map(x => x.toLowerCase());
+    const at = ds.findIndex(d => order.indexOf(d.eventType.trim().toLowerCase()) > order.indexOf(n.toLowerCase()));
+    const day = makeDay(n, ds[ds.length - 1]?.location ?? "");
+    return at < 0 ? [...ds, day] : [...ds.slice(0, at), day, ...ds.slice(at)];
+  });
   const addShift = (dayId: string, label: string) => setDays(ds => ds.map(d => d.id === dayId && !d.shifts.some(s => s.label === label) ? { ...d, shifts: [...d.shifts, { id: uid(), label, assignments: [] }] } : d));
   const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
   const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
@@ -623,7 +659,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     <p className="text-[13px] font-semibold text-[#4A4658] mb-2">Type</p>
                     <div role="radiogroup" aria-label="Program type" className="flex flex-wrap gap-2">
                       {studio.workTypes.map(w => (
-                        <button key={w.id} type="button" role="radio" aria-checked={programType === w.id} onClick={() => setProgramType(programType === w.id ? "" : w.id)}
+                        <button key={w.id} type="button" role="radio" aria-checked={programType === w.id} onClick={() => pickType(w.id)}
                           className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold", programType === w.id ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>{w.name}</button>
                       ))}
                     </div>
@@ -648,7 +684,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     <Calendar className="w-7 h-7 text-[#A29DB3] mx-auto" />
                     <p className="mt-2 text-sm font-semibold text-[#17151F]">No days yet</p>
                     <div className="mt-3 flex flex-wrap justify-center gap-2">
-                      {template && <button type="button" onClick={addTemplate} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add {template.shifts.map(s => s.name).join(", ")}</button>}
+                      {parts.length > 0 && <button type="button" onClick={() => setDays(parts.map(n => makeDay(n)))} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add {parts.join(", ")}</button>}
                       <button type="button" onClick={() => addDay()} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add a day</button>
                     </div>
                   </Card>
@@ -657,7 +693,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                   {days.map((d, i) => {
                     const busyHere = new Set(d.date ? busy[d.date] ?? [] : []);
                     return (
-                      <Card key={d.id}>
+                      <Card key={d.id} className="animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="p-3 grid grid-cols-[28px_1fr_36px] sm:grid-cols-[28px_1fr_160px_1fr_36px] gap-2 items-center border-b border-[#EEEBF4]">
                           <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
                           <input list="sp-day-names" value={d.eventType} onChange={e => setDay(d.id, { eventType: e.target.value })} placeholder="Day name — Holud, Wedding…" aria-label={`Day ${i + 1} name`} className={cn(inputCls, "h-10 text-sm font-semibold")} />
@@ -712,7 +748,17 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     );
                   })}
                 </div>
-                <datalist id="sp-day-names">{[...new Set([...(template?.shifts.map(s => s.name) ?? []), ...EVENT_TYPES])].map(n => <option key={n} value={n} />)}</datalist>
+                {days.length > 0 && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
+                    {missingParts.map(n => (
+                      <button key={n} type="button" onClick={() => addPart(n)}
+                        className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#E4DCFB]"><Plus className="w-3.5 h-3.5" />{n}</button>
+                    ))}
+                    <button type="button" onClick={() => addDay()}
+                      className="h-9 px-3.5 rounded-full border border-dashed border-[#C9C2DA] text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 hover:bg-[#F5F3FA]"><Plus className="w-3.5 h-3.5" />Another day</button>
+                  </div>
+                )}
+                <datalist id="sp-day-names">{[...new Set([...parts, ...EVENT_TYPES])].map(n => <option key={n} value={n} />)}</datalist>
 
                 {editorPeople.length > 0 && (
                   <Card className="mt-3 p-4">

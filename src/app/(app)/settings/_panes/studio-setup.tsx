@@ -5,12 +5,13 @@
  * features, work types, shift templates, team pay and delivery rules.
  */
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Plus, Tag, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Loader2, Plus, Tag, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { RateEditor, TEAM_ROLES, firstLine, linesToRates, ratesToLines, type RateLine, type RoleInfo } from "../../team/_components/rate-card";
 import { askConfirm } from "@/components/feedback";
-import { Group, Row, Segmented, SoonRow, Switch, useSettings, useSynced, type ShiftTemplate, type WorkType } from "../_ui";
+import { Group, Row, Segmented, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
 
 /** Shown while studio settings load (or if the server is older). */
 function NeedStudio({ children }: { children: React.ReactNode }) {
@@ -54,7 +55,7 @@ function Features() {
   );
 }
 
-// ─── Work types & shifts ──────────────────────────────────────────────────────
+// ─── Program types (and the parts each one has) ──────────────────────────────
 export function WorkTypesPane() {
   return <NeedStudio><WorkTypes /></NeedStudio>;
 }
@@ -63,80 +64,109 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 function WorkTypes() {
   const { studio, patchStudio } = useSettings();
   const types = studio!.workTypes;
-  const templates = studio!.shiftTemplates;
   const saveTypes = (next: WorkType[]) => patchStudio("workTypes", next);
-  const saveTemplates = (next: ShiftTemplate[]) => patchStudio("shiftTemplates", next);
   const [adding, setAdding] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
 
   return (
     <>
-      <Group title="Work types" note="Each new program picks one. Turn off the ones you don't do — old programs keep theirs.">
+      <Group title="Program types" note="Pick a type when you add a program and its parts fill in as days — e.g. Muslim wedding → Gaye Holud, Wedding, Reception. A type with no parts gets one day. Turn off the ones you don't do; old programs keep theirs.">
         <div id="set-workTypes" className="sp-set-row scroll-mt-28 divide-y divide-[#EEEBF4]">
           {types.map((t, i) => (
-            <div key={t.id} className="px-4 sm:px-5 py-2.5 flex items-center gap-3">
-              <NameInput label="Work type name" value={t.name} className="flex-1"
-                onCommit={v => v && saveTypes(types.map((x, j) => j === i ? { ...x, name: v } : x))} />
-              <Switch label={`${t.name} on`} on={t.active} onChange={v => saveTypes(types.map((x, j) => j === i ? { ...x, active: v } : x))} />
-              <DeleteBtn label={`Remove ${t.name}`} onClick={async () => {
-                if (await askConfirm({ title: `Remove "${t.name}"?`, message: "Old programs keep this work type. New programs can't pick it.", confirmLabel: "Remove", danger: true }))
+            <TypeCard key={t.id} type={t} open={open === t.id} onToggle={() => setOpen(o => o === t.id ? null : t.id)}
+              onChange={next => saveTypes(types.map((x, j) => j === i ? next : x))}
+              onRemove={async () => {
+                if (await askConfirm({ title: `Remove "${t.name}"?`, message: "Old programs keep this type and their days. New programs can't pick it.", confirmLabel: "Remove", danger: true }))
                   saveTypes(types.filter((_, j) => j !== i));
               }} />
-            </div>
           ))}
-          <form className="px-4 sm:px-5 py-2.5 flex items-center gap-3"
-            onSubmit={e => { e.preventDefault(); const n = adding.trim(); if (!n) return; saveTypes([...types, { id: newId(), name: n, active: true }]).then(ok => ok && setAdding("")); }}>
-            <input aria-label="New work type" value={adding} onChange={e => setAdding(e.target.value)} placeholder="Add a work type, e.g. Birthday"
+          <form className="px-4 sm:px-5 py-3 flex items-center gap-3"
+            onSubmit={e => {
+              e.preventDefault(); const n = adding.trim(); if (!n) return;
+              const t = { id: newId(), name: n, active: true, events: [] };
+              saveTypes([...types, t]).then(ok => { if (ok) { setAdding(""); setOpen(t.id); } });
+            }}>
+            <input aria-label="New program type" value={adding} onChange={e => setAdding(e.target.value)} placeholder="Add a program type, e.g. Corporate, Akika"
               maxLength={60} className="flex-1 h-10 rounded-full bg-[#F5F3FA] px-4 text-sm text-[#17151F] placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
             <button type="submit" disabled={!adding.trim()}
               className="h-10 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">
-              <Plus className="w-4 h-4" /> Add
+              <Plus className="w-4 h-4" /> Add type
             </button>
           </form>
         </div>
       </Group>
-
-      <div id="set-shiftTemplates" className="sp-set-row scroll-mt-28 rounded-[20px]">
-        <div className="px-1 mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-[13px] font-bold text-[#4A4658]">Shift templates</h2>
-          <button type="button" onClick={() => saveTemplates([...templates, { id: newId(), name: "New template", shifts: [{ id: newId(), name: "Shift 1" }] }])}
-            className="h-8 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-xs font-semibold inline-flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /> New template
-          </button>
-        </div>
-        <p className="px-1 -mt-1 mb-3 text-xs text-[#6B6680]">Pick a template when you add a program and its shifts fill in. Team pay per shift uses these.</p>
-        {templates.map((t, ti) => {
-          const setT = (next: ShiftTemplate) => saveTemplates(templates.map((x, j) => j === ti ? next : x));
-          return (
-            <Group key={t.id}>
-              <div className="px-4 sm:px-5 py-3 flex items-center gap-3 bg-[#FBFAFE]">
-                <NameInput label="Template name" value={t.name} bold className="flex-1"
-                  onCommit={v => v && setT({ ...t, name: v })} />
-                <DeleteBtn label={`Remove ${t.name}`} onClick={async () => {
-                  if (await askConfirm({ title: `Remove "${t.name}"?`, message: "Programs that already used it keep their shifts.", confirmLabel: "Remove", danger: true }))
-                    saveTemplates(templates.filter((_, j) => j !== ti));
-                }} />
-              </div>
-              {t.shifts.map((sh, si) => (
-                <div key={sh.id} className="pl-8 sm:pl-10 pr-4 sm:pr-5 py-2 flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-xs font-bold flex items-center justify-center flex-shrink-0 tabular-nums">{si + 1}</span>
-                  <NameInput label="Shift name" value={sh.name} className="flex-1"
-                    onCommit={v => v && setT({ ...t, shifts: t.shifts.map((x, j) => j === si ? { ...x, name: v } : x) })} />
-                  {t.shifts.length > 1 && (
-                    <DeleteBtn label={`Remove ${sh.name}`} onClick={() => setT({ ...t, shifts: t.shifts.filter((_, j) => j !== si) })} />
-                  )}
-                </div>
-              ))}
-              {t.shifts.length < 12 && (
-                <button type="button" onClick={() => setT({ ...t, shifts: [...t.shifts, { id: newId(), name: `Shift ${t.shifts.length + 1}` }] })}
-                  className="w-full pl-8 sm:pl-10 pr-4 py-3 flex items-center gap-2 text-sm font-semibold text-[#5B3FD0] hover:bg-[#F7F4FE]">
-                  <Plus className="w-4 h-4" /> Add shift
-                </button>
-              )}
-            </Group>
-          );
-        })}
-      </div>
     </>
+  );
+}
+
+/** One program type: tap to open its parts (smooth open/close). */
+function TypeCard({ type: t, open, onToggle, onChange, onRemove }: {
+  type: WorkType; open: boolean; onToggle: () => void; onChange: (t: WorkType) => void; onRemove: () => void;
+}) {
+  const [part, setPart] = useState("");
+  const events = t.events ?? [];
+  const setEvents = (ev: WorkType["events"]) => onChange({ ...t, events: ev });
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d; if (j < 0 || j >= events.length) return;
+    const n = [...events]; [n[i], n[j]] = [n[j], n[i]]; setEvents(n);
+  };
+  return (
+    <div className={cn("transition-colors", open && "bg-[#FBFAFE]")}>
+      <div className="px-3 sm:px-4 py-2.5 flex items-center gap-2">
+        <button type="button" onClick={onToggle} aria-expanded={open} aria-label={open ? `Close ${t.name}` : `Open ${t.name}`}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F0EDF6]">
+          <ChevronRight className={cn("w-4 h-4 transition-transform duration-300", open && "rotate-90")} />
+        </button>
+        <NameInput label="Program type name" value={t.name} bold className="flex-1"
+          onCommit={v => v && onChange({ ...t, name: v })} />
+        <button type="button" onClick={onToggle}
+          className={cn("hidden sm:inline-flex h-7 px-2.5 rounded-full text-[11px] font-semibold items-center whitespace-nowrap",
+            events.length ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#6B6680]")}>
+          {events.length ? `${events.length} part${events.length === 1 ? "" : "s"}` : "1 day"}
+        </button>
+        <Switch label={`${t.name} on`} on={t.active} onChange={v => onChange({ ...t, active: v })} />
+        <DeleteBtn label={`Remove ${t.name}`} onClick={onRemove} />
+      </div>
+
+      {/* grid-rows 0fr → 1fr gives a smooth height animation */}
+      <div className={cn("grid transition-[grid-template-rows,opacity] duration-300 ease-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+        <div className="overflow-hidden">
+          <div className="pl-12 sm:pl-14 pr-4 sm:pr-5 pb-3">
+            {events.length === 0 && (
+              <p className="text-xs text-[#6B6680] py-2">No parts — a program of this type gets one day named &quot;{t.name}&quot;. Add parts if it usually has more (e.g. Seminar, Award night).</p>
+            )}
+            <ol className="space-y-1.5">
+              {events.map((e, i) => (
+                <li key={e.id} className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <span className="w-6 h-6 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-xs font-bold flex items-center justify-center flex-shrink-0 tabular-nums">{i + 1}</span>
+                  <NameInput label="Part name" value={e.name} className="flex-1"
+                    onCommit={v => v && setEvents(events.map((x, j) => j === i ? { ...x, name: v } : x))} />
+                  <div className="flex flex-col">
+                    <button type="button" aria-label={`Move ${e.name} up`} disabled={i === 0} onClick={() => move(i, -1)} className="w-7 h-4 flex items-center justify-center text-[#6B6680] disabled:opacity-25"><ArrowUp className="w-3 h-3" /></button>
+                    <button type="button" aria-label={`Move ${e.name} down`} disabled={i === events.length - 1} onClick={() => move(i, 1)} className="w-7 h-4 flex items-center justify-center text-[#6B6680] disabled:opacity-25"><ArrowDown className="w-3 h-3" /></button>
+                  </div>
+                  <DeleteBtn label={`Remove ${e.name}`} onClick={() => setEvents(events.filter((_, j) => j !== i))} />
+                </li>
+              ))}
+            </ol>
+            {events.length < 12 && (
+              <form className="mt-2 flex items-center gap-2"
+                onSubmit={ev => {
+                  ev.preventDefault(); const n = part.trim(); if (!n) return;
+                  if (events.some(x => x.name.toLowerCase() === n.toLowerCase())) return;
+                  setEvents([...events, { id: newId(), name: n }]); setPart("");
+                }}>
+                <input aria-label={`New part for ${t.name}`} value={part} onChange={e => setPart(e.target.value)} placeholder="Add a part, e.g. Gaye Holud"
+                  maxLength={60} className="flex-1 h-9 rounded-full bg-white border border-[#E6E2EE] px-4 text-sm placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+                <button type="submit" disabled={!part.trim()} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1 disabled:opacity-50">
+                  <Plus className="w-3.5 h-3.5" /> Add
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

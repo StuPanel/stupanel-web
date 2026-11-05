@@ -48,9 +48,19 @@ function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
 }
 
 // ─── Section shell ────────────────────────────────────────────────────────────
+/** Soft panel colour per step (colour only — tells the steps apart). */
+const SECTION_TINT: Record<number, { bg: string; ring: string }> = {
+  1: { bg: "#EAF1FA", ring: "#D6E3F3" },
+  2: { bg: "#F0ECFD", ring: "#E1D9FA" },
+  3: { bg: "#E6F3F1", ring: "#CFE7E3" },
+  4: { bg: "#E9F5EE", ring: "#D2EBDD" },
+  5: { bg: "#FAEFF8", ring: "#F1DCEC" },
+  6: { bg: "#F3F1F6", ring: "#E6E2EE" },
+};
 function Section({ n, title, sub, done, children, right }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode }) {
+  const tint = SECTION_TINT[n] ?? SECTION_TINT[6];
   return (
-    <section className="mb-6">
+    <section className="mb-5 rounded-[24px] p-3 sm:p-4" style={{ background: tint.bg, boxShadow: `inset 0 0 0 1px ${tint.ring}` }}>
       <div className="flex items-center gap-2.5 px-1 mb-2.5">
         <span className={cn("w-6 h-6 rounded-full text-[12px] font-bold flex items-center justify-center flex-shrink-0",
           done ? "bg-[#1F8A5B] text-white" : "bg-[#17151F] text-white")}>{done ? <Check className="w-3.5 h-3.5" /> : n}</span>
@@ -113,7 +123,7 @@ function ClientPicker({ client, onPick, mode, setMode, newClient, setNewClient }
   );
 
   if (mode === "new") return (
-    <div>
+    <div className="rounded-[20px] bg-white p-3 sm:p-4 ring-2 ring-[#1F5C99]/25 shadow-[0_6px_20px_-10px_rgba(31,92,153,.35)] animate-in fade-in slide-in-from-top-2 duration-300">
       <ClientFormFields value={newClient} onChange={u => setNewClient({ ...newClient, ...u })} autoFocus
         existingAction={{ label: "Use this client", onPick: c => { onPick(c as Client); setMode("search"); } }} />
       <button type="button" onClick={() => setMode("search")} className="text-[13px] font-semibold text-[#5B3FD0] px-1">← Pick an existing client instead</button>
@@ -483,33 +493,35 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const makeDay = (eventType: string, location = ""): EventDay => ({ id: uid(), eventType, date: "", location, shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] });
   const untouched = (ds: EventDay[]) => ds.every(d => !d.date && !d.location.trim() && d.shifts.every(x => x.assignments.length === 0));
 
-  /** Pick a type: its parts fill in as days. Asks first before replacing days that already have dates, places or team. */
-  async function pickType(id: string) {
-    const next = programType === id ? "" : id;
-    setProgramType(next);
-    if (!next) { if (!isEdit && untouched(days)) setDays([]); return; }
-    const want = partsOf(next);
-    if (!days.length) { setDays(want.map(n => makeDay(n))); return; }
-    if (isEdit) return; // a saved program never changes its days by itself — the "+ part" buttons are there
-    if (untouched(days)) { setDays(want.map(n => makeDay(n))); return; }
-    const name = studio.workTypes.find(w => w.id === next)?.name ?? "this type";
-    if (await askConfirm({
-      title: `Use ${name}'s days?`,
-      message: `Your days will become: ${want.join(", ")}. Dates, places and team you already added will be removed.`,
-      confirmLabel: "Replace days", cancelLabel: "Keep my days",
-    })) setDays(want.map(n => makeDay(n)));
+  /** Pick a type. Days are not added by themselves — its parts show as "+ part" buttons. */
+  function pickType(id: string) {
+    setProgramType(programType === id ? "" : id);
   }
+
 
   // ── days & shifts ──
   const setDay = (id: string, p: Partial<EventDay>) => setDays(ds => ds.map(d => d.id === id ? { ...d, ...p } : d));
-  const addDay = (eventType = "") => setDays(ds => [...ds, { id: uid(), eventType, date: "", location: ds[ds.length - 1]?.location ?? "", shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] }]);
-  const addPart = (n: string) => setDays(ds => {
+  const addDay = (eventType = "") => {
+    const day = makeDay(eventType, days[days.length - 1]?.location ?? "");
+    setDays(ds => [...ds, day]);
+    flash(day.id);
+  };
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flash = (id: string) => {
+    setFlashId(id);
+    setTimeout(() => document.getElementById(`day-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    setTimeout(() => setFlashId(f => (f === id ? null : f)), 1600);
+  };
+  const addPart = (n: string) => {
     // Keep the type's order: put the part before the first later part that is already there.
     const order = parts.map(x => x.toLowerCase());
-    const at = ds.findIndex(d => order.indexOf(d.eventType.trim().toLowerCase()) > order.indexOf(n.toLowerCase()));
-    const day = makeDay(n, ds[ds.length - 1]?.location ?? "");
-    return at < 0 ? [...ds, day] : [...ds.slice(0, at), day, ...ds.slice(at)];
-  });
+    const day = makeDay(n, days[days.length - 1]?.location ?? "");
+    setDays(ds => {
+      const at = ds.findIndex(d => order.indexOf(d.eventType.trim().toLowerCase()) > order.indexOf(n.toLowerCase()));
+      return at < 0 ? [...ds, day] : [...ds.slice(0, at), day, ...ds.slice(at)];
+    });
+    flash(day.id);
+  };
   const addShift = (dayId: string, label: string) => setDays(ds => ds.map(d => d.id === dayId && !d.shifts.some(s => s.label === label) ? { ...d, shifts: [...d.shifts, { id: uid(), label, assignments: [] }] } : d));
   const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
   const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
@@ -683,17 +695,17 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                   <Card className="p-5 text-center">
                     <Calendar className="w-7 h-7 text-[#A29DB3] mx-auto" />
                     <p className="mt-2 text-sm font-semibold text-[#17151F]">No days yet</p>
-                    <div className="mt-3 flex flex-wrap justify-center gap-2">
-                      {parts.length > 0 && <button type="button" onClick={() => setDays(parts.map(n => makeDay(n)))} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add {parts.join(", ")}</button>}
-                      <button type="button" onClick={() => addDay()} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add a day</button>
-                    </div>
+                    {!programType && (
+                      <button type="button" onClick={() => addDay()} className="mt-3 h-10 px-4 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add a day</button>
+                    )}
                   </Card>
                 )}
                 <div className="space-y-3">
                   {days.map((d, i) => {
                     const busyHere = new Set(d.date ? busy[d.date] ?? [] : []);
                     return (
-                      <Card key={d.id} className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div key={d.id} id={`day-${d.id}`} className="scroll-mt-24">
+                      <Card className={cn("animate-in fade-in slide-in-from-top-3 zoom-in-95 duration-500 transition-shadow", flashId === d.id && "ring-2 ring-[#7D5CEF] shadow-[0_0_0_6px_rgba(125,92,239,.15)]")}>
                         <div className="p-3 grid grid-cols-[28px_1fr_36px] sm:grid-cols-[28px_1fr_160px_1fr_36px] gap-2 items-center border-b border-[#EEEBF4]">
                           <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
                           <input list="sp-day-names" value={d.eventType} onChange={e => setDay(d.id, { eventType: e.target.value })} placeholder="Day name — Holud, Wedding…" aria-label={`Day ${i + 1} name`} className={cn(inputCls, "h-10 text-sm font-semibold")} />
@@ -745,10 +757,11 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                           </div>
                         </div>
                       </Card>
+                      </div>
                     );
                   })}
                 </div>
-                {days.length > 0 && (
+                {(days.length > 0 || programType) && (
                   <div className="mt-3 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
                     {missingParts.map(n => (
                       <button key={n} type="button" onClick={() => addPart(n)}
@@ -758,7 +771,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                       className="h-9 px-3.5 rounded-full border border-dashed border-[#C9C2DA] text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 hover:bg-[#F5F3FA]"><Plus className="w-3.5 h-3.5" />Another day</button>
                   </div>
                 )}
-                <datalist id="sp-day-names">{[...new Set([...parts, ...EVENT_TYPES])].map(n => <option key={n} value={n} />)}</datalist>
+                <datalist id="sp-day-names">{(programType ? parts : [...new Set(studio.workTypes.flatMap(w => partsOf(w.id)))]).map(n => <option key={n} value={n} />)}</datalist>
 
                 {editorPeople.length > 0 && (
                   <Card className="mt-3 p-4">

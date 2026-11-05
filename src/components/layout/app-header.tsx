@@ -215,6 +215,17 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const roleLabel = user?.role === "owner" ? "Owner" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
   const isOwner = user?.role === "owner";
 
+  // Account menu opens on hover (and on click / tap); closes shortly after the pointer leaves.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openMenu = () => { if (closeTimer.current) clearTimeout(closeTimer.current); setMenuOpen(true); };
+  // Only real mouse hover — on phones a tap must not open and close it at once.
+  const hoveredAt = useRef(0);
+  const hoverOpen = () => { if (window.matchMedia("(hover: hover)").matches) { hoveredAt.current = Date.now(); openMenu(); } };
+  // A click right after hovering open should not close it again.
+  const onMenuChange = (o: boolean) => { if (!o && Date.now() - hoveredAt.current < 600) return; setMenuOpen(o); };
+  const closeMenuSoon = () => { if (closeTimer.current) clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => setMenuOpen(false), 180); };
+
   return (
     <>
       {user?.impersonatedBy && (
@@ -317,24 +328,28 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 bg-violet-600 rounded-full ring-2 ring-white" />}
             </button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <DropdownMenu open={menuOpen} onOpenChange={onMenuChange} modal={false}>
+              <DropdownMenuTrigger asChild onMouseEnter={hoverOpen} onMouseLeave={closeMenuSoon}>
                 <button aria-label="Account menu" title={displayName}
                   className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[13px] font-bold text-violet-700 hover:border-violet-200 transition-colors">
                   {initials}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 p-0 overflow-hidden rounded-2xl" sideOffset={8}>
+              <DropdownMenuContent align="end" sideOffset={8} onMouseEnter={openMenu} onMouseLeave={closeMenuSoon}
+                className="w-60 p-0 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 shadow-[0_12px_40px_-12px_rgba(22,18,40,.28)] duration-150 data-open:zoom-in-100 data-closed:zoom-out-100">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
                   <p className="text-xs text-slate-500 truncate mt-0.5">{roleLabel}{user?.company?.name ? ` · ${user.company.name}` : ""}</p>
                 </div>
                 <div className="p-1.5">
-                  {isOwner ? (
+                  {isOwner ? (<>
+                    <DropdownMenuItem onClick={() => router.push("/settings?pane=profile")} className="cursor-pointer gap-2 rounded-lg">
+                      <User className="w-4 h-4 text-violet-600" /> My profile
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
                       <Settings className="w-4 h-4 text-slate-500" /> Settings
                     </DropdownMenuItem>
-                  ) : (
+                  </>) : (
                     <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
                       <User className="w-4 h-4 text-violet-600" /> My profile
                     </DropdownMenuItem>

@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search, Plus, Phone, Mail, MapPin, Star, MoreHorizontal, Users,
   Camera, Building2, User, Loader2, X, AlertTriangle,
-  Edit3, Trash2, Eye, Link2, Check, MessageCircle, Wallet, CheckCircle2, CalendarDays,
+  Edit3, Trash2, Eye, Link2, Check, MessageCircle, Wallet, CheckCircle2, CalendarDays, FileText,
 } from "lucide-react";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
@@ -236,7 +236,12 @@ type ClientDetail = Client & {
   stats?: { programs: number; total: number; paid: number; due: number; nextProgram: { id: string; eventName?: string; eventDate?: string } | null };
   referrals?: { id: string; firstName: string; lastName?: string; createdAt: string }[];
 };
-type ClientPayment = { id: string; amount: number; currency?: string; paymentMethod?: string; paymentDate?: string; booking?: { eventName?: string; bookingNumber?: string } };
+type ClientPayment = { id: string; amount: number; currency?: string; paymentMethod?: string; paymentDate?: string; receiptNumber?: string | null; receiptToken?: string | null; wallet?: { name: string } | null; booking?: { eventName?: string; bookingNumber?: string } };
+type ClientInvoice = { id: string; invoiceNumber: string; publicToken: string; docType?: string; state?: string; grandTotal: number; balanceDue: number; currency: string; issueDate: string; booking?: { eventName?: string } | null };
+const INV_STATE: Record<string, { label: string; cls: string }> = {
+  unpaid: { label: "Unpaid", cls: "text-[#9E3A8C]" }, partly_paid: { label: "Partly paid", cls: "text-[#A35A00]" },
+  paid: { label: "Paid", cls: "text-[#1F8A5B]" }, overdue: { label: "Overdue", cls: "text-[#C2304F]" }, cancelled: { label: "Cancelled", cls: "text-[#6B6680]" },
+};
 
 const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", card: "Card", other: "Other" };
 
@@ -252,10 +257,13 @@ function ProfileDrawer({
   const [moreOpen, setMoreOpen] = useState(false);
   const [detail, setDetail] = useState<ClientDetail | null>(null);
   const [payments, setPayments] = useState<ClientPayment[]>([]);
+  const [invoices, setInvoices] = useState<ClientInvoice[]>([]);
 
   useEffect(() => {
-    setDetail(null); setPayments([]); setMoreOpen(false);
+    setDetail(null); setPayments([]); setInvoices([]); setMoreOpen(false);
     if (!client) return;
+    apiFetch(`${API}/studio-invoices?clientId=${client.id}&limit=20`).then(r => r.ok ? r.json() : null)
+      .then(d => setInvoices(Array.isArray(d?.data) ? d.data : [])).catch(() => {});
     apiFetch(`${API}/clients/${client.id}`).then(r => r.ok ? r.json() : null).then(d => d && setDetail(d)).catch(() => {});
     apiFetch(`${API}/payments?clientId=${client.id}&limit=10`).then(r => r.ok ? r.json() : null)
       .then(d => setPayments(Array.isArray(d?.data) ? d.data : [])).catch(() => {});
@@ -325,13 +333,33 @@ function ProfileDrawer({
           })}
         </Group>
 
+        <Group title="Invoices" action={<a href={`/statement/${c.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#5B3FD0]"><FileText className="w-3.5 h-3.5" />Statement</a>}>
+          {invoices.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No invoices yet</span>} /> : invoices.map(inv => {
+            const st = inv.docType === "quotation" ? { label: "Quotation", cls: "text-[#5B3FD0]" } : INV_STATE[inv.state ?? ""] ?? INV_STATE.unpaid;
+            return (
+              <a key={inv.id} href={`/inv/${inv.publicToken}`} target="_blank" rel="noreferrer" className="block hover:bg-[#F7F5FB]">
+                <InfoRow
+                  left={inv.booking?.eventName || inv.invoiceNumber}
+                  sub={<>{inv.invoiceNumber} · {fmtDate(inv.issueDate)} · <span className={cn("font-semibold", st.cls)}>{st.label}</span></>}
+                  right={<div className="text-right"><p className="text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(inv.grandTotal), inv.currency)}</p>
+                    {Number(inv.balanceDue) > 0 && inv.docType !== "quotation" && <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(Number(inv.balanceDue), inv.currency)} due</p>}</div>} />
+              </a>
+            );
+          })}
+        </Group>
+
         <Group title="Payments">
-          {payments.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments yet</span>} /> : payments.map(p => (
-            <InfoRow key={p.id}
-              left={p.booking?.eventName || p.booking?.bookingNumber || "Payment"}
-              sub={[fmtDate(p.paymentDate), METHOD_LABEL[p.paymentMethod ?? ""] ?? p.paymentMethod].filter(Boolean).join(" · ")}
-              right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(p.amount), p.currency)}</p>} />
-          ))}
+          {payments.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments yet</span>} /> : payments.map(p => {
+            const row = (
+              <InfoRow
+                left={p.booking?.eventName || p.booking?.bookingNumber || "Payment"}
+                sub={[p.receiptNumber, fmtDate(p.paymentDate), p.wallet?.name ?? METHOD_LABEL[p.paymentMethod ?? ""] ?? p.paymentMethod].filter(Boolean).join(" · ")}
+                right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(p.amount), p.currency)}</p>} />
+            );
+            return p.receiptToken
+              ? <a key={p.id} href={`/r/${p.receiptToken}`} target="_blank" rel="noreferrer" className="block hover:bg-[#F7F5FB]">{row}</a>
+              : <div key={p.id}>{row}</div>;
+          })}
         </Group>
 
         <Group title="Details" action={<button type="button" onClick={() => { onClose(); onEdit(client); }} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>

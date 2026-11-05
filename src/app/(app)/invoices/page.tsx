@@ -73,8 +73,17 @@ interface ServiceCatalogItem {
   id: string; name: string; description?: string; category?: string;
   unit: string; defaultPrice: number; currency: string;
 }
+/** Status everyone sees — worked out by the API from payments and the due date. */
+const STATE: Record<string, { label: string; bg: string; text: string }> = {
+  unpaid: { label: "Unpaid", bg: "#FBF2FA", text: "#9E3A8C" },
+  partly_paid: { label: "Partly paid", bg: "#FFF4E5", text: "#A35A00" },
+  paid: { label: "Paid", bg: "#E9F5EF", text: "#1F8A5B" },
+  overdue: { label: "Overdue", bg: "#FDECEF", text: "#C2304F" },
+  cancelled: { label: "Cancelled", bg: "#EEEDF2", text: "#6B6680" },
+};
+
 interface Invoice {
-  id: string; invoiceNumber: string; status: string; publicToken: string;
+  id: string; invoiceNumber: string; status: string; publicToken: string; state?: string; docType?: string;
   subtotal: number; discountAmount: number; taxLabel?: string; taxPercent: number;
   taxAmount: number; grandTotal: number; paidAmount: number; balanceDue: number;
   currency: string; issueDate: string; dueDate?: string;
@@ -720,7 +729,11 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-slate-900">{inv.invoiceNumber}</h2>
-              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", s.badge)}>{s.label}</span>
+              {inv.docType === "quotation"
+                ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-[#EEE8FD] text-[#5B3FD0]">Quotation</span>
+                : STATE[inv.state ?? ""]
+                  ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: STATE[inv.state!].bg, color: STATE[inv.state!].text }}>{STATE[inv.state!].label}</span>
+                  : <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", s.badge)}>{s.label}</span>}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">{inv.client.firstName} {inv.client.lastName ?? ""} · {inv.client.phone ?? ""}</p>
           </div>
@@ -736,13 +749,13 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
                 <Send className="w-3.5 h-3.5" />Mark as Sent
               </Button>
             )}
-            {["sent","viewed","partially_paid","overdue"].includes(inv.status) && balance > 0 && (
+            {balance > 0 && inv.status !== "void" && inv.docType !== "quotation" && (inv.booking || ["sent","viewed","partially_paid","overdue"].includes(inv.status)) && (
               <Button size="sm" onClick={() => setRecordingPayment(r => !r)} disabled={acting}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />Record Payment
               </Button>
             )}
-            {["sent","viewed","partially_paid"].includes(inv.status) && (
+            {!inv.booking && ["sent","viewed","partially_paid"].includes(inv.status) && (
               <Button size="sm" onClick={() => doAction("paid", "Invoice marked as paid!")} disabled={acting}
                 variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />Mark Paid
@@ -763,7 +776,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
               className="border-slate-200 text-slate-600 gap-1.5">
               <Copy className="w-3.5 h-3.5" />Copy Link
             </Button>
-            {["draft","void"].includes(inv.status) && (
+            {!inv.booking && ["draft","void"].includes(inv.status) && (
               <Button size="sm" variant="outline" onClick={doDelete} disabled={acting}
                 className="border-red-200 text-red-500 hover:bg-red-50 gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" />Delete
@@ -783,6 +796,10 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
             <button onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Copied!", type: "success" }); }}
               className="text-xs text-indigo-600 font-semibold flex-shrink-0 hover:text-indigo-700">Copy</button>
           </div>
+
+          {inv.booking && (
+            <p className="text-xs text-[#6B6680] bg-[#F7F5FB] rounded-xl px-3 py-2">This invoice follows its program — the price, payments and due date change there. Record payments from the program.</p>
+          )}
 
           {/* Booking link */}
           {inv.booking && (
@@ -896,8 +913,10 @@ const STATUS_HEX: Record<string, { bg: string; text: string }> = {
   overdue: { bg: "#FDECEF", text: "#C2304F" }, void: { bg: "#EEEDF2", text: "#6B6680" },
 };
 function InvoiceRow({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
-  const s = STATUS[inv.status] ?? STATUS.draft;
-  const h = STATUS_HEX[inv.status] ?? STATUS_HEX.draft;
+  const quote = inv.docType === "quotation";
+  const st = STATE[inv.state ?? ""] ?? null;
+  const s = quote ? { label: "Quotation" } : st ? { label: st.label } : (STATUS[inv.status] ?? STATUS.draft);
+  const h = quote ? { bg: "#EEE8FD", text: "#5B3FD0" } : st ? { bg: st.bg, text: st.text } : (STATUS_HEX[inv.status] ?? STATUS_HEX.draft);
   const c = sym(inv.currency);
   const due = Number(inv.balanceDue);
   return (
@@ -907,14 +926,14 @@ function InvoiceRow({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold text-[#17151F] truncate">{inv.client.firstName} {inv.client.lastName ?? ""}</span>
         <span className="block text-xs text-[#6B6680] truncate mt-0.5">
-          <span className="font-mono">{inv.invoiceNumber}</span> · {fmtDate(inv.issueDate)}{inv.dueDate ? ` · due ${fmtDate(inv.dueDate)}` : ""}
+          <span className="font-mono">{inv.invoiceNumber}</span>{inv.booking?.eventName ? ` · ${inv.booking.eventName}` : ""} · {fmtDate(inv.issueDate)}{inv.dueDate && !quote ? ` · pay by ${fmtDate(inv.dueDate)}` : ""}
         </span>
       </span>
       <span className="text-right flex-shrink-0">
         <span className="block text-sm font-bold text-[#17151F] tabular-nums">{c}{Number(inv.grandTotal).toLocaleString()}</span>
         {due > 0
           ? <span className="block text-xs font-semibold text-[#C2304F] tabular-nums">{c}{due.toLocaleString()} due</span>
-          : inv.status === "paid" ? <span className="block text-xs font-semibold text-[#1F8A5B]">Paid</span> : null}
+          : inv.state === "paid" ? <span className="block text-xs font-semibold text-[#1F8A5B]">Paid</span> : null}
       </span>
       <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: h.bg, color: h.text }}>{s.label}</span>
       <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />
@@ -925,7 +944,7 @@ function InvoiceRow({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [stats, setStats] = useState({ total: 0, totalValue: 0, totalCollected: 0, totalDue: 0, paid: 0, draft: 0 });
+  const [stats, setStats] = useState({ total: 0, totalValue: 0, totalCollected: 0, totalDue: 0, paid: 0, draft: 0, overdue: 0 });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -939,7 +958,8 @@ export default function InvoicesPage() {
   const fetch_ = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20", ...(search && { search }), ...(statusFilter && { status: statusFilter }) });
+      const params = new URLSearchParams({ page: String(page), limit: "20", ...(search && { search }),
+        ...(statusFilter === "quotation" ? { kind: "quotation" } : statusFilter ? { state: statusFilter } : {}) });
       const r = await apiFetch(`${API}/studio-invoices?${params}`, { headers: { "Content-Type": "application/json" } });
       const d = await r.json();
       setInvoices(d.data ?? []);
@@ -966,11 +986,11 @@ export default function InvoicesPage() {
         <StatCard icon={FileText} color="orchid" label="Total billed" value={formatCurrency(Number(stats.totalValue))} />
         <StatCard icon={TrendingUp} color="green" label="Received" value={formatCurrency(Number(stats.totalCollected))} />
         <StatCard icon={DollarSign} color="red" label="Still due" value={formatCurrency(Number(stats.totalDue))} />
-        <StatCard icon={Clock} color="blue" label="Drafts" value={String(stats.draft)} sub="Not sent yet" />
+        <StatCard icon={Clock} color="red" label="Overdue" value={String(stats.overdue ?? 0)} sub="Past the pay-by date" />
       </div>
 
       <Chips label="Filter by status" value={statusFilter || "all"} onChange={v => setStatusFilter(v === "all" ? "" : v)}
-        options={[{ value: "all", label: "All" }, ...Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label, dot: STATUS_HEX[k]?.text }))]} />
+        options={[{ value: "all", label: "All" }, ...Object.entries(STATE).map(([k, v]) => ({ value: k, label: v.label, dot: v.text })), { value: "quotation", label: "Quotations", dot: "#5B3FD0" }]} />
 
       {loading ? (
         <RowsSkeleton n={6} />

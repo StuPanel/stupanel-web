@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Search, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,14 @@ export default function SettingsPage() {
   const mobileSearchRef = useRef<HTMLInputElement>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const params = useSearchParams();
+
+  // Links like /settings?pane=profile open that pane, also when Settings is already open.
+  useEffect(() => {
+    const id = params.get("pane");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (id && paneById(id)) { setPane(id as PaneId); setMobileOpen(true); }
+  }, [params]);
 
   useEffect(() => {
     const fromUrl = paneFromUrl();

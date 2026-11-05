@@ -39,6 +39,8 @@
   --color-foreground: oklch(from rgb(var(--foreground)) l c h);
   --color-card: oklch(from rgb(var(--card)) l c h);
   --color-card-foreground: oklch(from rgb(var(--card-foreground)) l c h);
+  --color-popover: oklch(from rgb(var(--popover)) l c h);
+  --color-popover-foreground: oklch(from rgb(var(--popover-foreground)) l c h);
   --color-primary: oklch(from rgb(var(--primary)) l c h);
   --color-primary-foreground: oklch(from rgb(var(--primary-foreground)) l c h);
   --color-secondary: oklch(from rgb(var(--secondary)) l c h);

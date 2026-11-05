@@ -1,147 +1,76 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { Loader2, Printer } from "lucide-react";
+import { use, useEffect, useState } from "react";
+import { Loader2, Receipt } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
-import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
-import { BRAND } from "@/lib/brand";
+import { withDefaults } from "@/components/invoice-doc/design";
+import { DocViewer } from "@/components/invoice-doc/doc-viewer";
+import { docDate, type DocData } from "@/components/invoice-doc/invoice-document";
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function fmt(d?: string): string {
-  if (!d) return "";
-  const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function toDoc(d: any): DocData {
+  const c = d.company ?? {};
+  const days = Array.isArray(d.booking?.eventDays) ? d.booking.eventDays : [];
+  const name = `${d.client?.firstName ?? ""} ${d.client?.lastName ?? ""}`.trim();
+  return {
+    kind: d.docType === "quotation" ? "quotation" : "invoice",
+    number: d.invoiceNumber, issueDate: d.issueDate, dueDate: d.dueDate, state: d.state,
+    currency: d.currency ?? c.currency ?? "BDT",
+    studio: c,
+    client: { name: name || "Client", phone: d.client?.phone, email: d.client?.email },
+    programName: d.booking?.eventName ?? null,
+    programRef: d.booking?.bookingNumber ?? null,
+    eventDays: [...days].filter((x: any) => x?.date || x?.location)
+      .sort((a: any, b: any) => String(a.date ?? "").localeCompare(String(b.date ?? "")))
+      .map((x: any, i: number) => ({ label: x.eventType || x.label || `Day ${i + 1}`, date: x.date, place: x.location })),
+    items: (d.items ?? []).map((i: any) => ({ name: i.name, description: i.description, qty: Number(i.quantity), rate: Number(i.unitPrice), total: Number(i.total) })),
+    subtotal: Number(d.subtotal), discount: Number(d.discountAmount ?? 0),
+    taxLabel: d.taxLabel, taxPercent: Number(d.taxPercent ?? 0), taxAmount: Number(d.taxAmount ?? 0),
+    total: Number(d.grandTotal), paid: Number(d.paidAmount ?? 0), due: Number(d.balanceDue ?? 0),
+    payments: (d.payments ?? []).map((p: any) => ({ date: p.paymentDate, amount: Number(p.amount), method: p.paymentMethod, receiptNumber: p.receiptNumber })),
+    terms: d.termsConditions, note: d.notes,
+  };
 }
-function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
 
 export default function PublicInvoicePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [raw, setRaw] = useState<any>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/public/invoices/${token}`)
-      .then(r => { if (!r.ok) throw new Error("not_found"); return r.json(); })
-      .then(setData)
-      .catch(() => setError("Invoice not found or has been removed."))
-      .finally(() => setLoading(false));
+    fetch(`${API}/public/invoices/${encodeURIComponent(token)}`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(setRaw)
+      .catch(() => setError(true));
   }, [token]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2] px-6">
+      <p className="text-[#6B6680] text-center">This invoice link isn&apos;t working. Please ask the studio for a new link.</p>
     </div>
   );
+  if (!raw) return <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2]"><Loader2 className="w-7 h-7 animate-spin text-[#7D5CEF]" /></div>;
 
-  if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="text-center">
-        <p className="text-slate-500 text-lg font-medium">{error || "Invoice not found"}</p>
-      </div>
-    </div>
-  );
-
-  const brandColor = BRAND;
-
-  const previewData: InvoicePreviewData = {
-    company: data.company,
-    invoiceNumber: data.invoiceNumber,
-    status: data.status,
-    issueDate: data.issueDate,
-    dueDate: data.dueDate,
-    currency: data.currency ?? data.company?.currency ?? "BDT",
-    clientName: `${data.client?.firstName ?? ""} ${data.client?.lastName ?? ""}`.trim(),
-    clientPhone: data.client?.phone,
-    clientEmail: data.client?.email,
-    bookingName: data.booking?.eventName,
-    bookingRef: data.booking?.bookingNumber,
-    bookingDate: data.booking?.eventDate,
-    items: (data.items ?? []).map((i: any) => ({
-      name: i.name,
-      description: i.description,
-      category: i.category,
-      unit: i.unit,
-      quantity: Number(i.quantity),
-      unitPrice: Number(i.unitPrice),
-      discountType: i.discountType,
-      discountValue: i.discountValue ? Number(i.discountValue) : undefined,
-      total: Number(i.total),
-    })),
-    subtotal: Number(data.subtotal),
-    discountAmount: Number(data.discountAmount ?? 0),
-    taxLabel: data.taxLabel,
-    taxPercent: Number(data.taxPercent ?? 0),
-    taxAmount: Number(data.taxAmount ?? 0),
-    grandTotal: Number(data.grandTotal),
-    paidAmount: Number(data.paidAmount ?? 0),
-    balanceDue: Number(data.balanceDue ?? 0),
-    notes: data.notes,
-    termsConditions: data.termsConditions,
-  };
+  const data = toDoc(raw);
+  const design = withDefaults(raw.company?.invoiceDesign);
+  const title = data.kind === "quotation" ? "Quotation" : "Invoice";
+  const receipts = (raw.payments ?? []).filter((p: any) => p.receiptToken);
+  const share = `${title} ${data.number} from ${data.studio.name}` + (data.kind === "invoice" ? ` — total ${data.total.toLocaleString("en-IN")} ${data.currency}, due ${data.due.toLocaleString("en-IN")}` : "");
 
   return (
-    <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; margin: 0; }
-          @page { margin: 1cm; size: A4; }
-        }
-      `}</style>
-
-      {/* Print Button */}
-      <div className="no-print fixed bottom-6 right-6 z-50">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: brandColor }}
-        >
-          <Printer className="w-4 h-4" />
-          Download / Print PDF
-        </button>
-      </div>
-
-      {/* Page background */}
-      <div className="no-print min-h-screen bg-slate-200 py-8 px-4">
-        <div className="max-w-[850px] mx-auto space-y-4">
-          <div className="rounded-2xl overflow-hidden shadow-2xl">
-            <InvoicePreview data={previewData} />
-          </div>
-
-          {/* Payment History (public visible) */}
-          {(data.payments ?? []).length > 0 && (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100" style={{ borderLeft: `4px solid ${brandColor}` }}>
-                <p className="font-bold text-slate-800">Payment History</p>
-                <p className="text-xs text-slate-400 mt-0.5">{(data.payments ?? []).length} payment(s) recorded</p>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {(data.payments ?? []).map((pay: any) => (
-                  <div key={pay.id} className="px-6 py-4 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-slate-800 capitalize text-sm">{pay.paymentMethod.replace("_", " ")}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{fmt(pay.paymentDate)}{pay.referenceNumber ? ` · Ref: ${pay.referenceNumber}` : ""}</p>
-                    </div>
-                    <p className="font-bold text-emerald-700">{sym(data.currency)}{Number(pay.amount).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-sm text-slate-500 font-medium">Total Paid</span>
-                <span className="font-bold text-emerald-700">
-                  {sym(data.currency)}{(data.payments ?? []).reduce((a: number, p: any) => a + Number(p.amount), 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          )}
+    <DocViewer data={data} design={design} fileName={`${title}-${data.number}`} shareText={share}
+      extra={receipts.length > 0 && (
+        <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
+          <p className="px-5 pt-4 pb-2 text-[13px] font-bold text-[#4A4658]">Money receipts</p>
+          {receipts.map((p: any) => (
+            <a key={p.id} href={`/r/${p.receiptToken}`} className="flex items-center gap-3 px-5 py-3 border-t border-[#EEEBF4] hover:bg-[#F7F5FB]">
+              <Receipt className="w-4 h-4 text-[#6B6680]" />
+              <span className="font-semibold text-sm">{p.receiptNumber}</span>
+              <span className="flex-1 text-xs text-[#6B6680]">{docDate(p.paymentDate)}</span>
+              <span className="text-sm font-bold text-[#1F8A5B]">{Number(p.amount).toLocaleString("en-IN")} {data.currency}</span>
+            </a>
+          ))}
         </div>
-      </div>
-
-      {/* Print-only version (no container/shadow) */}
-      <div className="print-only hidden print:block">
-        <InvoicePreview data={previewData} />
-      </div>
-    </>
+      )} />
   );
 }

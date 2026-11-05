@@ -18,12 +18,17 @@ export function DesignFonts({ fonts }: { fonts: InvoiceDesign["font"][] }) {
 
 /** The document scaled down to fit the box it sits in (never up). */
 export function ScaledDocument({ data, design, maxScale = 1, shadow = true }: { data: DocData; design: InvoiceDesign; maxScale?: number; shadow?: boolean }) {
+  return <ScaledBox width={PAPER[design.paper].w} maxScale={maxScale} shadow={shadow}><InvoiceDocument data={data} design={design} /></ScaledBox>;
+}
+
+/** Any fixed-width page scaled down to fit its box. */
+export function ScaledBox({ width, maxScale = 1, shadow = true, children }: { width: number; maxScale?: number; shadow?: boolean; children: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const doc = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [h, setH] = useState(0);
   const [left, setLeft] = useState(0);
-  const w = PAPER[design.paper].w;
+  const w = width;
 
   useEffect(() => {
     const el = box.current, d = doc.current;
@@ -43,7 +48,7 @@ export function ScaledDocument({ data, design, maxScale = 1, shadow = true }: { 
   return (
     <div ref={box} style={{ width: "100%", height: h || undefined, position: "relative" }}>
       <div ref={doc} style={{ width: w, transform: `scale(${scale})`, transformOrigin: "top left", position: "absolute", left, top: 0, boxShadow: shadow ? "0 10px 40px rgba(22,18,40,.14), 0 1px 3px rgba(22,18,40,.08)" : undefined }}>
-        <InvoiceDocument data={data} design={design} />
+        {children}
       </div>
     </div>
   );

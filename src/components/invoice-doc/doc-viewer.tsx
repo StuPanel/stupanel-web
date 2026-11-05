@@ -9,11 +9,15 @@ import { useRef, useState } from "react";
 import { Download, Loader2, MessageCircle, Printer } from "lucide-react";
 import { PAPER, type InvoiceDesign } from "./design";
 import { InvoiceDocument, type DocData } from "./invoice-document";
-import { DesignFonts, ScaledDocument } from "./scaled";
+import { DesignFonts, ScaledBox } from "./scaled";
 
-export function DocViewer({ data, design, fileName, shareText, extra }: {
-  data: DocData; design: InvoiceDesign; fileName: string; shareText: string; extra?: React.ReactNode;
+export function DocViewer({ data, design, fileName, shareText, extra, doc, top }: {
+  data?: DocData; design: InvoiceDesign; fileName: string; shareText?: string; extra?: React.ReactNode;
+  /** Draw something other than an invoice (e.g. a statement) on the same page size. */
+  doc?: React.ReactNode;
+  top?: React.ReactNode;
 }) {
+  const page = doc ?? (data ? <InvoiceDocument data={data} design={design} /> : null);
   const printRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const paper = PAPER[design.paper];
@@ -70,9 +74,10 @@ export function DocViewer({ data, design, fileName, shareText, extra }: {
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Download PDF
             </button>
             <button type="button" onClick={() => window.print()} className={`${btn} bg-white text-[#17151F]`}><Printer className="w-4 h-4" />Print</button>
-            <button type="button" onClick={whatsapp} className={`${btn} bg-[#25D366] text-white`}><MessageCircle className="w-4 h-4" />WhatsApp</button>
+            {shareText && <button type="button" onClick={whatsapp} className={`${btn} bg-[#25D366] text-white`}><MessageCircle className="w-4 h-4" />WhatsApp</button>}
           </div>
-          <ScaledDocument data={data} design={design} />
+          {top}
+          <ScaledBox width={paper.w}>{page}</ScaledBox>
           {extra && <div className="mt-6">{extra}</div>}
           <p className="text-center text-[11px] text-[#8A8599] mt-8">Made with StuPanel</p>
         </div>
@@ -80,7 +85,7 @@ export function DocViewer({ data, design, fileName, shareText, extra }: {
 
       {/* Full-size copy used for print and PDF */}
       <div ref={printRef} className="doc-print" aria-hidden style={{ position: "fixed", left: -100000, top: 0 }}>
-        <InvoiceDocument data={data} design={design} />
+        {page}
       </div>
     </>
   );

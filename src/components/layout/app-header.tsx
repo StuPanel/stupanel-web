@@ -8,16 +8,13 @@ import { BrandMark } from "@/components/layout/app-sidebar";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import {
-  Bell, Search, ChevronDown, Settings, User, LogOut, ShieldAlert,
-  Camera, Users, FileText, X, Loader2, Crown,
+  Bell, Search, Settings, User, LogOut, ShieldAlert,
+  Camera, Users, FileText, X, Loader2, LifeBuoy,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StudioLogo } from "@/components/studio-logo";
-import { safeLogo } from "@/lib/brand";
 
 interface UserProfile {
   firstName: string;
@@ -42,7 +39,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
-  const { user, companyLogo, companyName } = useAuth();
+  const { user } = useAuth();
   const [hasUnread, setHasUnread] = useState(false);
 
   // Search state
@@ -215,7 +212,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     ? `${user.firstName[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
     : "?";
   const displayName = user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Loading...";
-  const roleLabel = user?.role === "owner" ? "Studio Admin" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
+  const roleLabel = user?.role === "owner" ? "Owner" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
   const isOwner = user?.role === "owner";
 
   return (
@@ -322,56 +319,34 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-xl lg:bg-white lg:border lg:border-slate-200 lg:pl-1 lg:pr-2.5 h-10 hover:border-violet-200 transition-colors">
-                  <Avatar className="w-8 h-8">
-                    {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                    <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-left hidden lg:block">
-                    <p className="text-[13px] font-semibold text-slate-900 leading-none">{displayName}</p>
-                    <p className="text-xs text-slate-500 mt-1 leading-none">{roleLabel}</p>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-slate-400 hidden lg:block" />
+                <button aria-label="Account menu" title={displayName}
+                  className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[13px] font-bold text-violet-700 hover:border-violet-200 transition-colors">
+                  {initials}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden rounded-2xl" sideOffset={8}>
-                <div className="bg-violet-50 px-4 py-3 flex items-center gap-3">
-                  {safeLogo(companyLogo) ? (
-                    <StudioLogo url={companyLogo} name={companyName} size={40} />
-                  ) : (
-                    <Avatar className="w-10 h-10 flex-shrink-0">
-                      {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                      <AvatarFallback className="bg-violet-200 text-violet-800 text-sm font-bold">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                    <span className="inline-block bg-white text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 border border-violet-100">
-                      {roleLabel}
-                    </span>
-                    <p className="text-xs text-slate-500 truncate mt-0.5">{user?.company?.name ?? ""}</p>
-                  </div>
+              <DropdownMenuContent align="end" className="w-60 p-0 overflow-hidden rounded-2xl" sideOffset={8}>
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">{roleLabel}{user?.company?.name ? ` · ${user.company.name}` : ""}</p>
                 </div>
                 <div className="p-1.5">
-                  <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
-                    <User className="w-4 h-4 text-violet-600" /> Profile
-                  </DropdownMenuItem>
-                  {isOwner ? <>
-                    <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2 rounded-lg">
-                      <Crown className="w-4 h-4 text-violet-600" /> Plan &amp; Billing
-                    </DropdownMenuItem>
+                  {isOwner ? (
                     <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
                       <Settings className="w-4 h-4 text-slate-500" /> Settings
                     </DropdownMenuItem>
-                  </> : user?.role === "manager" && (
+                  ) : (
+                    <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
+                      <User className="w-4 h-4 text-violet-600" /> My profile
+                    </DropdownMenuItem>
+                  )}
+                  {user?.role === "manager" && (
                     <DropdownMenuItem onClick={() => router.push("/member/dashboard")} className="cursor-pointer gap-2 rounded-lg">
                       <Camera className="w-4 h-4 text-violet-600" /> My work &amp; pay
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => router.push("/support")} className="cursor-pointer gap-2 rounded-lg">
+                    <LifeBuoy className="w-4 h-4 text-slate-500" /> Help &amp; Support
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-1" />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-lg text-[#C2304F] focus:text-[#C2304F] focus:bg-rose-50">
                     <LogOut className="w-4 h-4" /> Log out

@@ -48,7 +48,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     title: "Work",
     panes: [
       { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face ফিচার" },
-      { id: "worktypes", title: "Work Types & Shifts", sub: "Kinds of work you do and the shifts of an event", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye শিফট" },
+      { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye শিফট" },
       { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event প্রোগ্রাম বুকিং" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices টিম বেতন দাম" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
@@ -89,8 +89,7 @@ export const ENTRIES: Entry[] = [
   { id: "f-faceRecognition", pane: "features", section: "Coming soon", label: "Face recognition", keywords: "selfie guest face" },
 
   // Work types & shifts
-  { id: "workTypes", pane: "worktypes", section: "Work types", label: "Work types", keywords: "wedding corporate school product video ধরন" },
-  { id: "shiftTemplates", pane: "worktypes", section: "Shift templates", label: "Shift templates", keywords: "holud biye reception walima ashirbad bou bhat হলুদ বিয়ে" },
+  { id: "workTypes", pane: "worktypes", section: "Program types", label: "Program types and their parts", keywords: "work type wedding corporate school birthday parts days holud biye reception shift template ধরন হলুদ বিয়ে" },
 
   // Team
   { id: "teamPay", pane: "team", section: "Pay", label: "Pay team by", keywords: "per shift per program rate salary" },

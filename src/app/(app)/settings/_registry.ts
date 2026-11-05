@@ -6,7 +6,7 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck,
+  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound,
 } from "lucide-react";
 
 export type PaneId =
@@ -14,7 +14,7 @@ export type PaneId =
   | "payment" | "quotes" | "invoices" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery"
   | "bookings" | "portal" | "notifications"
-  | "security" | "integrations";
+  | "profile" | "security" | "integrations";
 
 export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
 export type Entry = { id: string; pane: PaneId; section: string; label: string; keywords?: string };
@@ -59,6 +59,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
   {
     title: "Account",
     panes: [
+      { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone প্রোফাইল পাসওয়ার্ড নাম" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password পাসওয়ার্ড" },
       { id: "integrations", title: "Google Drive", sub: "Connect Drive to deliver photos and videos", icon: HardDrive, color: C.green, keywords: "integrations drive google ড্রাইভ" },
     ],
@@ -172,6 +173,10 @@ export const ENTRIES: Entry[] = [
   { id: "n-sendInvoiceEmail", pane: "notifications", section: "Emails to clients", label: "Invoice sent", keywords: "client email" },
   { id: "n-sendPaymentReceipt", pane: "notifications", section: "Emails to clients", label: "Payment receipt", keywords: "client email money রসিদ" },
   { id: "n-sendDeliveryReady", pane: "notifications", section: "Emails to clients", label: "Delivery ready", keywords: "client email photos" },
+
+  // My profile
+  { id: "profile-info", pane: "profile", section: "Personal info", label: "Name and phone", keywords: "first last name mobile নাম ফোন" },
+  { id: "profile-password", pane: "profile", section: "Password", label: "Change password", keywords: "password পাসওয়ার্ড" },
 
   // Security
   { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password পাসওয়ার্ড" },

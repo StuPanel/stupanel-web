@@ -20,6 +20,7 @@ import { CatalogPane, InvoicesPane, PaymentPane, QuotesPane, TaxPane } from "./_
 import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
 import { IntegrationsPane, SecurityPane } from "./_panes/account";
 import { MyProfile } from "@/components/account/my-profile";
+import { WhatsAppTemplates } from "@/components/whatsapp/templates-manager";
 import { DeliveryRulesPane, FeaturesPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
 
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
@@ -27,6 +28,7 @@ const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, tax: TaxPane, catalog: CatalogPane,
   features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
+  whatsapp: () => <WhatsAppTemplates embedded />,
   profile: () => <MyProfile embedded />, security: SecurityPane, integrations: IntegrationsPane,
 };
 

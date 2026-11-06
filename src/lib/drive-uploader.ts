@@ -25,11 +25,13 @@ export type DriveFileResult = {
 export type UploadPlan = { name?: string; replaceFileId?: string };
 
 /** "delivery" = StuPanel Deliveries (client can open); "raw" = private StuPanel Raw. */
-export type DriveKind = "delivery" | "raw";
+export type DriveKind = "delivery" | "raw" | "raw-member";
 
 const ENDPOINTS = {
-  delivery: (id: string) => ({ session: `/google-drive/upload-session/${id}`, complete: `/google-drive/upload-complete/${id}`, check: `/google-drive/upload-check/${id}` }),
-  raw: (id: string) => ({ session: `/google-drive/raw/${id}/session`, complete: `/google-drive/raw/${id}/complete`, check: `/google-drive/raw/${id}/check` }),
+  delivery: (id: string) => ({ session: `/google-drive/upload-session/${id}`, complete: `/google-drive/upload-complete/${id}`, check: `/google-drive/upload-check/${id}`, status: "/google-drive/upload-status" }),
+  raw: (id: string) => ({ session: `/google-drive/raw/${id}/session`, complete: `/google-drive/raw/${id}/complete`, check: `/google-drive/raw/${id}/check`, status: "/google-drive/upload-status" }),
+  // A team member uploading into their own raw folder from the member panel.
+  "raw-member": (id: string) => ({ session: `/member/programs/${id}/raw/session`, complete: `/member/programs/${id}/raw/complete`, check: `/member/programs/${id}/raw/check`, status: "/member/raw/upload-status" }),
 };
 
 export type PendingUpload = {
@@ -81,7 +83,7 @@ export function discardPending(fp?: string) {
 
 function fingerprint(file: File, bookingId: string, folderPath?: string, kind: DriveKind = "delivery") {
   const base = [file.name, file.size, file.lastModified, bookingId, folderPath ?? ""];
-  return (kind === "raw" ? ["raw", ...base] : base).join("|");
+  return (kind !== "delivery" ? [kind, ...base] : base).join("|");
 }
 
 // ─── queue ────────────────────────────────────────────────────────────────────
@@ -117,7 +119,7 @@ export function uploadToDrive(opts: {
     uploadStore.add({
       id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
       bookingId: opts.bookingId, bookingName: opts.bookingName,
-      folderName: kind === "raw" ? ["Raw", folderPath].filter(Boolean).join(" / ") : folderPath,
+      folderName: kind !== "delivery" ? ["Raw", folderPath].filter(Boolean).join(" / ") : folderPath,
       size: file.size, sent: 0, status: "queued",
     });
     uploadStore.registerCancel(id, () => {
@@ -214,7 +216,7 @@ async function runJob(job: Job) {
     if (pending) {
       update({ status: "resuming" });
       const st = await api<{ state: string; offset: number; fileId: string | null }>(
-        "/google-drive/upload-status", { uploadUrl: pending.uploadUrl, size: total }).catch(() => ({ state: "expired", offset: 0, fileId: null }));
+        ep.status, { uploadUrl: pending.uploadUrl, size: total }).catch(() => ({ state: "expired", offset: 0, fileId: null }));
       if (st.state === "done") { offset = total; fileId = st.fileId ?? undefined; }
       else if (st.state === "partial") offset = st.offset;
       else { discardPending(fp); pending = undefined; }
@@ -259,7 +261,7 @@ async function runJob(job: Job) {
         if (failures > 20) throw new Error("Upload keeps failing — check your internet and try again");
         // Ask Google how much it really has, then continue from there.
         const st = await api<{ state: string; offset: number; fileId: string | null }>(
-          "/google-drive/upload-status", { uploadUrl: pending.uploadUrl, size: total }).catch(() => null);
+          ep.status, { uploadUrl: pending.uploadUrl, size: total }).catch(() => null);
         if (st?.state === "done") { fileId = st.fileId ?? undefined; offset = total; }
         else if (st?.state === "partial") offset = st.offset;
         else if (st?.state === "expired") { discardPending(fp); throw new Error("Upload session expired — please upload this file again"); }

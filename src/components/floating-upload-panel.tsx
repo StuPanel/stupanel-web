@@ -24,7 +24,7 @@ function fmtEta(sec: number) {
  * and, after a reload/restart, the unfinished uploads with a button to pick
  * the same files again and continue.
  */
-export function FloatingUploadPanel() {
+export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [collapsed, setCollapsed] = useState(false);
@@ -68,7 +68,7 @@ export function FloatingUploadPanel() {
   const leftBytes = unfinished.reduce((s, p) => s + p.size, 0);
 
   return (
-    <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[22rem] bg-white rounded-[22px] border border-[#E3DFEC] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.10)] overflow-hidden">
+    <div className={`fixed ${lift ? "bottom-24 lg:bottom-4" : "bottom-4"} right-4 left-4 sm:left-auto z-50 sm:w-[22rem] bg-white rounded-[22px] border border-[#E3DFEC] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.10)] overflow-hidden`}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <div className="min-w-0">

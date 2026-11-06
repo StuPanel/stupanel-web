@@ -62,7 +62,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     panes: [
       { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone প্রোফাইল পাসওয়ার্ড নাম" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password পাসওয়ার্ড" },
-      { id: "integrations", title: "Google Drive", sub: "Connect Drive to deliver photos and videos", icon: HardDrive, color: C.green, keywords: "integrations drive google ড্রাইভ" },
+      { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw ড্রাইভ" },
     ],
   },
 ];
@@ -187,6 +187,7 @@ export const ENTRIES: Entry[] = [
   // Integrations
   { id: "drive-accounts", pane: "integrations", section: "Accounts", label: "Google Drive accounts", keywords: "connect gmail storage delivery" },
   { id: "drive-add", pane: "integrations", section: "Accounts", label: "Add Google Drive account", keywords: "connect" },
+  { id: "raw-drive", pane: "integrations", section: "Raw files", label: "Raw files account", keywords: "raw camera backup র ফাইল ব্যাকআপ" },
 ];
 
 /** Case-insensitive; every word typed must appear somewhere in the entry. Best matches first. */

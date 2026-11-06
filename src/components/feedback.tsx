@@ -17,7 +17,9 @@ import { AlertTriangle, Check, X } from "lucide-react";
 type Toast = { id: number; text: string; error: boolean };
 type Ask = {
   title?: string; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean;
-  resolve: (ok: boolean) => void;
+  /** A third, red choice under the buttons (e.g. "Delete forever"). */
+  extraLabel?: string;
+  resolve: (ok: boolean | "extra") => void;
 };
 
 let pushToast: ((t: Toast) => void) | null = null;
@@ -30,11 +32,34 @@ export function notify(text: string, opts?: { error?: boolean }) {
   else if (typeof window !== "undefined") window.alert(text); // host not mounted yet
 }
 
-export function askConfirm(opts: Omit<Ask, "resolve">): Promise<boolean> {
+export function askConfirm(opts: Omit<Ask, "resolve" | "extraLabel">): Promise<boolean> {
   return new Promise((resolve) => {
-    if (pushAsk) pushAsk({ ...opts, resolve });
+    if (pushAsk) pushAsk({ ...opts, resolve: (v) => resolve(v === true) });
     else resolve(typeof window !== "undefined" ? window.confirm(opts.message) : false);
   });
+}
+
+/**
+ * Deleting a Google Drive file/folder from StuPanel: "Move to trash" (can be restored in Drive
+ * for 30 days) or "Delete forever" (asks once more). Returns null when cancelled.
+ */
+export async function askDriveDelete(what: string): Promise<"trash" | "forever" | null> {
+  const first = await new Promise<boolean | "extra">((resolve) => {
+    if (pushAsk) pushAsk({
+      title: `Delete ${what}?`,
+      message: "It moves to Google Drive's trash — you can restore it there for 30 days.",
+      confirmLabel: "Move to trash", danger: true, extraLabel: "Delete forever", resolve,
+    });
+    else resolve(typeof window !== "undefined" && window.confirm(`Delete ${what}?`));
+  });
+  if (first === true) return "trash";
+  if (first !== "extra") return null;
+  const sure = await askConfirm({
+    title: "Delete forever?",
+    message: `${what} will be removed from Google Drive for good. This can't be undone.`,
+    confirmLabel: "Delete forever", danger: true,
+  });
+  return sure ? "forever" : null;
 }
 
 export function FeedbackHost() {
@@ -61,7 +86,7 @@ export function FeedbackHost() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ask]);
 
-  function close(ok: boolean) {
+  function close(ok: boolean | "extra") {
     ask?.resolve(ok);
     setAsk(null);
   }
@@ -95,6 +120,12 @@ export function FeedbackHost() {
                   {ask.confirmLabel ?? (ask.danger ? "Delete" : "Confirm")}
                 </button>
               </div>
+              {ask.extraLabel && (
+                <button onClick={() => close("extra")}
+                  className="mt-3 h-9 px-4 rounded-full text-[13px] font-semibold text-[#C2304F] hover:bg-[#FDECEF] transition-colors">
+                  {ask.extraLabel}
+                </button>
+              )}
             </div>
           </div>
         </>

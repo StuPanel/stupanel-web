@@ -24,7 +24,16 @@ export type DriveFileResult = {
 /** Per-file choice made before uploading (duplicate check). */
 export type UploadPlan = { name?: string; replaceFileId?: string };
 
+/** "delivery" = StuPanel Deliveries (client can open); "raw" = private StuPanel Raw. */
+export type DriveKind = "delivery" | "raw";
+
+const ENDPOINTS = {
+  delivery: (id: string) => ({ session: `/google-drive/upload-session/${id}`, complete: `/google-drive/upload-complete/${id}`, check: `/google-drive/upload-check/${id}` }),
+  raw: (id: string) => ({ session: `/google-drive/raw/${id}/session`, complete: `/google-drive/raw/${id}/complete`, check: `/google-drive/raw/${id}/check` }),
+};
+
 export type PendingUpload = {
+  kind?: DriveKind;
   fp: string;               // fingerprint: name|size|lastModified|bookingId|folder
   bookingId: string;
   bookingName?: string;
@@ -39,6 +48,7 @@ export type PendingUpload = {
 };
 
 type Job = {
+  kind: DriveKind;
   id: string;
   file: File;
   bookingId: string;
@@ -69,8 +79,9 @@ export function discardPending(fp?: string) {
   writePending(fp ? readPending().filter(p => p.fp !== fp) : []);
 }
 
-function fingerprint(file: File, bookingId: string, folderPath?: string) {
-  return [file.name, file.size, file.lastModified, bookingId, folderPath ?? ""].join("|");
+function fingerprint(file: File, bookingId: string, folderPath?: string, kind: DriveKind = "delivery") {
+  const base = [file.name, file.size, file.lastModified, bookingId, folderPath ?? ""];
+  return (kind === "raw" ? ["raw", ...base] : base).join("|");
 }
 
 // ─── queue ────────────────────────────────────────────────────────────────────
@@ -89,6 +100,7 @@ function pump() {
 
 /** Add files for one program. folderPath like "Raw/Holud/Photo" (optional). */
 export function uploadToDrive(opts: {
+  kind?: DriveKind;
   files: File[];
   bookingId: string;
   bookingName?: string;
@@ -100,16 +112,18 @@ export function uploadToDrive(opts: {
     const id = crypto.randomUUID();
     const folderPath = opts.folderFor?.(file);
     const plan = opts.plans?.get(file);
-    const job: Job = { id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, onDone: opts.onDone };
+    const kind = opts.kind ?? "delivery";
+    const job: Job = { kind, id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, onDone: opts.onDone };
     uploadStore.add({
       id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
-      bookingId: opts.bookingId, bookingName: opts.bookingName, folderName: folderPath,
+      bookingId: opts.bookingId, bookingName: opts.bookingName,
+      folderName: kind === "raw" ? ["Raw", folderPath].filter(Boolean).join(" / ") : folderPath,
       size: file.size, sent: 0, status: "queued",
     });
     uploadStore.registerCancel(id, () => {
       job.cancelled = true;
       job.xhr?.abort();
-      discardPending(fingerprint(file, job.bookingId, folderPath));
+      discardPending(fingerprint(file, job.bookingId, folderPath, kind));
     });
     queue.push(job);
   }
@@ -120,20 +134,22 @@ export function uploadToDrive(opts: {
 export function resumeWithFiles(files: File[]): { matched: number } {
   const pending = readPending();
   let matched = 0;
-  type Group = { bookingName?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
+  type Group = { kind: DriveKind; bookingName?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
   const byProgram = new Map<string, Group>();
   for (const file of files) {
     const p = pending.find(x => x.fileName === file.name && x.size === file.size && x.lastModified === file.lastModified && !activeFps.has(x.fp));
     if (!p) continue;
     matched++;
-    const g: Group = byProgram.get(p.bookingId) ?? { bookingName: p.bookingName, files: [], folders: new Map<File, string | undefined>(), plans: new Map<File, UploadPlan>() };
+    const gKey = `${p.kind ?? "delivery"}|${p.bookingId}`;
+    const g: Group = byProgram.get(gKey) ?? { kind: p.kind ?? "delivery", bookingName: p.bookingName, files: [], folders: new Map<File, string | undefined>(), plans: new Map<File, UploadPlan>() };
     g.files.push(file);
     g.folders.set(file, p.folderPath);
     if (p.uploadName || p.replaceFileId) g.plans.set(file, { name: p.uploadName, replaceFileId: p.replaceFileId });
-    byProgram.set(p.bookingId, g);
+    byProgram.set(gKey, g);
   }
-  for (const [bookingId, g] of byProgram) {
-    uploadToDrive({ files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f), plans: g.plans });
+  for (const [gKey, g] of byProgram) {
+    const bookingId = gKey.split("|")[1];
+    uploadToDrive({ kind: g.kind, files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f), plans: g.plans });
   }
   return { matched };
 }
@@ -182,8 +198,9 @@ function putChunk(job: Job, url: string, start: number, end: number, total: numb
 }
 
 async function runJob(job: Job) {
-  const { file, bookingId, folderPath } = job;
-  const fp = fingerprint(file, bookingId, folderPath);
+  const { file, bookingId, folderPath, kind } = job;
+  const fp = fingerprint(file, bookingId, folderPath, kind);
+  const ep = ENDPOINTS[kind](bookingId);
   activeFps.add(fp);
   const total = file.size;
   const update = uploadStore.update.bind(uploadStore, job.id);
@@ -203,11 +220,11 @@ async function runJob(job: Job) {
       else { discardPending(fp); pending = undefined; }
     }
     if (!pending) {
-      const s = await api<{ uploadUrl: string }>(`/google-drive/upload-session/${bookingId}`, {
+      const s = await api<{ uploadUrl: string }>(ep.session, {
         fileName: job.plan?.name ?? file.name, mimeType: file.type || "application/octet-stream", size: total, folderPath,
       });
       pending = {
-        fp, bookingId, bookingName: job.bookingName, folderPath, fileName: file.name,
+        kind, fp, bookingId, bookingName: job.bookingName, folderPath, fileName: file.name,
         size: total, lastModified: file.lastModified, uploadUrl: s.uploadUrl, createdAt: Date.now(),
         uploadName: job.plan?.name, replaceFileId: job.plan?.replaceFileId,
       };
@@ -252,7 +269,7 @@ async function runJob(job: Job) {
     // 3. Check + share.
     update({ status: "finishing", progress: 99, sent: total });
     if (!fileId) throw new Error("Upload finished but Drive did not return the file");
-    const result = await api<DriveFileResult>(`/google-drive/upload-complete/${bookingId}`,
+    const result = await api<DriveFileResult>(ep.complete,
       { fileId, replaceFileId: job.plan?.replaceFileId ?? pending?.replaceFileId });
     discardPending(fp);
     update({ progress: 100, done: true, status: "done" });
@@ -291,13 +308,14 @@ const cleanPath = (p?: string) =>
 
 /** Ask Drive which of these files already sit in their target folders. */
 export async function checkDuplicates(opts: {
-  files: File[]; bookingId: string; folderFor?: (f: File) => string | undefined;
+  files: File[]; bookingId: string; folderFor?: (f: File) => string | undefined; kind?: DriveKind;
 }): Promise<DuplicateCheck> {
+  const kind = opts.kind ?? "delivery";
   const folderOf = new Map<File, string>();
   for (const f of opts.files) folderOf.set(f, cleanPath(opts.folderFor?.(f)));
   const paths = [...new Set(folderOf.values())];
   const { folders } = await api<{ folders: Record<string, ExistingFile[]> }>(
-    `/google-drive/upload-check/${opts.bookingId}`, { folderPaths: paths });
+    ENDPOINTS[kind](opts.bookingId).check, { folderPaths: paths });
 
   const same = new Map<File, ExistingFile>();
   const nameOnly = new Map<File, ExistingFile>();
@@ -305,7 +323,7 @@ export async function checkDuplicates(opts: {
   const fresh: File[] = [];
   for (const f of opts.files) {
     const folder = folderOf.get(f) ?? "";
-    if (activeFps.has(fingerprint(f, opts.bookingId, opts.folderFor?.(f)))) { inFlight.push(f); continue; }
+    if (activeFps.has(fingerprint(f, opts.bookingId, opts.folderFor?.(f), kind))) { inFlight.push(f); continue; }
     const list = folders[folder] ?? [];
     const exact = list.find(x => x.name === f.name && x.size === f.size);
     if (exact) { same.set(f, exact); continue; }

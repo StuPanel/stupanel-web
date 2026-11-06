@@ -19,6 +19,7 @@ import { TeamPaySection } from "./team-pay-section";
 import { InvoiceCard } from "./invoice-card";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
+import { RawDriveSection } from "./raw-drive-section";
 import { EditableSelect } from "@/components/ui/editable-select";
 import type { Booking, ShiftAssignment } from "./types";
 import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
@@ -145,7 +146,7 @@ function RawFilesSection({ booking, onSaved }: { booking: Booking; onSaved: () =
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <HardDrive className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-600">Raw Files Info</span>
+          <span className="text-xs font-semibold text-slate-600">Other copies (HDD, PC, NAS…)</span>
           {hasInfo && <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">{STORAGE_TYPES.find(t => t.value === st)?.label ?? st}</span>}
         </div>
         <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Edit"}</button>
@@ -681,6 +682,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           <h2 className="px-1 text-[13px] font-bold text-[#4A4658]">Editing & files</h2>
           <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
             <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
+            <RawDriveSection booking={b} teamMembers={teamMembers ?? []} />
             <RawFilesSection booking={b} onSaved={refreshBooking} />
             <CreativeBriefSection booking={b} onSaved={refreshBooking} />
           </div>

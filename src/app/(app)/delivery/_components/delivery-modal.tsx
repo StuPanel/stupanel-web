@@ -18,7 +18,7 @@ import { uploadToDrive, checkDuplicates, applyDuplicateChoice, type DuplicateChe
 import { UploadDuplicateDialog } from "@/components/upload-duplicate-dialog";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
-import { notify, askConfirm } from "@/components/feedback";
+import { notify, askConfirm, askDriveDelete } from "@/components/feedback";
 
 export function DeliveryModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -43,7 +43,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   const [driveDragOver, setDriveDragOver] = useState(false);
   const [driveExpandedFolders, setDriveExpandedFolders] = useState<Record<string, boolean>>({});
   const [driveZipDownloading, setDriveZipDownloading] = useState<string | null>(null);
-  const [driveDeletingFolder, setDriveDeletingFolder] = useState<string | null>(null);
+
   const [driveTargetFolder, setDriveTargetFolder] = useState<string>("");
   const [driveNewFolderInput, setDriveNewFolderInput] = useState("");
   const [driveShowNewFolder, setDriveShowNewFolder] = useState(false);
@@ -182,10 +182,13 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   async function confirmDeleteDriveFolder(folderName: string) {
-    setDriveDeletingFolder(null);
+
+    const how = await askDriveDelete(folderName === "Other Files" ? "the loose files" : `the folder "${folderName}"`);
+    if (!how) return;
     try {
-      const res = await apiFetch(`${API}/google-drive/folder/${booking!.id}/${encodeURIComponent(folderName)}`, { method: "DELETE" });
+      const res = await apiFetch(`${API}/google-drive/folder/${booking!.id}/${encodeURIComponent(folderName)}${how === "forever" ? "?permanent=1" : ""}`, { method: "DELETE" });
       if (!res.ok) { notify("Delete failed", { error: true }); return; }
+      notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
       if (folderName === "Other Files") {
         setDriveFiles(prev => prev.filter(f => f.folderName !== null));
       } else {
@@ -195,10 +198,15 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
   }
 
   async function deleteDriveFileItem(fileId: string) {
+    const name = driveFiles.find(f => f.id === fileId)?.fileName;
+    const how = await askDriveDelete(name ? `"${name}"` : "this file");
+    if (!how) return;
     try {
-      await apiFetch(`${API}/google-drive/file/${booking!.id}/${fileId}`, { method: "DELETE" });
+      const r = await apiFetch(`${API}/google-drive/file/${booking!.id}/${fileId}${how === "forever" ? "?permanent=1" : ""}`, { method: "DELETE" });
+      if (!r.ok) { notify("Delete failed", { error: true }); return; }
       setDriveFiles(prev => prev.filter(f => f.id !== fileId));
-    } catch { /* ignore */ }
+      notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
+    } catch { notify("Delete failed", { error: true }); }
   }
 
   // Files go straight to Google Drive in pieces (resumable — see lib/drive-uploader).
@@ -845,20 +853,6 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       </p>
                     )}
 
-                    {driveDeletingFolder && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                          <p className="text-sm font-semibold text-red-700">Delete folder "{driveDeletingFolder}"?</p>
-                        </div>
-                        <p className="text-xs text-red-600">All files in this folder will be permanently deleted from Google Drive.</p>
-                        <div className="flex gap-2">
-                          <button onClick={() => setDriveDeletingFolder(null)} className="flex-1 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
-                          <button onClick={() => confirmDeleteDriveFolder(driveDeletingFolder)} className="flex-1 h-8 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700">Delete All Files</button>
-                        </div>
-                      </div>
-                    )}
-
                     {driveFilesLoading ? (
                       <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-green-400" /></div>
                     ) : driveFiles.length > 0 ? (() => {
@@ -906,7 +900,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                     className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-green-200 text-green-600 disabled:opacity-50 transition-colors flex-shrink-0">
                                     {driveZipDownloading === folderKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                                   </button>
-                                  <button onClick={() => setDriveDeletingFolder(folderKey)} title="Delete entire folder"
+                                  <button onClick={() => confirmDeleteDriveFolder(folderKey)} title="Delete entire folder"
                                     className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0">
                                     <Trash2 className="w-3 h-3" />
                                   </button>

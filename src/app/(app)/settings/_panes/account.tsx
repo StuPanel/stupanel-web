@@ -130,6 +130,58 @@ export function IntegrationsPane() {
           </button>
         </div>
       </Group>
+      {accounts.length > 0 && <RawAccountGroup accounts={accounts} />}
     </>
+  );
+}
+
+/** Which Google account raw (camera) files go to — can be a different, bigger Drive. */
+function RawAccountGroup({ accounts }: { accounts: Acc[] }) {
+  const [chosen, setChosen] = useState<string | null | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    apiFetch(`${API}/google-drive/raw-account`).then(r => (r.ok ? r.json() : null))
+      .then(d => setChosen(d?.chosenId ?? null)).catch(() => setChosen(null));
+  }, []);
+  async function pick(id: string | null) {
+    if (saving || id === chosen) return;
+    const before = chosen;
+    setChosen(id); setSaving(true);
+    try {
+      const r = await apiFetch(`${API}/google-drive/raw-account`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ connectionId: id }),
+      });
+      if (!r.ok) throw new Error();
+      notify("Saved");
+    } catch { setChosen(before); notify("Couldn't save", { error: true }); }
+    finally { setSaving(false); }
+  }
+  const main = accounts.find(a => a.isPrimary);
+  const opts: { id: string | null; label: string; sub?: string }[] = [
+    { id: null, label: "Same as main account", sub: main?.googleEmail },
+    ...accounts.map(a => ({ id: a.id, label: a.googleEmail, sub: `${Math.max(0, Math.round((a.totalStorageGb - a.usedStorageGb) * 10) / 10)} GB free` })),
+  ];
+  return (
+    <Group title="Raw files" note="Camera raw files uploaded from a program go to a private “StuPanel Raw” folder on this account. Changing it only affects programs that have no raw files yet.">
+      <div id="set-raw-drive" className="sp-set-row scroll-mt-28 divide-y divide-[#EEEBF4]">
+        {chosen === undefined ? (
+          <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" /></div>
+        ) : opts.map(o => {
+          const on = chosen === o.id;
+          return (
+            <button key={o.id ?? "main"} type="button" role="radio" aria-checked={on} onClick={() => pick(o.id)}
+              className="w-full px-4 sm:px-5 py-3.5 flex items-center gap-3 text-left hover:bg-[#F7F4FE]">
+              <span className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0", on ? "border-[#7D5CEF]" : "border-[#CFC8DD]")}>
+                {on && <span className="w-2.5 h-2.5 rounded-full bg-[#7D5CEF]" />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-[#17151F] truncate">{o.label}</span>
+                {o.sub && <span className="block text-xs text-[#6B6680] truncate">{o.sub}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Group>
   );
 }

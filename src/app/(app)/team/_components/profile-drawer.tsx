@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Loader2, Camera, Video, Image, Film, Navigation, Briefcase, Tag,
   Phone, MessageCircle, Edit3, KeyRound, UserCheck, UserX, Wallet, CalendarDays,
-  CheckCircle2, Plus, HandCoins, TrendingUp, MapPin, MoreHorizontal, Mail,
+  CheckCircle2, Plus, HandCoins, TrendingUp, MapPin, MoreHorizontal, Mail, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -14,7 +14,8 @@ import { ActionButton, Avatar, IdentityCard, InfoRow, MiniStat, ProfileShell, wa
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { STATUS_CFG } from "../../programs/_components/constants";
 import { SETUP_CATS, unitLabel } from "./rate-card";
-import { notify } from "@/components/feedback";
+import { askConfirm, notify } from "@/components/feedback";
+import { AccountPicker } from "@/components/account-picker";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Member {
@@ -63,79 +64,149 @@ const ROLES: Record<string, { label: string; icon: React.ElementType; tile: Tile
 const role = (id: string) => ROLES[id] ?? { label: id.replace(/_/g, " "), icon: Tag, tile: "violet" as TileColor };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-// ─── Record a payment (salary slip) ─────────────────────────────────────────
-function PayDrawer({ member, owed, onClose, onSaved }: {
-  member: Member; owed: number; onClose: () => void; onSaved: () => void;
-}) {
-  const now = new Date();
-  const [form, setForm] = useState({ amount: owed > 0 ? String(owed) : "", deductions: "", notes: "", month: now.getMonth() + 1, year: now.getFullYear() });
+// ─── Pay a member (split over the programs they are owed for) ───────────────
+type Due = { id: string; bookingNumber: string; eventName: string | null; date: string; bill: number; paid: number; due: number };
+const PAY_METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "bKash / Nagad" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
+const r2 = (n: number) => Math.round(n * 100) / 100;
+/** Oldest program first; anything over the total goes on the last one (same rule as the API). */
+function autoSplit(progs: Due[], amount: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  let left = r2(amount);
+  for (const p of progs) { if (left <= 0) break; const t = r2(Math.min(left, p.due)); if (t > 0) { out[p.id] = t; left = r2(left - t); } }
+  if (left > 0 && progs.length) { const last = progs[progs.length - 1].id; out[last] = r2((out[last] ?? 0) + left); }
+  return out;
+}
+
+function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+  const [dues, setDues] = useState<Due[] | null>(null);
+  const [amount, setAmount] = useState("");
+  const [split, setSplit] = useState<Record<string, number>>({});
+  const [custom, setCustom] = useState(false);
+  const [method, setMethod] = useState("cash");
+  const [walletId, setWalletId] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const net = (parseFloat(form.amount) || 0) - (parseFloat(form.deductions) || 0);
+
+  useEffect(() => {
+    apiFetch(`${API}/team/${member.id}/dues`).then(r => r.ok ? r.json() : null).then(d => {
+      const list: Due[] = d?.programs ?? [];
+      setDues(list);
+      const total = Number(d?.totalDue ?? 0);
+      if (total > 0) { setAmount(String(total)); setSplit(autoSplit(list, total)); }
+    }).catch(() => setDues([]));
+  }, [member.id]);
+
+  const total = r2((dues ?? []).reduce((s, p) => s + p.due, 0));
+  const amt = parseFloat(amount) || 0;
+  const splitSum = r2(Object.values(split).reduce((s, v) => s + (v || 0), 0));
+  const setAmountAuto = (v: string) => { setAmount(v); if (!custom && dues) setSplit(autoSplit(dues, parseFloat(v) || 0)); };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!(parseFloat(form.amount) > 0)) { setError("Please write how much you paid."); return; }
+    if (!(amt > 0)) { setError("Write how much you are paying."); return; }
+    if (!walletId) { setError("Pick the account the money was paid from."); return; }
+    if (!dues?.length) { setError("Nothing is owed on any program. Pay from the program instead."); return; }
+    if (Math.abs(splitSum - amt) > 0.009) { setError(`The programs add up to ${formatCurrency(splitSum)}, not ${formatCurrency(amt)}.`); return; }
+    const over = amt > total + 0.009 || (dues ?? []).some(p => (split[p.id] ?? 0) > p.due + 0.009);
+    if (over && !(await askConfirm({
+      title: "Pay more than owed?",
+      message: `${member.firstName} is owed ${formatCurrency(total)} in all. You are paying ${formatCurrency(Math.max(0, amt - total))} extra — it is added to the last program.`,
+      confirmLabel: "Pay anyway", cancelLabel: "Go back",
+    }))) return;
     setSaving(true); setError("");
     try {
-      const r = await apiFetch(`${API}/team/${member.id}/salary-slip`, {
+      const r = await apiFetch(`${API}/team/${member.id}/payments`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: form.month, year: form.year, amount: parseFloat(form.amount), deductions: parseFloat(form.deductions) || 0, notes: form.notes || undefined }),
+        body: JSON.stringify({
+          amount: amt, walletId, method, date, note: note.trim() || undefined, allowOver: over || undefined,
+          split: Object.entries(split).filter(([, v]) => v > 0).map(([bookingId, v]) => ({ bookingId, amount: v })),
+        }),
       });
-      if (r.ok) { notify(`Payment to ${member.firstName} saved`); onSaved(); onClose(); }
-      else { const d = await r.json().catch(() => ({})); setError(d.message || "Couldn't save. Please try again."); }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save. Please try again."); return; }
+      notify(`Paid ${formatCurrency(amt)} to ${member.firstName}`); onSaved(); onClose();
     } finally { setSaving(false); }
   }
 
   return (
     <FormDrawer open onTop onClose={onClose} icon={HandCoins} color="green" title={`Pay ${member.firstName}`}
-      sub={owed > 0 ? `Owed now: ${formatCurrency(owed)}` : "Record money you gave them"}
+      sub={dues === null ? "Loading…" : total > 0 ? `Owed now: ${formatCurrency(total)}` : "Nothing owed right now"}
       footer={<>
         <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>
-        <button type="submit" form="pay-form" disabled={saving}
+        <button type="submit" form="pay-form" disabled={saving || !dues}
           className="flex-[1.4] h-12 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Save payment
         </button>
       </>}>
       <form id="pay-form" onSubmit={submit} noValidate>
         {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
-        <FormGroup title="Payment" note={form.amount ? <>They get <strong className="text-[#1F8A5B]">{formatCurrency(net)}</strong>.</> : undefined}>
+        <FormGroup title="Payment">
           <Field label="Amount" required>
             {id => (
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                <input id={id} type="number" inputMode="numeric" min="0" step="100" autoFocus value={form.amount}
-                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" className={inputCls + " pl-8 text-lg font-bold tabular-nums"} />
+              <div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
+                  <input id={id} type="number" inputMode="numeric" min="0" step="100" autoFocus value={amount}
+                    onChange={e => setAmountAuto(e.target.value)} placeholder="0"
+                    className={cn(inputCls, "pl-8 h-12 text-lg font-bold tabular-nums", amt > total && total >= 0 && dues && "ring-2 ring-[#F2B04B]")} />
+                </div>
+                {dues && amt > total + 0.009 && (
+                  <p role="alert" className="mt-2 text-[12px] font-medium text-[#A35A00] bg-[#FFF4E5] rounded-xl px-3 py-2">
+                    More than owed — {formatCurrency(amt - total)} extra. You&apos;ll be asked to confirm.
+                  </p>
+                )}
               </div>
             )}
           </Field>
-          <Field label="Cut / deduction" hint="Optional — e.g. an advance taken earlier.">
-            {id => (
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                <input id={id} type="number" inputMode="numeric" min="0" step="100" value={form.deductions}
-                  onChange={e => setForm(f => ({ ...f, deductions: e.target.value }))} placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
-              </div>
-            )}
-          </Field>
-          <Field label="For which month" hint="More payments in the same month add up.">
-            {id => (
-              <div className="grid grid-cols-[1fr_110px] gap-2">
-                <select id={id} value={form.month} onChange={e => setForm(f => ({ ...f, month: Number(e.target.value) }))} className={cn(inputCls, "cursor-pointer")}>
-                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </select>
-                <input type="number" aria-label="Year" value={form.year} onChange={e => setForm(f => ({ ...f, year: Number(e.target.value) }))} className={inputCls + " tabular-nums"} />
-              </div>
-            )}
-          </Field>
-          <Field label="Note">
-            {id => <input id={id} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. bKash, for October programs" className={inputCls} />}
-          </Field>
+          <Field label="Paid by">{() => (
+            <div className="flex flex-wrap gap-1.5">
+              {PAY_METHODS.map(o => <button key={o.v} type="button" onClick={() => setMethod(o.v)}
+                className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
+            </div>
+          )}</Field>
+          <div className="px-4 py-3"><AccountPicker label="Paid from" value={walletId} method={method} payOut={amt} onChange={setWalletId} /></div>
+          <Field label="Date">{id => <input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />}</Field>
+          <Field label="Note">{id => <input id={id} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. bKash TrxID" className={inputCls} />}</Field>
         </FormGroup>
+
+        {dues && dues.length > 0 && (
+          <FormGroup title="Goes to these programs" note={custom ? "Change how much each program gets." : "Oldest program first."}>
+            {dues.map(p => {
+              const v = split[p.id] ?? 0;
+              return (
+                <div key={p.id} className="px-4 py-2.5 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#17151F] truncate">{p.eventName || p.bookingNumber}</p>
+                    <p className="text-xs text-[#6B6680] tabular-nums">{p.bookingNumber} · {fmtDate(p.date)} · owed {formatCurrency(p.due)}</p>
+                  </div>
+                  {custom ? (
+                    <input type="number" min="0" aria-label={`Amount for ${p.bookingNumber}`} value={v || ""}
+                      onChange={e => setSplit(sp => ({ ...sp, [p.id]: r2(parseFloat(e.target.value) || 0) }))}
+                      className="w-28 h-9 px-2 rounded-lg border border-[#E6E2EE] text-sm text-right tabular-nums" />
+                  ) : (
+                    <span className={cn("text-sm font-bold tabular-nums", v >= p.due && v > 0 ? "text-[#1F8A5B]" : v > 0 ? "text-[#A35A00]" : "text-[#A29DB3]")}>
+                      {v > 0 ? formatCurrency(v) : "—"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            <div className="px-4 py-2.5 flex items-center justify-between text-xs">
+              <button type="button" onClick={() => { if (custom && dues) setSplit(autoSplit(dues, amt)); setCustom(c => !c); }} className="font-semibold text-[#5B3FD0]">
+                {custom ? "Split by itself again" : "Choose amounts myself"}
+              </button>
+              <span className={cn("font-semibold tabular-nums", Math.abs(splitSum - amt) > 0.009 ? "text-[#C2304F]" : "text-[#6B6680]")}>Total {formatCurrency(splitSum)}</span>
+            </div>
+          </FormGroup>
+        )}
       </form>
     </FormDrawer>
   );
 }
+
+type MemberPayment = { id: string; date: string; amount: number; account: string | null; method: string; note?: string; fromProfile: boolean; parts: { bookingId: string; bookingNumber: string; eventName: string | null; amount: number }[] };
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, customRoles }: {
@@ -149,6 +220,8 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [pays, setPays] = useState<MemberPayment[]>([]);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
@@ -163,6 +236,8 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
     try {
       const r = await apiFetch(`${API}/team/${member.id}/profile`);
       if (r.ok) { const d = await r.json(); setData(d); setNotes(d.member.adminNotes ?? ""); }
+      const p = await apiFetch(`${API}/team/${member.id}/payments`);
+      if (p.ok) setPays(await p.json());
     } finally { setLoading(false); }
   }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -282,14 +357,43 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
             })}
           </Group>
 
-          <Group title="Payments" action={<button type="button" onClick={() => setPayOpen(true)} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#5B3FD0]"><Plus className="w-3.5 h-3.5" />Record</button>}>
-            {slips.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments recorded</span>} /> : slips.map(s => (
-              <InfoRow key={s.id}
-                left={`${MONTHS[s.month - 1]} ${s.year}`}
-                sub={[s.paidAt ? `Paid ${fmtDate(s.paidAt)}` : null, s.notes, Number(s.deductions) > 0 ? `−${formatCurrency(Number(s.deductions))} cut` : null].filter(Boolean).join(" · ")}
-                right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(s.netSalary))}</p>} />
+          <Group title="Payments" action={<button type="button" onClick={() => setPayOpen(true)} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#5B3FD0]"><Plus className="w-3.5 h-3.5" />Pay</button>}>
+            {pays.length === 0 ? <InfoRow left={<span className="text-[#A29DB3]">No payments yet</span>} /> : pays.map(p => (
+              <div key={p.id} className="flex items-start gap-3 px-4 sm:px-5 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#17151F]">{fmtDate(p.date)}{p.account ? <span className="font-normal text-[#6B6680]"> · {p.account}</span> : null}</p>
+                  <p className="text-xs text-[#6B6680] truncate">
+                    {p.parts.length === 1 ? (p.parts[0].eventName || p.parts[0].bookingNumber) : `${p.parts.length} programs: ${p.parts.map(x => x.bookingNumber).join(", ")}`}
+                    {p.note ? ` · ${p.note}` : ""}
+                  </p>
+                </div>
+                <p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(p.amount)}</p>
+                <button type="button" aria-label="Remove this payment" disabled={removing === p.id}
+                  onClick={async () => {
+                    if (!(await askConfirm({ title: "Remove this payment?", message: `${formatCurrency(p.amount)} will be taken off ${p.parts.length === 1 ? "the program" : `${p.parts.length} programs`} and put back in ${p.account ?? "the account"}.`, confirmLabel: "Remove", danger: true }))) return;
+                    setRemoving(p.id);
+                    try {
+                      const r = await apiFetch(`${API}/team/${m.id}/payments/${encodeURIComponent(p.id)}`, { method: "DELETE" });
+                      if (r.ok) { notify("Payment removed"); fetchProfile(); } else notify("Couldn't remove it", { error: true });
+                    } finally { setRemoving(null); }
+                  }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#A29DB3] hover:text-[#C2304F] hover:bg-[#FDECEF]">
+                  {removing === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             ))}
           </Group>
+
+          {slips.length > 0 && (
+            <Group title="Monthly salary" note="From the Salary page.">
+              {slips.map(s => (
+                <InfoRow key={s.id}
+                  left={`${MONTHS[s.month - 1]} ${s.year}`}
+                  sub={[s.paidAt ? `Paid ${fmtDate(s.paidAt)}` : s.status, s.notes, Number(s.deductions) > 0 ? `−${formatCurrency(Number(s.deductions))} cut` : null].filter(Boolean).join(" · ")}
+                  right={<p className="text-[15px] font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(Number(s.netSalary))}</p>} />
+              ))}
+            </Group>
+          )}
 
           <Group title="Prices" action={<button type="button" onClick={() => onEdit(m)} className="text-[13px] font-semibold text-[#5B3FD0]">Edit</button>}>
             {m.payRateType === "monthly" && m.payRate ? (
@@ -349,7 +453,7 @@ export function ProfileDrawer({ member, onClose, onEdit, onReset, onToggle, cust
         </>
       )}
 
-      {payOpen && <PayDrawer member={m} owed={owed} onClose={() => setPayOpen(false)} onSaved={fetchProfile} />}
+      {payOpen && <PayDrawer member={m} onClose={() => setPayOpen(false)} onSaved={fetchProfile} />}
     </ProfileShell>
   );
 }

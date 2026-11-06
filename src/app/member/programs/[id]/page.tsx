@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StatusBadge, Spinner } from "../../_components/kit";
+import { MemberRawUpload } from "../../_components/raw-upload";
 
 type ProgramHub = {
   id: string;
@@ -283,6 +284,8 @@ export default function ProgramHubPage() {
           </div>
         )}
 
+        <MemberRawUpload bookingId={hub.id} bookingNumber={hub.bookingNumber} />
+
         {/* Raw Files */}
         {hasRawFiles && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
@@ -300,7 +303,7 @@ export default function ProgramHubPage() {
                   {rawFiles.fileSizeGb ? `${rawFiles.fileSizeGb} GB` : ""}
                 </p>
               )}
-              {rawFiles.driveLink && (
+              {rawFiles.driveLink && !rawFiles.drive && (
                 <a href={rawFiles.driveLink} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline">
                   <Link2 className="w-3.5 h-3.5" />Open Drive <ExternalLink className="w-3 h-3" />

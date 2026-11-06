@@ -228,7 +228,7 @@ export default function SalaryPage() {
                 <span className="text-xs text-emerald-700">Salary to pay</span>
                 <span className="font-bold text-emerald-800">{fmt(Number(paying.netSalary))}</span>
               </div>
-              <AccountPicker label="Paid from" value={pay.walletId} method="cash" onChange={w => setPay(p => ({ ...p, walletId: w }))} />
+              <AccountPicker label="Paid from" value={pay.walletId} method="cash" payOut={Number(paying.netSalary)} onChange={w => setPay(p => ({ ...p, walletId: w }))} />
               <label className="block space-y-1.5">
                 <span className="text-xs font-medium text-slate-600">Date</span>
                 <input type="date" value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))}

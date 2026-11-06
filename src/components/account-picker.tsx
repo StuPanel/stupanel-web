@@ -26,14 +26,17 @@ let cache: AccountOption[] | null = null;
  * "Which account did the money go into?" — studio cash, bKash, bank…
  * Picks the likely account for the payment method until the user chooses one.
  */
-export function AccountPicker({ value, onChange, method, label = "Money went into", className }: {
+export function AccountPicker({ value, onChange, method, label = "Money went into", className, payOut }: {
   value: string;
   onChange: (id: string) => void;
   method?: string;
   label?: string;
   className?: string;
+  /** Money going out: show each account's balance and warn if this amount is more than it holds. */
+  payOut?: number;
 }) {
   const [list, setList] = useState<AccountOption[]>(cache ?? []);
+  const [balances, setBalances] = useState<Record<string, number> | null>(null);
   const touched = useRef(!!value);
 
   useEffect(() => {
@@ -44,6 +47,20 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Balances are only for people who can see Accounts; others just don't get them.
+  const wantBalance = payOut !== undefined;
+  useEffect(() => {
+    if (!wantBalance) return;
+    let alive = true;
+    apiFetch(`${API}/accounts`).then(r => r.ok ? r.json() : null).then(d => {
+      if (!alive || !Array.isArray(d?.accounts)) return;
+      setBalances(Object.fromEntries(d.accounts.map((a: { id: string; balance: number }) => [a.id, Number(a.balance)])));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [wantBalance]);
+  const picked = balances && value ? balances[value] : undefined;
+  const short = payOut !== undefined && picked !== undefined && payOut > 0 && payOut > picked;
 
   useEffect(() => {
     if (!list.length || touched.current) return;
@@ -69,10 +86,20 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
                   on ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-slate-200 hover:border-slate-300")}>
                 <Icon className="w-3.5 h-3.5" />{a.name}
                 {a.accountNumber && <span className={cn("font-normal", on ? "text-white/70" : "text-slate-400")}>··{a.accountNumber.slice(-4)}</span>}
+                {balances && balances[a.id] !== undefined && (
+                  <span className={cn("font-semibold tabular-nums", balances[a.id] < 0 ? (on ? "text-rose-200" : "text-rose-600") : (on ? "text-white/75" : "text-slate-500"))}>
+                    ৳{Math.round(balances[a.id]).toLocaleString("en-IN")}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
+      )}
+      {short && (
+        <p role="alert" className="text-[12px] font-medium text-[#A35A00] bg-[#FFF4E5] rounded-xl px-3 py-2">
+          This account has only ৳{Math.round(picked!).toLocaleString("en-IN")}. After this payment it will be ৳{Math.round(picked! - payOut!).toLocaleString("en-IN")} (minus).
+        </p>
       )}
     </div>
   );

@@ -6,14 +6,14 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound,
+  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
   | "payment" | "quotes" | "invoices" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery"
-  | "bookings" | "portal" | "notifications"
+  | "bookings" | "portal" | "notifications" | "whatsapp"
   | "profile" | "security" | "integrations";
 
 export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
@@ -54,6 +54,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
       { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন payment reminder রিমাইন্ডার" },
+      { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms হোয়াটসঅ্যাপ মেসেজ টেমপ্লেট" },
     ],
   },
   {

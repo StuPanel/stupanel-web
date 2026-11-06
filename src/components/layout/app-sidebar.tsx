@@ -54,7 +54,7 @@ export const navigation = [
     title: "Manage",
     items: [
       { name: "Reports", href: "/reports", icon: BarChart3, color: "blue" as TileColor },
-      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText, color: "green" as TileColor },
+      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText, color: "green" as TileColor, managersOnly: true },
       { name: "Notifications", href: "/notifications", icon: Bell, color: "red" as TileColor },
       { name: "Support", href: "/support", icon: LifeBuoy, color: "teal" as TileColor },
       { name: "Plan & Billing", href: "/billing", icon: Crown, color: "violet" as TileColor },
@@ -89,7 +89,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   const { companyLogo, companyName, user } = useAuth();
   // Managers only see the parts the owner gave them.
   const groups = navigation
-    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href)) }))
+    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href) && !(("managersOnly" in i) && i.managersOnly && user?.role === "owner")) }))
     .filter(g => g.items.length > 0);
   const [access, setAccess] = useState<BillingAccess | null>(null);
   const [chatUnread, setChatUnread] = useState(0);

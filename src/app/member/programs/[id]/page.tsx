@@ -12,7 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StatusBadge, Spinner } from "../../_components/kit";
-import { MemberRawUpload } from "../../_components/raw-upload";
+import { EditorRawAccess, MemberRawUpload } from "../../_components/raw-upload";
 
 type ProgramHub = {
   id: string;
@@ -284,6 +284,7 @@ export default function ProgramHubPage() {
           </div>
         )}
 
+        <EditorRawAccess bookingId={hub.id} />
         <MemberRawUpload bookingId={hub.id} bookingNumber={hub.bookingNumber} />
 
         {/* Raw Files */}

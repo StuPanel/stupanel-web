@@ -180,7 +180,7 @@ export default function EditorWorkspacePage() {
         </span>
       </div>
 
-      <div className="max-w-3xl space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2 items-start">
         {/* Status Action */}
         {(statusCfg.next || canSubmit) && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-4 space-y-3">

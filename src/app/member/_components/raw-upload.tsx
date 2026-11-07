@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { fmtSize } from "@/app/(app)/programs/_components/raw-drive-section";
+import { RawBrowser } from "@/components/raw-browser";
 
 type Mine = {
   connected: boolean; name: string; parts: string[];
@@ -32,7 +33,8 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   const [part, setPart] = useState("");
   const [camera, setCamera] = useState("");
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [browsePath, setBrowsePath] = useState("");
+  const uploadInto = useRef<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -59,12 +61,19 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   const cam = clean(camera);
 
   async function start(list: FileList | null, fromFolder: boolean) {
+    const into = uploadInto.current;
+    uploadInto.current = null;
     if (!list?.length || busy || !data) return;
-    if (!activePart) { notify("Choose the part first", { error: true }); return; }
+    if (!activePart && into == null) { notify("Choose the part first", { error: true }); return; }
     const files = Array.from(list);
     const folderFor = (f: File) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
       const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(clean).filter(Boolean) : [];
+      // "Add to this folder" in the browser → that folder (server keeps it inside my own folder).
+      if (into != null) {
+        const segs = into.split("/").filter(Boolean);
+        return (segs.length === 1 ? [segs[0], cam || "_", ...sub] : [...segs, ...sub]).join("/");
+      }
       return [activePart, cam || "_", ...sub].join("/");
     };
     const total = files.reduce((s, f) => s + f.size, 0);
@@ -89,7 +98,6 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
     }
   }
 
-  const folders = data.folders.filter(f => f.count > 0);
   return (
     <div className={card}>
       <button type="button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded}
@@ -128,33 +136,10 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
           </button>
         </div>
 
-        {folders.length > 0 && (
-          <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
-            {folders.map(g => {
-              const isOpen = !!open[g.path];
-              return (
-                <div key={g.path}>
-                  <button type="button" onClick={() => setOpen(o => ({ ...o, [g.path]: !isOpen }))} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
-                    <ChevronDown className={cn("w-4 h-4 text-[#8A8599] transition-transform", !isOpen && "-rotate-90")} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-semibold text-[#17151F] truncate">{g.path}</span>
-                      <span className="block text-[11px] text-[#6B6680]">{g.count} files · {fmtSize(g.bytes)}</span>
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <div className="bg-[#FBFAFD] px-3 pb-2 max-h-64 overflow-y-auto">
-                      {data.files.filter(f => f.path === g.path).slice(0, 300).map(f => (
-                        <div key={f.id} className="flex items-center gap-2 py-1.5">
-                          <span className="flex-1 min-w-0 text-[12px] text-[#17151F] truncate">{f.name}</span>
-                          <span className="text-[11px] text-[#8A8599] tabular-nums">{fmtSize(f.size)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {data.files.length > 0 && (
+          <RawBrowser files={data.files} path={browsePath} onPath={setBrowsePath} rootLabel="My raw files" busy={busy}
+            canUploadHere={browsePath !== ""}
+            onUploadHere={(p, fromFolder) => { uploadInto.current = p; (fromFolder ? folderRef : filesRef).current?.click(); }} />
         )}
         <p className="text-[11px] text-[#8A8599]">Only the studio can delete uploaded files.</p>
       </div>}

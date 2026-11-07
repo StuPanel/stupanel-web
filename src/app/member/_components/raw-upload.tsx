@@ -33,6 +33,7 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   const [camera, setCamera] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState(false);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,12 +92,17 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   const folders = data.folders.filter(f => f.count > 0);
   return (
     <div className={card}>
-      <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
+      <button type="button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded}
+        className={cn("w-full px-4 py-3 flex items-center gap-2 text-left", expanded && "border-b border-[#EEEBF4]")}>
         <HardDrive className="w-4 h-4 text-[#1F8A5B]" />
         <span className="font-bold text-[13px] text-[#4A4658] flex-1">Upload my raw files</span>
-        <span className="text-[12px] text-[#6B6680]">{data.totals.count} files · {fmtSize(data.totals.bytes)}</span>
-      </div>
-      <div className="px-4 py-4 space-y-3">
+        <span className="text-[12px] text-[#6B6680]">{data.totals.count ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}` : "None yet"}</span>
+        <ChevronDown className={cn("w-4 h-4 text-[#8A8599] transition-transform", expanded && "rotate-180")} />
+      </button>
+      <input ref={filesRef} type="file" multiple hidden onChange={e => start(e.target.files, false)} />
+      <input ref={folderRef} type="file" multiple hidden onChange={e => start(e.target.files, true)}
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+      {expanded && <div className="px-4 py-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
         {data.parts.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[12px] font-semibold text-[#4A4658]">Part</p>
@@ -121,9 +127,6 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
             <FileUp className="w-4 h-4" />Files
           </button>
         </div>
-        <input ref={filesRef} type="file" multiple hidden onChange={e => start(e.target.files, false)} />
-        <input ref={folderRef} type="file" multiple hidden onChange={e => start(e.target.files, true)}
-          {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
 
         {folders.length > 0 && (
           <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
@@ -154,7 +157,7 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
           </div>
         )}
         <p className="text-[11px] text-[#8A8599]">Only the studio can delete uploaded files.</p>
-      </div>
+      </div>}
     </div>
   );
 }

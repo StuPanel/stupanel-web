@@ -658,8 +658,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.cls}`}>{statusCfg.label}</span>
-                  {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {a.editingDeadline}</span>}
-                  {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {a.deliveryDeadline}</span>}
+                  {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
+                  {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
                 </div>
                 <Submissions bookingId={booking.id} a={a} onChanged={silentReload} />
                 {a.studioNote && <p className="text-xs text-slate-500 bg-amber-50 rounded px-2 py-1">{a.studioNote}</p>}

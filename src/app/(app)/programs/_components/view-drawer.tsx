@@ -401,24 +401,31 @@ function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: Editor
     } finally { setBusy(null); }
   }
 
-  const list = showAll ? subs : subs.slice(0, 2);
+  // One card per thing the editor sent (teaser, full video…); the newest version is the one to review.
+  const byType = new Map<string, Submission[]>();
+  for (const x of subs) if (x.reviewStatus !== "replaced") byType.set(x.deliverableType, [...(byType.get(x.deliverableType) ?? []), x]);
+  const groups = [...byType.entries()].map(([type, l]) => {
+    const versions = [...l].sort((p, q) => q.submittedAt.localeCompare(p.submittedAt));
+    return { type, versions, latest: versions[0] };
+  }).sort((p, q) => (p.latest.reviewStatus === "pending" ? 0 : 1) - (q.latest.reviewStatus === "pending" ? 0 : 1) || q.latest.submittedAt.localeCompare(p.latest.submittedAt));
   const tone = (st: string) => st === "approved" ? "bg-[#E9F5EF] text-[#1F8A5B]" : st === "revision_requested" ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#5B3FD0]";
   const label = (st: string) => st === "approved" ? "Approved" : st === "revision_requested" ? "Changes asked" : "To review";
+  const linksOf = (x: Submission) => [
+    x.driveLink && { href: x.driveLink, text: /folders\//.test(x.driveLink) ? "Open files" : "Drive" },
+    x.deliveryLink && { href: x.deliveryLink, text: "Link" },
+    x.dropboxLink && { href: x.dropboxLink, text: "Dropbox" },
+    x.wetransferLink && { href: x.wetransferLink, text: "WeTransfer" },
+  ].filter(Boolean) as { href: string; text: string }[];
   return (
     <div className="space-y-2 pt-1">
-      {list.map((s, i) => {
-        const links = [
-          s.driveLink && { href: s.driveLink, text: /folders\//.test(s.driveLink) ? "Open files" : "Drive" },
-          s.deliveryLink && { href: s.deliveryLink, text: "Link" },
-          s.dropboxLink && { href: s.dropboxLink, text: "Dropbox" },
-          s.wetransferLink && { href: s.wetransferLink, text: "WeTransfer" },
-        ].filter(Boolean) as { href: string; text: string }[];
-        const version = subs.filter(x => x.deliverableType === s.deliverableType && x.submittedAt <= s.submittedAt).length;
+      {groups.map(g => {
+        const s = g.latest;
+        const older = g.versions.slice(1);
         return (
-          <div key={s.id} className="rounded-xl bg-[#F7F5FB] px-3 py-2.5 space-y-2">
+          <div key={g.type} className="rounded-xl bg-[#F7F5FB] px-3 py-2.5 space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-[#17151F] flex-1 min-w-0 truncate">
-                {DELIVERABLE[s.deliverableType] ?? s.deliverableType} · v{version}
+                {DELIVERABLE[g.type] ?? g.type} · v{g.versions.length}
               </span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{label(s.reviewStatus)}</span>
             </div>
@@ -426,13 +433,13 @@ function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: Editor
             {(s.revisionNotes || s.notes) && <p className="text-[12px] text-[#4A4658] whitespace-pre-line">{[s.revisionNotes, s.notes].filter(Boolean).join("\n")}</p>}
             {s.reviewFeedback && <p className="text-[12px] text-[#C2304F]">Your note: {s.reviewFeedback}</p>}
             <div className="flex flex-wrap items-center gap-1.5">
-              {links.map(l => (
+              {linksOf(s).map(l => (
                 <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer"
                   className="h-8 px-3 rounded-full bg-white text-[12px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
                   <ExternalLink className="w-3 h-3" />{l.text}
                 </a>
               ))}
-              {i === 0 && s.reviewStatus === "pending" && (
+              {s.reviewStatus === "pending" && (
                 <>
                   <span className="flex-1" />
                   <button type="button" disabled={busy === s.id} onClick={() => { setFbFor(fbFor === s.id ? null : s.id); setFeedback(""); }}
@@ -456,14 +463,23 @@ function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: Editor
                 </div>
               </div>
             )}
+            {older.length > 0 && (
+              <div>
+                <button type="button" onClick={() => setShowAll(v => !v)} className="text-[12px] font-semibold text-[#5B3FD0]">
+                  {showAll ? "Hide earlier versions" : `Earlier versions (${older.length})`}
+                </button>
+                {showAll && older.map((o, i) => (
+                  <div key={o.id} className="flex items-center gap-2 text-[12px] text-[#6B6680] mt-1">
+                    <b className="text-[#4A4658]">v{older.length - i}</b>
+                    <span>{label(o.reviewStatus)}</span>
+                    {linksOf(o).map(l => <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#5B3FD0]">{l.text}</a>)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
-      {subs.length > 2 && (
-        <button type="button" onClick={() => setShowAll(v => !v)} className="text-[12px] font-semibold text-[#5B3FD0]">
-          {showAll ? "Show less" : `Show all ${subs.length} submissions`}
-        </button>
-      )}
     </div>
   );
 }

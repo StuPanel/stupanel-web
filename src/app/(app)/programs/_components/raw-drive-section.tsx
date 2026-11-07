@@ -9,11 +9,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
+import { ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
 import { Tile } from "@/components/ui/apple";
+import { RawBrowser } from "@/components/raw-browser";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import type { Booking } from "./types";
 
@@ -51,9 +52,10 @@ const chip = (on: boolean) => cn(
 export function RawDriveSection({ booking, teamMembers }: { booking: Booking; teamMembers: Member[] }) {
   const [data, setData] = useState<Overview | null>(null);
   const [failed, setFailed] = useState(false);
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  const [browse, setBrowse] = useState<{ conn: string | null; path: string }>({ conn: null, path: "" });
+  const uploadInto = useRef<string | null>(null);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,11 +106,14 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   async function startUpload(list: FileList | null, fromFolder: boolean) {
     if (!list?.length || busy) return;
     const files = Array.from(list);
+    // "Add to this folder" in the browser uploads there; otherwise part / who · camera.
+    const target = uploadInto.current != null ? uploadInto.current.split("/").filter(Boolean) : base;
+    uploadInto.current = null;
     const folderFor = (f: File) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
       // Keep the card's own sub-folders (DCIM/100CANON…), minus the picked folder itself.
       const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(clean).filter(Boolean) : [];
-      return [...base, ...sub].join("/") || undefined;
+      return [...target, ...sub].join("/") || undefined;
     };
     const total = files.reduce((s, f) => s + f.size, 0);
     const free = data?.account?.freeBytes;
@@ -194,8 +199,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
 
   const acc = data.account;
   const usedPct = acc && acc.totalBytes ? Math.min(100, Math.round((acc.usedBytes / acc.totalBytes) * 100)) : 0;
-  const filesIn = (conn: string, path: string) => data.files.filter(f => f.conn === conn && f.path === path);
-  const topFolders = data.folders.filter(f => f.count > 0);
   // A program can have files on more than one Google account (the raw account was changed later).
   const locations = (data.locations ?? []).filter(l => l.count > 0 || l.current || !l.reachable);
   const several = locations.length > 1;
@@ -288,73 +291,46 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
 
       )}
 
-      {/* What is on Drive */}
+      {/* What is on Drive — browse folders, open them, add more files into any folder */}
       <div>
         <div className="flex items-center justify-between px-1 mb-2">
           <p className="text-[13px] font-bold text-[#4A4658]">On Drive</p>
           <p className="text-[12px] text-[#6B6680]">{data.totals.count} files · {fmtSize(data.totals.bytes)}</p>
         </div>
-        {topFolders.length === 0 ? (
+        {data.files.length === 0 ? (
           <p className="text-sm text-[#8A8599] px-1">Nothing uploaded yet.</p>
-        ) : (
-          <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
-            {(several ? locations : [null]).map(loc => (
-              <div key={loc?.conn ?? "all"}>
-                {loc && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F5FB]">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[12px] font-semibold text-[#17151F] truncate">{loc.email}</span>
-                      <span className="block text-[11px] text-[#6B6680]">
-                        {!loc.reachable ? "Account disconnected — reconnect it to see these files" : loc.current ? "New uploads go here" : "Earlier uploads — files stay on this account"}
-                        {loc.reachable && ` · ${loc.count} files · ${fmtSize(loc.bytes)}`}
-                      </span>
-                    </span>
-                    {loc.reachable && <a href={loc.url} target="_blank" rel="noopener noreferrer" title="Open in Drive" className="w-8 h-8 rounded-full flex items-center justify-center text-[#5B3FD0] hover:bg-[#EEE8FD]"><ExternalLink className="w-3.5 h-3.5" /></a>}
-                  </div>
-                )}
-            {topFolders.filter(g => !loc || g.conn === loc.conn).map(g => {
-              const key = `${g.conn}|${g.path}`;
-              const isOpen = !!open[key];
-              const list = isOpen ? filesIn(g.conn, g.path) : [];
-              return (
-                <div key={key}>
-                  <div className="flex items-center gap-2 px-3 py-2.5">
-                    <button type="button" onClick={() => setOpen(o => ({ ...o, [key]: !isOpen }))} className="flex-1 min-w-0 flex items-center gap-2 text-left">
-                      <ChevronDown className={cn("w-4 h-4 text-[#8A8599] transition-transform", !isOpen && "-rotate-90")} />
-                      <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold text-[#17151F] truncate">{g.path || "Program folder"}</span>
-                        <span className="block text-[11px] text-[#6B6680]">{g.count} files · {fmtSize(g.bytes)}</span>
-                      </span>
+        ) : (() => {
+          const conn = browse.conn && locations.some(l => l.conn === browse.conn) ? browse.conn : (locations.find(l => l.current)?.conn ?? locations[0]?.conn ?? null);
+          const loc = locations.find(l => l.conn === conn);
+          return (
+            <div className="space-y-2">
+              {several && (
+                <div className="flex flex-wrap gap-1.5">
+                  {locations.map(l => (
+                    <button key={l.conn} type="button" onClick={() => setBrowse({ conn: l.conn, path: "" })}
+                      className={cn("h-8 px-3 rounded-full text-[12px] font-semibold border", l.conn === conn ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E6E2EE]")}>
+                      {l.email}{l.current ? " · new uploads" : ""}
                     </button>
-                    {g.path && (
-                      <button type="button" onClick={() => removeFolder(g.path, g.conn)} title="Delete folder"
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F]">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  {isOpen && (
-                    <div className="bg-[#FBFAFD] px-3 pb-2 max-h-72 overflow-y-auto">
-                      {list.slice(0, 300).map(f => (
-                        <div key={f.id} className="flex items-center gap-2 py-1.5">
-                          <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[12px] text-[#17151F] truncate hover:text-[#5B3FD0]">{f.name}</a>
-                          <span className="text-[11px] text-[#8A8599] tabular-nums">{fmtSize(f.size)}</span>
-                          <button type="button" onClick={() => removeFile(f)} title="Delete"
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      {list.length > 300 && <p className="text-[11px] text-[#8A8599] py-1.5">+{list.length - 300} more — open in Drive to see all.</p>}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              );
-            })}
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+              {loc && !loc.reachable ? (
+                <p className="text-[12px] text-[#6B6680] px-1">Account disconnected — reconnect it to see these files.</p>
+              ) : (
+                <RawBrowser
+                  files={data.files.filter(f => !conn || f.conn === conn)}
+                  path={browse.path} onPath={p => setBrowse({ conn, path: p })}
+                  rootLabel={several && loc ? loc.email : "All raw files"}
+                  canDelete busy={busy}
+                  canUploadHere={data.connected && (!loc || loc.current)}
+                  onUploadHere={(p, fromFolder) => { uploadInto.current = p; (fromFolder ? folderRef : filesRef).current?.click(); }}
+                  onDeleteFile={f => removeFile(f as RawFile)}
+                  onDeleteFolder={p => removeFolder(p, conn ?? "")}
+                />
+              )}
+            </div>
+          );
+        })()}
         <RawLinks bookingId={booking.id} links={data.links ?? []} onSaved={links => setData(d => d ? { ...d, links } : d)} />
         {!!data.shares?.length && (
           <div className="mt-3 space-y-1.5">

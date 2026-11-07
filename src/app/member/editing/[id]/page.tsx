@@ -10,8 +10,8 @@ import {
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
-import { notify } from "@/components/feedback";
 import { EditorRawAccess } from "../../_components/raw-upload";
+import { SubmitWorkDrawer } from "./submit-drawer";
 
 type Workspace = {
   assignment: {
@@ -67,20 +67,10 @@ export default function EditorWorkspacePage() {
   const [error, setError] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [chatMsg, setChatMsg] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
   const [showBrief, setShowBrief] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
-  const [submitForm, setSubmitForm] = useState({
-    deliverableType: "highlight_video",
-    deliveryLink: "",
-    driveLink: "",
-    dropboxLink: "",
-    wetransferLink: "",
-    notes: "",
-    revisionNotes: "",
-  });
 
   function reload() {
     apiFetch(`${API}/member/editing/${id}/workspace`)
@@ -105,21 +95,6 @@ export default function EditorWorkspacePage() {
       });
       reload();
     } finally { setUpdatingStatus(false); }
-  }
-
-  async function submitWork() {
-    setSubmitting(true);
-    try {
-      const hasLink = submitForm.deliveryLink || submitForm.driveLink || submitForm.dropboxLink || submitForm.wetransferLink;
-      if (!hasLink) { notify("Please add at least one delivery link", { error: true }); setSubmitting(false); return; }
-      await apiFetch(`${API}/member/editing/${id}/submit`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submitForm),
-      });
-      setShowSubmitForm(false);
-      setSubmitForm({ deliverableType: "highlight_video", deliveryLink: "", driveLink: "", dropboxLink: "", wetransferLink: "", notes: "", revisionNotes: "" });
-      reload();
-    } finally { setSubmitting(false); }
   }
 
   async function sendChat() {
@@ -205,8 +180,8 @@ export default function EditorWorkspacePage() {
                 </button>
               )}
               {canSubmit && (
-                <button onClick={() => setShowSubmitForm(!showSubmitForm)}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-[14px] flex items-center justify-center gap-2 transition-colors">
+                <button onClick={() => setShowSubmitForm(true)}
+                  className="flex-1 py-2.5 bg-[#17151F] hover:bg-black text-white text-sm font-semibold rounded-[14px] flex items-center justify-center gap-2 transition-colors">
                   <Upload className="w-4 h-4" />
                   {isRevision ? "Submit Revision" : "Submit Work"}
                 </button>
@@ -235,59 +210,11 @@ export default function EditorWorkspacePage() {
           </div>
         )}
 
-        {/* Submit Form */}
         {showSubmitForm && (
-          <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-emerald-100 bg-emerald-50">
-              <p className="font-semibold text-sm text-emerald-800">{isRevision ? "Submit Revision" : "Submit Work"}</p>
-            </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <p className="text-xs text-[#6B6680] mb-1">Deliverable Type</p>
-                <select value={submitForm.deliverableType} onChange={e => setSubmitForm(f => ({ ...f, deliverableType: e.target.value }))}
-                  className="w-full text-sm border border-[#EEEBF4] rounded-[14px] px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                  {DELIVERABLE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              {[
-                { key: "deliveryLink", label: "Delivery Link", placeholder: "https://..." },
-                { key: "driveLink", label: "Google Drive", placeholder: "https://drive.google.com/..." },
-                { key: "dropboxLink", label: "Dropbox", placeholder: "https://www.dropbox.com/..." },
-                { key: "wetransferLink", label: "WeTransfer", placeholder: "https://we.tl/..." },
-              ].map(({ key, label, placeholder }) => (
-                <div key={key}>
-                  <p className="text-xs text-[#6B6680] mb-1">{label}</p>
-                  <input value={(submitForm as any)[key]} onChange={e => setSubmitForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder} className="w-full text-sm border border-[#EEEBF4] rounded-[14px] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-              ))}
-              {isRevision && (
-                <div>
-                  <p className="text-xs text-[#6B6680] mb-1">Revision Notes</p>
-                  <textarea value={submitForm.revisionNotes} onChange={e => setSubmitForm(f => ({ ...f, revisionNotes: e.target.value }))}
-                    placeholder="What was changed in this revision..." rows={2}
-                    className="w-full text-sm border border-[#EEEBF4] rounded-[14px] px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-[#6B6680] mb-1">Notes</p>
-                <textarea value={submitForm.notes} onChange={e => setSubmitForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Any notes for the studio..." rows={2}
-                  className="w-full text-sm border border-[#EEEBF4] rounded-[14px] px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setShowSubmitForm(false)}
-                  className="flex-1 py-2.5 border border-[#EEEBF4] text-[#4A4658] text-sm font-medium rounded-[14px] hover:bg-[#F5F3FA]">
-                  Cancel
-                </button>
-                <button onClick={submitWork} disabled={submitting}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-[14px] flex items-center justify-center gap-2 disabled:opacity-60">
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Send Submission
-                </button>
-              </div>
-            </div>
-          </div>
+          <SubmitWorkDrawer assignmentId={id} role={assignment.role} isRevision={isRevision}
+            title={booking.eventName ?? booking.bookingNumber}
+            onClose={() => setShowSubmitForm(false)}
+            onDone={() => { setShowSubmitForm(false); reload(); }} />
         )}
 
         {/* Creative Brief */}

@@ -44,12 +44,19 @@ const chip = (on: boolean) => cn(
 );
 const input = "w-full h-10 px-3 rounded-xl bg-[#F5F3FA] text-sm focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
 
-export function SubmitWorkDrawer({ assignmentId, role, isRevision, title, onClose, onDone }: {
-  assignmentId: string; role: string; isRevision: boolean; title: string;
+export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, toFix = [], sent = [] }: {
+  assignmentId: string; role: string; isRevision?: boolean; title: string;
   onClose: () => void; onDone: () => void;
+  /** Things the studio asked to change (picked first). */
+  toFix?: { type: string; feedback: string | null }[];
+  /** What was already sent: latest status + how many versions. */
+  sent?: { type: string; status: string; version: number }[];
 }) {
   const types = role === "photo_editor" ? PHOTO_TYPES : VIDEO_TYPES;
-  const [type, setType] = useState(types[0].value);
+  const [type, setType] = useState(toFix[0]?.type && types.some(t => t.value === toFix[0].type) ? toFix[0].type : types[0].value);
+  const fix = toFix.find(f => f.type === type);
+  const isRevision = !!fix;
+  const SENT_TAG: Record<string, string> = { pending: "waiting", approved: "approved", revision_requested: "fix", replaced: "" };
   const [data, setData] = useState<Pending | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -166,8 +173,26 @@ export function SubmitWorkDrawer({ assignmentId, role, isRevision, title, onClos
             <section className="space-y-2">
               <p className="text-[13px] font-bold text-[#4A4658]">1 · What are you sending?</p>
               <div className="flex flex-wrap gap-1.5">
-                {types.map(t => <button key={t.value} type="button" className={chip(type === t.value)} onClick={() => setType(t.value)}>{t.label}</button>)}
+                {types.map(t => {
+                  const done = sent.find(x => x.type === t.value);
+                  return (
+                    <button key={t.value} type="button" className={chip(type === t.value)} onClick={() => setType(t.value)}>
+                      {t.label}
+                      {done && SENT_TAG[done.status] && (
+                        <span className={cn("ml-1.5 text-[11px] font-semibold", type === t.value ? "text-white/70" : done.status === "revision_requested" ? "text-[#C2304F]" : done.status === "approved" ? "text-[#1F8A5B]" : "text-[#5B3FD0]")}>
+                          · {SENT_TAG[done.status]}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
+              {fix && (
+                <p className="text-[12px] text-[#C2304F] bg-[#FDECEF] rounded-xl px-3 py-2">Studio asked for changes{fix.feedback ? `: ${fix.feedback}` : "."} This will be the next version.</p>
+              )}
+              {!fix && sent.find(x => x.type === type && x.status === "pending") && (
+                <p className="text-[12px] text-[#4A4658] bg-[#F7F5FB] rounded-xl px-3 py-2">You already sent this and it&apos;s waiting for review. Sending again replaces it with a new version.</p>
+              )}
             </section>
 
             {/* 2. Files */}

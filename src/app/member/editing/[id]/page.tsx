@@ -45,6 +45,13 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: React.Rea
   delivered:          { label: "Delivered",       color: "bg-green-100 text-green-700",      icon: <CheckCircle2 className="w-4 h-4" />,  next: undefined,            nextLabel: undefined },
 };
 
+const SUB_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: "Waiting for review", cls: "bg-[#EEE8FD] text-[#5B3FD0]" },
+  approved: { label: "Approved", cls: "bg-[#E9F5EF] text-[#1F8A5B]" },
+  revision_requested: { label: "Changes asked", cls: "bg-[#FDECEF] text-[#C2304F]" },
+  replaced: { label: "Replaced", cls: "bg-[#EEEDF2] text-[#4A4658]" },
+};
+
 const DELIVERABLE_TYPES = [
   { value: "highlight_video", label: "Highlight Video" },
   { value: "full_video", label: "Full Video" },
@@ -136,8 +143,16 @@ export default function EditorWorkspacePage() {
   const rawFiles = booking.rawFilesInfo ?? {};
   const hasBrief = brief.videoStyle || brief.photoStyle || brief.colorStyle || brief.musicInfo || brief.specialInstructions;
   const hasRawFiles = rawFiles.folderName || rawFiles.folderPath || rawFiles.driveLink || rawFiles.dropboxLink || rawFiles.nasLocation;
-  const canSubmit = ["in_progress", "revision_requested", "resubmitted"].includes(assignment.status);
-  const isRevision = assignment.status === "revision_requested";
+  // Several things can be sent for one program (teaser, full video, reel…), each reviewed on its own.
+  const canSubmit = !["assigned", "delivered"].includes(assignment.status);
+  const byType = new Map<string, typeof submissions>();
+  for (const s of submissions) if (s.reviewStatus !== "replaced") byType.set(s.deliverableType, [...(byType.get(s.deliverableType) ?? []), s]);
+  const groups = [...byType.entries()].map(([type, list]) => {
+    const sorted = [...list].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    return { type, latest: sorted[0], versions: sorted };
+  }).sort((a, b) => b.latest.submittedAt.localeCompare(a.latest.submittedAt));
+  const toFix = groups.filter(g => g.latest.reviewStatus === "revision_requested");
+  const isRevision = toFix.length > 0;
 
   return (
     <div className="pb-6">
@@ -160,14 +175,12 @@ export default function EditorWorkspacePage() {
         {(statusCfg.next || canSubmit) && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-4 space-y-3">
             <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wider">Actions</p>
-            {isRevision && assignment.revisionCount > 0 && (
-              <div className="text-xs text-red-600 bg-red-50 rounded-[14px] px-4 py-3">
-                Revision #{assignment.revisionCount} requested
-                {submissions.find(s => s.reviewFeedback) && (
-                  <p className="mt-1 text-red-700">{submissions.find(s => s.reviewFeedback)?.reviewFeedback}</p>
-                )}
+            {toFix.map(g => (
+              <div key={g.type} className="text-xs text-[#C2304F] bg-[#FDECEF] rounded-[14px] px-4 py-3">
+                <b>{DELIVERABLE_TYPES.find(t => t.value === g.type)?.label ?? g.type}</b>: changes asked
+                {g.latest.reviewFeedback && <p className="mt-1">{g.latest.reviewFeedback}</p>}
               </div>
-            )}
+            ))}
             {assignment.studioNote && (
               <div className="text-xs text-amber-700 bg-amber-50 rounded-[14px] px-4 py-3">{assignment.studioNote}</div>
             )}
@@ -183,7 +196,7 @@ export default function EditorWorkspacePage() {
                 <button onClick={() => setShowSubmitForm(true)}
                   className="flex-1 py-2.5 bg-[#17151F] hover:bg-black text-white text-sm font-semibold rounded-[14px] flex items-center justify-center gap-2 transition-colors">
                   <Upload className="w-4 h-4" />
-                  {isRevision ? "Submit Revision" : "Submit Work"}
+                  {isRevision ? "Send changes / new work" : submissions.length ? "Send more work" : "Submit work"}
                 </button>
               )}
             </div>
@@ -212,6 +225,8 @@ export default function EditorWorkspacePage() {
 
         {showSubmitForm && (
           <SubmitWorkDrawer assignmentId={id} role={assignment.role} isRevision={isRevision}
+            toFix={toFix.map(g => ({ type: g.type, feedback: g.latest.reviewFeedback ?? null }))}
+            sent={groups.map(g => ({ type: g.type, status: g.latest.reviewStatus, version: g.versions.length }))}
             title={booking.eventName ?? booking.bookingNumber}
             onClose={() => setShowSubmitForm(false)}
             onDone={() => { setShowSubmitForm(false); reload(); }} />
@@ -275,42 +290,51 @@ export default function EditorWorkspacePage() {
           </div>
         )}
 
-        {/* Submission History */}
-        {submissions.length > 0 && (
-          <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
+        {/* What I've sent — one card per thing, newest version first */}
+        {groups.length > 0 && (
+          <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden lg:col-span-2">
             <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
               <Upload className="w-4 h-4 text-[#5B3FD0]" />
-              <span className="font-bold text-[13px] text-[#4A4658]">Submissions</span>
-              <span className="ml-auto text-xs text-[#6B6680]">{submissions.length}</span>
+              <span className="font-bold text-[13px] text-[#4A4658]">Work I&apos;ve sent</span>
+              <span className="ml-auto text-xs text-[#6B6680]">{groups.length} item{groups.length > 1 ? "s" : ""}</span>
             </div>
-            <div className="divide-y divide-[#EEEBF4]">
-              {submissions.map((s, i) => (
-                <div key={s.id} className="px-4 py-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#17151F]">
-                      #{submissions.length - i} — {DELIVERABLE_TYPES.find(t => t.value === s.deliverableType)?.label ?? s.deliverableType}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      s.reviewStatus === "approved" ? "bg-emerald-100 text-emerald-700" :
-                      s.reviewStatus === "revision_requested" ? "bg-red-100 text-red-700" :
-                      "bg-amber-100 text-amber-700"
-                    }`}>
-                      {s.reviewStatus.replace(/_/g, " ")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#6B6680]">{fmtTime(s.submittedAt)}</p>
-                  {(s.deliveryLink || s.driveLink || s.dropboxLink || s.wetransferLink) && (
-                    <div className="flex gap-2 flex-wrap">
-                      {s.deliveryLink && <a href={s.deliveryLink} target="_blank" rel="noopener noreferrer" className="text-xs text-[#5B3FD0] hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />Link</a>}
-                      {s.driveLink && <a href={s.driveLink} target="_blank" rel="noopener noreferrer" className="text-xs text-[#5B3FD0] hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />Drive</a>}
-                      {s.dropboxLink && <a href={s.dropboxLink} target="_blank" rel="noopener noreferrer" className="text-xs text-[#5B3FD0] hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />Dropbox</a>}
-                      {s.wetransferLink && <a href={s.wetransferLink} target="_blank" rel="noopener noreferrer" className="text-xs text-[#5B3FD0] hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />WeTransfer</a>}
+            <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
+              {groups.map(g => {
+                const st = SUB_STATUS[g.latest.reviewStatus] ?? SUB_STATUS.pending;
+                return (
+                  <div key={g.type} className="rounded-2xl border border-[#EEEBF4] p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-bold text-[#17151F] flex-1 truncate">{DELIVERABLE_TYPES.find(t => t.value === g.type)?.label ?? g.type}</span>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${st.cls}`}>{st.label}</span>
                     </div>
-                  )}
-                  {s.reviewFeedback && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{s.reviewFeedback}</p>}
-                  {s.notes && <p className="text-xs text-[#6B6680] bg-[#F5F3FA] rounded-lg px-3 py-2">{s.notes}</p>}
-                </div>
-              ))}
+                    {g.versions.map((s, i) => {
+                      const v = g.versions.length - i;
+                      const links = [
+                        s.driveLink && { href: s.driveLink, text: /folders\//.test(s.driveLink) ? "Files" : "Drive" },
+                        s.deliveryLink && { href: s.deliveryLink, text: "Link" },
+                        s.dropboxLink && { href: s.dropboxLink, text: "Dropbox" },
+                        s.wetransferLink && { href: s.wetransferLink, text: "WeTransfer" },
+                      ].filter(Boolean) as { href: string; text: string }[];
+                      return (
+                        <div key={s.id} className={`rounded-xl px-3 py-2 ${i === 0 ? "bg-[#F7F5FB]" : "bg-white border border-[#F2EFF8]"}`}>
+                          <div className="flex items-center gap-2 text-[12px]">
+                            <b className="text-[#17151F]">v{v}</b>
+                            <span className="text-[#6B6680]">{fmtTime(s.submittedAt)}</span>
+                            {i > 0 && <span className="ml-auto text-[11px] text-[#8A8599]">{(SUB_STATUS[s.reviewStatus] ?? SUB_STATUS.pending).label}</span>}
+                          </div>
+                          {links.length > 0 && (
+                            <div className="flex gap-3 flex-wrap mt-1">
+                              {links.map(l => <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#5B3FD0] hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />{l.text}</a>)}
+                            </div>
+                          )}
+                          {s.reviewFeedback && <p className="text-xs text-[#C2304F] mt-1">Studio: {s.reviewFeedback}</p>}
+                          {(s.revisionNotes || s.notes) && <p className="text-xs text-[#6B6680] mt-1">{[s.revisionNotes, s.notes].filter(Boolean).join(" · ")}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

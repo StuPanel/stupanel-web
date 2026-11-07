@@ -7,8 +7,9 @@
  * Upload goes straight from the browser to Google (resumable; progress bottom-right).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, ExternalLink, FileUp, FolderUp, HardDrive, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Loader2, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
@@ -48,6 +49,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +61,12 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       .catch(() => setFailed(true));
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!show) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShow(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [show]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const refreshSoon = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -157,37 +165,58 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
 
   const header = (
     <div className="flex items-center gap-3">
-      <Tile icon={HardDrive} color="green" size={36} />
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-bold text-[#17151F]">Raw files</p>
-        <p className="text-[12px] text-[#6B6680]">Private — only your studio sees these</p>
-      </div>
+      <p className="flex-1 text-[12px] text-[#6B6680]">Private — only your studio and the editors you allow can open these.</p>
       {data?.folderUrl && (
         <a href={data.folderUrl} target="_blank" rel="noopener noreferrer"
-          className="h-9 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#E4DCFB]">
+          className="h-9 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#E4DCFB] flex-shrink-0">
           <ExternalLink className="w-3.5 h-3.5" />Open in Drive
         </a>
       )}
     </div>
   );
 
-  if (failed) return <div className="rounded-2xl border border-[#E6E2EE] p-4 space-y-2">{header}<p className="text-sm text-[#6B6680]">Couldn&apos;t load raw files. <button type="button" onClick={load} className="font-semibold text-[#5B3FD0]">Try again</button></p></div>;
-  if (!data) return <div className="rounded-2xl border border-[#E6E2EE] p-4 space-y-3">{header}<div className="h-16 rounded-xl bg-[#F5F3FA] animate-pulse" /></div>;
-  if (!data.connected) return (
-    <div className="rounded-2xl border border-[#E6E2EE] p-4 space-y-3">
-      {header}
-      <p className="text-sm text-[#4A4658]">Connect Google Drive to upload raw files straight from here.</p>
-      <Link href="/settings?pane=integrations" className="inline-flex h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold items-center">Connect Google Drive</Link>
+  const small = (sub: React.ReactNode, right?: React.ReactNode) => (
+    <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3">
+      <Tile icon={HardDrive} color="green" size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-bold text-[#17151F]">Raw files</p>
+        <div className="text-[12px] text-[#6B6680] truncate">{sub}</div>
+      </div>
+      {right}
     </div>
   );
+  if (failed) return small("Couldn't load", <button type="button" onClick={load} className="h-9 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Try again</button>);
+  if (!data) return small(<span className="inline-block h-3 w-28 rounded bg-[#EEEBF4] animate-pulse align-middle" />);
+  if (!data.connected) return small("Connect Google Drive to upload here",
+    <Link href="/settings?pane=integrations" className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center">Connect</Link>);
 
   const acc = data.account;
   const usedPct = acc && acc.totalBytes ? Math.min(100, Math.round((acc.usedBytes / acc.totalBytes) * 100)) : 0;
   const filesIn = (path: string) => data.files.filter(f => f.path === path);
   const topFolders = data.folders.filter(f => f.count > 0);
 
-  return (
-    <div className="rounded-2xl border border-[#E6E2EE] p-4 space-y-4">
+  const summary = data.totals.count
+    ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}${data.shares?.length ? ` · ${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : ""}`
+    : "Nothing uploaded yet";
+
+  // In the program: one small row. Everything else opens in a side panel.
+  const row = (
+    <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3 hover:border-[#CFC8DD] transition-colors cursor-pointer"
+      role="button" tabIndex={0} onClick={() => setShow(true)} onKeyDown={e => { if (e.key === "Enter") setShow(true); }}>
+      <Tile icon={HardDrive} color="green" size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-bold text-[#17151F]">Raw files</p>
+        <p className="text-[12px] text-[#6B6680] truncate">{summary}</p>
+      </div>
+      <span className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5">
+        <FolderUp className="w-3.5 h-3.5" />Upload
+      </span>
+      <ChevronRight className="w-4 h-4 text-[#A29DB3] hidden sm:block" />
+    </div>
+  );
+
+  const panel = (
+    <div className="p-4 sm:p-5 space-y-4">
       {header}
 
       {acc && (
@@ -241,9 +270,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
             <FileUp className="w-4 h-4" />Files
           </button>
         </div>
-        <input ref={filesRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, false)} />
-        <input ref={folderRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, true)}
-          {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
       </div>
 
       {/* What is on Drive */}
@@ -313,5 +339,35 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
         {data.truncated && <p className="text-[11px] text-[#8A8599] mt-2 px-1">Very large folder — some files are only shown in Drive.</p>}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {row}
+      {/* Inputs live outside the panel so a running pick isn't lost if it closes */}
+      <input ref={filesRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, false)} />
+      <input ref={folderRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, true)}
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+      {show && typeof document !== "undefined" && createPortal(
+        <>
+          <div className="sp-backdrop z-[60]" onClick={() => setShow(false)} />
+          <div className="fixed inset-0 z-[60] pointer-events-none">
+            <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col">
+              <div className="px-5 py-4 border-b border-[#EEEBF4] flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-[#17151F]">Raw files</h3>
+                  <p className="text-xs text-[#6B6680] truncate">{booking.bookingNumber}{booking.eventName ? ` · ${booking.eventName}` : ""}</p>
+                </div>
+                <button type="button" onClick={() => setShow(false)} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F2EFF8]">
+                  <X className="w-4 h-4 text-[#6B6680]" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">{panel}</div>
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
   );
 }

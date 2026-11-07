@@ -97,7 +97,7 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
         </div>
       )}
       {short && (
-        <p role="alert" className="text-[12px] font-medium text-[#A35A00] bg-[#FFF4E5] rounded-xl px-3 py-2">
+        <p role="alert" className="text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">
           This account has only ৳{Math.round(picked!).toLocaleString("en-IN")}. After this payment it will be ৳{Math.round(picked! - payOut!).toLocaleString("en-IN")} (minus).
         </p>
       )}

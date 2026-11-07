@@ -11,7 +11,7 @@ const KEY = "stupanel:dismissed-announcements";
 const TONE: Record<string, { box: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
   info: { box: "bg-[#EEE8FD] border-[#DCD2FB]", icon: Megaphone, iconCls: "text-[#5B3FD0]" },
   success: { box: "bg-[#E9F5EF] border-[#CDE8DA]", icon: CheckCircle2, iconCls: "text-[#1F8A5B]" },
-  warning: { box: "bg-[#FFF4E5] border-[#F7DDB5]", icon: AlertTriangle, iconCls: "text-[#B45309]" },
+  warning: { box: "bg-[#FBF2FA] border-[#F7DDB5]", icon: AlertTriangle, iconCls: "text-[#823072]" },
   critical: { box: "bg-[#FDECEF] border-[#F6CDD6]", icon: Info, iconCls: "text-[#C2304F]" },
 };
 

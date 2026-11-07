@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Camera, Loader2, MapPin, Phone } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { Chips, DateBox, EmptyState, PageHeader, Pager, RowsSkeleton } from "@/components/ui/apple";
-import { Card, StatusBadge } from "../_components/kit";
+import { Card, StatusBadge, daysUntil } from "../_components/kit";
+import { askConfirm, notify } from "@/components/feedback";
 import Link from "next/link";
 
 const NEXT_TRANSITIONS: Record<string, string> = {
@@ -22,7 +23,7 @@ interface Booking {
 
 const FILTERS = [
   { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
+  { value: "confirmed,advance_received", label: "Confirmed" },
   { value: "in_progress", label: "Shooting" },
   { value: "editing", label: "Editing" },
   { value: "ready_for_delivery", label: "Ready" },
@@ -53,12 +54,21 @@ export default function MemberProgramsPage() {
   useEffect(() => { load(); }, [load]);
 
   async function updateStatus(bookingId: string, newStatus: string) {
-    setUpdatingId(bookingId);
-    const res = await apiFetch(`${API}/member/programs/${bookingId}/status`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
+    // This changes the program for the whole studio, so ask first.
+    const ok = await askConfirm({
+      title: newStatus === "editing" ? "Move this program to Editing?" : "Mark this program ready for delivery?",
+      message: "The studio will see the new status.",
+      confirmLabel: TRANSITION_LABELS[newStatus] ?? "Confirm",
     });
-    if (res.ok) setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-    setUpdatingId(null);
+    if (!ok) return;
+    setUpdatingId(bookingId);
+    try {
+      const res = await apiFetch(`${API}/member/programs/${bookingId}/status`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) { setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)); notify("Status updated"); }
+      else notify("Couldn't change the status", { error: true });
+    } finally { setUpdatingId(null); }
   }
 
   return (
@@ -71,7 +81,9 @@ export default function MemberProgramsPage() {
       ) : (
         <div className="space-y-3">
           {bookings.map(b => {
-            const next = NEXT_TRANSITIONS[b.status];
+            // Moving to editing only makes sense once the shoot day has come.
+            const shot = (daysUntil(b.eventDate) ?? 0) <= 0;
+            const next = NEXT_TRANSITIONS[b.status] === "editing" && !shot ? undefined : NEXT_TRANSITIONS[b.status];
             return (
               <Card key={b.id} className="overflow-hidden">
                 <Link href={`/member/programs/${b.id}`} className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-[#F7F5FB] transition-colors">

@@ -78,7 +78,7 @@ export default function EarningsPage() {
                   <span className="text-right flex-shrink-0">
                     <span className="block text-[15px] font-bold text-[#17151F] tabular-nums">{formatCurrency(p.totalBill)}</span>
                     {(p.due ?? 0) > 0
-                      ? <span className="block text-xs font-semibold text-[#B45309]">{formatCurrency(p.due ?? 0)} to get</span>
+                      ? <span className="block text-xs font-semibold text-[#823072]">{formatCurrency(p.due ?? 0)} to get</span>
                       : p.totalBill > 0 && <span className="block text-xs font-semibold text-[#1F8A5B]">Paid</span>}
                   </span>
                   <ChevronDown className={cn("w-4 h-4 text-[#B5B0C4] transition-transform", isOpen && "rotate-180")} />
@@ -126,7 +126,7 @@ export default function EarningsPage() {
               {pendingSlips.map(s => (
                 <div key={s.id} className="flex items-center justify-between px-4 sm:px-5 py-3.5">
                   <span className="text-[15px] font-semibold text-[#17151F]">{fmtMonth(s.month, s.year)}</span>
-                  <span className="text-[15px] font-bold text-[#B45309] tabular-nums">{formatCurrency(Number(s.netSalary))}</span>
+                  <span className="text-[15px] font-bold text-[#823072] tabular-nums">{formatCurrency(Number(s.netSalary))}</span>
                 </div>
               ))}
             </Group>

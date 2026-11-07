@@ -76,7 +76,7 @@ interface ServiceCatalogItem {
 /** Status everyone sees — worked out by the API from payments and the due date. */
 const STATE: Record<string, { label: string; bg: string; text: string }> = {
   unpaid: { label: "Unpaid", bg: "#FBF2FA", text: "#9E3A8C" },
-  partly_paid: { label: "Partly paid", bg: "#FFF4E5", text: "#A35A00" },
+  partly_paid: { label: "Partly paid", bg: "#FBF2FA", text: "#823072" },
   paid: { label: "Paid", bg: "#E9F5EF", text: "#1F8A5B" },
   overdue: { label: "Overdue", bg: "#FDECEF", text: "#C2304F" },
   cancelled: { label: "Cancelled", bg: "#EEEDF2", text: "#6B6680" },

@@ -69,7 +69,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
                 ) : bill > 0 ? (
                   <>
                     {extra > 0.009
-                      ? <span className="text-xs font-semibold text-[#A35A00] bg-[#FFF4E5] px-2 py-1 rounded-full tabular-nums">Paid {formatCurrency(extra, booking.currency)} extra</span>
+                      ? <span className="text-xs font-semibold text-[#823072] bg-[#FBF2FA] px-2 py-1 rounded-full tabular-nums">Paid {formatCurrency(extra, booking.currency)} extra</span>
                       : <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><Check className="w-3 h-3" />Paid</span>}
                     {e.memberId && (
                       <button type="button" onClick={() => setPaying(e)} aria-label={`Pay ${e.memberName} more`}
@@ -162,7 +162,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
             <input id={id} type="number" inputMode="numeric" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
               className={cn(inputCls, "pl-8 h-12 text-lg font-bold tabular-nums", (parseFloat(form.amount) || 0) > due && "ring-2 ring-[#F2B04B]")} />
             {(parseFloat(form.amount) || 0) > due && (
-              <p role="alert" className="mt-2 text-[12px] font-medium text-[#A35A00] bg-[#FFF4E5] rounded-xl px-3 py-2">
+              <p role="alert" className="mt-2 text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">
                 More than due — {formatCurrency((parseFloat(form.amount) || 0) - due, booking.currency)} extra. You&apos;ll be asked to confirm.
               </p>
             )}

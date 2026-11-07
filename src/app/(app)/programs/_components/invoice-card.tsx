@@ -19,7 +19,7 @@ export interface ProgramInvoice {
 
 export const STATE_LABEL: Record<string, { label: string; cls: string }> = {
   unpaid: { label: "Unpaid", cls: "bg-[#FBF2FA] text-[#9E3A8C]" },
-  partly_paid: { label: "Partly paid", cls: "bg-[#FFF4E5] text-[#A35A00]" },
+  partly_paid: { label: "Partly paid", cls: "bg-[#FBF2FA] text-[#823072]" },
   paid: { label: "Paid", cls: "bg-[#E9F5EF] text-[#1F8A5B]" },
   overdue: { label: "Overdue", cls: "bg-[#FDECEF] text-[#C2304F]" },
   cancelled: { label: "Cancelled", cls: "bg-[#EEEBF4] text-[#6B6680]" },

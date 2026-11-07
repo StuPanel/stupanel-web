@@ -153,7 +153,7 @@ function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () =
                     className={cn(inputCls, "pl-8 h-12 text-lg font-bold tabular-nums", amt > total && total >= 0 && dues && "ring-2 ring-[#F2B04B]")} />
                 </div>
                 {dues && amt > total + 0.009 && (
-                  <p role="alert" className="mt-2 text-[12px] font-medium text-[#A35A00] bg-[#FFF4E5] rounded-xl px-3 py-2">
+                  <p role="alert" className="mt-2 text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">
                     More than owed — {formatCurrency(amt - total)} extra. You&apos;ll be asked to confirm.
                   </p>
                 )}
@@ -186,7 +186,7 @@ function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () =
                       onChange={e => setSplit(sp => ({ ...sp, [p.id]: r2(parseFloat(e.target.value) || 0) }))}
                       className="w-28 h-9 px-2 rounded-lg border border-[#E6E2EE] text-sm text-right tabular-nums" />
                   ) : (
-                    <span className={cn("text-sm font-bold tabular-nums", v >= p.due && v > 0 ? "text-[#1F8A5B]" : v > 0 ? "text-[#A35A00]" : "text-[#A29DB3]")}>
+                    <span className={cn("text-sm font-bold tabular-nums", v >= p.due && v > 0 ? "text-[#1F8A5B]" : v > 0 ? "text-[#823072]" : "text-[#A29DB3]")}>
                       {v > 0 ? formatCurrency(v) : "—"}
                     </span>
                   )}

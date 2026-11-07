@@ -611,7 +611,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
           className="fixed z-[80] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] p-1">
           <button role="menuitem" onClick={() => act(onEdit)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit info</button>
           {isOwner && member.memberType !== "freelancer" && <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
-          <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#B45309]" : "text-[#1F8A5B]")}>
+          <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#823072]" : "text-[#1F8A5B]")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
           </button>

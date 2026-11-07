@@ -162,6 +162,12 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   );
 }
 
+/** Ask Drive to open the link with this Google account (if the browser is signed in to it). */
+function withAccount(url: string, email?: string | null) {
+  if (!email) return url;
+  try { const u = new URL(url); u.searchParams.set("authuser", email); return u.toString(); } catch { return url; }
+}
+
 type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string }[]; folderUrl?: string | null; folders?: { url: string; email: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
 
 /**
@@ -200,7 +206,8 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
       setSt(s => s ? { ...s, folderUrl: d.folderUrl, folders: d.folders, sharedEmail: d.email } : s);
       setEditing(false);
       notify("Access ready — opening Drive");
-      if (tab) { tab.opener = null; tab.location.href = d.folderUrl; } else window.open(d.folderUrl, "_blank", "noopener");
+      const go = withAccount(d.folderUrl, d.email);
+      if (tab) { tab.opener = null; tab.location.href = go; } else window.open(go, "_blank", "noopener");
     } catch { tab?.close(); notify("Couldn't give access", { error: true }); }
     finally { setBusy(false); }
   }
@@ -231,7 +238,7 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
           !st.links?.length && <p className="text-sm text-[#6B6680]">The studio hasn&apos;t added raw files for this program yet.</p>
         ) : st.folderUrl && !editing ? (
           <>
-            <a href={st.folderUrl} target="_blank" rel="noopener noreferrer"
+            <a href={withAccount(st.folderUrl, st.sharedEmail)} target="_blank" rel="noopener noreferrer"
               className="h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold flex items-center justify-center gap-1.5">
               <ExternalLink className="w-4 h-4" />Open raw files in Drive
             </a>
@@ -239,20 +246,21 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
               <div className="space-y-1">
                 <p className="text-[12px] text-[#6B6680]">Some files are in another Drive:</p>
                 {st.folders!.slice(1).map(f => (
-                  <a key={f.url} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#5B3FD0]">
+                  <a key={f.url} href={withAccount(f.url, st.sharedEmail)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#5B3FD0]">
                     <ExternalLink className="w-3.5 h-3.5" />More raw files ({f.email})
                   </a>
                 ))}
               </div>
             )}
             <p className="text-[12px] text-[#6B6680]">
-              Open with Google account <b className="text-[#17151F]">{st.sharedEmail}</b>.{" "}
+              Access is given to <b className="text-[#17151F]">{st.sharedEmail}</b>. Sign in to Google with this account in your browser
+              (Drive shows &quot;You need access&quot; on any other account).{" "}
               <button type="button" onClick={() => setEditing(true)} className="font-semibold text-[#5B3FD0]">Use another email</button>
             </p>
           </>
         ) : (
           <>
-            <p className="text-sm text-[#4A4658]">Your Google email — you&apos;ll get view and download access to the raw folder.</p>
+            <p className="text-sm text-[#4A4658]">The Google account you use for Drive on this computer — it gets view and download access to the raw folder.</p>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@gmail.com"
               className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
             <button type="button" disabled={busy || !email.trim()} onClick={getAccess}

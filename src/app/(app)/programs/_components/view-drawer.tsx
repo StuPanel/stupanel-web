@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   X, Edit3, DollarSign, MessageCircle, FileText,
   Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
@@ -362,6 +362,8 @@ type Submission = {
   id: string; reviewStatus: string; deliverableType: string; submittedAt: string;
   deliveryLink?: string | null; driveLink?: string | null; dropboxLink?: string | null; wetransferLink?: string | null;
   notes?: string | null; revisionNotes?: string | null; reviewFeedback?: string | null;
+  /** Copy of an approved version into the client's delivery folder. */
+  copy?: { status: "copying" | "done" | "failed" | "skipped"; done?: number; total?: number; error?: string; at: string } | null;
 };
 const DELIVERABLE: Record<string, string> = {
   highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
@@ -375,7 +377,24 @@ function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: Editor
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  // While files are being copied to delivery, check again every few seconds.
+  const copying = subs.some(x => x.copy?.status === "copying" && Date.now() - new Date(x.copy.at).getTime() < 10 * 60_000);
+  useEffect(() => {
+    if (!copying) return;
+    const t = setInterval(onChanged, 4000);
+    return () => clearInterval(t);
+  }, [copying, onChanged]);
   if (!subs.length) return null;
+
+  async function retryCopy(s: Submission) {
+    setBusy(s.id);
+    try {
+      const r = await apiFetch(`${API}/bookings/${bookingId}/editor-assignments/${a.id}/submissions/${s.id}/copy`, { method: "POST" });
+      if (!r.ok) { notify("Couldn't start the copy", { error: true }); return; }
+      notify("Copying to the delivery folder again");
+      onChanged();
+    } finally { setBusy(null); }
+  }
 
   async function review(s: Submission, status: "approved" | "revision_requested") {
     if (status === "approved") {
@@ -451,6 +470,23 @@ function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: Editor
                 </>
               )}
             </div>
+            {s.reviewStatus === "approved" && s.copy && s.copy.status !== "skipped" && (() => {
+              const c = s.copy;
+              const stale = c.status === "copying" && Date.now() - new Date(c.at).getTime() > 10 * 60_000;
+              if (c.status === "done") return <p className="text-[12px] font-semibold text-[#1F8A5B]">✓ In the client&apos;s delivery folder ({c.total ?? 0} file{c.total === 1 ? "" : "s"})</p>;
+              if (c.status === "copying" && !stale) return (
+                <div className="space-y-1">
+                  <p className="text-[12px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" />Copying to delivery… {c.done ?? 0}/{c.total || "?"}</p>
+                  {!!c.total && <div className="h-1.5 rounded-full bg-[#E4DCFB] overflow-hidden"><div className="h-full bg-[#7D5CEF] rounded-full transition-all" style={{ width: `${Math.round(((c.done ?? 0) / c.total) * 100)}%` }} /></div>}
+                </div>
+              );
+              return (
+                <div className="flex items-center gap-2">
+                  <p className="text-[12px] text-[#C2304F] flex-1">Couldn&apos;t copy to the delivery folder{c.error ? ` — ${c.error}` : ""}.</p>
+                  <button type="button" disabled={busy === s.id} onClick={() => retryCopy(s)} className="h-8 px-3 rounded-full bg-white text-[12px] font-semibold text-[#5B3FD0] shadow-[0_1px_2px_rgba(22,18,40,.06)]">Try again</button>
+                </div>
+              );
+            })()}
             {fbFor === s.id && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <textarea autoFocus value={feedback} onChange={e => setFeedback(e.target.value)} rows={3}
@@ -491,8 +527,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<{ userId: string; role: "photo_editor" | "video_editor"; editingDeadline?: string; deliveryDeadline?: string; studioNote?: string }[]>([]);
 
-  function reload() {
-    setLoading(true);
+  function reload(silent = false) {
+    if (!silent) setLoading(true);
     apiFetch(`${API}/bookings/${booking.id}/editors`)
       .then(r => r.ok ? r.json() : [])
       .then((data: EditorAssignment[]) => {
@@ -511,6 +547,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   useEffect(() => { reload(); }, [booking.id]);
 
   const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
+
+  const silentReload = useCallback(() => reload(true), [booking.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
     setDraft(prev => {
@@ -623,7 +661,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                   {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {a.editingDeadline}</span>}
                   {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {a.deliveryDeadline}</span>}
                 </div>
-                <Submissions bookingId={booking.id} a={a} onChanged={reload} />
+                <Submissions bookingId={booking.id} a={a} onChanged={silentReload} />
                 {a.studioNote && <p className="text-xs text-slate-500 bg-amber-50 rounded px-2 py-1">{a.studioNote}</p>}
               </div>
             );

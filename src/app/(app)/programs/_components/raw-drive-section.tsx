@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
+import { RefreshCw, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
@@ -60,11 +60,14 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const folderRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(() => {
-    apiFetch(`${API}/google-drive/raw/${booking.id}`)
+  const [refreshing, setRefreshing] = useState(false);
+  const load = useCallback((fresh = false) => {
+    if (fresh) setRefreshing(true);
+    apiFetch(`${API}/google-drive/raw/${booking.id}${fresh ? "?fresh=1" : ""}`)
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then((d: Overview) => { setData(d); setFailed(false); })
-      .catch(() => setFailed(true));
+      .catch(() => setFailed(true))
+      .finally(() => setRefreshing(false));
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -175,6 +178,10 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const header = (
     <div className="flex items-center gap-3">
       <p className="flex-1 text-[12px] text-[#6B6680]">Private — only your studio and the editors you allow can open these.</p>
+      <button type="button" onClick={() => load(true)} disabled={refreshing} title="Check Drive again (files added outside StuPanel)"
+        className="w-9 h-9 rounded-full bg-[#F5F3FA] text-[#4A4658] inline-flex items-center justify-center hover:bg-[#EEE8FD] flex-shrink-0 disabled:opacity-60">
+        <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
+      </button>
       {data?.folderUrl && (
         <a href={data.folderUrl} target="_blank" rel="noopener noreferrer"
           className="h-9 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#E4DCFB] flex-shrink-0">
@@ -194,7 +201,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       {right}
     </div>
   );
-  if (failed) return small("Couldn't load", <button type="button" onClick={load} className="h-9 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Try again</button>);
+  if (failed) return small("Couldn't load", <button type="button" onClick={() => load()} className="h-9 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Try again</button>);
   if (!data) return small(<span className="inline-block h-3 w-28 rounded bg-[#EEEBF4] animate-pulse align-middle" />);
 
   const acc = data.account;

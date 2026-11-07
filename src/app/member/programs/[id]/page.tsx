@@ -115,7 +115,7 @@ export default function ProgramHubPage() {
   return (
     <div className="pb-6">
       {/* Header */}
-      <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] px-4 py-4 flex items-center gap-3 mb-5 max-w-3xl">
+      <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] px-4 py-4 flex items-center gap-3 mb-5">
         <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4]">
           <ArrowLeft className="w-4 h-4 text-[#4A4658]" />
         </button>
@@ -126,7 +126,7 @@ export default function ProgramHubPage() {
         <StatusBadge status={hub.status} />
       </div>
 
-      <div className="max-w-3xl space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2 items-start">
         {/* Event Days */}
         {hub.eventDays?.length > 0 && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">

@@ -7,6 +7,7 @@ import {
   ExternalLink, Calendar, Monitor, FolderOpen, Users, Check,
   Clapperboard, Palette, Camera, Wallet,
 } from "lucide-react";
+import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
@@ -355,8 +356,117 @@ type EditorAssignment = {
   id: string; userId: string; role: string; status: string;
   editingDeadline?: string; deliveryDeadline?: string; studioNote?: string;
   user?: { firstName: string; lastName?: string };
-  submissions?: { reviewStatus: string; deliverableType: string; submittedAt: string }[];
+  submissions?: Submission[];
 };
+type Submission = {
+  id: string; reviewStatus: string; deliverableType: string; submittedAt: string;
+  deliveryLink?: string | null; driveLink?: string | null; dropboxLink?: string | null; wetransferLink?: string | null;
+  notes?: string | null; revisionNotes?: string | null; reviewFeedback?: string | null;
+};
+const DELIVERABLE: Record<string, string> = {
+  highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
+  photo_delivery: "Photos", album: "Album", other: "Other",
+};
+
+/** What an editor sent, newest first — open the files, approve, or ask for changes. */
+function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: EditorAssignment; onChanged: () => void }) {
+  const subs = a.submissions ?? [];
+  const [fbFor, setFbFor] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  if (!subs.length) return null;
+
+  async function review(s: Submission, status: "approved" | "revision_requested") {
+    if (status === "approved") {
+      const own = !!s.driveLink && /drive\.google\.com\/drive(\/u\/\d+)?\/folders\//.test(s.driveLink);
+      const ok = await askConfirm({
+        title: `Approve ${DELIVERABLE[s.deliverableType] ?? "this"}?`,
+        message: own ? "The files will be copied to the client's delivery folder." : "Mark this work as approved.",
+        confirmLabel: "Approve",
+      });
+      if (!ok) return;
+    }
+    setBusy(s.id);
+    try {
+      const r = await apiFetch(`${API}/bookings/${bookingId}/editor-assignments/${a.id}/submissions/${s.id}/review`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, feedback: status === "revision_requested" ? feedback.trim() || undefined : undefined }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return; }
+      notify(status === "approved" ? (d.copying ? "Approved — copying the files to the delivery folder" : "Approved") : "Changes asked — the editor will see your note");
+      setFbFor(null); setFeedback("");
+      onChanged();
+    } finally { setBusy(null); }
+  }
+
+  const list = showAll ? subs : subs.slice(0, 2);
+  const tone = (st: string) => st === "approved" ? "bg-[#E9F5EF] text-[#1F8A5B]" : st === "revision_requested" ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#5B3FD0]";
+  const label = (st: string) => st === "approved" ? "Approved" : st === "revision_requested" ? "Changes asked" : "To review";
+  return (
+    <div className="space-y-2 pt-1">
+      {list.map((s, i) => {
+        const links = [
+          s.driveLink && { href: s.driveLink, text: /folders\//.test(s.driveLink) ? "Open files" : "Drive" },
+          s.deliveryLink && { href: s.deliveryLink, text: "Link" },
+          s.dropboxLink && { href: s.dropboxLink, text: "Dropbox" },
+          s.wetransferLink && { href: s.wetransferLink, text: "WeTransfer" },
+        ].filter(Boolean) as { href: string; text: string }[];
+        const version = subs.filter(x => x.deliverableType === s.deliverableType && x.submittedAt <= s.submittedAt).length;
+        return (
+          <div key={s.id} className="rounded-xl bg-[#F7F5FB] px-3 py-2.5 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold text-[#17151F] flex-1 min-w-0 truncate">
+                {DELIVERABLE[s.deliverableType] ?? s.deliverableType} · v{version}
+              </span>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{label(s.reviewStatus)}</span>
+            </div>
+            <p className="text-[11px] text-[#6B6680]">Sent {new Date(s.submittedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+            {(s.revisionNotes || s.notes) && <p className="text-[12px] text-[#4A4658] whitespace-pre-line">{[s.revisionNotes, s.notes].filter(Boolean).join("\n")}</p>}
+            {s.reviewFeedback && <p className="text-[12px] text-[#C2304F]">Your note: {s.reviewFeedback}</p>}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {links.map(l => (
+                <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer"
+                  className="h-8 px-3 rounded-full bg-white text-[12px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+                  <ExternalLink className="w-3 h-3" />{l.text}
+                </a>
+              ))}
+              {i === 0 && s.reviewStatus === "pending" && (
+                <>
+                  <span className="flex-1" />
+                  <button type="button" disabled={busy === s.id} onClick={() => { setFbFor(fbFor === s.id ? null : s.id); setFeedback(""); }}
+                    className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#C2304F] hover:bg-[#FDECEF]">Ask for changes</button>
+                  <button type="button" disabled={busy === s.id} onClick={() => review(s, "approved")}
+                    className="h-8 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1 disabled:opacity-60">
+                    {busy === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}Approve
+                  </button>
+                </>
+              )}
+            </div>
+            {fbFor === s.id && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <textarea autoFocus value={feedback} onChange={e => setFeedback(e.target.value)} rows={3}
+                  placeholder="What should the editor change?"
+                  className="w-full px-3 py-2 rounded-xl bg-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setFbFor(null)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#4A4658]">Cancel</button>
+                  <button type="button" disabled={!feedback.trim() || busy === s.id} onClick={() => review(s, "revision_requested")}
+                    className="h-8 px-3.5 rounded-full bg-[#C2304F] text-white text-[12px] font-semibold disabled:opacity-50">Send to editor</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {subs.length > 2 && (
+        <button type="button" onClick={() => setShowAll(v => !v)} className="text-[12px] font-semibold text-[#5B3FD0]">
+          {showAll ? "Show less" : `Show all ${subs.length} submissions`}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void }) {
   const [assignments, setAssignments] = useState<EditorAssignment[]>([]);
@@ -484,7 +594,6 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
           {assignments.map(a => {
             const name = `${a.user?.firstName ?? ""} ${a.user?.lastName ?? ""}`.trim();
             const statusCfg = ASSIGNMENT_STATUS_CFG[a.status] ?? { label: a.status, cls: "bg-slate-100 text-slate-600" };
-            const lastSub = a.submissions?.[0];
             return (
               <div key={a.id} className="px-4 py-3 space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -498,12 +607,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                   {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {a.editingDeadline}</span>}
                   {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {a.deliveryDeadline}</span>}
                 </div>
-                {lastSub && (
-                  <div className="text-xs text-slate-400">
-                    Last submission: <span className={`font-medium ${lastSub.reviewStatus === "approved" ? "text-emerald-600" : lastSub.reviewStatus === "revision_requested" ? "text-red-500" : "text-amber-600"}`}>{lastSub.reviewStatus}</span>
-                    {" · "}{lastSub.deliverableType.replace(/_/g, " ")}
-                  </div>
-                )}
+                <Submissions bookingId={booking.id} a={a} onChanged={reload} />
                 {a.studioNote && <p className="text-xs text-slate-500 bg-amber-50 rounded px-2 py-1">{a.studioNote}</p>}
               </div>
             );

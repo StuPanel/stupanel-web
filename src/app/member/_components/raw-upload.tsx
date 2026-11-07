@@ -189,17 +189,20 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
   async function getAccess() {
     if (busy) return;
     setBusy(true);
+    // Open the tab now (still inside the click), so the browser doesn't block it as a pop-up.
+    const tab = window.open("about:blank", "_blank");
     try {
       const r = await apiFetch(`${API}/member/programs/${bookingId}/raw/editor`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) { notify(d?.message || "Couldn't give access", { error: true }); return; }
+      if (!r.ok) { tab?.close(); notify(d?.message || "Couldn't give access", { error: true }); return; }
       setSt(s => s ? { ...s, folderUrl: d.folderUrl, folders: d.folders, sharedEmail: d.email } : s);
       setEditing(false);
       notify("Access ready — opening Drive");
-      window.open(d.folderUrl, "_blank", "noopener");
-    } finally { setBusy(false); }
+      if (tab) { tab.opener = null; tab.location.href = d.folderUrl; } else window.open(d.folderUrl, "_blank", "noopener");
+    } catch { tab?.close(); notify("Couldn't give access", { error: true }); }
+    finally { setBusy(false); }
   }
 
   return (

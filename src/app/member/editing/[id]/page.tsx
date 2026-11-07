@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { notify } from "@/components/feedback";
+import { EditorRawAccess } from "../../_components/raw-upload";
 
 type Workspace = {
   assignment: {
@@ -320,6 +321,8 @@ export default function EditorWorkspacePage() {
           </div>
         )}
 
+        <EditorRawAccess bookingId={booking.id} />
+
         {/* Raw Files */}
         {hasRawFiles && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
@@ -337,7 +340,7 @@ export default function EditorWorkspacePage() {
                   {rawFiles.fileSizeGb ? `${rawFiles.fileSizeGb} GB` : ""}
                 </p>
               )}
-              {rawFiles.driveLink && <a href={rawFiles.driveLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline"><Link2 className="w-3.5 h-3.5" />Open Drive <ExternalLink className="w-3 h-3" /></a>}
+              {rawFiles.driveLink && !rawFiles.drive && <a href={rawFiles.driveLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline"><Link2 className="w-3.5 h-3.5" />Open Drive <ExternalLink className="w-3 h-3" /></a>}
               {rawFiles.dropboxLink && <a href={rawFiles.dropboxLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline"><Link2 className="w-3.5 h-3.5" />Open Dropbox <ExternalLink className="w-3 h-3" /></a>}
               {rawFiles.nasLocation && <p className="text-sm text-[#6B6680] font-mono">{rawFiles.nasLocation}</p>}
               {rawFiles.notes && <p className="text-xs text-[#6B6680] bg-amber-50 rounded-lg px-3 py-2">{rawFiles.notes}</p>}

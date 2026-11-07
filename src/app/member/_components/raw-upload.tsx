@@ -6,7 +6,7 @@
  * I only see my own files and can't delete — the studio manages the rest.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, FileUp, FolderUp, HardDrive, Loader2 } from "lucide-react";
+import { ChevronDown, ExternalLink, FileUp, FolderUp, HardDrive, Loader2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -154,6 +154,82 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
           </div>
         )}
         <p className="text-[11px] text-[#8A8599]">Only the studio can delete uploaded files.</p>
+      </div>
+    </div>
+  );
+}
+
+type EditorStatus = { isEditor: boolean; hasFolder?: boolean; folderUrl?: string | null; sharedEmail?: string | null; defaultEmail?: string | null };
+
+/**
+ * For an editor on this program: open the program's raw folder on Google Drive (view + download).
+ * Access goes to their Google email; the studio can take it back.
+ */
+export function EditorRawAccess({ bookingId }: { bookingId: string }) {
+  const [st, setSt] = useState<EditorStatus | null>(null);
+  const [email, setEmail] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    apiFetch(`${API}/member/programs/${bookingId}/raw/editor`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: EditorStatus | null) => { if (alive && d) { setSt(d); setEmail(d.sharedEmail || d.defaultEmail || ""); } })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [bookingId]);
+
+  if (!st?.isEditor) return null;
+  const card = "bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden";
+
+  async function getAccess() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await apiFetch(`${API}/member/programs/${bookingId}/raw/editor`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify(d?.message || "Couldn't give access", { error: true }); return; }
+      setSt(s => s ? { ...s, folderUrl: d.folderUrl, sharedEmail: d.email } : s);
+      setEditing(false);
+      notify("Access ready — opening Drive");
+      window.open(d.folderUrl, "_blank", "noopener");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className={card}>
+      <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
+        <HardDrive className="w-4 h-4 text-[#1F8A5B]" />
+        <span className="font-bold text-[13px] text-[#4A4658]">Raw files for editing</span>
+      </div>
+      <div className="px-4 py-4 space-y-3">
+        {!st.hasFolder ? (
+          <p className="text-sm text-[#6B6680]">The studio hasn&apos;t uploaded raw files for this program yet.</p>
+        ) : st.folderUrl && !editing ? (
+          <>
+            <a href={st.folderUrl} target="_blank" rel="noopener noreferrer"
+              className="h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold flex items-center justify-center gap-1.5">
+              <ExternalLink className="w-4 h-4" />Open raw files in Drive
+            </a>
+            <p className="text-[12px] text-[#6B6680]">
+              Open with Google account <b className="text-[#17151F]">{st.sharedEmail}</b>.{" "}
+              <button type="button" onClick={() => setEditing(true)} className="font-semibold text-[#5B3FD0]">Use another email</button>
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-[#4A4658]">Your Google email — you&apos;ll get view and download access to the raw folder.</p>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@gmail.com"
+              className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+            <button type="button" disabled={busy || !email.trim()} onClick={getAccess}
+              className="w-full h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}Get access
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ type Overview = {
   files: RawFile[];
   totals: { count: number; bytes: number };
   truncated: boolean;
+  shares?: { userId: string; email: string; name: string }[];
 };
 type Member = { id: string; firstName: string; lastName?: string };
 
@@ -142,6 +143,15 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/folder?path=${encodeURIComponent(path)}${how === "forever" ? "&permanent=1" : ""}`, { method: "DELETE" });
     if (!r.ok) { notify("Delete failed", { error: true }); return; }
     notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
+    load();
+  }
+
+  async function revoke(x: { userId: string; name: string }) {
+    const ok = await askConfirm({ title: `Remove ${x.name}'s access?`, message: "They won't be able to open this program's raw folder any more.", confirmLabel: "Remove", danger: true });
+    if (!ok) return;
+    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/share/${x.userId}`, { method: "DELETE" });
+    if (!r.ok) { notify("Couldn't remove", { error: true }); return; }
+    notify("Access removed");
     load();
   }
 
@@ -284,6 +294,20 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
                 </div>
               );
             })}
+          </div>
+        )}
+        {!!data.shares?.length && (
+          <div className="mt-3 space-y-1.5">
+            <p className="text-[13px] font-bold text-[#4A4658] px-1">Editors who can open it</p>
+            {data.shares.map(x => (
+              <div key={x.userId} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-[#17151F] truncate">{x.name}</span>
+                  <span className="block text-[11px] text-[#6B6680] truncate">{x.email} · view & download</span>
+                </span>
+                <button type="button" onClick={() => revoke(x)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#C2304F] hover:bg-[#FDECEF]">Remove</button>
+              </div>
+            ))}
           </div>
         )}
         {data.truncated && <p className="text-[11px] text-[#8A8599] mt-2 px-1">Very large folder — some files are only shown in Drive.</p>}

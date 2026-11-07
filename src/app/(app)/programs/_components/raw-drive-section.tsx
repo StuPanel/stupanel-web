@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Loader2, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
@@ -18,6 +18,7 @@ import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/driv
 import type { Booking } from "./types";
 
 type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; conn: string; viewUrl: string; thumb: string | null };
+type RawLink = { id: string; url: string; label: string };
 type RawLocation = { conn: string; email: string; url: string; current: boolean; reachable: boolean; count: number; bytes: number };
 type Overview = {
   connected: boolean;
@@ -25,6 +26,7 @@ type Overview = {
   folderUrl: string | null;
   folders: { path: string; conn: string; email: string; count: number; bytes: number }[];
   locations?: RawLocation[];
+  links?: RawLink[];
   files: RawFile[];
   totals: { count: number; bytes: number };
   truncated: boolean;
@@ -189,8 +191,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   );
   if (failed) return small("Couldn't load", <button type="button" onClick={load} className="h-9 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Try again</button>);
   if (!data) return small(<span className="inline-block h-3 w-28 rounded bg-[#EEEBF4] animate-pulse align-middle" />);
-  if (!data.connected) return small("Connect Google Drive to upload here",
-    <Link href="/settings?pane=integrations" className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center">Connect</Link>);
 
   const acc = data.account;
   const usedPct = acc && acc.totalBytes ? Math.min(100, Math.round((acc.usedBytes / acc.totalBytes) * 100)) : 0;
@@ -200,9 +200,12 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const locations = (data.locations ?? []).filter(l => l.count > 0 || l.current || !l.reachable);
   const several = locations.length > 1;
 
-  const summary = data.totals.count
-    ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}${data.shares?.length ? ` · ${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : ""}`
-    : "Nothing uploaded yet";
+  const nLinks = data.links?.length ?? 0;
+  const summary = [
+    data.totals.count ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}` : "",
+    nLinks ? `${nLinks} link${nLinks > 1 ? "s" : ""}` : "",
+    data.shares?.length ? `${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : "",
+  ].filter(Boolean).join(" · ") || (data.connected ? "Nothing uploaded yet" : "Add a link, or connect Google Drive to upload");
 
   // In the program: one small row. Everything else opens in a side panel.
   const row = (
@@ -214,7 +217,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
         <p className="text-[12px] text-[#6B6680] truncate">{summary}</p>
       </div>
       <span className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5">
-        <FolderUp className="w-3.5 h-3.5" />Upload
+        {data.connected ? <><FolderUp className="w-3.5 h-3.5" />Upload</> : <><Link2 className="w-3.5 h-3.5" />Add link</>}
       </span>
       <ChevronRight className="w-4 h-4 text-[#A29DB3] hidden sm:block" />
     </div>
@@ -239,6 +242,12 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       )}
 
       {/* Where the next files go */}
+      {!data.connected ? (
+        <div className="rounded-2xl bg-[#F7F5FB] p-3 flex items-center gap-3">
+          <p className="flex-1 text-[13px] text-[#4A4658]">Connect Google Drive to upload raw files from here.</p>
+          <Link href="/settings?pane=integrations" className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center flex-shrink-0">Connect</Link>
+        </div>
+      ) : (
       <div className="rounded-2xl bg-[#F7F5FB] p-3 space-y-3">
         {partNames.length > 0 && (
           <div className="space-y-1.5">
@@ -276,6 +285,8 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           </button>
         </div>
       </div>
+
+      )}
 
       {/* What is on Drive */}
       <div>
@@ -344,6 +355,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
             ))}
           </div>
         )}
+        <RawLinks bookingId={booking.id} links={data.links ?? []} onSaved={links => setData(d => d ? { ...d, links } : d)} />
         {!!data.shares?.length && (
           <div className="mt-3 space-y-1.5">
             <p className="text-[13px] font-bold text-[#4A4658] px-1">Editors who can open it</p>
@@ -391,5 +403,86 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
         document.body,
       )}
     </>
+  );
+}
+
+/**
+ * Raw files that are already on a Drive (uploaded by hand, or synced from a PC).
+ * The studio pastes the folder link here; editors of the program see it in their panel.
+ */
+function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: RawLink[]; onSaved: (l: RawLink[]) => void }) {
+  const [adding, setAdding] = useState(false);
+  const [url, setUrl] = useState("");
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function save(next: { id?: string; url: string; label?: string }[]) {
+    setBusy(true);
+    try {
+      const r = await apiFetch(`${API}/google-drive/raw/${bookingId}/links`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: next }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
+      onSaved(d.links ?? []);
+      return true;
+    } finally { setBusy(false); }
+  }
+  async function add() {
+    const u = url.trim();
+    if (!u) return;
+    if (await save([...links, { url: /^https?:\/\//i.test(u) ? u : `https://${u}`, label: label.trim() }])) {
+      setUrl(""); setLabel(""); setAdding(false); notify("Link added");
+    }
+  }
+  async function remove(l: RawLink) {
+    const ok = await askConfirm({ title: "Remove this link?", message: "Only the link is removed from StuPanel — the files on Drive are not touched.", confirmLabel: "Remove", danger: true });
+    if (ok && await save(links.filter(x => x.id !== l.id))) notify("Link removed");
+  }
+  const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+
+  return (
+    <div className="mt-3 space-y-1.5">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[13px] font-bold text-[#4A4658]">Links to raw files</p>
+        {!adding && (
+          <button type="button" onClick={() => setAdding(true)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD] inline-flex items-center gap-1">
+            <Plus className="w-3.5 h-3.5" />Add link
+          </button>
+        )}
+      </div>
+      {links.length === 0 && !adding && (
+        <p className="text-[12px] text-[#8A8599] px-1">Already on a Drive or synced from your PC? Add the folder link — editors get it too.</p>
+      )}
+      {links.map(l => (
+        <div key={l.id} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+          <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
+          <a href={l.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1">
+            <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || host(l.url)}</span>
+            <span className="block text-[11px] text-[#6B6680] truncate">{l.url}</span>
+          </a>
+          <button type="button" onClick={() => remove(l)} disabled={busy} title="Remove link"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F]">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      {adding && (
+        <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/…"
+            className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name (optional) — e.g. Holud · Camera A"
+            onKeyDown={e => { if (e.key === "Enter") add(); }}
+            className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+          <p className="text-[11px] text-[#8A8599]">Make sure the editor can open it on Drive (share the folder with them, or &quot;Anyone with the link&quot;).</p>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => { setAdding(false); setUrl(""); setLabel(""); }} className="h-9 px-4 rounded-full text-[13px] font-semibold text-[#4A4658] hover:bg-[#F2EFF8]">Cancel</button>
+            <button type="button" onClick={add} disabled={busy || !url.trim()} className="h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Save link
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

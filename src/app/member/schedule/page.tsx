@@ -84,7 +84,7 @@ export default function SchedulePage() {
                     <span className="mt-1.5 flex flex-wrap gap-1">
                       {open && (
                         <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-bold",
-                          d === 0 ? "bg-[#FDECEF] text-[#C2304F]" : d! <= 3 ? "bg-[#FFF4E5] text-[#B45309]" : "bg-[#F5F3FA] text-[#4A4658]")}>
+                          d === 0 ? "bg-[#FDECEF] text-[#C2304F]" : d! <= 3 ? "bg-[#FBF2FA] text-[#823072]" : "bg-[#F5F3FA] text-[#4A4658]")}>
                           {d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d} days`}
                         </span>
                       )}

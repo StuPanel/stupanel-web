@@ -70,8 +70,10 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
               <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">
                 {profile.firstName} {profile.lastName ?? ""}
               </p>
-              {profile.memberRoles?.[0] && (
-                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5">{profile.memberRoles[0].replace(/_/g, " ")}</p>
+              {!!profile.memberRoles?.length && (
+                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5 truncate" title={profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}>
+                  {profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}
+                </p>
               )}
             </div>
           </div>

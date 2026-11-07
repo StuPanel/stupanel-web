@@ -239,7 +239,7 @@ type ClientDetail = Client & {
 type ClientPayment = { id: string; amount: number; currency?: string; paymentMethod?: string; paymentDate?: string; receiptNumber?: string | null; receiptToken?: string | null; wallet?: { name: string } | null; booking?: { eventName?: string; bookingNumber?: string } };
 type ClientInvoice = { id: string; invoiceNumber: string; publicToken: string; docType?: string; state?: string; grandTotal: number; balanceDue: number; currency: string; issueDate: string; booking?: { eventName?: string } | null };
 const INV_STATE: Record<string, { label: string; cls: string }> = {
-  unpaid: { label: "Unpaid", cls: "text-[#9E3A8C]" }, partly_paid: { label: "Partly paid", cls: "text-[#A35A00]" },
+  unpaid: { label: "Unpaid", cls: "text-[#9E3A8C]" }, partly_paid: { label: "Partly paid", cls: "text-[#823072]" },
   paid: { label: "Paid", cls: "text-[#1F8A5B]" }, overdue: { label: "Overdue", cls: "text-[#C2304F]" }, cancelled: { label: "Cancelled", cls: "text-[#6B6680]" },
 };
 

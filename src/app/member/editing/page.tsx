@@ -10,10 +10,10 @@ import { Chips, EmptyState, Group, ListRow, PageHeader, RowsSkeleton } from "@/c
 const ASSIGNMENT_STATUS: Record<string, { label: string; badge: string }> = {
   assigned:           { label: "Assigned",     badge: "bg-[#EEEDF2] text-[#4A4658]" },
   in_progress:        { label: "In progress",  badge: "bg-[#E6F0FB] text-[#1F5C99]" },
-  submitted:          { label: "Submitted",    badge: "bg-[#FFF4E5] text-[#B45309]" },
-  under_review:       { label: "Under review", badge: "bg-[#FFF4E5] text-[#B45309]" },
+  submitted:          { label: "Submitted",    badge: "bg-[#FBF2FA] text-[#823072]" },
+  under_review:       { label: "Under review", badge: "bg-[#FBF2FA] text-[#823072]" },
   revision_requested: { label: "Changes asked", badge: "bg-[#FDECEF] text-[#C2304F]" },
-  resubmitted:        { label: "Sent again",   badge: "bg-[#FFF4E5] text-[#B45309]" },
+  resubmitted:        { label: "Sent again",   badge: "bg-[#FBF2FA] text-[#823072]" },
   approved:           { label: "Approved",     badge: "bg-[#E9F5EF] text-[#1F8A5B]" },
   delivered:          { label: "Delivered",    badge: "bg-[#E9F5EF] text-[#1F8A5B]" },
 };

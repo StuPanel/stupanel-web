@@ -8,7 +8,8 @@ export const PROGRAM_STATUS: Record<string, { label: string; badge: string }> = 
   inquiry:            { label: "Inquiry",      badge: "bg-[#FDECEF] text-[#C2304F]" },
   quote_sent:         { label: "Quote sent",   badge: "bg-[#FBF2FA] text-[#9E3A8C]" },
   confirmed:          { label: "Confirmed",    badge: "bg-[#EEE8FD] text-[#5B3FD0]" },
-  advance_received:   { label: "Advance paid", badge: "bg-[#EEE8FD] text-[#5B3FD0]" },
+  // Client money is the studio's business — for the team an advance just means "confirmed".
+  advance_received:   { label: "Confirmed",    badge: "bg-[#EEE8FD] text-[#5B3FD0]" },
   in_progress:        { label: "Shooting",     badge: "bg-[#E0F2F1] text-[#126B66]" },
   editing:            { label: "Editing",      badge: "bg-[#E6F0FB] text-[#1F5C99]" },
   ready_for_delivery: { label: "Ready",        badge: "bg-[#7D5CEF] text-white" },
@@ -33,7 +34,7 @@ export function daysUntil(d: string | null | undefined): number | null {
 /** "Next program in N days" card. */
 export function NextUp({ days, title, sub, href }: { days: number; title: string; sub: string; href?: string }) {
   const tone = days === 0 ? { bg: "bg-[#FDECEF]", num: "bg-[#C2304F] text-white", txt: "text-[#C2304F]" }
-    : days <= 3 ? { bg: "bg-[#FFF4E5]", num: "bg-[#B45309] text-white", txt: "text-[#B45309]" }
+    : days <= 3 ? { bg: "bg-[#FBF2FA]", num: "bg-[#9E3A8C] text-white", txt: "text-[#823072]" }
     : { bg: "bg-[#EEE8FD]", num: "bg-[#7D5CEF] text-white", txt: "text-[#5B3FD0]" };
   const body = (
     <>

@@ -37,6 +37,8 @@ export interface DriveFile {
   mimeType: string;
   fileSize: number;
   folderName: string | null;
+  /** Full folder path inside the program folder ("Holud/Camera A"); "" = main folder. */
+  path?: string;
   viewUrl: string | null;
   downloadUrl: string | null;
 }

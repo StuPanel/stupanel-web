@@ -18,6 +18,7 @@ const PENDING_KEY = "sp_drive_pending_v1";
 export type DriveFileResult = {
   id: string; fileName: string; mimeType: string; fileSize: number;
   folderName: string | null; viewUrl: string; downloadUrl: string;
+  path?: string;
   replacedFileId?: string | null;
 };
 

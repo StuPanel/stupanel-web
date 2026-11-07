@@ -6,7 +6,7 @@
  * I only see my own files and can't delete — the studio manages the rest.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ExternalLink, FileUp, FolderUp, HardDrive, Loader2 } from "lucide-react";
+import { ChevronDown, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -162,7 +162,7 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   );
 }
 
-type EditorStatus = { isEditor: boolean; hasFolder?: boolean; folderUrl?: string | null; folders?: { url: string; email: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
+type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string }[]; folderUrl?: string | null; folders?: { url: string; email: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
 
 /**
  * For an editor on this program: open the program's raw folder on Google Drive (view + download).
@@ -209,8 +209,23 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
         <span className="font-bold text-[13px] text-[#4A4658]">Raw files for editing</span>
       </div>
       <div className="px-4 py-4 space-y-3">
+        {!!st.links?.length && (
+          <div className="space-y-1.5">
+            {st.links.map(l => (
+              <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2.5 hover:bg-[#EEE8FD]">
+                <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || "Raw files link"}</span>
+                  <span className="block text-[11px] text-[#6B6680] truncate">{l.url}</span>
+                </span>
+                <ExternalLink className="w-3.5 h-3.5 text-[#8A8599]" />
+              </a>
+            ))}
+          </div>
+        )}
         {!st.hasFolder ? (
-          <p className="text-sm text-[#6B6680]">The studio hasn&apos;t uploaded raw files for this program yet.</p>
+          !st.links?.length && <p className="text-sm text-[#6B6680]">The studio hasn&apos;t added raw files for this program yet.</p>
         ) : st.folderUrl && !editing ? (
           <>
             <a href={st.folderUrl} target="_blank" rel="noopener noreferrer"

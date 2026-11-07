@@ -162,7 +162,7 @@ function RawAccountGroup({ accounts }: { accounts: Acc[] }) {
     ...accounts.map(a => ({ id: a.id, label: a.googleEmail, sub: `${Math.max(0, Math.round((a.totalStorageGb - a.usedStorageGb) * 10) / 10)} GB free` })),
   ];
   return (
-    <Group title="Raw files" note="Camera raw files uploaded from a program go to a private “StuPanel Raw” folder on this account. Changing it only affects programs that have no raw files yet.">
+    <Group title="Raw files" note="Camera raw files uploaded from a program go to a private “StuPanel Raw” folder on this account. New uploads always go to the account chosen here; files already uploaded stay on their account and still show in the program.">
       <div id="set-raw-drive" className="sp-set-row scroll-mt-28 divide-y divide-[#EEEBF4]">
         {chosen === undefined ? (
           <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" /></div>

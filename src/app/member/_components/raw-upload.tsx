@@ -162,7 +162,7 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   );
 }
 
-type EditorStatus = { isEditor: boolean; hasFolder?: boolean; folderUrl?: string | null; sharedEmail?: string | null; defaultEmail?: string | null };
+type EditorStatus = { isEditor: boolean; hasFolder?: boolean; folderUrl?: string | null; folders?: { url: string; email: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
 
 /**
  * For an editor on this program: open the program's raw folder on Google Drive (view + download).
@@ -195,7 +195,7 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(d?.message || "Couldn't give access", { error: true }); return; }
-      setSt(s => s ? { ...s, folderUrl: d.folderUrl, sharedEmail: d.email } : s);
+      setSt(s => s ? { ...s, folderUrl: d.folderUrl, folders: d.folders, sharedEmail: d.email } : s);
       setEditing(false);
       notify("Access ready — opening Drive");
       window.open(d.folderUrl, "_blank", "noopener");
@@ -217,6 +217,16 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
               className="h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold flex items-center justify-center gap-1.5">
               <ExternalLink className="w-4 h-4" />Open raw files in Drive
             </a>
+            {(st.folders?.length ?? 0) > 1 && (
+              <div className="space-y-1">
+                <p className="text-[12px] text-[#6B6680]">Some files are in another Drive:</p>
+                {st.folders!.slice(1).map(f => (
+                  <a key={f.url} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#5B3FD0]">
+                    <ExternalLink className="w-3.5 h-3.5" />More raw files ({f.email})
+                  </a>
+                ))}
+              </div>
+            )}
             <p className="text-[12px] text-[#6B6680]">
               Open with Google account <b className="text-[#17151F]">{st.sharedEmail}</b>.{" "}
               <button type="button" onClick={() => setEditing(true)} className="font-semibold text-[#5B3FD0]">Use another email</button>

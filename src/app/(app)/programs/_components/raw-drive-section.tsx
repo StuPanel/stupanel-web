@@ -17,12 +17,14 @@ import { Tile } from "@/components/ui/apple";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import type { Booking } from "./types";
 
-type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; viewUrl: string; thumb: string | null };
+type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; conn: string; viewUrl: string; thumb: string | null };
+type RawLocation = { conn: string; email: string; url: string; current: boolean; reachable: boolean; count: number; bytes: number };
 type Overview = {
   connected: boolean;
   account: { email: string; totalBytes: number; usedBytes: number; freeBytes: number | null } | null;
   folderUrl: string | null;
-  folders: { path: string; count: number; bytes: number }[];
+  folders: { path: string; conn: string; email: string; count: number; bytes: number }[];
+  locations?: RawLocation[];
   files: RawFile[];
   totals: { count: number; bytes: number };
   truncated: boolean;
@@ -140,15 +142,15 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   async function removeFile(f: RawFile) {
     const how = await askDriveDelete(`"${f.name}"`);
     if (!how) return;
-    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/file/${f.id}${how === "forever" ? "?permanent=1" : ""}`, { method: "DELETE" });
+    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/file/${f.id}?conn=${encodeURIComponent(f.conn)}${how === "forever" ? "&permanent=1" : ""}`, { method: "DELETE" });
     if (!r.ok) { notify("Delete failed", { error: true }); return; }
     notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
     load();
   }
-  async function removeFolder(path: string) {
+  async function removeFolder(path: string, conn: string) {
     const how = await askDriveDelete(`the folder "${path}" and everything in it`);
     if (!how) return;
-    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/folder?path=${encodeURIComponent(path)}${how === "forever" ? "&permanent=1" : ""}`, { method: "DELETE" });
+    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/folder?path=${encodeURIComponent(path)}&conn=${encodeURIComponent(conn)}${how === "forever" ? "&permanent=1" : ""}`, { method: "DELETE" });
     if (!r.ok) { notify("Delete failed", { error: true }); return; }
     notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
     load();
@@ -192,8 +194,11 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
 
   const acc = data.account;
   const usedPct = acc && acc.totalBytes ? Math.min(100, Math.round((acc.usedBytes / acc.totalBytes) * 100)) : 0;
-  const filesIn = (path: string) => data.files.filter(f => f.path === path);
+  const filesIn = (conn: string, path: string) => data.files.filter(f => f.conn === conn && f.path === path);
   const topFolders = data.folders.filter(f => f.count > 0);
+  // A program can have files on more than one Google account (the raw account was changed later).
+  const locations = (data.locations ?? []).filter(l => l.count > 0 || l.current || !l.reachable);
+  const several = locations.length > 1;
 
   const summary = data.totals.count
     ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}${data.shares?.length ? ` · ${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : ""}`
@@ -282,13 +287,28 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           <p className="text-sm text-[#8A8599] px-1">Nothing uploaded yet.</p>
         ) : (
           <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
-            {topFolders.map(g => {
-              const isOpen = !!open[g.path];
-              const list = isOpen ? filesIn(g.path) : [];
+            {(several ? locations : [null]).map(loc => (
+              <div key={loc?.conn ?? "all"}>
+                {loc && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F5FB]">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-semibold text-[#17151F] truncate">{loc.email}</span>
+                      <span className="block text-[11px] text-[#6B6680]">
+                        {!loc.reachable ? "Account disconnected — reconnect it to see these files" : loc.current ? "New uploads go here" : "Earlier uploads — files stay on this account"}
+                        {loc.reachable && ` · ${loc.count} files · ${fmtSize(loc.bytes)}`}
+                      </span>
+                    </span>
+                    {loc.reachable && <a href={loc.url} target="_blank" rel="noopener noreferrer" title="Open in Drive" className="w-8 h-8 rounded-full flex items-center justify-center text-[#5B3FD0] hover:bg-[#EEE8FD]"><ExternalLink className="w-3.5 h-3.5" /></a>}
+                  </div>
+                )}
+            {topFolders.filter(g => !loc || g.conn === loc.conn).map(g => {
+              const key = `${g.conn}|${g.path}`;
+              const isOpen = !!open[key];
+              const list = isOpen ? filesIn(g.conn, g.path) : [];
               return (
-                <div key={g.path}>
+                <div key={key}>
                   <div className="flex items-center gap-2 px-3 py-2.5">
-                    <button type="button" onClick={() => setOpen(o => ({ ...o, [g.path]: !isOpen }))} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+                    <button type="button" onClick={() => setOpen(o => ({ ...o, [key]: !isOpen }))} className="flex-1 min-w-0 flex items-center gap-2 text-left">
                       <ChevronDown className={cn("w-4 h-4 text-[#8A8599] transition-transform", !isOpen && "-rotate-90")} />
                       <span className="min-w-0">
                         <span className="block text-[13px] font-semibold text-[#17151F] truncate">{g.path || "Program folder"}</span>
@@ -296,7 +316,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
                       </span>
                     </button>
                     {g.path && (
-                      <button type="button" onClick={() => removeFolder(g.path)} title="Delete folder"
+                      <button type="button" onClick={() => removeFolder(g.path, g.conn)} title="Delete folder"
                         className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F]">
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -320,6 +340,8 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
                 </div>
               );
             })}
+              </div>
+            ))}
           </div>
         )}
         {!!data.shares?.length && (

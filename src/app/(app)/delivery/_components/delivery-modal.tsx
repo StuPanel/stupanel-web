@@ -16,6 +16,7 @@ import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
 import { uploadToDrive, checkDuplicates, applyDuplicateChoice, type DuplicateCheck, type DuplicateChoice, type DriveFileResult } from "@/lib/drive-uploader";
 import { UploadDuplicateDialog } from "@/components/upload-duplicate-dialog";
+import { RawBrowser } from "@/components/raw-browser";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
 import { notify, askConfirm, askDriveDelete } from "@/components/feedback";
@@ -192,7 +193,9 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
       if (folderName === "Other Files") {
         setDriveFiles(prev => prev.filter(f => f.folderName !== null));
       } else {
-        setDriveFiles(prev => prev.filter(f => f.folderName !== folderName));
+        // Everything in that folder and below it goes.
+        setDriveFiles(prev => prev.filter(f => { const p = f.path ?? f.folderName ?? ""; return p !== folderName && !p.startsWith(`${folderName}/`); }));
+        setDriveTargetFolder(t => (t === folderName || t.startsWith(`${folderName}/`) ? folderName.split("/").slice(0, -1).join("/") : t));
       }
     } catch { notify("Delete failed", { error: true }); }
   }
@@ -219,8 +222,9 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     const bookingId = booking!.id;
     const folderFor = (file: File) => {
       const wp = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-      if (wp && wp.includes("/")) return wp.split("/").slice(0, -1).join("/");
-      return driveTargetFolder || undefined;
+      // A picked folder keeps its name and sub-folders, inside the folder you are in.
+      const dirs = wp && wp.includes("/") ? wp.split("/").slice(0, -1) : [];
+      return [...(driveTargetFolder ? driveTargetFolder.split("/") : []), ...dirs].join("/") || undefined;
     };
 
     let toUpload = files;
@@ -748,68 +752,41 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       </div>
                     </div>
 
-                    {(() => {
-                      const driveFolders = [...new Set(driveFiles.filter(f => f.folderName).map(f => f.folderName as string))];
-                      return (
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            <button
-                              onClick={() => { setDriveTargetFolder(""); setDriveShowNewFolder(false); }}
-                              className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-                                driveTargetFolder === "" && !driveShowNewFolder
-                                  ? "bg-green-600 border-green-500 text-white"
-                                  : "border-slate-200 text-slate-500 hover:border-green-300 hover:text-green-600")}>
-                              <FolderOpen className="w-3 h-3" />Other Files
-                            </button>
-                            {driveFolders.map(f => (
-                              <button key={f}
-                                onClick={() => { setDriveTargetFolder(f); setDriveShowNewFolder(false); }}
-                                className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-                                  driveTargetFolder === f && !driveShowNewFolder
-                                    ? "bg-amber-500 border-amber-400 text-white"
-                                    : "border-amber-200 text-amber-700 bg-amber-50 hover:border-amber-400")}>
-                                <FolderOpen className="w-3 h-3" />{f}
-                              </button>
-                            ))}
-                            <button
-                              onClick={() => { setDriveShowNewFolder(true); setDriveTargetFolder(""); }}
-                              className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-                                driveShowNewFolder
-                                  ? "bg-green-600 border-green-500 text-white"
-                                  : "border-dashed border-slate-300 text-slate-400 hover:border-green-300 hover:text-green-500")}>
-                              + New Folder
-                            </button>
-                          </div>
-                          {driveShowNewFolder && (
-                            <div className="flex gap-2">
-                              <input
-                                type="text" value={driveNewFolderInput}
-                                onChange={e => setDriveNewFolderInput(e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === "Enter" && driveNewFolderInput.trim()) {
-                                    setDriveTargetFolder(driveNewFolderInput.trim()); setDriveShowNewFolder(false); setDriveNewFolderInput("");
-                                  }
-                                  if (e.key === "Escape") { setDriveShowNewFolder(false); setDriveNewFolderInput(""); }
-                                }}
-                                placeholder="Folder name (e.g. Holud Photos)"
-                                autoFocus
-                                className="flex-1 h-8 text-xs px-3 rounded-lg border border-green-300 bg-green-50 text-slate-700 outline-none focus:border-green-500" />
-                              <button
-                                onClick={() => {
-                                  if (driveNewFolderInput.trim()) {
-                                    setDriveTargetFolder(driveNewFolderInput.trim()); setDriveShowNewFolder(false); setDriveNewFolderInput("");
-                                  }
-                                }}
-                                className="h-8 px-3 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700">Create</button>
-                            </div>
-                          )}
-                          <p className="text-xs text-slate-400">
-                            Files will upload to: <span className="font-semibold text-green-600">{driveTargetFolder || "Other Files"}</span>
-                          </p>
+                    {/* Where new files go = the folder open in the browser below (+ a new folder here) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs text-[#6B6680] flex-1 min-w-0">
+                          Uploading to: <span className="font-semibold text-[#17151F]">{driveTargetFolder ? driveTargetFolder.split("/").join(" › ") : "Main folder"}</span>
+                        </p>
+                        {!driveShowNewFolder && (
+                          <button onClick={() => setDriveShowNewFolder(true)}
+                            className="h-8 px-3 rounded-full text-xs font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">+ New folder here</button>
+                        )}
+                      </div>
+                      {driveShowNewFolder && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text" value={driveNewFolderInput}
+                            onChange={e => setDriveNewFolderInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && driveNewFolderInput.trim()) {
+                                setDriveTargetFolder([driveTargetFolder, driveNewFolderInput.trim().replace(/[\\/]+/g, "-")].filter(Boolean).join("/")); setDriveShowNewFolder(false); setDriveNewFolderInput("");
+                              }
+                              if (e.key === "Escape") { setDriveShowNewFolder(false); setDriveNewFolderInput(""); }
+                            }}
+                            placeholder="Folder name (e.g. Holud Photos)"
+                            autoFocus
+                            className="flex-1 h-9 text-sm px-3 rounded-xl bg-[#F5F3FA] text-[#17151F] outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+                          <button
+                            onClick={() => {
+                              if (driveNewFolderInput.trim()) {
+                                setDriveTargetFolder([driveTargetFolder, driveNewFolderInput.trim().replace(/[\\/]+/g, "-")].filter(Boolean).join("/")); setDriveShowNewFolder(false); setDriveNewFolderInput("");
+                              }
+                            }}
+                            className="h-9 px-4 rounded-full bg-[#17151F] text-white text-xs font-semibold">Create</button>
                         </div>
-                      );
-                    })()}
+                      )}
+                    </div>
 
                     <div
                       onDragOver={e => { e.preventDefault(); setDriveDragOver(true); }}
@@ -824,7 +801,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       <div className="text-center">
                         <p className="text-sm font-medium text-slate-600">{driveChecking ? "Checking the folder…" : "Drop files or click to select"}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Upload to: <span className="font-semibold text-green-500">{driveTargetFolder || "Other Files"}</span>
+                          Upload to: <span className="font-semibold text-green-500">{driveTargetFolder ? driveTargetFolder.split("/").join(" › ") : "Main folder"}</span>
                         </p>
                       </div>
                       <input
@@ -856,25 +833,23 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                     {driveFilesLoading ? (
                       <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-green-400" /></div>
                     ) : driveFiles.length > 0 ? (() => {
-                      const groups: Record<string, DriveFile[]> = {};
-                      for (const f of driveFiles) {
-                        const key = f.folderName || "Other Files";
-                        if (!groups[key]) groups[key] = [];
-                        groups[key].push(f);
-                      }
-                      const groupEntries = Object.entries(groups);
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                              Files ({driveFiles.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
-                            </p>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Files on Drive</p>
                             <div className="flex items-center gap-1.5">
                             {driveDuplicateCount > 0 && (
                               <button onClick={removeDriveDuplicates} disabled={driveDeduping}
                                 className="flex items-center gap-1 text-xs font-semibold text-[#5B3FD0] bg-[#EEE8FD] hover:bg-[#E2D9FC] disabled:opacity-50 px-2 py-1 rounded-lg transition-colors">
                                 {driveDeduping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
                                 Remove duplicates ({driveDuplicateCount})
+                              </button>
+                            )}
+                            {driveTargetFolder && !driveTargetFolder.includes("/") && (
+                              <button onClick={() => downloadDriveZip(driveTargetFolder)} disabled={driveZipDownloading === driveTargetFolder}
+                                className="flex items-center gap-1 text-xs font-semibold text-[#5B3FD0] bg-[#EEE8FD] px-2 py-1 rounded-lg disabled:opacity-50">
+                                {driveZipDownloading === driveTargetFolder ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                This folder (ZIP)
                               </button>
                             )}
                             <button
@@ -886,62 +861,14 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             </button>
                             </div>
                           </div>
-                          {groupEntries.map(([folderKey, files]) => {
-                            const expanded = isDriveFolderExpanded(folderKey);
-                            return (
-                              <div key={folderKey} className="bg-green-50/50 border border-green-100 rounded-xl overflow-hidden">
-                                <div className="flex items-center gap-2 px-3 py-2">
-                                  <button onClick={() => toggleDriveFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                                    <FolderOpen className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                    <span className="text-xs font-semibold text-slate-700 truncate">{folderKey}</span>
-                                    <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
-                                  </button>
-                                  <button onClick={() => downloadDriveZip(folderKey)} disabled={driveZipDownloading === folderKey} title="Download folder as ZIP"
-                                    className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-green-200 text-green-600 disabled:opacity-50 transition-colors flex-shrink-0">
-                                    {driveZipDownloading === folderKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                                  </button>
-                                  <button onClick={() => confirmDeleteDriveFolder(folderKey)} title="Delete entire folder"
-                                    className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0">
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                  <button onClick={() => toggleDriveFolder(folderKey)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-green-200 text-green-500 flex-shrink-0">
-                                    {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                  </button>
-                                </div>
-                                <div
-                                  style={{ maxHeight: expanded ? `${files.length * 80 + 24}px` : "0", transition: "max-height 0.35s ease" }}
-                                  className="overflow-hidden">
-                                  <div className="px-3 pb-3 space-y-1.5">
-                                    {files.map(f => {
-                                      const Icon = fileIcon(f.mimeType);
-                                      return (
-                                        <div key={f.id} className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-slate-100">
-                                          <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
-                                            className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 hover:border-green-300 transition-colors" title="View in Drive">
-                                            <Icon className="w-4 h-4 text-slate-400" />
-                                          </a>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                            <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)}</p>
-                                          </div>
-                                          {f.downloadUrl && (
-                                            <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
-                                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-500 transition-colors flex-shrink-0" title="Download">
-                                              <Download className="w-3.5 h-3.5" />
-                                            </a>
-                                          )}
-                                          <button onClick={() => deleteDriveFileItem(f.id)}
-                                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0" title="Delete">
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          <RawBrowser
+                            files={driveFiles.map(f => ({ id: f.id, name: f.fileName, size: f.fileSize, path: f.path ?? f.folderName ?? "", viewUrl: f.viewUrl || f.downloadUrl || "#" }))}
+                            path={driveTargetFolder} onPath={p => { setDriveTargetFolder(p); setDriveShowNewFolder(false); }}
+                            rootLabel="Delivery folder" canDelete
+                            onUploadHere={(_p, fromFolder) => (fromFolder ? driveFolderInputRef : driveFileInputRef).current?.click()}
+                            onDeleteFile={f => deleteDriveFileItem(f.id)}
+                            onDeleteFolder={p => confirmDeleteDriveFolder(p)}
+                          />
                         </div>
                       );
                     })() : (

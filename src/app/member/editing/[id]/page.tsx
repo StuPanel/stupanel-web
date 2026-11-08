@@ -144,7 +144,7 @@ export default function EditorWorkspacePage() {
   const hasBrief = brief.videoStyle || brief.photoStyle || brief.colorStyle || brief.musicInfo || brief.specialInstructions;
   const hasRawFiles = rawFiles.folderName || rawFiles.folderPath || rawFiles.driveLink || rawFiles.dropboxLink || rawFiles.nasLocation;
   // Several things can be sent for one program (teaser, full video, reel…), each reviewed on its own.
-  const canSubmit = !["assigned", "delivered"].includes(assignment.status);
+  const canSubmit = assignment.status !== "delivered";
   const byType = new Map<string, typeof submissions>();
   for (const s of submissions) if (s.reviewStatus !== "replaced") byType.set(s.deliverableType, [...(byType.get(s.deliverableType) ?? []), s]);
   const groups = [...byType.entries()].map(([type, list]) => {
@@ -182,7 +182,7 @@ export default function EditorWorkspacePage() {
               </div>
             ))}
             {assignment.studioNote && (
-              <div className="text-xs text-amber-700 bg-amber-50 rounded-[14px] px-4 py-3">{assignment.studioNote}</div>
+              <div className="text-xs text-[#4A4658] bg-[#F7F5FB] rounded-[14px] px-4 py-3">{assignment.studioNote}</div>
             )}
             <div className="flex gap-2 flex-wrap">
               {statusCfg.next && (

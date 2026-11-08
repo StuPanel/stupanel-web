@@ -215,7 +215,7 @@ export default function NotificationsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => router.push("/programs")}
+                      onClick={() => router.push(n.bookingId ? `/programs?view=${n.bookingId}` : "/programs")}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white/80 hover:bg-white border border-white/50 text-xs font-medium text-slate-700 transition-colors shadow-sm">
                       View <ChevronRight className="w-3 h-3" />
                     </button>

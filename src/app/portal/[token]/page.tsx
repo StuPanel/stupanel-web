@@ -5,7 +5,7 @@ import {
   Loader2, Camera, Calendar, FileText, CreditCard, Receipt,
   Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink,
   Package, Image as ImageIcon, Lock, Download, Link2, MessageCircle,
-  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen,
+  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen, Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -13,7 +13,7 @@ import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
 import { StudioLogo } from "@/components/studio-logo";
 import { BRAND } from "@/lib/brand";
-import { portalHeaders, withPortalSession, clearPortalSession } from "@/lib/portal-session";
+import { portalHeaders, withPortalSession, clearPortalSession, waLink } from "@/lib/portal-session";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 import { PortalFiles, type PortalDriveFile } from "./_components/portal-files";
 
@@ -37,9 +37,11 @@ function getDeliveryStatus(b: { status: string; delivery?: any; deliveryStatus?:
   const s = b.status;
   const hasD = !!b.delivery;
   if (['cancelled', 'refunded'].includes(s)) return 'cancelled';
-  if (['completed', 'delivered'].includes(s) || hasD) return 'delivered';
-  if (s === 'ready_for_delivery') return 'ready';
-  if (['in_progress', 'editing'].includes(s)) return 'in_progress';
+  if (['completed', 'delivered'].includes(s)) return 'delivered';
+  if (s === 'ready_for_delivery' || hasD) return 'ready';
+  if (s === 'editing') return 'editing';
+  if (s === 'in_progress') return 'shooting';
+  if (['confirmed', 'advance_received'].includes(s)) return 'booked';
   return 'not_started';
 }
 
@@ -62,11 +64,14 @@ function groupByMonth(bookings: PortalData["bookings"]): [string, PortalData["bo
 }
 
 const DELIVERY_STATUS: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  not_started: { label: "Not Started",  color: "bg-slate-100 text-slate-500",    icon: Clock },
-  in_progress: { label: "In Progress",  color: "bg-blue-100 text-blue-700",      icon: Loader2 },
-  ready:       { label: "Ready",        color: "bg-amber-100 text-amber-700",    icon: Package },
-  delivered:   { label: "Delivered",    color: "bg-emerald-100 text-emerald-700",icon: CheckCircle },
-  cancelled:   { label: "Cancelled",    color: "bg-red-100 text-red-500",        icon: XCircle },
+  not_started: { label: "Not started",  color: "bg-[#F2EFF8] text-[#6B6680]", icon: Clock },
+  booked:      { label: "Booked",       color: "bg-[#EEE8FD] text-[#5B3FD0]", icon: Calendar },
+  shooting:    { label: "Shooting",     color: "bg-[#EEE8FD] text-[#5B3FD0]", icon: Camera },
+  in_progress: { label: "In progress",  color: "bg-[#EEE8FD] text-[#5B3FD0]", icon: Clock },
+  editing:     { label: "Editing",      color: "bg-[#EEE8FD] text-[#5B3FD0]", icon: Clock },
+  ready:       { label: "Files ready",  color: "bg-[#7D5CEF] text-white",     icon: Package },
+  delivered:   { label: "Delivered",    color: "bg-[#E6F4EC] text-[#1F8A5B]", icon: CheckCircle },
+  cancelled:   { label: "Cancelled",    color: "bg-[#FDECEF] text-[#C2304F]", icon: XCircle },
 };
 
 const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
@@ -98,13 +103,16 @@ interface BookingDelivery {
   fullyPaid: boolean; dueAmount: number;
   r2Files: R2File[]; driveFiles?: DriveFile[];
   links: ManualLink[]; driveFolderUrl: string | null; driveFolderLocked?: boolean; note: string | null;
+  /** Locked (money due): what is waiting, by top folder. */
+  preview?: { name: string; count: number; bytes: number; videos: number; photos: number }[];
 }
+type Studio = { name: string; phone?: string; bkashNumber?: string | null; nagadNumber?: string | null };
 interface PortalData {
   client: { firstName: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string };
   company: {
     name: string; email?: string; phone?: string; address?: string;
     city?: string; logoUrl?: string; primaryColor?: string; currency: string;
-    portalWelcomeMessage?: string;
+    portalWelcomeMessage?: string; bkashNumber?: string | null; nagadNumber?: string | null;
     portalShowQuotes?: boolean; portalShowInvoices?: boolean;
     portalShowPayments?: boolean; portalShowMessages?: boolean;
   };
@@ -135,11 +143,11 @@ interface PortalData {
 type Tab = "programs" | "quotes" | "invoices" | "payments" | "messages";
 
 // ─── Delivery Section (unchanged logic) ──────────────────────────────────────
-function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingId }: {
+function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingId, studio, programName }: {
   delivery: BookingDelivery; dueAmount: number; currency: string; brand: string;
-  token: string; bookingId: string;
+  token: string; bookingId: string; studio: Studio; programName: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const cs = sym(currency);
   const driveFiles: DriveFile[] = delivery.driveFiles ?? [];
@@ -155,44 +163,58 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   if (!hasContent) return null;
 
   if (!delivery.fullyPaid) {
+    const preview = delivery.preview ?? [];
+    const kind = (g: { count: number; videos: number; photos: number }) =>
+      g.videos === g.count ? `${g.count} video${g.count > 1 ? "s" : ""}` : g.photos === g.count ? `${g.count} photo${g.count > 1 ? "s" : ""}` : `${g.count} file${g.count > 1 ? "s" : ""}`;
+    const paid = waLink(studio.phone, `Hi ${studio.name}, I've paid ${cs}${num(dueAmount)} for ${programName}. Please unlock my files.`);
+    const ways = [studio.bkashNumber && { label: "bKash", n: studio.bkashNumber }, studio.nagadNumber && { label: "Nagad", n: studio.nagadNumber }].filter(Boolean) as { label: string; n: string }[];
     return (
-      <div className="mt-3 rounded-xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
+      <div className="mt-3 rounded-2xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
         <div className="px-4 py-3 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#EEE8FD] flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-full bg-[#EEE8FD] flex items-center justify-center flex-shrink-0">
             <Lock className="w-4 h-4 text-[#5B3FD0]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-bold text-[#17151F]">Your files are ready!</p>
             <p className="text-xs text-[#4A4658] mt-0.5">
-              Complete your outstanding payment of{" "}
-              <span className="font-bold">{cs}{num(dueAmount)}</span> to unlock download access.
+              Pay the remaining <span className="font-bold">{cs}{num(dueAmount)}</span> and they unlock here to view and download.
             </p>
           </div>
         </div>
-        <div className="px-4 pb-3">
-          <div className="flex items-center gap-2 text-xs text-[#5B3FD0]">
-            {delivery.r2Files.length > 0 && (
-              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
-                <FileImage className="w-3 h-3" />{delivery.r2Files.length} file{delivery.r2Files.length > 1 ? "s" : ""}
-              </span>
+        {preview.length > 0 && (
+          <div className="mx-3 mb-3 rounded-xl bg-white border border-[#EEEBF4] divide-y divide-[#F2EFF8]">
+            {preview.map(g => (
+              <div key={g.name} className="px-3 py-2.5 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${brand}1A` }}>
+                  <Folder className="w-4 h-4" style={{ color: brand }} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-[#17151F] truncate">{g.name}</span>
+                  <span className="block text-[11px] text-[#6B6680]">{kind(g)}</span>
+                </span>
+                <Lock className="w-3.5 h-3.5 text-[#A29DB3]" />
+              </div>
+            ))}
+          </div>
+        )}
+        {preview.length === 0 && delivery.links.length > 0 && (
+          <p className="px-4 pb-3 text-xs text-[#5B3FD0]">{delivery.links.length} link{delivery.links.length > 1 ? "s" : ""} waiting</p>
+        )}
+        {(ways.length > 0 || paid) && (
+          <div className="px-4 pb-4 space-y-2">
+            {ways.length > 0 && (
+              <p className="text-xs text-[#4A4658]">
+                Pay by {ways.map((w, i) => <span key={w.label}>{i > 0 && " or "}<b>{w.label}</b> {w.n}</span>)}
+              </p>
             )}
-            {driveFiles.length > 0 && (
-              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
-                <FileImage className="w-3 h-3" />{driveFiles.length} Drive file{driveFiles.length > 1 ? "s" : ""}
-              </span>
-            )}
-            {delivery.links.length > 0 && (
-              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
-                <Link2 className="w-3 h-3" />{delivery.links.length} link{delivery.links.length > 1 ? "s" : ""}
-              </span>
-            )}
-            {(delivery.driveFolderUrl || delivery.driveFolderLocked) && driveFiles.length === 0 && (
-              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
-                <Link2 className="w-3 h-3" />Drive folder
-              </span>
+            {paid && (
+              <a href={paid} target="_blank" rel="noopener noreferrer"
+                className="h-10 rounded-full text-white text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90" style={{ backgroundColor: brand }}>
+                <MessageCircle className="w-4 h-4" />I&apos;ve paid — tell {studio.name}
+              </a>
             )}
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -360,7 +382,7 @@ function DeliveryStatusBadge({ status }: { status: string }) {
   const Icon = ds.icon;
   return (
     <span className={cn("flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0", ds.color)}>
-      <Icon className={cn("w-3 h-3", status === "in_progress" && "animate-spin")} />
+      <Icon className="w-3 h-3" />
       {ds.label}
     </span>
   );
@@ -405,8 +427,9 @@ function PaymentBar({ grandTotal, paidAmount, currency, brand }: {
 }
 
 // ─── Booking Card ─────────────────────────────────────────────────────────────
-function BookingCard({ b, brand, token }: { b: PortalData["bookings"][0]; brand: string; token: string }) {
-  const [expanded, setExpanded] = useState(false);
+function BookingCard({ b, brand, token, studio }: { b: PortalData["bookings"][0]; brand: string; token: string; studio: Studio }) {
+  // Files waiting? Show them straight away.
+  const [expanded, setExpanded] = useState(!!b.delivery);
   const bal = Math.max(0, Number(b.grandTotal) - Number(b.paidAmount));
   const ds = getDeliveryStatus(b);
   const hasExpandable = !!b.delivery || !!b.deliveryLink;
@@ -448,8 +471,8 @@ function BookingCard({ b, brand, token }: { b: PortalData["bookings"][0]; brand:
           <div className="flex justify-end mt-2 pt-2 border-t border-slate-50">
             <span className="flex items-center gap-1 text-xs text-slate-400 font-medium">
               {expanded
-                ? <><ChevronUp className="w-3.5 h-3.5" />Hide delivery</>
-                : <><ChevronDown className="w-3.5 h-3.5" />View delivery</>
+                ? <><ChevronUp className="w-3.5 h-3.5" />Hide files</>
+                : <><ChevronDown className="w-3.5 h-3.5" />{b.delivery?.fullyPaid === false ? "See what's ready" : "View files"}</>
               }
             </span>
           </div>
@@ -467,6 +490,8 @@ function BookingCard({ b, brand, token }: { b: PortalData["bookings"][0]; brand:
               brand={brand}
               token={token}
               bookingId={b.id}
+              studio={studio}
+              programName={b.eventName || b.bookingNumber}
             />
           ) : b.deliveryLink ? (
             <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
@@ -651,7 +676,8 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                 </div>
                 <div className="space-y-3">
                   {bkgs.map(b => (
-                    <BookingCard key={b.id} b={b} brand={brand} token={token} />
+                    <BookingCard key={b.id} b={b} brand={brand} token={token}
+                      studio={{ name: data.company.name, phone: data.company.phone, bkashNumber: data.company.bkashNumber, nagadNumber: data.company.nagadNumber }} />
                   ))}
                 </div>
               </div>

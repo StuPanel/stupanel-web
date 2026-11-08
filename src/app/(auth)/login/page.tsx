@@ -18,7 +18,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Google sign-in problems come back as ?error=… (e.g. "This Google account has no StuPanel account").
+  const [error, setError] = useState(() => searchParams.get("error") ?? "");
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");

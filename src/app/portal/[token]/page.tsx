@@ -15,6 +15,7 @@ import { StudioLogo } from "@/components/studio-logo";
 import { BRAND } from "@/lib/brand";
 import { portalHeaders, withPortalSession, clearPortalSession } from "@/lib/portal-session";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
+import { PortalFiles, type PortalDriveFile } from "./_components/portal-files";
 
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
 function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
@@ -92,10 +93,7 @@ interface R2File {
   fileSize: number; viewUrl: string | null; downloadUrl: string | null; folderName?: string | null;
 }
 interface ManualLink { id: string; title: string; url: string | null }
-interface DriveFile {
-  id: string; fileName: string; mimeType: string; fileSize: number;
-  folderName: string | null; viewUrl: string | null; downloadUrl: string | null;
-}
+type DriveFile = PortalDriveFile;
 interface BookingDelivery {
   fullyPaid: boolean; dueAmount: number;
   r2Files: R2File[]; driveFiles?: DriveFile[];
@@ -158,38 +156,38 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
 
   if (!delivery.fullyPaid) {
     return (
-      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+      <div className="mt-3 rounded-xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
         <div className="px-4 py-3 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Lock className="w-4 h-4 text-amber-600" />
+          <div className="w-8 h-8 rounded-full bg-[#EEE8FD] flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Lock className="w-4 h-4 text-[#5B3FD0]" />
           </div>
           <div>
-            <p className="text-sm font-bold text-amber-800">Your files are ready!</p>
-            <p className="text-xs text-amber-700 mt-0.5">
+            <p className="text-sm font-bold text-[#17151F]">Your files are ready!</p>
+            <p className="text-xs text-[#4A4658] mt-0.5">
               Complete your outstanding payment of{" "}
               <span className="font-bold">{cs}{num(dueAmount)}</span> to unlock download access.
             </p>
           </div>
         </div>
         <div className="px-4 pb-3">
-          <div className="flex items-center gap-2 text-xs text-amber-600">
+          <div className="flex items-center gap-2 text-xs text-[#5B3FD0]">
             {delivery.r2Files.length > 0 && (
-              <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
+              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
                 <FileImage className="w-3 h-3" />{delivery.r2Files.length} file{delivery.r2Files.length > 1 ? "s" : ""}
               </span>
             )}
             {driveFiles.length > 0 && (
-              <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
+              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
                 <FileImage className="w-3 h-3" />{driveFiles.length} Drive file{driveFiles.length > 1 ? "s" : ""}
               </span>
             )}
             {delivery.links.length > 0 && (
-              <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
+              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
                 <Link2 className="w-3 h-3" />{delivery.links.length} link{delivery.links.length > 1 ? "s" : ""}
               </span>
             )}
             {(delivery.driveFolderUrl || delivery.driveFolderLocked) && driveFiles.length === 0 && (
-              <span className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
+              <span className="flex items-center gap-1 bg-[#EEE8FD] px-2 py-1 rounded-lg">
                 <Link2 className="w-3 h-3" />Drive folder
               </span>
             )}
@@ -202,7 +200,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   const totalItems = delivery.r2Files.length + driveFiles.length + delivery.links.length + (delivery.driveFolderUrl && driveFiles.length === 0 ? 1 : 0);
 
   return (
-    <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 overflow-hidden">
+    <div className="mt-3 rounded-xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
       <button
         onClick={() => setExpanded(e => !e)}
         className="w-full px-4 py-3 flex items-center justify-between gap-3"
@@ -212,24 +210,24 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             <Package className="w-3.5 h-3.5 text-white" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold text-teal-800">Delivery Ready</p>
-            <p className="text-xs text-teal-600">{totalItems} item{totalItems > 1 ? "s" : ""} available</p>
+            <p className="text-sm font-bold text-[#17151F]">Delivery Ready</p>
+            <p className="text-xs text-[#6B6680]">{totalItems} item{totalItems > 1 ? "s" : ""} available</p>
           </div>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-teal-500" /> : <ChevronDown className="w-4 h-4 text-teal-500" />}
+        {expanded ? <ChevronUp className="w-4 h-4 text-[#8A8599]" /> : <ChevronDown className="w-4 h-4 text-[#8A8599]" />}
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-teal-200 pt-3">
+        <div className="px-4 pb-4 space-y-3 border-t border-[#E4DCFB] pt-3">
           {delivery.note && (
-            <p className="text-xs text-teal-700 italic bg-teal-100 px-3 py-2 rounded-lg">{delivery.note}</p>
+            <p className="text-xs text-[#4A4658] italic bg-[#EEE8FD] px-3 py-2 rounded-lg">{delivery.note}</p>
           )}
 
           {delivery.links.length > 0 && (
             <div className="space-y-2">
               {delivery.links.filter(l => !!l.url).map(l => (
                 <a key={l.id} href={l.url ?? undefined} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 transition-colors group">
+                  className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#EEEBF4] hover:border-[#CFC8DD] transition-colors group">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand + "20" }}>
                     <Link2 className="w-4 h-4" style={{ color: brand }} />
                   </div>
@@ -237,104 +235,28 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                     <p className="text-xs font-semibold text-slate-800">{l.title || "Delivery Link"}</p>
                     <p className="text-xs text-slate-400 truncate">{l.url}</p>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal-500 flex-shrink-0 transition-colors" />
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#8A8599] flex-shrink-0 transition-colors" />
                 </a>
               ))}
             </div>
           )}
 
-          {driveFiles.length > 0 && (() => {
-            const groups: Record<string, DriveFile[]> = {};
-            for (const f of driveFiles) {
-              const key = f.folderName || "Other Files";
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(f);
-            }
-            const groupEntries = Object.entries(groups);
-            return (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">
-                    Drive Files ({driveFiles.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {delivery.driveFolderUrl && (
-                      <a href={delivery.driveFolderUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-green-600 transition-colors">
-                        <ExternalLink className="w-3 h-3" />Open Drive
-                      </a>
-                    )}
-                    <a href={withPortalSession(token, `${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}`)}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: brand }}>
-                      <Download className="w-3 h-3" />Download All
-                    </a>
-                  </div>
-                </div>
-                {groupEntries.map(([folderKey, files]) => {
-                  const isOpen = isFolderExpanded(`drive-${folderKey}`);
-                  return (
-                    <div key={folderKey} className="border border-green-100 rounded-xl overflow-hidden bg-white">
-                      <div className="flex items-center gap-2 px-3 py-2.5">
-                        <button onClick={() => toggleFolder(`drive-${folderKey}`)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                          <FolderOpen className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                          <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
-                          <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
-                        </button>
-                        <a href={withPortalSession(token, `${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}&folderName=${encodeURIComponent(folderKey)}`)}
-                          title="Download folder as ZIP"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors flex-shrink-0"
-                          onClick={e => e.stopPropagation()}>
-                          <Download className="w-3.5 h-3.5" />
-                        </a>
-                        <button onClick={() => toggleFolder(`drive-${folderKey}`)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-green-50 text-green-500 flex-shrink-0">
-                          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <div style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : "0", transition: "max-height 0.35s ease" }} className="overflow-hidden">
-                        <div className="px-3 pb-3 border-t border-green-50 pt-2 space-y-2">
-                          {files.map(f => {
-                            const Icon = fileIcon(f.mimeType);
-                            return (
-                              <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-green-100">
-                                <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-green-300 transition-colors">
-                                  <Icon className="w-4 h-4 text-slate-400" />
-                                </a>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                  <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)}</p>
-                                </div>
-                                {f.downloadUrl && (
-                                  <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90 flex-shrink-0"
-                                    style={{ backgroundColor: brand }}>
-                                    <Download className="w-3 h-3" />
-                                  </a>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+          {driveFiles.length > 0 && (
+            <PortalFiles files={driveFiles} brand={brand} driveUrl={delivery.driveFolderUrl}
+              zipUrl={folder => withPortalSession(token, `${API}/public/portal/${token}/drive-zip?bookingId=${bookingId}${folder ? `&folderName=${encodeURIComponent(folder)}` : ""}`)} />
+          )}
 
           {delivery.driveFolderUrl && driveFiles.length === 0 && !delivery.links.some(l => l.url === delivery.driveFolderUrl) && (
             <a href={delivery.driveFolderUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-100 hover:border-teal-300 transition-colors group">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-50">
-                <ImageIcon className="w-4 h-4 text-green-500" />
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#EEEBF4] hover:border-[#CFC8DD] transition-colors group">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#EEE8FD]">
+                <ImageIcon className="w-4 h-4 text-[#5B3FD0]" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-slate-800">Google Drive Folder</p>
                 <p className="text-xs text-slate-400 truncate">{delivery.driveFolderUrl}</p>
               </div>
-              <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-green-500 flex-shrink-0 transition-colors" />
+              <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#5B3FD0] flex-shrink-0 transition-colors" />
             </a>
           )}
 
@@ -349,7 +271,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             return (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wide">
                     Files ({delivery.r2Files.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                   </p>
                   <a href={downloadZipUrl()}
@@ -361,30 +283,30 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 {groupEntries.map(([folderKey, files]) => {
                   const isOpen = isFolderExpanded(folderKey);
                   return (
-                    <div key={folderKey} className="border border-teal-100 rounded-xl overflow-hidden bg-white">
+                    <div key={folderKey} className="border border-[#EEEBF4] rounded-xl overflow-hidden bg-white">
                       <div className="flex items-center gap-2 px-3 py-2.5">
                         <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                          <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <FolderOpen className="w-3.5 h-3.5 text-[#5B3FD0] flex-shrink-0" />
                           <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
                           <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
                         </button>
                         <a href={downloadZipUrl(folderKey)} title="Download folder as ZIP"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-600 hover:bg-teal-50 transition-colors flex-shrink-0"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#6B6680] hover:bg-[#F7F5FB] transition-colors flex-shrink-0"
                           onClick={e => e.stopPropagation()}>
                           <Download className="w-3.5 h-3.5" />
                         </a>
-                        <button onClick={() => toggleFolder(folderKey)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-teal-50 text-teal-500 flex-shrink-0">
+                        <button onClick={() => toggleFolder(folderKey)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F7F5FB] text-[#8A8599] flex-shrink-0">
                           {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       </div>
                       <div style={{ maxHeight: isOpen ? `${files.length * 76 + 24}px` : "0", transition: "max-height 0.35s ease" }} className="overflow-hidden">
-                        <div className="px-3 pb-3 border-t border-teal-50 pt-2 space-y-2">
+                        <div className="px-3 pb-3 border-t border-[#F2EFF8] pt-2 space-y-2">
                           {files.map(f => {
                             const Icon = fileIcon(f.mimeType);
                             return (
-                              <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-teal-100">
+                              <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-[#EEEBF4]">
                                 <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-teal-300 transition-colors">
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-[#CFC8DD] transition-colors">
                                   <Icon className="w-4 h-4 text-slate-400" />
                                 </a>
                                 <div className="flex-1 min-w-0">

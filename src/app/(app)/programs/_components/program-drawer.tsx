@@ -385,12 +385,16 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
 }
 
 // ─── The drawer ───────────────────────────────────────────────────────────────
-export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient }: {
+/** A new program started from a lead: event, dates, place and price filled in. */
+export type ProgramDraft = { eventName?: string; dates?: string[]; location?: string; total?: number; notes?: string };
+
+export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient, initialDraft }: {
   open: boolean; onClose: () => void; onSaved: () => void;
   packages: Package[]; teamMembers: TeamMember[];
   initialBooking?: Booking | null;
   /** Start a new program for this client. */
   initialClient?: Client | null;
+  initialDraft?: ProgramDraft | null;
 }) {
   const isEdit = !!initialBooking;
   const [client, setClient] = useState<Client | null>(null);
@@ -448,11 +452,13 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       setNotes(b.internalNotes ?? "");
       apiFetch(`${API}/bookings/${b.id}/editors`).then(r => r.ok ? r.json() : []).then((rows: EditorDraft[]) => setEditors(rows.map(r => ({ userId: r.userId, role: r.role })))).catch(() => {});
     } else {
-      setClient(initialClient ?? null); setEventName(""); setNameTouched(false); setProgramType(""); setPackageId("");
-      setDays([]); setKept([]); setEditors([]); setNotes("");
-      setMoney({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
+      const dr = initialDraft;
+      setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setPackageId("");
+      setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
+      setKept([]); setEditors([]); setNotes(dr?.notes ?? "");
+      setMoney({ total: dr?.total ? String(dr.total) : "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
     }
-  }, [open, initialBooking, initialClient]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, initialBooking, initialClient, initialDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Who is busy on each date
   useEffect(() => {

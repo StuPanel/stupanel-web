@@ -13,7 +13,7 @@ const STATUS_HEX: Record<string, string> = {
   editing: "#1F5C99", ready_for_delivery: "#7D5CEF", delivered: "#4A4658", completed: "#1F8A5B", cancelled: "#8A2E2E", refunded: "#8A2E2E",
 };
 import { ProgramRow, DeleteDialog } from "./_components/program-card";
-import { ProgramDrawer } from "./_components/program-drawer";
+import { ProgramDrawer, type ProgramDraft } from "./_components/program-drawer";
 import { ViewDrawer } from "./_components/view-drawer";
 import type { Booking, Client, Package, TeamMember } from "./_components/types";
 
@@ -38,6 +38,7 @@ export default function ProgramsPage() {
 
   const [newOpen, setNewOpen] = useState(false);
   const [newForClient, setNewForClient] = useState<Client | null>(null);
+  const [newDraft, setNewDraft] = useState<ProgramDraft | null>(null);
   const [viewTarget, setViewTarget] = useState<Booking | null>(null);
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
   /** Edit opened from a program's page — go back to it after Cancel / Save. */
@@ -101,10 +102,18 @@ export default function ProgramsPage() {
   useEffect(() => {
     const clientId = searchParams.get("newFor");
     if (!clientId) return;
+    const leadId = searchParams.get("lead");
     router.replace("/programs", { scroll: false });
-    apiFetch(`${API}/clients/${clientId}`).then(async (res) => {
-      if (!res.ok) return;
-      setNewForClient(await res.json());
+    Promise.all([
+      apiFetch(`${API}/clients/${clientId}`).then(r => (r.ok ? r.json() : null)),
+      leadId ? apiFetch(`${API}/leads/${leadId}`).then(r => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
+    ]).then(([client, lead]) => {
+      if (!client) return;
+      setNewForClient(client);
+      setNewDraft(lead ? {
+        eventName: lead.eventType ?? "", dates: Array.isArray(lead.eventDates) ? lead.eventDates : [],
+        location: lead.venue ?? "", total: lead.budget != null ? Number(lead.budget) : undefined, notes: lead.notes ?? "",
+      } : null);
       setNewOpen(true);
     }).catch(() => {});
   }, [searchParams, router]);
@@ -157,8 +166,8 @@ export default function ProgramsPage() {
 
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
-      <ProgramDrawer open={newOpen} onClose={() => { setNewOpen(false); setNewForClient(null); }} onSaved={fetchAll} packages={packages} teamMembers={teamMembers}
-        initialClient={newForClient} />
+      <ProgramDrawer open={newOpen} onClose={() => { setNewOpen(false); setNewForClient(null); setNewDraft(null); }} onSaved={fetchAll} packages={packages} teamMembers={teamMembers}
+        initialClient={newForClient} initialDraft={newDraft} />
       <ProgramDrawer
         open={!!editTarget}
         onClose={() => { setEditTarget(null); reopenView(); }}

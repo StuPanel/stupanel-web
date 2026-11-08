@@ -5,6 +5,7 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/programs",
   "/clients",
+  "/leads",
   "/bookings",
   "/payments",
   "/invoices",

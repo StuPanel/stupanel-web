@@ -2,7 +2,8 @@
 
 import { apiFetch } from "@/lib/api";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus, X, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
   CalendarDays, MapPin, DollarSign, Check, ChevronRight,
@@ -107,8 +108,10 @@ function ItemRow({ item, onChange, onRemove, canRemove }: {
 }
 
 // ─── Create/Edit Drawer ────────────────────────────────────────────────────────
-function QuoteDrawer({ quote, onClose, onSaved }: {
-  quote: Quote | null; onClose: () => void; onSaved: (q: Quote) => void;
+type QuotePrefill = { client: Client; eventType?: string; eventDate?: string; venue?: string };
+
+function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
+  quote: Quote | null; prefill?: QuotePrefill | null; onClose: () => void; onSaved: (q: Quote) => void;
 }) {
   const isEdit = !!quote;
 
@@ -116,10 +119,10 @@ function QuoteDrawer({ quote, onClose, onSaved }: {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [clientSearch, setClientSearch] = useState("");
   const [clientDropdown, setClientDropdown] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(quote?.client ?? null);
-  const [eventType, setEventType] = useState(quote?.eventType ?? "");
-  const [eventDate, setEventDate] = useState(quote?.eventDate ? new Date(quote.eventDate).toISOString().slice(0,10) : "");
-  const [venue, setVenue] = useState(quote?.venue ?? "");
+  const [selectedClient, setSelectedClient] = useState<Client | null>(quote?.client ?? prefill?.client ?? null);
+  const [eventType, setEventType] = useState(quote?.eventType ?? prefill?.eventType ?? "");
+  const [eventDate, setEventDate] = useState(quote?.eventDate ? new Date(quote.eventDate).toISOString().slice(0,10) : prefill?.eventDate ?? "");
+  const [venue, setVenue] = useState(quote?.venue ?? prefill?.venue ?? "");
   const [selectedProgramId, setSelectedProgramId] = useState(quote?.program ? "" : "");
   const [currency, setCurrency] = useState(quote?.currency ?? "BDT");
   const [items, setItems] = useState<QuoteItem[]>(quote?.items ?? [{ id: crypto.randomUUID(), name: "", qty: 1, unitPrice: 0, total: 0 }]);
@@ -677,7 +680,7 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function QuotesPage() {
+function QuotesPageInner() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, statusCounts: {} as Record<string, number> });
   const [loading, setLoading] = useState(true);
@@ -687,6 +690,25 @@ export default function QuotesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Quote | null>(null);
   const [viewTarget, setViewTarget] = useState<Quote | null>(null);
+  const [prefill, setPrefill] = useState<QuotePrefill | null>(null);
+  const params = useSearchParams();
+  const router = useRouter();
+
+  // "Make a quote" from a lead (?newFor=clientId&lead=leadId)
+  useEffect(() => {
+    const clientId = params.get("newFor");
+    if (!clientId) return;
+    const leadId = params.get("lead");
+    router.replace("/quotes", { scroll: false });
+    Promise.all([
+      apiFetch(`${API}/clients/${clientId}`).then(r => (r.ok ? r.json() : null)),
+      leadId ? apiFetch(`${API}/leads/${leadId}`).then(r => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
+    ]).then(([client, lead]) => {
+      if (!client) return;
+      setPrefill({ client, eventType: lead?.eventType ?? undefined, eventDate: lead?.eventDates?.[0] ?? undefined, venue: lead?.venue ?? undefined });
+      setShowCreate(true);
+    }).catch(() => {});
+  }, [params, router]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -775,9 +797,13 @@ export default function QuotesPage() {
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
       {(showCreate || editTarget) && (
-        <QuoteDrawer quote={editTarget} onClose={() => { setShowCreate(false); setEditTarget(null); }} onSaved={onSaved} />
+        <QuoteDrawer quote={editTarget} prefill={editTarget ? null : prefill} onClose={() => { setShowCreate(false); setEditTarget(null); setPrefill(null); }} onSaved={onSaved} />
       )}
       <ViewDrawer quote={viewTarget} onClose={() => setViewTarget(null)} onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }} onRefresh={load} />
     </div>
   );
+}
+
+export default function QuotesPage() {
+  return <Suspense><QuotesPageInner /></Suspense>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as HeaderIcon, Film, ShieldAlert } from "lucide-react";
+import { Bell as HeaderIcon, Film, ShieldAlert, PhoneCall } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
@@ -31,7 +31,7 @@ function markSeen(ids: string[]) {
 
 interface Notif {
   id: string; type: string; priority: "high" | "medium" | "low";
-  title: string; body: string; bookingId: string; bookingNumber: string; createdAt: string;
+  title: string; body: string; bookingId?: string; bookingNumber?: string; leadId?: string; createdAt: string;
   client?: { firstName: string; lastName?: string | null; phone?: string | null };
 }
 interface NotifResponse { total: number; unread: number; items: Notif[]; }
@@ -43,17 +43,19 @@ const TYPE_CFG: Record<string, { icon: typeof Bell; bg: string; iconColor: strin
   payment:  { icon: DollarSign,   bg: "bg-orange-50", iconColor: "text-orange-600", border: "border-orange-100"},
   new:      { icon: Plus,          bg: "bg-emerald-50",iconColor: "text-emerald-600",border: "border-emerald-100"},
   review:   { icon: Film,        bg: "bg-[#EEE8FD]", iconColor: "text-[#5B3FD0]",  border: "border-[#E4DCFB]" },
+  lead:     { icon: PhoneCall,     bg: "bg-[#EEE8FD]", iconColor: "text-[#7D5CEF]",  border: "border-[#E4DCFB]" },
   backup:   { icon: ShieldAlert,   bg: "bg-[#FDECEF]", iconColor: "text-[#C2304F]",  border: "border-[#F8D5DC]" },
 };
 const PRIORITY_DOT: Record<string, string> = {
   high: "bg-red-500", medium: "bg-amber-400", low: "bg-slate-300",
 };
 const TYPE_LABEL: Record<string, string> = {
-  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review", backup: "Backup",
+  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review", lead: "Follow-up", backup: "Backup",
 };
 const FILTER_TABS = [
   { key: "all",      label: "All" },
   { key: "review",   label: "To review" },
+  { key: "lead",     label: "Follow-ups" },
   { key: "backup",   label: "Backup" },
   { key: "upcoming", label: "Upcoming" },
   { key: "overdue",  label: "Overdue" },
@@ -203,7 +205,7 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-[#17151F]">{n.title}</p>
                     <p className="text-xs text-[#6B6680] mt-0.5 leading-relaxed">{n.body}</p>
-                    <span className="inline-block mt-1.5 text-xs font-mono text-[#6B6680] bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>
+                    {n.bookingNumber && <span className="inline-block mt-1.5 text-xs font-mono text-[#6B6680] bg-white/70 px-1.5 py-0.5 rounded-md">{n.bookingNumber}</span>}
                   </div>
 
                   {/* Actions */}
@@ -215,7 +217,7 @@ export default function NotificationsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => router.push(n.bookingId ? `/programs?view=${n.bookingId}` : "/programs")}
+                      onClick={() => router.push(n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/programs")}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white/80 hover:bg-white border border-white/50 text-xs font-medium text-slate-700 transition-colors shadow-sm">
                       View <ChevronRight className="w-3 h-3" />
                     </button>
@@ -243,7 +245,7 @@ export default function NotificationsPage() {
         </div>
       )}
       <WhatsAppModal preferCategory={waFor?.type === "upcoming" ? "event_reminder" : "payment_reminder"} onClose={() => setWaFor(null)}
-        booking={waFor ? { id: waFor.bookingId, bookingNumber: waFor.bookingNumber, client: waFor.client } : null} />
+        booking={waFor ? { id: waFor.bookingId ?? "", bookingNumber: waFor.bookingNumber ?? "", client: waFor.client } : null} />
     </div>
   );
 }

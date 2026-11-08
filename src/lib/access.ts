@@ -18,7 +18,7 @@ export type AreaKey = (typeof AREAS)[number]["key"];
 const ROUTE_AREA: Record<string, AreaKey | "any" | "owner"> = {
   "/dashboard": "reports", "/reports": "reports",
   "/programs": "programs", "/calendar": "programs", "/checklist": "programs", "/delivery": "programs",
-  "/clients": "clients", "/referrals": "clients",
+  "/clients": "clients", "/leads": "clients", "/referrals": "clients",
   "/payments": "payments", "/invoices": "payments", "/quotes": "payments", "/expenses": "accounts", "/accounts": "accounts",
   "/team": "team", "/salary": "team",
   "/packages": "packages", "/equipment": "equipment",

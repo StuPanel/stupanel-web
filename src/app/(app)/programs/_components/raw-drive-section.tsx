@@ -178,7 +178,8 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
     notify(done);
-    load(true);
+    // Show it right away instead of reading the whole Drive folder again.
+    setData(cur => cur ? { ...cur, files: patchFiles(cur.files, body, d) } : cur);
     return true;
   }
 
@@ -636,4 +637,19 @@ function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }:
       )}
     </div>
   );
+}
+
+/** Apply a rename / move to the list we already have. */
+function patchFiles(files: RawFile[], body: Record<string, unknown>, res: { name?: string; from?: string; to?: string; renamed?: string }) {
+  if (res.renamed === "folder" && typeof res.from === "string" && res.name) {
+    const from = res.from;
+    const to = [...from.split("/").slice(0, -1), res.name].join("/");
+    return files.map(f => (body.conn && f.conn !== body.conn) || !(f.path === from || f.path.startsWith(`${from}/`))
+      ? f : { ...f, path: to + f.path.slice(from.length) });
+  }
+  return files.map(f => f.id !== body.fileId ? f : {
+    ...f,
+    ...(res.name ? { name: res.name } : {}),
+    ...(typeof res.to === "string" ? { path: res.to } : {}),
+  });
 }

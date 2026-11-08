@@ -12,7 +12,7 @@ import Link from "next/link";
 const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", other: "Other" };
 const fmtMonth = (m: number, y: number) => new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
 
-interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; }
+interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; upcomingAmount?: number; }
 interface SalarySlip { id: string; month: number; year: number; baseSalary: number; deductions: number; netSalary: number; notes?: string; status: string; paidAt?: string; }
 interface Program {
   id: string; bookingNumber: string; eventName?: string; eventDate?: string; status: string; currency?: string;
@@ -55,7 +55,8 @@ export default function EarningsPage() {
         <StatCard icon={Wallet} color="blue" label="Total earned" value={formatCurrency(stats.totalEarned)} />
         <StatCard icon={CheckCircle2} color="teal" label="Got paid" value={formatCurrency(stats.totalPaid)}
           sub={(stats.paidOnPrograms ?? 0) > 0 ? `${formatCurrency(stats.paidOnPrograms ?? 0)} on programs` : undefined} />
-        <StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(stats.pendingAmount)} />
+        <StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(stats.pendingAmount)}
+          sub={stats.upcomingAmount ? `+ ${formatCurrency(stats.upcomingAmount)} for work coming up` : undefined} />
       </div>
 
       <Chips label="Show" value={tab} onChange={setTab}

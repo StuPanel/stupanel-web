@@ -208,7 +208,23 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
     notify(done);
-    await loadDriveFiles();
+    // Show it right away instead of reading the whole Drive folder again.
+    if (d?.renamed === "folder" && typeof d.from === "string") {
+      const from: string = d.from;
+      const to = [...from.split("/").slice(0, -1), d.name].join("/");
+      setDriveFiles(fs => fs.map(f => {
+        const p = f.path ?? f.folderName ?? "";
+        if (!(p === from || p.startsWith(`${from}/`))) return f;
+        const np = to + p.slice(from.length);
+        return { ...f, path: np, folderName: np.split("/")[0] || null };
+      }));
+    } else {
+      setDriveFiles(fs => fs.map(f => f.id !== body.fileId ? f : {
+        ...f,
+        ...(d?.name ? { fileName: d.name } : {}),
+        ...(typeof d?.to === "string" ? { path: d.to, folderName: d.to.split("/")[0] || null } : {}),
+      }));
+    }
     return true;
   }
 

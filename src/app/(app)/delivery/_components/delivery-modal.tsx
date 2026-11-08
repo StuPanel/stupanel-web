@@ -31,6 +31,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
   const [links, setLinks] = useState<DeliveryLink[]>([]);
   const [note, setNote] = useState("");
+  const [telling, setTelling] = useState(false);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("");
   const [linkSaving, setLinkSaving] = useState(false);
@@ -814,7 +815,24 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             className="h-9 px-4 rounded-full bg-[#17151F] text-white text-xs font-semibold">Create</button>
                         </div>
                       )}
-                      <p className="text-[11px] text-[#8A8599]">The client gets one email about 10 minutes after the last new file (if they have an email and a portal link).</p>
+                      <div className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+                        <p className="flex-1 text-[11px] text-[#6B6680]">Uploading doesn&apos;t email the client. When everything is in, tell them once — or it goes by itself when editing is marked complete.</p>
+                        <button type="button" disabled={telling || !driveFiles.length}
+                          onClick={async () => {
+                            const ok = await askConfirm({ title: "Tell the client?", message: "They get one email listing the folders in this delivery, with their portal link.", confirmLabel: "Send email" });
+                            if (!ok) return;
+                            setTelling(true);
+                            try {
+                              const r = await apiFetch(`${API}/google-drive/files/${booking!.id}/notify-client`, { method: "POST" });
+                              const d = await r.json().catch(() => ({}));
+                              if (!r.ok) { notify(d?.message || "Couldn't send", { error: true }); return; }
+                              notify("Email sent to the client");
+                            } finally { setTelling(false); }
+                          }}
+                          className="h-8 px-3 rounded-full bg-[#17151F] text-white text-[12px] font-semibold flex-shrink-0 disabled:opacity-50">
+                          {telling ? "Sending…" : "Tell the client"}
+                        </button>
+                      </div>
                     </div>
 
                     <div

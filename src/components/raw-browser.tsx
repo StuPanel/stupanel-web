@@ -6,10 +6,11 @@
  * lists the files, and lets you upload more straight into the folder you are in.
  */
 import { useMemo } from "react";
-import { ChevronRight, ExternalLink, FileUp, Folder, FolderUp, Home, Trash2 } from "lucide-react";
+import { ChevronRight, ExternalLink, FileUp, Folder, FolderUp, Home, LayoutGrid, List, Trash2 } from "lucide-react";
+import { FileThumb, isMedia, useViewMode } from "@/components/file-thumb";
 import { cn } from "@/lib/utils";
 
-export type BrowserFile = { id: string; name: string; size: number; path: string; viewUrl: string; conn?: string };
+export type BrowserFile = { id: string; name: string; size: number; path: string; viewUrl: string; conn?: string; thumb?: string | null; mimeType?: string };
 
 export function fmtBytes(b: number) {
   if (b >= 1024 ** 4) return `${(b / 1024 ** 4).toFixed(2)} TB`;
@@ -63,6 +64,10 @@ export function RawBrowser({
   }, [files, here]);
 
   const go = (i: number) => onPath(here.slice(0, i).join("/"));
+  // Photos / videos in this folder can be shown as pictures.
+  const nMedia = list.filter(f => isMedia(f.mimeType)).length;
+  const [view, setView] = useViewMode("files", "grid");
+  const grid = view === "grid" && nMedia > 0;
 
   return (
     <div className="rounded-2xl border border-[#EEEBF4] overflow-hidden">
@@ -79,6 +84,19 @@ export function RawBrowser({
           </span>
         ))}
         <span className="ml-auto text-[#6B6680]">{total.count} files · {fmtBytes(total.bytes)}</span>
+        {nMedia > 0 && (
+          <span className="inline-flex rounded-full bg-white border border-[#E6E2EE] p-0.5 ml-1">
+            {(["grid", "list"] as const).map(m => {
+              const I = m === "grid" ? LayoutGrid : List;
+              return (
+                <button key={m} type="button" onClick={() => setView(m)} title={m === "grid" ? "Pictures" : "List"}
+                  className={cn("w-6 h-6 rounded-full flex items-center justify-center", view === m ? "bg-[#17151F] text-white" : "text-[#8A8599] hover:text-[#17151F]")}>
+                  <I className="w-3.5 h-3.5" />
+                </button>
+              );
+            })}
+          </span>
+        )}
       </div>
 
       {/* Upload into this folder */}
@@ -122,7 +140,26 @@ export function RawBrowser({
             </div>
           );
         })}
-        {list.slice(0, 500).map(f => (
+        {grid && (
+          <div className="p-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {list.slice(0, 300).map(f => (
+              <div key={f.id} className="group relative">
+                <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" title={f.name} className="block rounded-xl overflow-hidden">
+                  <FileThumb thumb={f.thumb} mime={f.mimeType} className="aspect-square rounded-xl transition-transform duration-300 group-hover:scale-[1.03]" />
+                </a>
+                <p className="mt-1 text-[11px] text-[#4A4658] truncate">{f.name}</p>
+                {canDelete && onDeleteFile && (
+                  <button type="button" onClick={() => onDeleteFile(f)} title="Delete"
+                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-[#C2304F] opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {list.length > 300 && <p className="col-span-full px-1 py-1 text-[11px] text-[#8A8599]">+{list.length - 300} more — switch to the list or open in Drive.</p>}
+          </div>
+        )}
+        {!grid && list.slice(0, 500).map(f => (
           <div key={f.id} className="flex items-center gap-2 px-3 py-1.5">
             <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[12px] text-[#17151F] truncate hover:text-[#5B3FD0] inline-flex items-center gap-1.5">
               <ExternalLink className="w-3 h-3 text-[#A29DB3] flex-shrink-0" /><span className="truncate">{f.name}</span>
@@ -136,7 +173,7 @@ export function RawBrowser({
             )}
           </div>
         ))}
-        {list.length > 500 && <p className="px-3 py-2 text-[11px] text-[#8A8599]">+{list.length - 500} more — open in Drive to see all.</p>}
+        {!grid && list.length > 500 && <p className="px-3 py-2 text-[11px] text-[#8A8599]">+{list.length - 500} more — open in Drive to see all.</p>}
         {!folders.length && !list.length && <p className="px-3 py-6 text-center text-[12px] text-[#8A8599]">This folder is empty.</p>}
       </div>
     </div>

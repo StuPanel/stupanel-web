@@ -17,7 +17,7 @@ import { RawBrowser } from "@/components/raw-browser";
 type Mine = {
   connected: boolean; name: string; parts: string[];
   folders: { path: string; count: number; bytes: number }[];
-  files: { id: string; name: string; size: number; path: string; viewUrl: string }[];
+  files: { id: string; name: string; size: number; path: string; viewUrl: string; thumb?: string | null; mimeType?: string }[];
   totals: { count: number; bytes: number };
   freeBytes: number | null;
 };

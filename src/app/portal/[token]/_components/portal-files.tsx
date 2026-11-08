@@ -5,11 +5,12 @@
  * Open a folder, go back with the path at the top, download one file or a whole folder as ZIP.
  */
 import { useMemo, useState } from "react";
-import { ChevronRight, Download, ExternalLink, File, FileArchive, FileImage, FileVideo, Folder, Home } from "lucide-react";
+import { ChevronRight, Download, ExternalLink, File, FileArchive, FileImage, FileVideo, Folder, Home, LayoutGrid, List } from "lucide-react";
+import { FileThumb, isMedia, useViewMode } from "@/components/file-thumb";
 
 export type PortalDriveFile = {
   id: string; fileName: string; mimeType: string; fileSize: number;
-  folderName: string | null; path?: string; viewUrl: string | null; downloadUrl: string | null;
+  folderName: string | null; path?: string; viewUrl: string | null; downloadUrl: string | null; thumb?: string | null;
 };
 
 function fmtBytes(b: number) {
@@ -54,6 +55,10 @@ export function PortalFiles({ files, brand, zipUrl, driveUrl }: {
     };
   }, [files, here]);
 
+  const nMedia = list.filter(f => isMedia(f.mimeType)).length;
+  const [view, setView] = useViewMode("portal", "grid");
+  const grid = view === "grid" && nMedia > 0;
+
   const kindText = (g: { count: number; video: number; image: number }) =>
     g.video === g.count ? `${g.count} video${g.count > 1 ? "s" : ""}` : g.image === g.count ? `${g.count} photo${g.count > 1 ? "s" : ""}` : `${g.count} file${g.count > 1 ? "s" : ""}`;
 
@@ -81,8 +86,21 @@ export function PortalFiles({ files, brand, zipUrl, driveUrl }: {
           <Download className="w-3.5 h-3.5" />{here.length ? "Download folder" : "Download all"}
         </a>
       </div>
-      <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-[#6B6680] border-b border-[#F2EFF8]">
+      <div className="px-3 py-1.5 flex items-center gap-2 text-[11px] text-[#6B6680] border-b border-[#F2EFF8]">
         <span>{total.count} file{total.count === 1 ? "" : "s"} · {fmtBytes(total.bytes)}</span>
+        {nMedia > 0 && (
+          <span className="inline-flex rounded-full bg-[#F7F5FB] p-0.5 ml-auto mr-2">
+            {(["grid", "list"] as const).map(m => {
+              const I = m === "grid" ? LayoutGrid : List;
+              return (
+                <button key={m} type="button" onClick={() => setView(m)} title={m === "grid" ? "Pictures" : "List"}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center ${view === m ? "bg-[#17151F] text-white" : "text-[#8A8599]"}`}>
+                  <I className="w-3.5 h-3.5" />
+                </button>
+              );
+            })}
+          </span>
+        )}
         {driveUrl && !here.length && (
           <a href={driveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:underline" style={{ color: brand }}>
             <ExternalLink className="w-3 h-3" />Open in Google Drive
@@ -104,7 +122,25 @@ export function PortalFiles({ files, brand, zipUrl, driveUrl }: {
             <ChevronRight className="w-4 h-4 text-[#A29DB3]" />
           </button>
         ))}
-        {list.slice(0, 500).map(f => {
+        {grid && (
+          <div className="p-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {list.slice(0, 300).map(f => (
+              <div key={f.id} className="group relative">
+                <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer" title={f.fileName} className="block rounded-xl overflow-hidden">
+                  <FileThumb thumb={f.thumb} mime={f.mimeType} className="aspect-square rounded-xl transition-transform duration-300 group-hover:scale-[1.03]" />
+                </a>
+                {f.downloadUrl && (
+                  <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer" title="Download"
+                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center" style={{ color: brand }}>
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            ))}
+            {list.length > 300 && <p className="col-span-full px-1 py-1 text-[11px] text-[#8A8599]">+{list.length - 300} more — download the folder to get them all.</p>}
+          </div>
+        )}
+        {!grid && list.slice(0, 500).map(f => {
           const Icon = iconOf(f.mimeType);
           return (
             <div key={f.id} className="flex items-center gap-3 px-3 py-2">
@@ -125,7 +161,7 @@ export function PortalFiles({ files, brand, zipUrl, driveUrl }: {
             </div>
           );
         })}
-        {list.length > 500 && <p className="px-3 py-2 text-[11px] text-[#8A8599]">+{list.length - 500} more — download the folder to get them all.</p>}
+        {!grid && list.length > 500 && <p className="px-3 py-2 text-[11px] text-[#8A8599]">+{list.length - 500} more — download the folder to get them all.</p>}
         {!folders.length && !list.length && <p className="px-3 py-6 text-center text-[12px] text-[#8A8599]">This folder is empty.</p>}
       </div>
     </div>

@@ -36,6 +36,8 @@ export interface DriveFile {
   fileName: string;
   mimeType: string;
   fileSize: number;
+  /** Drive thumbnail (photos / videos), short-lived. */
+  thumb?: string | null;
   folderName: string | null;
   /** Full folder path inside the program folder ("Holud/Camera A"); "" = main folder. */
   path?: string;

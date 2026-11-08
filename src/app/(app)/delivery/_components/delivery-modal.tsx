@@ -863,7 +863,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             </div>
                           </div>
                           <RawBrowser
-                            files={driveFiles.map(f => ({ id: f.id, name: f.fileName, size: f.fileSize, path: f.path ?? f.folderName ?? "", viewUrl: f.viewUrl || f.downloadUrl || "#" }))}
+                            files={driveFiles.map(f => ({ id: f.id, name: f.fileName, size: f.fileSize, path: f.path ?? f.folderName ?? "", viewUrl: f.viewUrl || f.downloadUrl || "#", thumb: f.thumb, mimeType: f.mimeType }))}
                             path={driveTargetFolder} onPath={p => { setDriveTargetFolder(p); setDriveShowNewFolder(false); }}
                             rootLabel="Delivery folder" canDelete
                             onUploadHere={(_p, fromFolder) => (fromFolder ? driveFolderInputRef : driveFileInputRef).current?.click()}

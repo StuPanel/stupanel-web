@@ -77,7 +77,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!show) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShow(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); setShow(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [show]);

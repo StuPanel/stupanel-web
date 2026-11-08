@@ -786,6 +786,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             className="h-9 px-4 rounded-full bg-[#17151F] text-white text-xs font-semibold">Create</button>
                         </div>
                       )}
+                      <p className="text-[11px] text-[#8A8599]">The client gets one email about 10 minutes after the last new file (if they have an email and a portal link).</p>
                     </div>
 
                     <div

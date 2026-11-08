@@ -88,7 +88,7 @@ const CLIENT_ROWS = [
   { key: "sendQuoteEmail", label: "Quotation sent", hint: "When you share a quote" },
   { key: "sendInvoiceEmail", label: "Invoice sent", hint: "When you issue an invoice" },
   { key: "sendPaymentReceipt", label: "Payment receipt", hint: "After each payment" },
-  { key: "sendDeliveryReady", label: "Delivery ready", hint: "When photos and videos are ready" },
+  { key: "sendDeliveryReady", label: "Delivery ready", hint: "When the delivery is ready, and ~10 min after new files are added" },
 ];
 
 export function NotificationsPane() {

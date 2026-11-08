@@ -17,6 +17,7 @@ import { uploadStore } from "@/lib/upload-store";
 import { uploadToDrive, checkDuplicates, applyDuplicateChoice, type DuplicateCheck, type DuplicateChoice, type DriveFileResult } from "@/lib/drive-uploader";
 import { UploadDuplicateDialog } from "@/components/upload-duplicate-dialog";
 import { RawBrowser } from "@/components/raw-browser";
+import { FileActivity } from "@/components/file-activity";
 import { fmtDate, fmtBytes, fileIcon, DELIVERY_STATUSES } from "./constants";
 import type { Booking, R2File, DriveFile, UploadItem, DeliveryLink } from "./types";
 import { notify, askConfirm, askDriveDelete } from "@/components/feedback";
@@ -198,6 +199,17 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
         setDriveTargetFolder(t => (t === folderName || t.startsWith(`${folderName}/`) ? folderName.split("/").slice(0, -1).join("/") : t));
       }
     } catch { notify("Delete failed", { error: true }); }
+  }
+
+  async function renameOrMoveDrive(body: Record<string, unknown>, done: string) {
+    const r = await apiFetch(`${API}/google-drive/files/${booking!.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
+    notify(done);
+    await loadDriveFiles();
+    return true;
   }
 
   async function deleteDriveFileItem(fileId: string) {
@@ -869,7 +881,12 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             onUploadHere={(_p, fromFolder) => (fromFolder ? driveFolderInputRef : driveFileInputRef).current?.click()}
                             onDeleteFile={f => deleteDriveFileItem(f.id)}
                             onDeleteFolder={p => confirmDeleteDriveFolder(p)}
+                            onRename={(t, name) => t.file
+                              ? renameOrMoveDrive({ fileId: t.file.id, name, oldName: t.file.name }, "Renamed")
+                              : renameOrMoveDrive({ folder: t.folder, name }, "Folder renamed")}
+                            onMove={(f, toPath) => renameOrMoveDrive({ fileId: f.id, toPath }, `Moved to ${toPath || "the main folder"}`)}
                           />
+                          <div className="mt-3"><FileActivity bookingId={booking!.id} area="delivery" /></div>
                         </div>
                       );
                     })() : (

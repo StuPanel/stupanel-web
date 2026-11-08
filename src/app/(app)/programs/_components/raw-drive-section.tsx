@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
 import { Tile } from "@/components/ui/apple";
 import { RawBrowser } from "@/components/raw-browser";
+import { FileActivity } from "@/components/file-activity";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import type { Booking } from "./types";
 
@@ -168,6 +169,17 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     if (!r.ok) { notify("Delete failed", { error: true }); return; }
     notify(how === "forever" ? "Deleted forever" : "Moved to Drive trash");
     load();
+  }
+
+  async function renameOrMove(body: Record<string, unknown>, done: string) {
+    const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/item`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
+    notify(done);
+    load(true);
+    return true;
   }
 
   async function revoke(x: { userId: string; name: string }) {
@@ -358,6 +370,10 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
                   onUploadHere={(p, fromFolder) => { uploadInto.current = p; (fromFolder ? folderRef : filesRef).current?.click(); }}
                   onDeleteFile={f => removeFile(f as RawFile)}
                   onDeleteFolder={p => removeFolder(p, conn ?? "")}
+                  onRename={(t, name) => t.file
+                    ? renameOrMove({ conn: t.file.conn ?? conn, fileId: t.file.id, name, oldName: t.file.name }, "Renamed")
+                    : renameOrMove({ conn, folder: t.folder, name }, "Folder renamed")}
+                  onMove={(f, toPath) => renameOrMove({ conn: f.conn ?? conn, fileId: f.id, toPath }, `Moved to ${toPath || "the main folder"}`)}
                 />
               )}
             </div>
@@ -379,6 +395,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           </div>
         )}
         {data.truncated && <p className="text-[11px] text-[#8A8599] mt-2 px-1">Very large folder — some files are only shown in Drive.</p>}
+        <div className="mt-3"><FileActivity bookingId={booking.id} area="raw" /></div>
       </div>
     </div>
   );

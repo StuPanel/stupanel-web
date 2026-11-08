@@ -5,8 +5,9 @@
  * Shows folders with how many files / how much is inside (all levels), opens them,
  * lists the files, and lets you upload more straight into the folder you are in.
  */
-import { useMemo } from "react";
-import { ChevronRight, ExternalLink, FileUp, Folder, FolderUp, Home, LayoutGrid, List, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronRight, ExternalLink, FileUp, Folder, FolderInput, FolderUp, Home, LayoutGrid, List, Pencil, Search, Trash2, X } from "lucide-react";
+import { askText } from "@/components/feedback";
 import { FileThumb, isMedia, useViewMode } from "@/components/file-thumb";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ const split = (p: string) => (p ? p.split("/").filter(Boolean) : []);
 
 export function RawBrowser({
   files, path, onPath, rootLabel = "All raw files", canDelete = false, canUploadHere = true,
-  onUploadHere, onDeleteFile, onDeleteFolder, busy,
+  onUploadHere, onDeleteFile, onDeleteFolder, onRename, onMove, busy,
 }: {
   files: BrowserFile[];
   /** Current folder ("" = top). */
@@ -36,9 +37,48 @@ export function RawBrowser({
   onUploadHere?: (path: string, fromFolder: boolean) => void;
   onDeleteFile?: (f: BrowserFile) => void;
   onDeleteFolder?: (path: string) => void;
+  /** Rename a file, or a folder (given by its path). Resolve true when it worked. */
+  onRename?: (target: { file?: BrowserFile; folder?: string }, name: string) => Promise<boolean>;
+  /** Move a file into another folder ("" = top). */
+  onMove?: (file: BrowserFile, toPath: string) => Promise<boolean>;
   busy?: boolean;
 }) {
   const here = useMemo(() => split(path), [path]);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  // Searching looks through every folder.
+  const found = useMemo(() => (q ? files.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)).slice(0, 300) : []), [files, q]);
+  const allFolders = useMemo(() => {
+    const set = new Set<string>([""]);
+    for (const f of files) { const segs = split(f.path); for (let i = 1; i <= segs.length; i++) set.add(segs.slice(0, i).join("/")); }
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [files]);
+
+  async function rename(target: { file?: BrowserFile; folder?: string }) {
+    if (!onRename) return;
+    const cur = target.file ? target.file.name : split(target.folder ?? "").pop() ?? "";
+    const name = await askText({ title: target.file ? "Rename file" : "Rename folder", value: cur, confirmLabel: "Rename" });
+    if (name == null || !name.trim() || name.trim() === cur) return;
+    await onRename(target, name.trim());
+  }
+  async function move(f: BrowserFile) {
+    if (!onMove) return;
+    const to = await askText({
+      title: `Move "${f.name}"`, message: "Pick a folder, or type a new one (use / for a folder inside a folder).",
+      value: f.path, placeholder: "e.g. Holud/Camera A", suggestions: allFolders, confirmLabel: "Move",
+    });
+    if (to == null) return;
+    const clean = split(to.replace(/\\/g, "/")).join("/");
+    if (clean === f.path) return;
+    await onMove(f, clean);
+  }
+  const fileActions = (f: BrowserFile, overlay = false) => (onRename || onMove || (canDelete && onDeleteFile)) ? (
+    <span className={cn("flex items-center gap-0.5", overlay && "absolute top-1.5 right-1.5 rounded-full bg-white/90 shadow-sm opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity")}>
+      {onRename && <button type="button" onClick={() => rename({ file: f })} title="Rename" className="w-7 h-7 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F2EFF8] hover:text-[#17151F]"><Pencil className="w-3.5 h-3.5" /></button>}
+      {onMove && <button type="button" onClick={() => move(f)} title="Move to folder" className="w-7 h-7 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F2EFF8] hover:text-[#17151F]"><FolderInput className="w-3.5 h-3.5" /></button>}
+      {canDelete && onDeleteFile && <button type="button" onClick={() => onDeleteFile(f)} title="Delete" className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Trash2 className="w-3.5 h-3.5" /></button>}
+    </span>
+  ) : null;
 
   // Sub-folders of the current folder, with totals of everything inside them.
   const { folders, list, total } = useMemo(() => {
@@ -99,6 +139,31 @@ export function RawBrowser({
         )}
       </div>
 
+      {/* Search every folder */}
+      {files.length > 8 && (
+        <div className="px-3 py-2 border-b border-[#EEEBF4] flex items-center gap-2">
+          <Search className="w-3.5 h-3.5 text-[#A29DB3] flex-shrink-0" />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search files"
+            className="flex-1 min-w-0 bg-transparent text-[13px] text-[#17151F] outline-none placeholder:text-[#A29DB3]" />
+          {query && <button type="button" onClick={() => setQuery("")} title="Clear" className="w-6 h-6 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F2EFF8]"><X className="w-3.5 h-3.5" /></button>}
+        </div>
+      )}
+
+      {q ? (
+        <div className="max-h-[420px] overflow-y-auto divide-y divide-[#F2EFF8]">
+          {found.map(f => (
+            <div key={f.id} className="flex items-center gap-2 px-3 py-1.5">
+              <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 hover:text-[#5B3FD0]">
+                <span className="block text-[12px] text-[#17151F] truncate">{f.name}</span>
+                <span className="block text-[11px] text-[#8A8599] truncate">{f.path ? f.path.split("/").join(" › ") : rootLabel}</span>
+              </a>
+              <button type="button" onClick={() => { setQuery(""); onPath(f.path); }} className="h-7 px-2.5 rounded-full text-[11px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Open folder</button>
+              {fileActions(f)}
+            </div>
+          ))}
+          {!found.length && <p className="px-3 py-6 text-center text-[12px] text-[#8A8599]">No file matches &quot;{query.trim()}&quot;.</p>}
+        </div>
+      ) : (<>
       {/* Upload into this folder */}
       {onUploadHere && canUploadHere && (
         <div className="px-3 py-2 border-b border-[#EEEBF4] flex items-center gap-2">
@@ -130,6 +195,12 @@ export function RawBrowser({
                   </span>
                 </span>
               </button>
+              {onRename && (
+                <button type="button" onClick={() => rename({ folder: p })} title="Rename folder"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#F2EFF8] hover:text-[#17151F]">
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
               {canDelete && onDeleteFolder && (
                 <button type="button" onClick={() => onDeleteFolder(p)} title="Delete folder"
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]">
@@ -148,12 +219,7 @@ export function RawBrowser({
                   <FileThumb thumb={f.thumb} mime={f.mimeType} className="aspect-square rounded-xl transition-transform duration-300 group-hover:scale-[1.03]" />
                 </a>
                 <p className="mt-1 text-[11px] text-[#4A4658] truncate">{f.name}</p>
-                {canDelete && onDeleteFile && (
-                  <button type="button" onClick={() => onDeleteFile(f)} title="Delete"
-                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-[#C2304F] opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                {fileActions(f, true)}
               </div>
             ))}
             {list.length > 300 && <p className="col-span-full px-1 py-1 text-[11px] text-[#8A8599]">+{list.length - 300} more — switch to the list or open in Drive.</p>}
@@ -165,17 +231,13 @@ export function RawBrowser({
               <ExternalLink className="w-3 h-3 text-[#A29DB3] flex-shrink-0" /><span className="truncate">{f.name}</span>
             </a>
             <span className="text-[11px] text-[#8A8599] tabular-nums">{fmtBytes(f.size)}</span>
-            {canDelete && onDeleteFile && (
-              <button type="button" onClick={() => onDeleteFile(f)} title="Delete"
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {fileActions(f)}
           </div>
         ))}
         {!grid && list.length > 500 && <p className="px-3 py-2 text-[11px] text-[#8A8599]">+{list.length - 500} more — open in Drive to see all.</p>}
         {!folders.length && !list.length && <p className="px-3 py-6 text-center text-[12px] text-[#8A8599]">This folder is empty.</p>}
       </div>
+      </>)}
     </div>
   );
 }

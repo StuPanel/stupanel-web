@@ -22,7 +22,15 @@ type Ask = {
   resolve: (ok: boolean | "extra") => void;
 };
 
+type Prompt = {
+  title: string; message?: string; value: string; placeholder?: string; confirmLabel?: string;
+  /** Picks to choose from (e.g. existing folders); typing a new one is allowed too. */
+  suggestions?: string[];
+  resolve: (v: string | null) => void;
+};
+
 let pushToast: ((t: Toast) => void) | null = null;
+let pushPrompt: ((p: Prompt) => void) | null = null;
 let pushAsk: ((a: Ask) => void) | null = null;
 let seq = 0;
 
@@ -62,14 +70,25 @@ export async function askDriveDelete(what: string): Promise<"trash" | "forever" 
   return sure ? "forever" : null;
 }
 
+/** Ask for a short text (a new name, a folder). Returns null when cancelled. */
+export function askText(opts: Omit<Prompt, "resolve">): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (pushPrompt) pushPrompt({ ...opts, resolve });
+    else resolve(typeof window !== "undefined" ? window.prompt(opts.title, opts.value) : null);
+  });
+}
+
 export function FeedbackHost() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [text, setText] = useState("");
 
   useEffect(() => {
     pushToast = (t) => setToast(t);
     pushAsk = (a) => setAsk(a);
-    return () => { pushToast = null; pushAsk = null; };
+    pushPrompt = (p) => { setText(p.value); setPrompt(p); };
+    return () => { pushToast = null; pushAsk = null; pushPrompt = null; };
   }, []);
 
   useEffect(() => {
@@ -86,6 +105,11 @@ export function FeedbackHost() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ask]);
 
+  function closePrompt(v: string | null) {
+    prompt?.resolve(v);
+    setPrompt(null);
+  }
+
   function close(ok: boolean | "extra") {
     ask?.resolve(ok);
     setAsk(null);
@@ -98,6 +122,39 @@ export function FeedbackHost() {
           {toast.error ? <X /> : <Check />}
           <span className="text-sm font-semibold">{toast.text}</span>
         </div>
+      )}
+
+      {prompt && (
+        <>
+          <div className="sp-backdrop z-[90]" onClick={() => closePrompt(null)} />
+          <div className="fixed inset-0 z-[91] flex items-center justify-center p-4 pointer-events-none">
+            <form role="dialog" aria-modal="true" className="sp-modal pointer-events-auto w-full max-w-sm p-6"
+              onSubmit={e => { e.preventDefault(); closePrompt(text); }}
+              onKeyDown={e => { if (e.key === "Escape") closePrompt(null); }}>
+              <h3 className="font-bold text-[#17151F] text-lg">{prompt.title}</h3>
+              {prompt.message && <p className="text-[#6B6680] text-sm mt-1.5">{prompt.message}</p>}
+              <input autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={prompt.placeholder}
+                onFocus={e => { const dot = e.target.value.lastIndexOf("."); e.target.setSelectionRange(0, dot > 0 ? dot : e.target.value.length); }}
+                className="mt-4 w-full h-11 px-3 rounded-xl bg-[#F5F3FA] text-[#17151F] text-sm outline-none focus:ring-2 focus:ring-[#7D5CEF]/40" />
+              {!!prompt.suggestions?.length && (
+                <div className="mt-2 max-h-40 overflow-y-auto flex flex-wrap gap-1.5">
+                  {prompt.suggestions.map(sug => (
+                    <button key={sug} type="button" onClick={() => setText(sug)}
+                      className={`h-7 px-2.5 rounded-full text-[12px] font-semibold border ${text === sug ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E6E2EE]"}`}>
+                      {sug || "Main folder"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => closePrompt(null)}
+                  className="flex-1 h-11 rounded-full bg-[#F5F3FA] text-[#17151F] text-sm font-semibold hover:bg-[#EEEBF4] transition-colors">Cancel</button>
+                <button type="submit"
+                  className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors">{prompt.confirmLabel ?? "Save"}</button>
+              </div>
+            </form>
+          </div>
+        </>
       )}
 
       {ask && (

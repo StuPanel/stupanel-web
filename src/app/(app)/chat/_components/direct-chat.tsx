@@ -6,6 +6,7 @@ import {
   MessageCircle, Send, Loader2, Search, ChevronLeft, CheckCheck, Check, UserCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chatRead } from "@/lib/chat-unread";
 
 function fmtTime(iso: string) {
   const d = new Date(iso);
@@ -72,6 +73,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "instant" }), 50);
     }
     setContacts(prev => prev.map(c => c.key === contact.key ? { ...c, unreadCount: 0 } : c));
+    if (withSpinner) chatRead(0);
   }, [kind]);
 
   function selectContact(c: Contact) {

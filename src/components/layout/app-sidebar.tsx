@@ -11,6 +11,7 @@ import {
   MessageSquareText, Sparkles, Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
 import { API_URL as API } from "@/lib/api";
 import { canOpen } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
@@ -99,22 +100,20 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
     loadBillingStatus().then((d) => { if (d) setAccess(d.access); });
   }, []);
 
-  // Chat unread — poll only when tab is visible
+  // Chat unread — poll only when tab is visible, and right after something is read
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
+    if (!localStorage.getItem("access_token")) return;
     const load = () => {
       if (document.visibilityState !== "visible") return;
-      fetch(`${API}/chat/bookings`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : [])
-        .then((d: { unreadCount?: number }[]) => Array.isArray(d) ? setChatUnread(d.reduce((s, b) => s + (b.unreadCount ?? 0), 0)) : null)
-        .catch(() => {});
+      loadChatUnread().then(d => { if (d) setChatUnread(d.total); });
     };
     load();
     document.addEventListener("visibilitychange", load);
+    window.addEventListener(CHAT_READ_EVENT, load);
     const interval = setInterval(load, 60000);
     return () => {
       document.removeEventListener("visibilitychange", load);
+      window.removeEventListener(CHAT_READ_EVENT, load);
       clearInterval(interval);
     };
   }, []);

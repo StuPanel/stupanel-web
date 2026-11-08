@@ -8,7 +8,7 @@ import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
   CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
-  MessageSquareText, Sparkles,
+  MessageSquareText, Sparkles, Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -31,6 +31,7 @@ export const navigation = [
   {
     title: "Studio",
     items: [
+      { name: "Leads", href: "/leads", icon: Target, color: "violet" as TileColor },
       { name: "Clients", href: "/clients", icon: Users, color: "blue" as TileColor },
       { name: "Referrals", href: "/referrals", icon: Handshake, color: "teal" as TileColor },
       { name: "Quotes", href: "/quotes", icon: FileText, color: "deep" as TileColor },

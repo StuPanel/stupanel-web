@@ -114,7 +114,7 @@ export function SheetBehavior() {
       const dy = Math.max(0, e.touches[0].clientY - drag.y0);
       drag.dy = dy;
       if (dy > 4) {
-        drag.el.classList.add("sp-dragging");
+        drag.el.classList.add("sp-dragging", "sp-settled");
         drag.el.style.transform = `translateY(${dy}px)`;
         if (e.cancelable) e.preventDefault();
       }

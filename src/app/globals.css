@@ -368,20 +368,20 @@ main .bg-white.rounded-xl.border, main .bg-white.rounded-2xl.border { border-rad
 /* ─── Backdrop + glass (Settings → Appearance) ───────────────────────────────
    html[data-backdrop] picks the scene. Default = violet. "plain" = no glass. */
 :root, html[data-backdrop="violet"] {
-  --sp-base: #F4F1FB; --sp-glow-a: rgba(140, 108, 245, .30); --sp-glow-b: rgba(255, 150, 128, .26); --sp-glow-c: rgba(226, 214, 255, .9);
+  --sp-base: #F1EEFA; --sp-glow-a: rgba(132, 98, 245, .50); --sp-glow-b: rgba(255, 146, 120, .46); --sp-glow-c: rgba(214, 198, 255, .95);
 }
-html[data-backdrop="golden"] { --sp-base: #FBF6EE; --sp-glow-a: rgba(245, 170, 60, .28); --sp-glow-b: rgba(232, 96, 124, .22); --sp-glow-c: rgba(255, 236, 205, .9); }
-html[data-backdrop="mehendi"] { --sp-base: #F3F7EF; --sp-glow-a: rgba(88, 160, 84, .26); --sp-glow-b: rgba(240, 190, 40, .26); --sp-glow-c: rgba(225, 242, 215, .9); }
-html[data-backdrop="lagoon"] { --sp-base: #EEF5F7; --sp-glow-a: rgba(30, 150, 140, .24); --sp-glow-b: rgba(70, 120, 210, .22); --sp-glow-c: rgba(214, 238, 242, .9); }
+html[data-backdrop="golden"] { --sp-base: #FAF4EB; --sp-glow-a: rgba(245, 165, 50, .48); --sp-glow-b: rgba(232, 92, 120, .40); --sp-glow-c: rgba(255, 228, 190, .95); }
+html[data-backdrop="mehendi"] { --sp-base: #F1F6EC; --sp-glow-a: rgba(80, 158, 76, .44); --sp-glow-b: rgba(240, 186, 30, .44); --sp-glow-c: rgba(214, 238, 200, .95); }
+html[data-backdrop="lagoon"] { --sp-base: #ECF4F6; --sp-glow-a: rgba(26, 150, 140, .42); --sp-glow-b: rgba(64, 116, 214, .40); --sp-glow-c: rgba(200, 232, 238, .95); }
 html[data-backdrop="plain"] { --sp-base: #F5F3FA; --sp-glow-a: transparent; --sp-glow-b: transparent; --sp-glow-c: transparent; }
 
 .sp-shell { position: relative; isolation: isolate; background: var(--sp-base); }
 .sp-scene {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(55% 45% at 8% 0%, var(--sp-glow-a), transparent 70%),
-    radial-gradient(50% 45% at 100% 100%, var(--sp-glow-b), transparent 70%),
-    radial-gradient(40% 30% at 100% 0%, var(--sp-glow-c), transparent 70%),
+    radial-gradient(60% 55% at 12% 4%, var(--sp-glow-a), transparent 72%),
+    radial-gradient(55% 55% at 96% 100%, var(--sp-glow-b), transparent 72%),
+    radial-gradient(45% 35% at 100% 0%, var(--sp-glow-c), transparent 72%),
     var(--sp-base);
 }
 /* a slow drift so the light feels alive (off when motion is reduced) */
@@ -389,26 +389,26 @@ html[data-backdrop="plain"] { --sp-base: #F5F3FA; --sp-glow-a: transparent; --sp
 .sp-scene::after {
   content: ""; position: absolute; inset: -10%;
   background: radial-gradient(35% 30% at 70% 30%, var(--sp-glow-a), transparent 70%);
-  opacity: .35; animation: sp-drift 22s ease-in-out infinite;
+  opacity: .45; animation: sp-drift 22s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .sp-scene::after { animation: none; } }
 
 /* Frosted surfaces: sidebar, top bar, bottom bar, cards */
 html:not([data-backdrop="plain"]) .sp-glass {
-  background: rgba(255, 255, 255, .62) !important;
+  background: rgba(255, 255, 255, .5) !important;
   -webkit-backdrop-filter: blur(22px) saturate(1.7); backdrop-filter: blur(22px) saturate(1.7);
   border-color: rgba(255, 255, 255, .75) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 12px 34px -14px rgba(40, 28, 96, .22) !important;
 }
-.sp-topbar { background: color-mix(in srgb, var(--sp-base) 72%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.sp-topbar { background: color-mix(in srgb, var(--sp-base) 38%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
 html[data-backdrop="plain"] .sp-topbar { background: color-mix(in srgb, var(--sp-base) 88%, transparent); }
 html:not([data-backdrop="plain"]) .sp-card {
-  background: rgba(255, 255, 255, .78) !important;
+  background: rgba(255, 255, 255, .72) !important;
   outline: 1px solid rgba(255, 255, 255, .75); outline-offset: -1px;
 }
 @media (min-width: 1024px) {
   html:not([data-backdrop="plain"]) .sp-card {
-    -webkit-backdrop-filter: blur(14px) saturate(1.5); backdrop-filter: blur(14px) saturate(1.5);
-    background: rgba(255, 255, 255, .7) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6);
+    background: rgba(255, 255, 255, .6) !important;
   }
 }

@@ -89,7 +89,7 @@ export function Group({ title, note, children, className }: {
   return (
     <section className={cn("mb-7", className)}>
       {title && <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">{title}</h2>}
-      <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] divide-y divide-[#EEEBF4] overflow-hidden">
+      <div className="sp-card bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] divide-y divide-[#EEEBF4] overflow-hidden">
         {children}
       </div>
       {note && <p className="px-1 mt-2 text-xs text-[#6B6680] leading-relaxed">{note}</p>}

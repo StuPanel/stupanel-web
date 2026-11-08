@@ -6,7 +6,7 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText,
+  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook,
 } from "lucide-react";
 
 export type PaneId =
@@ -14,7 +14,7 @@ export type PaneId =
   | "payment" | "quotes" | "invoices" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery"
   | "bookings" | "portal" | "notifications" | "whatsapp"
-  | "profile" | "security" | "integrations";
+  | "profile" | "appearance" | "security" | "integrations";
 
 export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
 export type Entry = { id: string; pane: PaneId; section: string; label: string; keywords?: string };
@@ -61,6 +61,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     title: "Account",
     panes: [
       { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone প্রোফাইল পাসওয়ার্ড নাম" },
+      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — saved on this device", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look থিম রং ব্যাকগ্রাউন্ড" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password পাসওয়ার্ড" },
       { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw ড্রাইভ" },
     ],

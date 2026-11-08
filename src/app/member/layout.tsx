@@ -171,7 +171,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (
-    <div className="min-h-full bg-[#F5F3FA]">
+    <div className="min-h-full sp-shell">
+      <div className="sp-scene" aria-hidden="true" />
       {/* Desktop floating sidebar */}
       <div className="hidden lg:block fixed top-3 bottom-3 left-3 w-[248px] z-30">
         <MemberSidebar profile={profile} chatUnread={chatUnread} pathname={pathname} onLogout={logout} />

@@ -70,7 +70,7 @@ function VerificationBanner({ email }: { email: string }) {
 // Layout skeleton shown while auth loads
 function AppLayoutSkeleton({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full sp-shell">
       <div className={cn("hidden lg:block fixed top-3 bottom-3 left-3 z-30", collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W)}>
         <div className="h-full rounded-2xl bg-white border border-slate-200/80 p-3 space-y-2">
           <div className="h-9 rounded-xl bg-slate-100 animate-pulse mb-4" />
@@ -141,7 +141,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full sp-shell">
+      <div className="sp-scene" aria-hidden="true" />
       {/* Desktop floating sidebar */}
       <div className={cn(
         "hidden lg:block fixed top-3 bottom-3 left-3 z-30 transition-[width] duration-300",
@@ -191,7 +192,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
-          <div className="pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
+          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
             {mobileTabs.filter(t => canOpen(user, t.href)).map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (

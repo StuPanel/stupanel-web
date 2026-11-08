@@ -235,7 +235,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         </div>
       )}
 
-      <header className="sticky top-0 z-20 bg-slate-50/85 backdrop-blur-md supports-[backdrop-filter]:bg-slate-50/70">
+      <header className="sticky top-0 z-20 sp-topbar">
         <div className="relative h-16 flex items-center justify-between gap-3 px-3 sm:px-4 lg:px-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile: brand */}

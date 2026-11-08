@@ -123,7 +123,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   return (
     <aside className={cn(
       "flex flex-col w-full h-full bg-white overflow-hidden",
-      isMobile ? "" : "rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]"
+      isMobile ? "" : "sp-glass rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]"
     )}>
       {/* Brand */}
       <div className={cn("flex items-center flex-shrink-0 pt-4 pb-3", wide ? "px-4 justify-between" : "flex-col gap-2 px-2")}>

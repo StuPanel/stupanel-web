@@ -22,7 +22,7 @@ export const TILE = {
 } as const;
 export type TileColor = keyof typeof TILE;
 
-export const CARD_SHADOW = "shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]";
+export const CARD_SHADOW = "sp-card shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]";
 
 export function Tile({ icon: Icon, color, size = 28, className }: {
   icon: React.ElementType; color: string; size?: number; className?: string;

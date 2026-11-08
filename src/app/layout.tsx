@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { FeedbackHost } from "@/components/feedback";
 import { SheetBehavior } from "@/components/sheet-behavior";
+import { BACKDROP_BOOT } from "@/lib/backdrop";
 
 // Fonts are kept in the repo (src/app/fonts, OFL licence) so builds never
 // depend on downloading from Google Fonts.
@@ -80,7 +81,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full`}>
+    <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BACKDROP_BOOT }} />
+      </head>
       <body className="h-full bg-background text-foreground antialiased" suppressHydrationWarning>
         {children}
         <FeedbackHost />

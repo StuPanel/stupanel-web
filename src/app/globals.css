@@ -281,7 +281,8 @@ body {
     width: 40px; height: 5px; margin-left: -20px; border-radius: 999px;
     background: rgba(23, 21, 31, .18); pointer-events: none;
   }
-  .sp-drawer.sp-dragging { animation: none; transition: none; }
+  .sp-drawer.sp-dragging, .sp-drawer.sp-settled { animation: none; }
+  .sp-drawer.sp-dragging { transition: none; }
   .sp-drawer.sp-closing { animation: sp-sheet-down .26s cubic-bezier(.4, 0, 1, 1) both; }
 }
 @media (min-width: 640px) {

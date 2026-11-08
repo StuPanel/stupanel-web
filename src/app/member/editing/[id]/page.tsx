@@ -12,8 +12,10 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { EditorRawAccess } from "../../_components/raw-upload";
 import { SubmitWorkDrawer } from "./submit-drawer";
+import { notify } from "@/components/feedback";
 
 type Workspace = {
+  progress?: { plan: string[]; approved: string[]; missing: string[]; total: number; done: number; canComplete: boolean };
   assignment: {
     id: string; role: string; status: string;
     editingDeadline?: string; deliveryDeadline?: string;
@@ -77,6 +79,7 @@ export default function EditorWorkspacePage() {
   const [chatMsg, setChatMsg] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
   const [showBrief, setShowBrief] = useState(true);
+  const [completing, setCompleting] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
   function reload() {
@@ -183,6 +186,42 @@ export default function EditorWorkspacePage() {
             ))}
             {assignment.studioNote && (
               <div className="text-xs text-[#4A4658] bg-[#F7F5FB] rounded-[14px] px-4 py-3">{assignment.studioNote}</div>
+            )}
+            {/* What the studio wants from this editor, and how far it is */}
+            {ws.progress && (ws.progress.plan.length > 0 || ws.progress.done > 0) && (
+              <div className="rounded-[14px] bg-[#F7F5FB] px-4 py-3 space-y-2">
+                <p className="text-xs font-bold text-[#17151F]">
+                  {assignment.status === "delivered" ? "✓ Editing complete" : `${ws.progress.done} of ${ws.progress.total} approved`}
+                </p>
+                {ws.progress.plan.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {ws.progress.plan.map(t => {
+                      const ok = ws.progress!.approved.includes(t);
+                      return (
+                        <span key={t} className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${ok ? "bg-[#E6F4EC] text-[#1F8A5B]" : "bg-white text-[#6B6680] border border-[#E6E2EE]"}`}>
+                          {ok ? "✓ " : ""}{DELIVERABLE_TYPES.find(d => d.value === t)?.label ?? t}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {assignment.status !== "delivered" && ws.progress.canComplete && (
+                  <button type="button" disabled={completing}
+                    onClick={async () => {
+                      setCompleting(true);
+                      try {
+                        const r = await apiFetch(`${API}/member/editing/${id}/complete`, { method: "POST" });
+                        const d = await r.json().catch(() => ({}));
+                        if (!r.ok) { notify(d?.message || "Couldn't mark complete", { error: true }); return; }
+                        notify("Marked complete — thank you!");
+                        reload();
+                      } finally { setCompleting(false); }
+                    }}
+                    className="w-full py-2.5 bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold rounded-[14px] flex items-center justify-center gap-2 disabled:opacity-60">
+                    {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Editing complete
+                  </button>
+                )}
+              </div>
             )}
             <div className="flex gap-2 flex-wrap">
               {statusCfg.next && (

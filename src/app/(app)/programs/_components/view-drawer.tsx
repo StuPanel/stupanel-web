@@ -214,6 +214,12 @@ type EditorAssignment = {
   editingDeadline?: string; deliveryDeadline?: string; studioNote?: string;
   user?: { firstName: string; lastName?: string };
   submissions?: Submission[];
+  /** The studio's list of what to deliver and how far the editor is. */
+  progress?: { plan: string[]; approved: string[]; missing: string[]; total: number; done: number; canComplete: boolean };
+};
+const PLAN_TYPES: Record<"photo_editor" | "video_editor", string[]> = {
+  video_editor: ["teaser", "highlight_video", "full_video", "reel", "other"],
+  photo_editor: ["photo_delivery", "album", "other"],
 };
 type Submission = {
   id: string; reviewStatus: string; deliverableType: string; submittedAt: string;
@@ -388,7 +394,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [draft, setDraft] = useState<{ userId: string; role: "photo_editor" | "video_editor"; editingDeadline?: string; deliveryDeadline?: string; studioNote?: string }[]>([]);
+  const [draft, setDraft] = useState<{ userId: string; role: "photo_editor" | "video_editor"; editingDeadline?: string; deliveryDeadline?: string; studioNote?: string; deliverables?: string[] }[]>([]);
+  const [completing, setCompleting] = useState<string | null>(null);
 
   function reload(silent = false) {
     if (!silent) setLoading(true);
@@ -402,6 +409,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
           editingDeadline: a.editingDeadline ?? "",
           deliveryDeadline: a.deliveryDeadline ?? "",
           studioNote: a.studioNote ?? "",
+          deliverables: a.progress?.plan ?? [],
         })));
       })
       .finally(() => setLoading(false));
@@ -416,7 +424,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
     setDraft(prev => {
       const exists = prev.find(e => e.userId === userId && e.role === role);
-      return exists ? prev.filter(e => !(e.userId === userId && e.role === role)) : [...prev, { userId, role, editingDeadline: "", deliveryDeadline: "", studioNote: "" }];
+      return exists ? prev.filter(e => !(e.userId === userId && e.role === role))
+        : [...prev, { userId, role, editingDeadline: "", deliveryDeadline: "", studioNote: "", deliverables: role === "video_editor" ? ["teaser", "highlight_video"] : ["photo_delivery"] }];
     });
   }
 
@@ -488,6 +497,22 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                         </div>
                       </div>
                       <div>
+                        <p className="text-xs text-slate-400 mb-1">What to deliver <span className="text-slate-300">— the client hears once, when all of it is done</span></p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PLAN_TYPES[e.role].map(t => {
+                            const on = (e.deliverables ?? []).includes(t);
+                            return (
+                              <button key={t} type="button"
+                                onClick={() => setDraft(prev => prev.map(x => x.userId === m.id && x.role === e.role
+                                  ? { ...x, deliverables: on ? (x.deliverables ?? []).filter(y => y !== t) : [...(x.deliverables ?? []), t] } : x))}
+                                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${on ? "bg-[#17151F] text-white border-[#17151F]" : "border-[#E6E2EE] text-[#4A4658] hover:border-[#CFC8DD]"}`}>
+                                {on && "✓ "}{DELIVERABLE[t] ?? t}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div>
                         <p className="text-xs text-slate-400 mb-0.5">Studio Note</p>
                         <input value={e.studioNote ?? ""} onChange={ev => updateDraftField(m.id, e.role, "studioNote", ev.target.value)}
                           placeholder="Instructions for this editor..."
@@ -524,8 +549,51 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                   {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
                   {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
                 </div>
+                {a.progress && (a.progress.plan.length > 0 || a.progress.done > 0) && (
+                  <div className="rounded-xl bg-[#F7F5FB] px-3 py-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-bold text-[#17151F] flex-1">
+                        {a.status === "delivered" ? "✓ Editing complete" : `${a.progress.done} of ${a.progress.total} done`}
+                      </span>
+                      {a.status !== "delivered" && a.progress.canComplete && (
+                        <button type="button" disabled={completing === a.id}
+                          onClick={async () => {
+                            const ok = await askConfirm({
+                              title: "Mark editing complete?",
+                              message: "When every editor of this program is complete, the program becomes Ready and the client gets one email with everything that is ready.",
+                              confirmLabel: "Mark complete",
+                            });
+                            if (!ok) return;
+                            setCompleting(a.id);
+                            try {
+                              const r = await apiFetch(`${API}/bookings/${booking.id}/editor-assignments/${a.id}/complete`, { method: "POST" });
+                              const d = await r.json().catch(() => ({}));
+                              if (!r.ok) { notify(d?.message || "Couldn't mark complete", { error: true }); return; }
+                              notify(d.programReady ? "Done — the program is Ready and the client was told" : `Done — waiting on ${d.waitingOn} more editor${d.waitingOn > 1 ? "s" : ""}`);
+                              silentReload(); onSaved();
+                            } finally { setCompleting(null); }
+                          }}
+                          className="h-8 px-3 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+                          {completing === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Mark complete
+                        </button>
+                      )}
+                    </div>
+                    {a.progress.plan.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {a.progress.plan.map(t => {
+                          const ok = a.progress!.approved.includes(t);
+                          return (
+                            <span key={t} className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${ok ? "bg-[#E6F4EC] text-[#1F8A5B]" : "bg-white text-[#6B6680] border border-[#E6E2EE]"}`}>
+                              {ok ? "✓ " : ""}{DELIVERABLE[t] ?? t}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <Submissions bookingId={booking.id} a={a} onChanged={silentReload} onDelivered={onSaved} />
-                {a.studioNote && <p className="text-xs text-slate-500 bg-amber-50 rounded px-2 py-1">{a.studioNote}</p>}
+                {a.studioNote && <p className="text-xs text-[#4A4658] bg-[#F7F5FB] rounded-lg px-2 py-1">{a.studioNote}</p>}
               </div>
             );
           })}

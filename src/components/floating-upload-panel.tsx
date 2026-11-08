@@ -27,7 +27,8 @@ function fmtEta(sec: number) {
 export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
   const [pending, setPending] = useState<PendingUpload[]>([]);
-  const [collapsed, setCollapsed] = useState(false);
+  // On a phone the list would cover the page — start small (the bar and % stay visible).
+  const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +42,23 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [uploads]);
+
+  // Keep the phone screen on while files upload (a sleeping phone stops the upload).
+  const running = uploads.some(u => !u.done && !u.error && !u.cancelled);
+  useEffect(() => {
+    if (!running) return;
+    type Lock = { release: () => Promise<void> };
+    const wl = (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<Lock> } }).wakeLock;
+    if (!wl) return;
+    let lock: Lock | null = null;
+    let stop = false;
+    const get = () => { wl.request("screen").then(l => { if (stop) void l.release(); else lock = l; }).catch(() => {}); };
+    get();
+    // The lock is dropped when the tab is hidden; take it again when the page is back.
+    const onVis = () => { if (document.visibilityState === "visible") get(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop = true; document.removeEventListener("visibilitychange", onVis); void lock?.release().catch(() => {}); };
+  }, [running]);
 
   const active = uploads.filter(u => !u.done && !u.error && !u.cancelled);
   const failed = uploads.filter(u => !!u.error && !u.cancelled);
@@ -74,7 +92,7 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[#17151F] truncate">
             {active.length > 0
-              ? waiting ? "Waiting for internet…" : `Uploading ${active.length} file${active.length > 1 ? "s" : ""}`
+              ? waiting ? "Waiting for internet…" : `Uploading · ${done.length} of ${uploads.filter(u => !u.cancelled).length} done · ${overall}%`
               : unfinished.length > 0 ? `${unfinished.length} unfinished upload${unfinished.length > 1 ? "s" : ""}`
               : failed.length > 0 ? `${failed.length} upload${failed.length > 1 ? "s" : ""} failed`
               : `${done.length} upload${done.length > 1 ? "s" : ""} complete`}
@@ -106,8 +124,12 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
         </div>
       )}
 
+      {active.length > 0 && !waiting && (
+        <p className="px-4 py-1.5 text-[11px] text-[#6B6680] bg-[#FBFAFD]">Keep this page open until it finishes.</p>
+      )}
+
       {!collapsed && (
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-[40vh] sm:max-h-80 overflow-y-auto">
           {/* Unfinished from an earlier visit */}
           {unfinished.length > 0 && (
             <div className="m-3 rounded-2xl bg-[#EEE8FD] p-3">

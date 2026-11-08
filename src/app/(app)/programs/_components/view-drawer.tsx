@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, Edit3, DollarSign, MessageCircle, FileText,
   Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
@@ -228,8 +228,14 @@ const DELIVERABLE: Record<string, string> = {
 };
 
 /** What an editor sent, newest first — open the files, approve, or ask for changes. */
-function Submissions({ bookingId, a, onChanged }: { bookingId: string; a: EditorAssignment; onChanged: () => void }) {
+function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: string; a: EditorAssignment; onChanged: () => void; onDelivered?: () => void }) {
   const subs = a.submissions ?? [];
+  // When a copy to the delivery folder finishes, the program's Delivery card should show it too.
+  const doneKey = subs.filter(x => x.copy?.status === "done").map(x => x.id).join(",");
+  const firstDone = useRef(doneKey);
+  useEffect(() => {
+    if (doneKey !== firstDone.current) { firstDone.current = doneKey; onDelivered?.(); }
+  }, [doneKey, onDelivered]);
   const [fbFor, setFbFor] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -518,7 +524,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                   {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
                   {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
                 </div>
-                <Submissions bookingId={booking.id} a={a} onChanged={silentReload} />
+                <Submissions bookingId={booking.id} a={a} onChanged={silentReload} onDelivered={onSaved} />
                 {a.studioNote && <p className="text-xs text-slate-500 bg-amber-50 rounded px-2 py-1">{a.studioNote}</p>}
               </div>
             );

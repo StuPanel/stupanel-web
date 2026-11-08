@@ -71,8 +71,12 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   const totalBytes = active.reduce((s, u) => s + (u.size ?? 0), 0);
   const sentBytes = active.reduce((s, u) => s + (u.sent ?? 0), 0);
   const speed = active.reduce((s, u) => s + (u.speed ?? 0), 0);
+  // Overall % of this batch — finished files count as done, not left out.
+  const batch = uploads.filter(u => !u.cancelled && !u.error);
+  const batchBytes = batch.reduce((s, u) => s + (u.size ?? 0), 0);
+  const batchSent = batch.reduce((s, u) => s + (u.done ? (u.size ?? 0) : (u.sent ?? 0)), 0);
   const overall = active.length
-    ? (totalBytes ? Math.round((sentBytes / totalBytes) * 100) : Math.round(active.reduce((s, u) => s + u.progress, 0) / active.length))
+    ? (batchBytes ? Math.round((batchSent / batchBytes) * 100) : Math.round(batch.reduce((s, u) => s + (u.done ? 100 : u.progress), 0) / Math.max(1, batch.length)))
     : 100;
   const waiting = active.some(u => u.status === "waiting");
 

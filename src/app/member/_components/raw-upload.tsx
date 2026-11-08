@@ -50,8 +50,12 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const refreshSoon = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(load, 3000);
-  }, [load]);
+    timer.current = setTimeout(() => {
+      load();
+      // The editor card on the same page checks again (the raw folder may exist only now).
+      window.dispatchEvent(new CustomEvent("sp-raw-changed", { detail: bookingId }));
+    }, 3000);
+  }, [load, bookingId]);
 
   if (failed || (data && !data.connected)) return null; // studio hasn't connected Drive (or no access)
   const card = "bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden";
@@ -167,11 +171,14 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
 
   useEffect(() => {
     let alive = true;
-    apiFetch(`${API}/member/programs/${bookingId}/raw/editor`)
+    const fetchIt = () => apiFetch(`${API}/member/programs/${bookingId}/raw/editor`)
       .then(r => (r.ok ? r.json() : null))
-      .then((d: EditorStatus | null) => { if (alive && d) { setSt(d); setEmail(d.sharedEmail || d.defaultEmail || ""); } })
+      .then((d: EditorStatus | null) => { if (alive && d) { setSt(d); setEmail(e => e || d.sharedEmail || d.defaultEmail || ""); } })
       .catch(() => {});
-    return () => { alive = false; };
+    fetchIt();
+    const onChange = (e: Event) => { if ((e as CustomEvent).detail === bookingId) fetchIt(); };
+    window.addEventListener("sp-raw-changed", onChange);
+    return () => { alive = false; window.removeEventListener("sp-raw-changed", onChange); };
   }, [bookingId]);
 
   if (!st?.isEditor) return null;

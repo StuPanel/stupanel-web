@@ -129,6 +129,7 @@ export function PortalFiles({ files, brand, zipUrl, driveUrl }: {
                 <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer" title={f.fileName} className="block rounded-xl overflow-hidden">
                   <FileThumb thumb={f.thumb} mime={f.mimeType} className="aspect-square rounded-xl transition-transform duration-300 group-hover:scale-[1.03]" />
                 </a>
+                <p className="mt-1 text-[11px] text-[#4A4658] truncate">{f.fileName}</p>
                 {f.downloadUrl && (
                   <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer" title="Download"
                     className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center" style={{ color: brand }}>

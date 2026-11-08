@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   X, Edit3, DollarSign, MessageCircle, FileText,
   Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
-  ExternalLink, Calendar, Monitor, FolderOpen, Users, Check,
+  ExternalLink, Calendar, Users, Check,
   Clapperboard, Palette, Camera, Wallet,
 } from "lucide-react";
 import { askConfirm, notify } from "@/components/feedback";
@@ -21,7 +21,6 @@ import { InvoiceCard } from "./invoice-card";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { RawDriveSection } from "./raw-drive-section";
-import { EditableSelect } from "@/components/ui/editable-select";
 import type { Booking, ShiftAssignment } from "./types";
 import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
 import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
@@ -97,148 +96,6 @@ function DeliveryOverview({ booking }: { booking: Booking }) {
           <span className="text-xs text-slate-400">Date</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-const STORAGE_TYPES = [
-  { value: "google_drive", label: "Google Drive" },
-  { value: "dropbox", label: "Dropbox" },
-  { value: "onedrive", label: "OneDrive" },
-  { value: "nas", label: "NAS Server" },
-  { value: "external_hdd", label: "External HDD" },
-  { value: "pc_local", label: "PC Local" },
-  { value: "other", label: "Other" },
-];
-
-function RawFilesSection({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {
-  const info = (booking.rawFilesInfo ?? {}) as any;
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    storageType: info.storageType ?? "google_drive",
-    folderName: info.folderName ?? "",
-    folderPath: info.folderPath ?? info.pcName ?? "",
-    driveLink: info.driveLink ?? "",
-    dropboxLink: info.dropboxLink ?? "",
-    nasLocation: info.nasLocation ?? "",
-    hddInfo: info.hddInfo ?? "",
-    fileCount: info.fileCount ?? "",
-    fileSizeGb: info.fileSizeGb ?? "",
-    notes: info.notes ?? "",
-  });
-  const [saving, setSaving] = useState(false);
-
-  async function save() {
-    setSaving(true);
-    try {
-      await apiFetch(`${API}/bookings/${booking.id}/raw-files`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, fileCount: form.fileCount ? Number(form.fileCount) : null, fileSizeGb: form.fileSizeGb ? Number(form.fileSizeGb) : null }),
-      });
-      setEditing(false); onSaved();
-    } finally { setSaving(false); }
-  }
-
-  const hasInfo = info.folderName || info.folderPath || info.pcName || info.driveLink || info.dropboxLink || info.nasLocation || info.hddInfo || info.notes;
-  const st = info.storageType ?? "google_drive";
-
-  return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <HardDrive className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-600">Other copies (HDD, PC, NAS…)</span>
-          {hasInfo && <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">{STORAGE_TYPES.find(t => t.value === st)?.label ?? st}</span>}
-        </div>
-        <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Edit"}</button>
-      </div>
-
-      {editing ? (
-        <div className="p-4 space-y-3 bg-white">
-          <div>
-            <p className="text-xs text-slate-500 mb-1">Storage Type</p>
-            <EditableSelect value={form.storageType} onChange={v => setForm(f => ({ ...f, storageType: v }))}
-              options={STORAGE_TYPES} className="rounded-lg" />
-          </div>
-          {[
-            { key: "folderName", label: "Folder Name", placeholder: "Saiful_Wedding_RAW" },
-            { key: "folderPath", label: "Folder Path / Location", placeholder: "Drive > Wedding > June 2026 > Saiful" },
-          ].map(({ key, label, placeholder }) => (
-            <div key={key}>
-              <p className="text-xs text-slate-500 mb-1">{label}</p>
-              <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                placeholder={placeholder} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          ))}
-          {(form.storageType === "google_drive" || form.storageType === "onedrive") && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Drive Link</p>
-              <input value={form.driveLink} onChange={e => setForm(f => ({ ...f, driveLink: e.target.value }))}
-                placeholder="https://drive.google.com/..." className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          )}
-          {form.storageType === "dropbox" && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Dropbox Link</p>
-              <input value={form.dropboxLink} onChange={e => setForm(f => ({ ...f, dropboxLink: e.target.value }))}
-                placeholder="https://www.dropbox.com/..." className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          )}
-          {form.storageType === "nas" && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">NAS Location</p>
-              <input value={form.nasLocation} onChange={e => setForm(f => ({ ...f, nasLocation: e.target.value }))}
-                placeholder="//NAS-01/Photos/2026" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          )}
-          {form.storageType === "external_hdd" && (
-            <div>
-              <p className="text-xs text-slate-500 mb-1">HDD Info</p>
-              <input value={form.hddInfo} onChange={e => setForm(f => ({ ...f, hddInfo: e.target.value }))}
-                placeholder="WD 2TB Black, Serial: WX12345" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs text-slate-500 mb-1">File Count</p>
-              <input type="number" value={form.fileCount} onChange={e => setForm(f => ({ ...f, fileCount: e.target.value }))}
-                placeholder="1200" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Size (GB)</p>
-              <input type="number" value={form.fileSizeGb} onChange={e => setForm(f => ({ ...f, fileSizeGb: e.target.value }))}
-                placeholder="48.5" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-1">Notes</p>
-            <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="e.g. Event footage is in a separate sub-folder..." rows={2}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-          </div>
-          <button onClick={save} disabled={saving}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Raw Files Info
-          </button>
-        </div>
-      ) : hasInfo ? (
-        <div className="p-4 space-y-2 bg-white">
-          {info.folderName && <div className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5 text-amber-500 shrink-0" /><span className="text-sm font-semibold text-slate-800">{info.folderName}</span></div>}
-          {info.folderPath && <div className="flex items-start gap-2"><Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" /><span className="text-sm text-slate-600 font-mono break-all">{info.folderPath}</span></div>}
-          {info.driveLink && <a href={info.driveLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"><Link2 className="w-3.5 h-3.5 shrink-0" />Open Drive Folder <ExternalLink className="w-3 h-3" /></a>}
-          {info.dropboxLink && <a href={info.dropboxLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"><Link2 className="w-3.5 h-3.5 shrink-0" />Open Dropbox <ExternalLink className="w-3 h-3" /></a>}
-          {info.nasLocation && <div className="flex items-start gap-2"><HardDrive className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" /><span className="text-sm text-slate-600 font-mono">{info.nasLocation}</span></div>}
-          {info.hddInfo && <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-1.5">{info.hddInfo}</div>}
-          {(info.fileCount || info.fileSizeGb) && (
-            <div className="text-xs text-slate-500">{info.fileCount ? `${info.fileCount.toLocaleString()} files` : ""}{info.fileCount && info.fileSizeGb ? " · " : ""}{info.fileSizeGb ? `${info.fileSizeGb} GB` : ""}</div>
-          )}
-          {info.notes && <p className="text-xs text-slate-500 bg-amber-50 rounded-lg px-3 py-2">{info.notes}</p>}
-        </div>
-      ) : (
-        <div className="px-4 py-3 text-center bg-white">
-          <p className="text-xs text-slate-400">No raw files info yet — click Edit to add</p>
-        </div>
-      )}
     </div>
   );
 }
@@ -841,7 +698,6 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
             <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
             <RawDriveSection booking={b} teamMembers={teamMembers ?? []} />
-            <RawFilesSection booking={b} onSaved={refreshBooking} />
             <CreativeBriefSection booking={b} onSaved={refreshBooking} />
           </div>
         </section>

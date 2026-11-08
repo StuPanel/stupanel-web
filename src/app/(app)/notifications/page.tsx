@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as HeaderIcon, Film } from "lucide-react";
+import { Bell as HeaderIcon, Film, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
@@ -42,17 +42,19 @@ const TYPE_CFG: Record<string, { icon: typeof Bell; bg: string; iconColor: strin
   stuck:    { icon: Clock,         bg: "bg-amber-50",  iconColor: "text-amber-600",  border: "border-amber-100" },
   payment:  { icon: DollarSign,   bg: "bg-orange-50", iconColor: "text-orange-600", border: "border-orange-100"},
   new:      { icon: Plus,          bg: "bg-emerald-50",iconColor: "text-emerald-600",border: "border-emerald-100"},
-  review:   { icon: Film,          bg: "bg-[#EEE8FD]", iconColor: "text-[#5B3FD0]",  border: "border-[#E4DCFB]" },
+  review:   { icon: Film,        bg: "bg-[#EEE8FD]", iconColor: "text-[#5B3FD0]",  border: "border-[#E4DCFB]" },
+  backup:   { icon: ShieldAlert,   bg: "bg-[#FDECEF]", iconColor: "text-[#C2304F]",  border: "border-[#F8D5DC]" },
 };
 const PRIORITY_DOT: Record<string, string> = {
   high: "bg-red-500", medium: "bg-amber-400", low: "bg-slate-300",
 };
 const TYPE_LABEL: Record<string, string> = {
-  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review",
+  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review", backup: "Backup",
 };
 const FILTER_TABS = [
   { key: "all",      label: "All" },
   { key: "review",   label: "To review" },
+  { key: "backup",   label: "Backup" },
   { key: "upcoming", label: "Upcoming" },
   { key: "overdue",  label: "Overdue" },
   { key: "payment",  label: "Payments" },

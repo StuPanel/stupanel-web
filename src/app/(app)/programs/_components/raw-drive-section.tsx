@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { RefreshCw, ChevronRight, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Plus, Trash2, X } from "lucide-react";
+import { RefreshCw, ChevronRight, Cloud, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Monitor, Plus, Server, ShieldAlert, ShieldCheck, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
@@ -21,6 +21,9 @@ import type { Booking } from "./types";
 type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; conn: string; viewUrl: string; thumb: string | null };
 type RawLink = { id: string; url: string; label: string };
 type RawLocation = { conn: string; email: string; url: string; current: boolean; reachable: boolean; count: number; bytes: number };
+type BackupKind = "hdd" | "pc" | "nas" | "cloud" | "other";
+type RawBackup = { id: string; kind: BackupKind; label: string; at: string; by?: string };
+type BackupState = { copies: number; needed: number; safe: boolean; onDrive: boolean; linked: boolean; backups: RawBackup[] };
 type Overview = {
   connected: boolean;
   account: { email: string; totalBytes: number; usedBytes: number; freeBytes: number | null } | null;
@@ -32,6 +35,7 @@ type Overview = {
   totals: { count: number; bytes: number };
   truncated: boolean;
   shares?: { userId: string; email: string; name: string }[];
+  backup?: BackupState;
 };
 type Member = { id: string; firstName: string; lastName?: string };
 
@@ -217,6 +221,21 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     data.shares?.length ? `${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : "",
   ].filter(Boolean).join(" · ") || (data.connected ? "Nothing uploaded yet" : "Add a link, or connect Google Drive to upload");
 
+  // Backup 1/2 — red once the shoot is over and the raw files aren't in 2 places yet.
+  const bk = data.backup;
+  const shotOver = (() => {
+    const ds = days.map(d => (d.date || "").slice(0, 10)).filter(Boolean).sort();
+    const last = ds[ds.length - 1] || (booking.eventDate ? String(booking.eventDate).slice(0, 10) : "");
+    return !!last && new Date(`${last}T23:59:59`) < new Date();
+  })();
+  const bkChip = bk && (bk.copies > 0 || shotOver) ? (
+    <span className={cn("h-7 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 flex-shrink-0",
+      bk.safe ? "bg-[#E6F4EC] text-[#1F8A5B]" : shotOver ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#F2EFF8] text-[#4A4658]")}
+      title={bk.safe ? "Raw files are in 2 or more places" : "Keep raw files in at least 2 places"}>
+      {bk.safe ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}Backup {Math.min(bk.copies, 9)}/{bk.needed}
+    </span>
+  ) : null;
+
   // In the program: one small row. Everything else opens in a side panel.
   const row = (
     <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3 hover:border-[#CFC8DD] transition-colors cursor-pointer"
@@ -226,6 +245,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
         <p className="text-[14px] font-bold text-[#17151F]">Raw files</p>
         <p className="text-[12px] text-[#6B6680] truncate">{summary}</p>
       </div>
+      {bkChip}
       <span className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5">
         {data.connected ? <><FolderUp className="w-3.5 h-3.5" />Upload</> : <><Link2 className="w-3.5 h-3.5" />Add link</>}
       </span>
@@ -236,6 +256,11 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const panel = (
     <div className="p-4 sm:p-5 space-y-4">
       {header}
+
+      {bk && (
+        <RawBackups bookingId={booking.id} state={bk} driveCount={data.totals.count} nLinks={nLinks} shotOver={shotOver}
+          onSaved={b => setData(d => d ? { ...d, backup: b } : d)} />
+      )}
 
       {acc && (
         <div className="space-y-1.5">
@@ -465,6 +490,132 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+const KINDS: { value: BackupKind; label: string; icon: typeof HardDrive }[] = [
+  { value: "hdd", label: "External HDD", icon: HardDrive },
+  { value: "pc", label: "PC", icon: Monitor },
+  { value: "nas", label: "NAS", icon: Server },
+  { value: "cloud", label: "Other cloud", icon: Cloud },
+  { value: "other", label: "Other", icon: HardDrive },
+];
+
+/**
+ * Where else the raw files are kept. They are safe once they are in 2 places:
+ * StuPanel's Drive folder and the raw links count by themselves, the rest is added here.
+ */
+function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }: {
+  bookingId: string; state: BackupState; driveCount: number; nLinks: number; shotOver: boolean; onSaved: (s: BackupState) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [kind, setKind] = useState<BackupKind>("hdd");
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function save(next: RawBackup[] | Omit<RawBackup, "id" | "at">[]) {
+    setBusy(true);
+    try {
+      const r = await apiFetch(`${API}/google-drive/raw/${bookingId}/backups`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ backups: next }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
+      onSaved(d as BackupState);
+      return true;
+    } finally { setBusy(false); }
+  }
+  async function add() {
+    const l = label.trim();
+    if (!l) return;
+    if (await save([...state.backups, { kind, label: l }] as RawBackup[])) {
+      setLabel(""); setAdding(false); notify("Backup added");
+    }
+  }
+  async function remove(b: RawBackup) {
+    const ok = await askConfirm({ title: `Remove "${b.label}"?`, message: "Only removes it from this list — nothing is deleted from the drive.", confirmLabel: "Remove", danger: true });
+    if (ok && await save(state.backups.filter(x => x.id !== b.id))) notify("Removed");
+  }
+
+  const pct = Math.min(100, Math.round((state.copies / state.needed) * 100));
+  const tone = state.safe ? "#1F8A5B" : shotOver ? "#C2304F" : "#7D5CEF";
+  const when = (iso: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  };
+  const KindIcon = ({ k }: { k: BackupKind }) => { const I = KINDS.find(x => x.value === k)?.icon ?? HardDrive; return <I className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />; };
+
+  return (
+    <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2.5">
+      <div className="flex items-center gap-2">
+        {state.safe ? <ShieldCheck className="w-4 h-4" style={{ color: tone }} /> : <ShieldAlert className="w-4 h-4" style={{ color: tone }} />}
+        <p className="flex-1 text-[13px] font-bold text-[#17151F]">Backup {state.copies}/{state.needed}</p>
+        <span className="text-[12px] font-semibold" style={{ color: tone }}>
+          {state.safe ? "Safe" : state.copies === 0 ? "No copy yet" : "Add one more copy"}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-[#EEEBF4] overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: tone }} />
+      </div>
+
+      <div className="space-y-1.5">
+        {state.onDrive && (
+          <div className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+            <Cloud className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" />
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#17151F] truncate">Google Drive (StuPanel)</span>
+            <span className="text-[11px] text-[#6B6680]">{driveCount} files · auto</span>
+          </div>
+        )}
+        {state.linked && (
+          <div className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+            <Link2 className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" />
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#17151F] truncate">Drive link{nLinks > 1 ? "s" : ""}</span>
+            <span className="text-[11px] text-[#6B6680]">{nLinks} · auto</span>
+          </div>
+        )}
+        {state.backups.map(b => (
+          <div key={b.id} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+            <KindIcon k={b.kind} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-[#17151F] truncate">{b.label}</span>
+              <span className="block text-[11px] text-[#6B6680] truncate">
+                {[KINDS.find(k => k.value === b.kind)?.label, when(b.at), b.by].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+            <button type="button" onClick={() => remove(b)} disabled={busy} title="Remove"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F]">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        {state.copies === 0 && !adding && (
+          <p className="text-[12px] text-[#8A8599] px-1">Upload to Drive here, add a link, or note where else the card was copied (HDD, PC…).</p>
+        )}
+      </div>
+
+      {adding ? (
+        <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex flex-wrap gap-1.5">
+            {KINDS.map(k => <button key={k.value} type="button" className={chip(kind === k.value)} onClick={() => setKind(k.value)}>{k.label}</button>)}
+          </div>
+          <input autoFocus value={label} onChange={e => setLabel(e.target.value)} onKeyDown={e => { if (e.key === "Enter") add(); }}
+            placeholder={kind === "hdd" ? "Name — e.g. WD 4TB #2" : kind === "pc" ? "Name — e.g. Editing PC, D:/2026/Nov" : "Name or where it is"}
+            className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => { setAdding(false); setLabel(""); }} className="h-9 px-4 rounded-full text-[13px] font-semibold text-[#4A4658] hover:bg-[#F2EFF8]">Cancel</button>
+            <button type="button" onClick={add} disabled={busy || !label.trim()} className="h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAdding(true)}
+          className="w-full h-9 rounded-full border border-dashed border-[#CFC8DD] text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#F7F5FB] inline-flex items-center justify-center gap-1.5">
+          <Plus className="w-3.5 h-3.5" />Add a copy (HDD, PC, NAS…)
+        </button>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chatRead } from "@/lib/chat-unread";
 import { API_URL as API, WS_URL } from "@/lib/api";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -53,6 +54,7 @@ export function ProgramsChat() {
   const [hasMore, setHasMore] = useState(false);
   const [myId, setMyId] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const openIdRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
@@ -91,6 +93,8 @@ export function ProgramsChat() {
     });
 
     socket.on("new_message", (msg: Message) => {
+      // The chat is open, so this message is seen.
+      if (msg.bookingId && msg.bookingId === openIdRef.current) { socket.emit("mark_read", { bookingId: msg.bookingId }); chatRead(); }
       setMessages(prev => [...prev, msg]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       setBookings(prev => prev.map(b =>
@@ -125,7 +129,9 @@ export function ProgramsChat() {
     setMsgLoading(true);
     setMobileShowChat(true);
     socket?.emit("join_booking", { bookingId: booking.id });
+    openIdRef.current = booking.id;
     setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, unreadCount: 0 } : b));
+    chatRead();
   }
 
   function sendMessage() {

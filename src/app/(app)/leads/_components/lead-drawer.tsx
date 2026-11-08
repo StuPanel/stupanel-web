@@ -104,7 +104,8 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF(p => ({ ...p, [k]: v }));
   const choices = useMemo(() => followUpChoices(), []);
-  const l = current;
+  // `current` catches up one render after a new lead is opened — use the prop until then.
+  const l = current && current.id === lead?.id ? current : lead;
 
   function body() {
     const dates = [...new Set(f.eventDates.filter(Boolean))].sort();

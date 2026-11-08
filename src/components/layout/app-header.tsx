@@ -168,7 +168,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     if (e.key === "Enter" && selected >= 0 && results[selected]) {
       navigate(results[selected]);
     }
-    if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); }
+    if (e.key === "Escape") { e.preventDefault(); setOpen(false); inputRef.current?.blur(); }
   }
 
   function navigate(r: SearchResult) {

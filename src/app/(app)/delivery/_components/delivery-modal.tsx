@@ -553,7 +553,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               if (e.key === "Enter" && newFolderInput.trim()) {
                                 setTargetFolder(newFolderInput.trim()); setShowNewFolder(false); setNewFolderInput("");
                               }
-                              if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); }
+                              if (e.key === "Escape") { e.preventDefault(); setShowNewFolder(false); setNewFolderInput(""); }
                             }}
                             placeholder="Folder name (e.g. Holud Photos)"
                             autoFocus
@@ -801,7 +801,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               if (e.key === "Enter" && driveNewFolderInput.trim()) {
                                 setDriveTargetFolder([driveTargetFolder, driveNewFolderInput.trim().replace(/[\\/]+/g, "-")].filter(Boolean).join("/")); setDriveShowNewFolder(false); setDriveNewFolderInput("");
                               }
-                              if (e.key === "Escape") { setDriveShowNewFolder(false); setDriveNewFolderInput(""); }
+                              if (e.key === "Escape") { e.preventDefault(); setDriveShowNewFolder(false); setDriveNewFolderInput(""); }
                             }}
                             placeholder="Folder name (e.g. Holud Photos)"
                             autoFocus

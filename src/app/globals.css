@@ -261,6 +261,35 @@ body {
   .sp-drawer { top: 12px; bottom: 12px; right: 12px; width: calc(100% - 24px); border-radius: 24px; }
 }
 
+/* Phones: drawers become a sheet that slides up from the bottom, with a grab handle.
+   Drag the handle down (or swipe the top of the sheet) to close — see sheet-behavior.tsx. */
+@keyframes sp-sheet-up { from { transform: translateY(100%) } to { transform: none } }
+@keyframes sp-sheet-down { from { transform: translateY(var(--sp-drag, 0px)) } to { transform: translateY(100%) } }
+@keyframes sp-drawer-out { from { opacity: 1; transform: none } to { opacity: 0; transform: translateX(36px) } }
+@keyframes sp-fade-out { from { opacity: 1 } to { opacity: 0 } }
+@media (max-width: 639px) {
+  .sp-drawer {
+    top: max(env(safe-area-inset-top, 0px), 4dvh);
+    left: 0; right: 0; width: 100%; max-width: none !important;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -12px 40px rgba(22, 18, 40, .22);
+    animation: sp-sheet-up .44s cubic-bezier(.22, 1, .36, 1) both;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sp-drawer::before {
+    content: ""; position: absolute; z-index: 5; top: 7px; left: 50%;
+    width: 40px; height: 5px; margin-left: -20px; border-radius: 999px;
+    background: rgba(23, 21, 31, .18); pointer-events: none;
+  }
+  .sp-drawer.sp-dragging { animation: none; transition: none; }
+  .sp-drawer.sp-closing { animation: sp-sheet-down .26s cubic-bezier(.4, 0, 1, 1) both; }
+}
+@media (min-width: 640px) {
+  .sp-drawer.sp-closing { animation: sp-drawer-out .22s cubic-bezier(.4, 0, 1, 1) both; }
+}
+.sp-backdrop.sp-closing { animation: sp-fade-out .24s ease both; }
+html.sp-locked, html.sp-locked body { overflow: hidden; }
+
 /* Toast: top centre, white pill */
 .sp-toast {
   position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
@@ -282,7 +311,7 @@ body {
 .sp-toast--err > svg:first-child { background: #C2304F; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp-backdrop, .sp-drawer, .sp-toast { animation: none; }
+  .sp-backdrop, .sp-drawer, .sp-toast, .sp-drawer.sp-closing, .sp-backdrop.sp-closing { animation: none; }
 }
 
 /* ── Centre pop-ups, empty states, cards ─────────────────────────────────── */

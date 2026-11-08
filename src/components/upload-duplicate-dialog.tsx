@@ -16,7 +16,7 @@ export function UploadDuplicateDialog({ check, onChoose }: {
   const [choice, setChoice] = useState<DuplicateChoice>("skip");
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onChoose(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onChoose(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onChoose]);

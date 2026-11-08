@@ -99,7 +99,7 @@ export function FeedbackHost() {
 
   useEffect(() => {
     if (!ask) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); close(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +130,7 @@ export function FeedbackHost() {
           <div className="fixed inset-0 z-[91] flex items-center justify-center p-4 pointer-events-none">
             <form role="dialog" aria-modal="true" className="sp-modal pointer-events-auto w-full max-w-sm p-6"
               onSubmit={e => { e.preventDefault(); closePrompt(text); }}
-              onKeyDown={e => { if (e.key === "Escape") closePrompt(null); }}>
+              onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); closePrompt(null); } }}>
               <h3 className="font-bold text-[#17151F] text-lg">{prompt.title}</h3>
               {prompt.message && <p className="text-[#6B6680] text-sm mt-1.5">{prompt.message}</p>}
               <input autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={prompt.placeholder}

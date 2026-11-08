@@ -580,7 +580,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
       if (!menu.current?.contains(t) && !btn.current?.contains(t)) setPos(null);
     }
     const shut = () => setPos(null);
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setPos(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); setPos(null); } };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", esc);
     window.addEventListener("scroll", shut, true);

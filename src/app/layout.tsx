@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { FeedbackHost } from "@/components/feedback";
+import { SheetBehavior } from "@/components/sheet-behavior";
 
 // Fonts are kept in the repo (src/app/fonts, OFL licence) so builds never
 // depend on downloading from Google Fonts.
@@ -83,6 +84,7 @@ export default function RootLayout({
       <body className="h-full bg-background text-foreground antialiased" suppressHydrationWarning>
         {children}
         <FeedbackHost />
+        <SheetBehavior />
       </body>
     </html>
   );

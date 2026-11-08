@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Calendar, MapPin, Phone, Mail, User, Users,
-  HardDrive, Link2, ExternalLink, FolderOpen, Monitor, Loader2,
+  Link2, ExternalLink, Monitor, Loader2,
   CheckCircle2, Clock, AlertCircle, Wallet,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -108,8 +108,6 @@ export default function ProgramHubPage() {
     );
   }
 
-  const rawFiles = hub.rawFilesInfo ?? {};
-  const hasRawFiles = rawFiles.folderName || rawFiles.folderPath || rawFiles.driveLink || rawFiles.dropboxLink || rawFiles.nasLocation;
   const deliveryLinks = (hub.deliveryLinks as any[]) ?? (hub.deliveryLink ? [{ id: "1", title: "Delivery Link", url: hub.deliveryLink }] : []);
 
   return (
@@ -286,41 +284,6 @@ export default function ProgramHubPage() {
 
         <EditorRawAccess bookingId={hub.id} />
         <MemberRawUpload bookingId={hub.id} bookingNumber={hub.bookingNumber} />
-
-        {/* Raw Files */}
-        {hasRawFiles && (
-          <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-[13px] text-[#4A4658]">Raw Files</span>
-            </div>
-            <div className="px-4 py-4 space-y-2">
-              {rawFiles.folderName && <p className="font-semibold text-[#17151F]"><FolderOpen className="w-3.5 h-3.5 text-amber-500 inline mr-1" />{rawFiles.folderName}</p>}
-              {rawFiles.folderPath && <p className="text-sm text-[#6B6680] font-mono">{rawFiles.folderPath}</p>}
-              {(rawFiles.fileCount || rawFiles.fileSizeGb) && (
-                <p className="text-xs text-[#6B6680]">
-                  {rawFiles.fileCount ? `${rawFiles.fileCount.toLocaleString()} files` : ""}
-                  {rawFiles.fileCount && rawFiles.fileSizeGb ? " · " : ""}
-                  {rawFiles.fileSizeGb ? `${rawFiles.fileSizeGb} GB` : ""}
-                </p>
-              )}
-              {rawFiles.driveLink && !rawFiles.drive && (
-                <a href={rawFiles.driveLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline">
-                  <Link2 className="w-3.5 h-3.5" />Open Drive <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-              {rawFiles.dropboxLink && (
-                <a href={rawFiles.dropboxLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline">
-                  <Link2 className="w-3.5 h-3.5" />Open Dropbox <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-              {rawFiles.nasLocation && <p className="text-sm text-[#6B6680] font-mono">{rawFiles.nasLocation}</p>}
-              {rawFiles.notes && <p className="text-xs text-[#6B6680] bg-amber-50 rounded-lg px-3 py-2">{rawFiles.notes}</p>}
-            </div>
-          </div>
-        )}
 
         {/* Delivery Links */}
         {deliveryLinks.length > 0 && (

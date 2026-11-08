@@ -19,7 +19,7 @@ interface DashData {
     client: { firstName: string; lastName?: string; phone?: string };
   }[];
 }
-interface EarningStats { totalEarned: number; pendingAmount: number; thisMonthEarned: number; totalPaid: number; }
+interface EarningStats { totalEarned: number; pendingAmount: number; thisMonthEarned: number; totalPaid: number; upcomingAmount?: number; }
 
 const ACTIVE = ["confirmed", "advance_received", "in_progress", "editing", "ready_for_delivery"];
 
@@ -57,13 +57,13 @@ export default function MemberDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
         <StatCard icon={Camera} color="deep" label="All programs" value={data.total} href="/member/programs" />
         <StatCard icon={CalendarDays} color="red" label="Next 30 days" value={data.upcoming} href="/member/schedule" />
-        <div className="col-span-2 lg:col-span-1"><StatCard icon={Clock} color="teal" label="In progress" value={activeCount} /></div>
+        <div className="col-span-2 lg:col-span-1"><StatCard icon={Clock} color="teal" label="Active" value={activeCount} /></div>
       </div>
 
       {earnings && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-7">
           <StatCard icon={TrendingUp} color="green" label="Earned this month" value={formatCurrency(earnings.thisMonthEarned)} href="/member/earnings" />
-          <StatCard icon={Wallet} color="blue" label="Total earned" value={formatCurrency(earnings.totalEarned)} sub={`Paid ${formatCurrency(earnings.totalPaid)}`} href="/member/earnings" />
+          <StatCard icon={Wallet} color="blue" label="Total earned" value={formatCurrency(earnings.totalEarned)} sub={`Paid ${formatCurrency(earnings.totalPaid)}${earnings.upcomingAmount ? ` · ${formatCurrency(earnings.upcomingAmount)} coming` : ""}`} href="/member/earnings" />
           <div className="col-span-2 lg:col-span-1"><StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(earnings.pendingAmount)} href="/member/earnings" /></div>
         </div>
       )}

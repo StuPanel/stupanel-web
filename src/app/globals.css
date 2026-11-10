@@ -214,8 +214,10 @@
   --default-transition-duration: 180ms;
 }
 
-* {
-  border-color: rgb(var(--border));
+/* Default border colour. In the base layer so colour classes (border-red-…, border-[#…], divide-…) can win —
+   it used to sit outside any layer and silently overrode every one of them. */
+@layer base {
+  *, ::before, ::after { border-color: rgb(var(--border)); }
 }
 
 body {
@@ -412,3 +414,57 @@ html:not([data-backdrop="plain"]) .sp-card {
     background: rgba(255, 255, 255, .6) !important;
   }
 }
+
+
+/* ─── v3 polish (2026-11-11): depth on buttons, glass on pop-ups ─────────────
+   One place, so every page gets it. Colours stay the brand tokens. */
+
+/* Solid buttons (violet main, ink, green, red): soft top light + coloured glow.
+   The overlay sits on top of the button's own colour, so hover colours still work. */
+:is(button, a)[class~="bg-[#7D5CEF]"], :is(button, a)[class~="bg-[#6C4BE0]"], :is(button, a)[class~="bg-indigo-600"],
+:is(button, a)[class~="bg-violet-600"], :is(button, a)[class~="bg-primary"],
+:is(button, a)[class~="bg-[#17151F]"], :is(button, a)[class~="bg-[#16141D]"], :is(button, a)[class~="bg-slate-900"],
+:is(button, a)[class~="bg-[#1F8A5B]"], :is(button, a)[class~="bg-emerald-600"],
+:is(button, a)[class~="bg-[#C2304F]"], :is(button, a)[class~="bg-red-600"] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .20) 0%, rgba(255, 255, 255, 0) 52%, rgba(0, 0, 0, .10) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .30), 0 10px 22px -12px var(--sp-btn-glow, rgba(23, 21, 31, .55));
+  transition: transform .18s cubic-bezier(.2, .8, .2, 1), filter .18s, background-color .18s, box-shadow .18s;
+}
+:is(button, a)[class~="bg-[#7D5CEF]"], :is(button, a)[class~="bg-[#6C4BE0]"], :is(button, a)[class~="bg-indigo-600"],
+:is(button, a)[class~="bg-violet-600"], :is(button, a)[class~="bg-primary"] { --sp-btn-glow: rgba(109, 74, 230, .95); }
+:is(button, a)[class~="bg-[#1F8A5B]"], :is(button, a)[class~="bg-emerald-600"] { --sp-btn-glow: rgba(31, 138, 91, .8); }
+:is(button, a)[class~="bg-[#C2304F]"], :is(button, a)[class~="bg-red-600"] { --sp-btn-glow: rgba(194, 48, 79, .8); }
+:is(button, a):is([class~="bg-[#7D5CEF]"], [class~="bg-[#6C4BE0]"], [class~="bg-indigo-600"], [class~="bg-violet-600"], [class~="bg-primary"],
+  [class~="bg-[#17151F]"], [class~="bg-[#16141D]"], [class~="bg-slate-900"], [class~="bg-[#1F8A5B]"], [class~="bg-emerald-600"],
+  [class~="bg-[#C2304F]"], [class~="bg-red-600"]):not(:disabled):hover { filter: brightness(1.07); }
+:is(button, a):is([class~="bg-[#7D5CEF]"], [class~="bg-[#6C4BE0]"], [class~="bg-indigo-600"], [class~="bg-violet-600"], [class~="bg-primary"],
+  [class~="bg-[#17151F]"], [class~="bg-[#16141D]"], [class~="bg-slate-900"], [class~="bg-[#1F8A5B]"], [class~="bg-emerald-600"],
+  [class~="bg-[#C2304F]"], [class~="bg-red-600"]):not(:disabled):active { transform: scale(.97); }
+/* tabs, switches, radio pills and disabled buttons: the light, but no glow under them */
+:is(button, a):is([role], :disabled, [aria-disabled="true"]):is([class~="bg-[#7D5CEF]"], [class~="bg-[#6C4BE0]"], [class~="bg-indigo-600"],
+  [class~="bg-violet-600"], [class~="bg-primary"], [class~="bg-[#17151F]"], [class~="bg-[#16141D]"], [class~="bg-slate-900"],
+  [class~="bg-[#1F8A5B]"], [class~="bg-emerald-600"], [class~="bg-[#C2304F]"], [class~="bg-red-600"]) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+/* Cards on a backdrop: a thin light along the top edge */
+html:not([data-backdrop="plain"]) .sp-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(22, 18, 40, .04), 0 12px 30px -14px rgba(40, 28, 96, .18) !important;
+}
+
+/* Drawers and pop-ups carry a hint of the backdrop's colours in two corners */
+.sp-drawer, .sp-modal {
+  background-image:
+    radial-gradient(95% 34% at 0% 0%, color-mix(in srgb, var(--sp-glow-a) 42%, transparent), transparent 72%),
+    radial-gradient(85% 30% at 100% 100%, color-mix(in srgb, var(--sp-glow-b) 34%, transparent), transparent 72%);
+}
+.sp-backdrop { background: rgba(23, 21, 31, .34); -webkit-backdrop-filter: blur(5px) saturate(1.2); backdrop-filter: blur(5px) saturate(1.2); }
+.sp-toast {
+  background: rgba(255, 255, 255, .82); border-color: rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: inset 0 1px 0 #fff, 0 16px 36px -12px rgba(22, 18, 40, .32);
+}
+
+/* Type: headings break evenly, numbers line up */
+h1, h2, h3 { text-wrap: balance; }
+body { text-rendering: optimizeLegibility; font-kerning: normal; }

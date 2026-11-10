@@ -29,8 +29,8 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
   {
     title: "Studio",
     panes: [
-      { id: "general", title: "General", sub: "Studio name, contact, currency and time zone", icon: Building2, color: C.blue, keywords: "studio profile স্টুডিও" },
-      { id: "branding", title: "Branding", sub: "Your logo on quotes, invoices, emails and client pages", icon: Palette, color: C.violet, keywords: "logo লোগো" },
+      { id: "general", title: "General", sub: "Studio name, contact, currency and time zone", icon: Building2, color: C.blue, keywords: "studio profile" },
+      { id: "branding", title: "Branding", sub: "Your logo on quotes, invoices, emails and client pages", icon: Palette, color: C.violet, keywords: "logo" },
       { id: "online", title: "Social & Links", sub: "Website and social profiles shown to clients", icon: Globe, color: C.teal, keywords: "facebook website" },
     ],
   },
@@ -38,33 +38,33 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     title: "Money",
     panes: [
       { id: "payment", title: "Payment Methods", sub: "How clients pay you — shown on quotes and invoices", icon: CreditCard, color: C.green, keywords: "bank bkash nagad" },
-      { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote কোটেশন" },
-      { id: "invoices", title: "Invoices", sub: "Invoice designer, due date and numbering", icon: Receipt, color: C.orchid, keywords: "invoice ইনভয়েস বিল" },
-      { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat ভ্যাট" },
+      { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote" },
+      { id: "invoices", title: "Invoices", sub: "Invoice designer, due date and numbering", icon: Receipt, color: C.orchid, keywords: "invoice" },
+      { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat" },
       { id: "catalog", title: "Service Catalog", sub: "Ready-made services for quick invoice lines", icon: BookOpen, color: C.teal, keywords: "services price" },
     ],
   },
   {
     title: "Work",
     panes: [
-      { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face ফিচার" },
-      { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye শিফট" },
-      { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event প্রোগ্রাম বুকিং" },
-      { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices টিম বেতন দাম" },
-      { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
-      { id: "watermark", title: "Watermark", sub: "Your mark on the photos clients choose from", icon: Stamp, color: C.red, keywords: "watermark logo copyright photo selection protect ওয়াটারমার্ক লোগো" },
-      { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
-      { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন payment reminder রিমাইন্ডার" },
-      { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms হোয়াটসঅ্যাপ মেসেজ টেমপ্লেট" },
+      { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face" },
+      { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye" },
+      { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event" },
+      { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
+      { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
+      { id: "watermark", title: "Watermark", sub: "Your mark on the photos clients choose from", icon: Stamp, color: C.red, keywords: "watermark logo copyright photo selection protect" },
+      { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal" },
+      { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert payment reminder" },
+      { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms" },
     ],
   },
   {
     title: "Account",
     panes: [
-      { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone প্রোফাইল পাসওয়ার্ড নাম" },
-      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — saved on this device", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look থিম রং ব্যাকগ্রাউন্ড" },
-      { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password পাসওয়ার্ড" },
-      { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw ড্রাইভ" },
+      { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone" },
+      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — saved on this device", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look" },
+      { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password" },
+      { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw" },
     ],
   },
 ];
@@ -74,21 +74,21 @@ export const paneById = (id: string) => PANES.find(p => p.id === id);
 
 export const ENTRIES: Entry[] = [
   // General
-  { id: "name", pane: "general", section: "Studio", label: "Studio name", keywords: "company business নাম" },
-  { id: "phone", pane: "general", section: "Studio", label: "Phone", keywords: "mobile contact number ফোন নম্বর" },
-  { id: "website", pane: "general", section: "Studio", label: "Website", keywords: "url site ওয়েবসাইট" },
-  { id: "address", pane: "general", section: "Location", label: "Address", keywords: "location ঠিকানা" },
-  { id: "city", pane: "general", section: "Location", label: "City", keywords: "শহর" },
-  { id: "state", pane: "general", section: "Location", label: "State / Division", keywords: "region division বিভাগ" },
-  { id: "country", pane: "general", section: "Location", label: "Country", keywords: "দেশ" },
-  { id: "currency", pane: "general", section: "Region", label: "Currency", keywords: "taka bdt usd money টাকা" },
-  { id: "timezone", pane: "general", section: "Region", label: "Time zone", keywords: "time clock সময়" },
-  { id: "language", pane: "general", section: "Language", label: "App language", keywords: "bangla bengali english বাংলা ভাষা" },
+  { id: "name", pane: "general", section: "Studio", label: "Studio name", keywords: "company business" },
+  { id: "phone", pane: "general", section: "Studio", label: "Phone", keywords: "mobile contact number" },
+  { id: "website", pane: "general", section: "Studio", label: "Website", keywords: "url site" },
+  { id: "address", pane: "general", section: "Location", label: "Address", keywords: "location" },
+  { id: "city", pane: "general", section: "Location", label: "City", keywords: "town" },
+  { id: "state", pane: "general", section: "Location", label: "State / Division", keywords: "region division" },
+  { id: "country", pane: "general", section: "Location", label: "Country", keywords: "nation" },
+  { id: "currency", pane: "general", section: "Region", label: "Currency", keywords: "taka bdt usd money" },
+  { id: "timezone", pane: "general", section: "Region", label: "Time zone", keywords: "time clock" },
+  { id: "language", pane: "general", section: "Language", label: "App language", keywords: "bangla bengali english" },
 
   // Features
-  { id: "f-photoSelection", pane: "features", section: "Client features", label: "Photo selection", keywords: "pick favourite album select ছবি বাছাই" },
-  { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube গান" },
-  { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album অ্যালবাম" },
+  { id: "f-photoSelection", pane: "features", section: "Client features", label: "Photo selection", keywords: "pick favourite album select" },
+  { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube" },
+  { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album" },
   { id: "f-faceRecognition", pane: "features", section: "Coming soon", label: "Face recognition", keywords: "selfie guest face" },
 
   // Watermark
@@ -96,59 +96,59 @@ export const ENTRIES: Entry[] = [
   { id: "wm-text", pane: "watermark", section: "Your mark", label: "Watermark text, font and colour", keywords: "text font colour copyright logo" },
 
   // Work types & shifts
-  { id: "workTypes", pane: "worktypes", section: "Program types", label: "Program types and their parts", keywords: "work type wedding corporate school birthday parts days holud biye reception shift template ধরন হলুদ বিয়ে" },
+  { id: "workTypes", pane: "worktypes", section: "Program types", label: "Program types and their parts", keywords: "work type wedding corporate school birthday parts days holud biye reception shift template" },
 
   // Team
   { id: "teamPay", pane: "team", section: "Pay", label: "Pay team by", keywords: "per shift per program rate salary" },
-  { id: "studio-rates", pane: "team", section: "Studio prices", label: "Studio prices for each kind of work", keywords: "rate price photographer cinematographer drone editor setup gear দাম রেট" },
+  { id: "studio-rates", pane: "team", section: "Studio prices", label: "Studio prices for each kind of work", keywords: "rate price photographer cinematographer drone editor setup gear" },
 
   // Delivery
-  { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid বকেয়া" },
+  { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid" },
   { id: "d-managerCanUnlock", pane: "delivery", section: "Payment", label: "Managers can unlock", keywords: "manager unlock" },
 
   // Branding
-  { id: "logo", pane: "branding", section: "Logo", label: "Studio logo", keywords: "image upload picture লোগো" },
+  { id: "logo", pane: "branding", section: "Logo", label: "Studio logo", keywords: "image upload picture" },
   { id: "logo-preview", pane: "branding", section: "Preview", label: "Where your logo appears", keywords: "preview" },
 
   // Online
-  { id: "facebookUrl", pane: "online", section: "Social profiles", label: "Facebook", keywords: "fb ফেসবুক" },
+  { id: "facebookUrl", pane: "online", section: "Social profiles", label: "Facebook", keywords: "fb" },
   { id: "instagramUrl", pane: "online", section: "Social profiles", label: "Instagram", keywords: "insta" },
-  { id: "youtubeUrl", pane: "online", section: "Social profiles", label: "YouTube", keywords: "video ইউটিউব" },
+  { id: "youtubeUrl", pane: "online", section: "Social profiles", label: "YouTube", keywords: "video" },
   { id: "tiktokUrl", pane: "online", section: "Social profiles", label: "TikTok" },
   { id: "otherLinks", pane: "online", section: "Other links", label: "Other links", keywords: "portfolio link" },
 
   // Payment
-  { id: "bankName", pane: "payment", section: "Bank transfer", label: "Bank name", keywords: "ব্যাংক" },
-  { id: "bankBranch", pane: "payment", section: "Bank transfer", label: "Branch", keywords: "শাখা" },
+  { id: "bankName", pane: "payment", section: "Bank transfer", label: "Bank name", keywords: "bank" },
+  { id: "bankBranch", pane: "payment", section: "Bank transfer", label: "Branch", keywords: "bank branch" },
   { id: "bankAccountName", pane: "payment", section: "Bank transfer", label: "Account holder name" },
-  { id: "bankAccountNumber", pane: "payment", section: "Bank transfer", label: "Account number", keywords: "a/c একাউন্ট" },
+  { id: "bankAccountNumber", pane: "payment", section: "Bank transfer", label: "Account number", keywords: "a/c" },
   { id: "bankRoutingNumber", pane: "payment", section: "Bank transfer", label: "Routing number" },
-  { id: "bkashNumber", pane: "payment", section: "Mobile banking", label: "bKash", keywords: "bikash বিকাশ mobile banking" },
-  { id: "nagadNumber", pane: "payment", section: "Mobile banking", label: "Nagad", keywords: "নগদ mobile banking" },
-  { id: "rocketNumber", pane: "payment", section: "Mobile banking", label: "Rocket", keywords: "রকেট mobile banking" },
+  { id: "bkashNumber", pane: "payment", section: "Mobile banking", label: "bKash", keywords: "bikash mobile banking" },
+  { id: "nagadNumber", pane: "payment", section: "Mobile banking", label: "Nagad", keywords: "mobile banking" },
+  { id: "rocketNumber", pane: "payment", section: "Mobile banking", label: "Rocket", keywords: "mobile banking" },
 
   // Quotes
-  { id: "defaultValidityDays", pane: "quotes", section: "Defaults", label: "Quote valid for", keywords: "validity expire days মেয়াদ" },
-  { id: "defaultAdvancePercent", pane: "quotes", section: "Defaults", label: "Advance payment", keywords: "advance percent অগ্রিম" },
-  { id: "defaultTerms", pane: "quotes", section: "Terms", label: "Terms & conditions", keywords: "terms policy শর্ত" },
+  { id: "defaultValidityDays", pane: "quotes", section: "Defaults", label: "Quote valid for", keywords: "validity expire days" },
+  { id: "defaultAdvancePercent", pane: "quotes", section: "Defaults", label: "Advance payment", keywords: "advance percent" },
+  { id: "defaultTerms", pane: "quotes", section: "Terms", label: "Terms & conditions", keywords: "terms policy" },
 
   // Invoices
-  { id: "invoiceDesign", pane: "invoices", section: "Design", label: "Invoice designer", keywords: "template design colour color font logo signature paper size a4 a5 pos vat look ডিজাইন সই" },
+  { id: "invoiceDesign", pane: "invoices", section: "Design", label: "Invoice designer", keywords: "template design colour color font logo signature paper size a4 a5 pos vat look" },
   { id: "invoiceDueDays", pane: "invoices", section: "Payment", label: "Payment due", keywords: "due days deadline last event" },
   { id: "invoicePrefix", pane: "invoices", section: "Numbering", label: "Invoice prefix", keywords: "number INV" },
   { id: "invoiceStartNumber", pane: "invoices", section: "Numbering", label: "Starting number", keywords: "number serial" },
 
   // Tax
-  { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label ভ্যাট" },
-  { id: "defaultTaxPercent", pane: "tax", section: "Tax", label: "Tax rate", keywords: "percent vat ভ্যাট" },
+  { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label" },
+  { id: "defaultTaxPercent", pane: "tax", section: "Tax", label: "Tax rate", keywords: "percent vat" },
 
   // Catalog
-  { id: "catalog-list", pane: "catalog", section: "Services", label: "Services list", keywords: "add service price package সার্ভিস" },
+  { id: "catalog-list", pane: "catalog", section: "Services", label: "Services list", keywords: "add service price package" },
 
   // Bookings / programs
-  { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status স্ট্যাটাস" },
-  { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days রিমাইন্ডার" },
-  { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund বাতিল" },
+  { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status" },
+  { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days" },
+  { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund" },
   { id: "b-warnDoubleBooking", pane: "bookings", section: "Rules", label: "Warn about double booking", keywords: "same day clash conflict" },
   { id: "b-askBeforeConfirm", pane: "bookings", section: "Rules", label: "Ask before confirming", keywords: "confirm check" },
 
@@ -167,33 +167,33 @@ export const ENTRIES: Entry[] = [
   { id: "n-onInvoicePaid", pane: "notifications", section: "Emails to you", label: "Invoice fully paid" },
   { id: "n-onNewClient", pane: "notifications", section: "Emails to you", label: "New client added" },
   { id: "n-onDeliveryUploaded", pane: "notifications", section: "Emails to you", label: "Delivery files uploaded" },
-  { id: "er-team", pane: "notifications", section: "Program reminders", label: "Remind the team", keywords: "event program reminder tomorrow team staff রিমাইন্ডার টিম" },
-  { id: "er-client", pane: "notifications", section: "Program reminders", label: "Remind the client", keywords: "event program reminder tomorrow client রিমাইন্ডার" },
+  { id: "er-team", pane: "notifications", section: "Program reminders", label: "Remind the team", keywords: "event program reminder tomorrow team staff" },
+  { id: "er-client", pane: "notifications", section: "Program reminders", label: "Remind the client", keywords: "event program reminder tomorrow client" },
   { id: "er-days", pane: "notifications", section: "Program reminders", label: "How early (days before)", keywords: "event reminder days" },
-  { id: "pr-enabled", pane: "notifications", section: "Payment reminders", label: "Remind clients about due payments", keywords: "payment reminder due baki বকেয়া রিমাইন্ডার টাকা" },
+  { id: "pr-enabled", pane: "notifications", section: "Payment reminders", label: "Remind clients about due payments", keywords: "payment reminder due baki" },
   { id: "pr-daysBefore", pane: "notifications", section: "Payment reminders", label: "Reminder before the program", keywords: "payment reminder days" },
   { id: "pr-afterEveryDays", pane: "notifications", section: "Payment reminders", label: "Reminder after the program, every", keywords: "payment reminder days" },
   { id: "pr-maxAfter", pane: "notifications", section: "Payment reminders", label: "Reminders after the program", keywords: "payment reminder times" },
   { id: "n-sendBookingConfirmation", pane: "notifications", section: "Emails to clients", label: "Program confirmation", keywords: "booking client email" },
   { id: "n-sendQuoteEmail", pane: "notifications", section: "Emails to clients", label: "Quotation sent", keywords: "client email" },
   { id: "n-sendInvoiceEmail", pane: "notifications", section: "Emails to clients", label: "Invoice sent", keywords: "client email" },
-  { id: "n-sendPaymentReceipt", pane: "notifications", section: "Emails to clients", label: "Payment receipt", keywords: "client email money রসিদ" },
+  { id: "n-sendPaymentReceipt", pane: "notifications", section: "Emails to clients", label: "Payment receipt", keywords: "client email money" },
   { id: "n-sendDeliveryReady", pane: "notifications", section: "Emails to clients", label: "Delivery ready", keywords: "client email photos" },
 
   // My profile
-  { id: "profile-info", pane: "profile", section: "Personal info", label: "Name and phone", keywords: "first last name mobile নাম ফোন" },
-  { id: "profile-password", pane: "profile", section: "Password", label: "Change password", keywords: "password পাসওয়ার্ড" },
+  { id: "profile-info", pane: "profile", section: "Personal info", label: "Name and phone", keywords: "first last name mobile" },
+  { id: "profile-password", pane: "profile", section: "Password", label: "Change password", keywords: "password" },
 
   // Security
-  { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password পাসওয়ার্ড" },
-  { id: "sessionTimeoutMinutes", pane: "security", section: "Sign-in", label: "Sign out after inactivity", keywords: "session timeout sign off লগআউট" },
+  { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password" },
+  { id: "sessionTimeoutMinutes", pane: "security", section: "Sign-in", label: "Sign out after inactivity", keywords: "session timeout sign off" },
   { id: "twoFactor", pane: "security", section: "Coming soon", label: "Two-step sign-in (2FA)", keywords: "otp 2fa" },
   { id: "loginActivity", pane: "security", section: "Coming soon", label: "Sign-in activity", keywords: "login history device" },
 
   // Integrations
   { id: "drive-accounts", pane: "integrations", section: "Accounts", label: "Google Drive accounts", keywords: "connect gmail storage delivery" },
   { id: "drive-add", pane: "integrations", section: "Accounts", label: "Add Google Drive account", keywords: "connect" },
-  { id: "raw-drive", pane: "integrations", section: "Raw files", label: "Raw files account", keywords: "raw camera backup র ফাইল ব্যাকআপ" },
+  { id: "raw-drive", pane: "integrations", section: "Raw files", label: "Raw files account", keywords: "raw camera backup" },
 ];
 
 /** Case-insensitive; every word typed must appear somewhere in the entry. Best matches first. */

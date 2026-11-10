@@ -17,13 +17,7 @@ import { portalHeaders } from "@/lib/portal-session";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { albumProgress, apiUrl, isPicked, photoUrl, timeLeft, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
-type Lang = "en" | "bn";
-const LANG_KEY = "sp_portal_lang";
-const bnNum = (n: number | string) => String(n).replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[Number(d)]);
-/** "2 / up to 5" → "২ / সর্বোচ্চ ৫" */
-const bnText = (s: string) => bnNum(s.replace("up to", "সর্বোচ্চ").replace("at least", "অন্তত"));
 const T = {
-  en: {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
     chosen: (n: number) => `${n} chosen`, sent: "Sent to the studio", started: "The studio has started your album",
     all: "All", unseen: "Not decided", picked: "Chosen", important: "Love most", rejected: "Don't want", highlights: "Highlights",
@@ -35,29 +29,13 @@ const T = {
     thanks: "Sent! Thank you", thanksSub: "The studio will start your album. Until then you can still change your choice here.", backToPhotos: "Back to my photos", close: "Close",
     lockedTaken: "Your album has started — your choice is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
     left: (s: string) => s, tapHint: "Tap ✓ to choose. Open a photo to see it big.", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
-  },
-  bn: {
-    card: "অ্যালবামের ছবি বাছুন", cardSub: (n: number) => `আপনার জন্য ${bnNum(n)}টি ছবি তৈরি`, open: "ছবি বাছুন", continue: "বাছাই চালিয়ে যান", see: "আপনার ছবি দেখুন",
-    chosen: (n: number) => `${bnNum(n)}টি বাছা হয়েছে`, sent: "স্টুডিওতে পাঠানো হয়েছে", started: "স্টুডিও আপনার অ্যালবাম শুরু করেছে",
-    all: "সব", unseen: "বাকি", picked: "বাছা", important: "সবচেয়ে পছন্দ", rejected: "চাই না", highlights: "সেরা ছবি",
-    choose: "বাছুন", love: "সবচেয়ে পছন্দ", dont: "চাই না", note: "স্টুডিওর জন্য নোট (ঐচ্ছিক)", notePh: "যেমন: একটু উজ্জ্বল করুন, কাছ থেকে কাটুন…",
-    full: (a: string, n: number) => `${a}-এ ${bnNum(n)}টি হয়ে গেছে। আরেকটি নিতে একটি সরান।`, extra: (a: string, n: number) => `${a}-এ ${bnNum(n)}টির বেশি — বাড়তি ছবির জন্য স্টুডিও টাকা নিতে পারে।`,
-    saving: "সেভ হচ্ছে…", saved: "সেভ হয়েছে", notSaved: "সেভ হয়নি — ইন্টারনেট দেখুন", review: "দেখে পাঠান", reviewTitle: "পাঠানোর আগে দেখে নিন", reviewSub: "স্টুডিও ঠিক এটাই পাবে।",
-    fewer: (n: number) => `চাওয়ার চেয়ে ${bnNum(n)}টি কম`, more: (n: number) => `চাওয়ার চেয়ে ${bnNum(n)}টি বেশি`, ok: "ঠিক আছে", noLimit: "সীমা নেই",
-    anyNote: "স্টুডিওকে আর কিছু বলবেন? (ঐচ্ছিক)", send: "স্টুডিওতে পাঠান", sending: "পাঠানো হচ্ছে…", sendHint: "স্টুডিও অ্যালবাম শুরু না করা পর্যন্ত বাছাই বদলাতে পারবেন।",
-    thanks: "পাঠানো হয়েছে! ধন্যবাদ", thanksSub: "স্টুডিও আপনার অ্যালবাম শুরু করবে। তার আগে পর্যন্ত এখানে বাছাই বদলাতে পারবেন।", backToPhotos: "আমার ছবিতে ফিরুন", close: "বন্ধ করুন",
-    lockedTaken: "আপনার অ্যালবাম শুরু হয়েছে — বাছাই লক করা।", lockedOver: "বাছাইয়ের সময় শেষ।", ask: "বদলাতে চাই", why: "কী বদলাতে চান? (ঐচ্ছিক)", askSend: "অনুরোধ পাঠান", asked: "অনুরোধ পাঠানো হয়েছে — স্টুডিও খুলে দেবে।",
-    left: (s: string) => s, tapHint: "✓ চাপলে ছবি বাছা হবে। বড় করে দেখতে ছবিতে চাপুন।", none: "এখানে কোনো ছবি নেই।", photos: (n: number) => `${bnNum(n)}টি ছবি`, of: "/",
-  },
 } as const;
 
 type Filter = "all" | "unseen" | "picked" | "important" | "rejected";
 
 export function PortalPhotos({ token, galleries, brand, onChanged }: { token: string; galleries: ClientGalleryCard[]; brand: string; onChanged: () => void }) {
-  const [lang, setLang] = useState<Lang>("en");
   const [open, setOpen] = useState<string | null>(null);
-  useEffect(() => { try { const l = localStorage.getItem(LANG_KEY); if (l === "bn" || l === "en") setLang(l); } catch { /* ignore */ } }, []);
-  const t = T[lang];
+  const t = T;
   return (
     <>
       {galleries.map(g => {
@@ -92,18 +70,17 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
         );
       })}
       {open && (
-        <Chooser token={token} galleryId={open} brand={brand} lang={lang}
-          setLang={l => { setLang(l); try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ } }}
+        <Chooser token={token} galleryId={open} brand={brand}
           onClose={() => { setOpen(null); onChanged(); }} />
       )}
     </>
   );
 }
 
-function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
-  token: string; galleryId: string; brand: string; lang: Lang; setLang: (l: Lang) => void; onClose: () => void;
+function Chooser({ token, galleryId, brand, onClose }: {
+  token: string; galleryId: string; brand: string; onClose: () => void;
 }) {
-  const t = T[lang];
+  const t = T;
   const [g, setG] = useState<ClientGallery | null>(null);
   const [failed, setFailed] = useState(false);
   const [album, setAlbum] = useState<string>("");
@@ -272,12 +249,6 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
             </p>
           </div>
           {left && <span className={cn("hidden sm:inline-flex h-8 px-3 rounded-full text-[12.5px] font-semibold items-center gap-1", left.soon ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600")}><CalendarClock className="w-3.5 h-3.5" />{left.text}</span>}
-          <div className="inline-flex p-0.5 rounded-full bg-slate-100" role="radiogroup" aria-label="Language">
-            {(["en", "bn"] as Lang[]).map(l => (
-              <button key={l} type="button" role="radio" aria-checked={lang === l} onClick={() => setLang(l)}
-                className={cn("h-8 px-2.5 rounded-full text-[12.5px] font-bold", lang === l ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>{l === "en" ? "EN" : "বাং"}</button>
-            ))}
-          </div>
         </div>
       </header>
 
@@ -313,7 +284,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                       style={on ? { backgroundColor: brand } : undefined}>
                       <span className="flex items-center justify-between gap-3">
                         <span className="text-[13.5px] font-bold truncate">{a.name}</span>
-                        <span className="text-[12.5px] font-bold tabular-nums">{lang === "bn" ? bnText(pr.text) : pr.text}</span>
+                        <span className="text-[12.5px] font-bold tabular-nums">{pr.text}</span>
                       </span>
                       <span className={cn("block h-1 rounded-full mt-2 overflow-hidden", on ? "bg-white/25" : "bg-slate-100")}>
                         <span className={cn("block h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-400" : on ? "bg-white" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!on && !pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} />
@@ -345,7 +316,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
               {filters.map(f => (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)}
                   className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors", filter === f.id ? "bg-slate-900 text-white" : "bg-white text-slate-600")}>
-                  {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-slate-400")}>{lang === "bn" ? bnNum(f.n) : f.n}</span>
+                  {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-slate-400")}>{f.n}</span>
                 </button>
               ))}
             </div>
@@ -388,7 +359,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                 const pr = albumProgress(current, pickedIn(current.id));
                 return (
                   <>
-                    <p className="text-[13px] font-semibold text-slate-800 truncate">{current.name}: <span className="tabular-nums">{lang === "bn" ? bnText(pr.text) : pr.text}</span></p>
+                    <p className="text-[13px] font-semibold text-slate-800 truncate">{current.name}: <span className="tabular-nums">{pr.text}</span></p>
                     <div className="h-1.5 rounded-full bg-slate-100 mt-1.5 overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-500" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} /></div>
                   </>
                 );
@@ -458,12 +429,12 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[15px] font-bold text-slate-900">{a.name}</p>
                       <span className={cn("h-7 px-2.5 rounded-full text-[12.5px] font-bold inline-flex items-center", pr.under || pr.over ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                        {lang === "bn" ? bnText(pr.text) : pr.text}
+                        {pr.text}
                       </span>
                     </div>
                     <p className={cn("text-[12.5px] mt-1", pr.under || pr.over ? "text-rose-600" : "text-slate-500")}>
                       {pr.under ? t.fewer(diff) : pr.over ? t.more(diff) : a.limit ? t.ok : t.noLimit}
-                      {list.some(p => p.m === "important") && ` · ♥ ${lang === "bn" ? bnNum(list.filter(p => p.m === "important").length) : list.filter(p => p.m === "important").length}`}
+                      {list.some(p => p.m === "important") && ` · ♥ ${list.filter(p => p.m === "important").length}`}
                     </p>
                     {list.length > 0 && (
                       <div className="flex gap-1 mt-3 overflow-x-auto [scrollbar-width:none]">

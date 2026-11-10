@@ -107,7 +107,7 @@ export default function EarningsPage() {
       {tab === "payments" && (
         <>
           {payments.length === 0 ? (
-            <EmptyState icon={Wallet} title="No payments yet" text="Every taka the studio pays you shows up here." />
+            <EmptyState icon={Wallet} title="No payments yet" text="Every payment from the studio shows up here." />
           ) : (
             <Group>
               {payments.map(x => (

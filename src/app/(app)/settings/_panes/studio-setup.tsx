@@ -12,6 +12,7 @@ import { Tile, type TileColor } from "@/components/ui/apple";
 import { RateEditor, TEAM_ROLES, firstLine, linesToRates, ratesToLines, type RateLine, type RoleInfo } from "../../team/_components/rate-card";
 import { askConfirm } from "@/components/feedback";
 import { Group, Row, Segmented, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
+import { fmtMoney } from "@/lib/format";
 
 /** Shown while studio settings load (or if the server is older). */
 function NeedStudio({ children }: { children: React.ReactNode }) {
@@ -201,8 +202,8 @@ function TeamPay() {
   return (
     <>
       <Group title="Pay" note={mode === "per_shift"
-        ? "Example: a photographer's rate is ৳3,000 a shift. A wedding with Holud + Wedding + Reception = ৳9,000."
-        : "Example: a photographer's rate is ৳8,000 a program, however many shifts it has."}>
+        ? `Example: a photographer's rate is ${fmtMoney(3000)} a shift. A wedding with three parts (ceremony, wedding, reception) = ${fmtMoney(9000)}.`
+        : `Example: a photographer's rate is ${fmtMoney(8000)} a program, however many shifts it has.`}>
         <Row id="teamPay" label="Pay team by" hint="New prices start with this unit — you can pick another for each price">
           <Segmented label="Pay team by" value={mode} onChange={v => patchStudio("teamPay", { mode: v })}
             options={[{ value: "per_shift", label: "Per shift" }, { value: "per_program", label: "Per program" }]} />

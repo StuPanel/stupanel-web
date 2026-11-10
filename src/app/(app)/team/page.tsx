@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { ProfileDrawer } from "./_components/profile-drawer";
 import { RateEditor, SetupEditor, firstLine, linesToRates, ratesToLines, uid, unitLabel, type RateLine, type SavedRate, type SetupItem } from "./_components/rate-card";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, currencySymbol, currencyPad } from "@/lib/format";
 import { useAuth } from "@/context/auth-context";
 import { AREAS } from "@/lib/access";
 
@@ -370,8 +370,8 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
               <Field label="Salary per month">
                 {id => (
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                    <input id={id} type="number" inputMode="numeric" min="0" step="500" value={form.payRate} onChange={set("payRate")}
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+                    <input style={{ paddingLeft: currencyPad() }} id={id} type="number" inputMode="numeric" min="0" step="500" value={form.payRate} onChange={set("payRate")}
                       placeholder="0" className={inputCls + " pl-8 tabular-nums"} />
                   </div>
                 )}

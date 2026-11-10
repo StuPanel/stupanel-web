@@ -14,9 +14,10 @@ import { Field, FormDrawer, FormGroup, PillPicker, inputCls } from "@/components
 import { CLIENT_SOURCES } from "@/components/client-form-fields";
 import { waLink } from "@/lib/portal-session";
 import {
-  LOST_REASONS, STAGES, ago, followUpChoices, followUpInfo, longDay, lostLabel, money, stageOf, taka, todayStr,
+  LOST_REASONS, STAGES, ago, followUpChoices, followUpInfo, longDay, lostLabel, money, stageOf, todayStr,
   type Lead, type LeadStage,
 } from "./lead-kit";
+import { currencySymbol, fmtMoney } from "@/lib/format";
 
 type Form = {
   name: string; phone: string; email: string; eventType: string; eventDates: string[]; venue: string;
@@ -310,14 +311,14 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
               <a href="/quotes" className="flex items-center gap-3 px-4 py-3 hover:bg-[#FBFAFE]">
                 <FileText className="w-4 h-4 text-[#9E3A8C]" />
                 <span className="flex-1 text-[14px] text-[#17151F]">Quote {l.quote.quoteNumber} <span className="text-[#6B6680]">· {l.quote.status}</span></span>
-                <span className="text-[13px] font-semibold text-[#17151F]">{taka(money(l.quote.grandTotal))}</span>
+                <span className="text-[13px] font-semibold text-[#17151F]">{fmtMoney(money(l.quote.grandTotal))}</span>
               </a>
             )}
             {l.booking && (
               <a href={`/programs?view=${l.booking.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[#FBFAFE]">
                 <Camera className="w-4 h-4 text-[#1F8A5B]" />
                 <span className="flex-1 text-[14px] text-[#17151F]">{l.booking.eventName || l.booking.bookingNumber}</span>
-                <span className="text-[13px] font-semibold text-[#17151F]">{taka(money(l.booking.grandTotal))}</span>
+                <span className="text-[13px] font-semibold text-[#17151F]">{fmtMoney(money(l.booking.grandTotal))}</span>
               </a>
             )}
             {!l.booking && (
@@ -381,7 +382,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
         <DateCheck dates={f.eventDates} />
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-[#EEEBF4]">
           <Field label="Venue">{id => <input id={id} value={f.venue} onChange={e => set("venue", e.target.value)} placeholder="Hall / area" className={inputCls} />}</Field>
-          <Field label="Budget (৳)">{id => <input id={id} value={f.budget} onChange={e => set("budget", e.target.value.replace(/[^\d.]/g, ""))} inputMode="numeric" placeholder="e.g. 60000" className={inputCls} />}</Field>
+          <Field label={`Budget (${currencySymbol().trim()})`}>{id => <input id={id} value={f.budget} onChange={e => set("budget", e.target.value.replace(/[^\d.]/g, ""))} inputMode="numeric" placeholder="e.g. 60000" className={inputCls} />}</Field>
         </div>
       </FormGroup>
 

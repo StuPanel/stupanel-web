@@ -19,7 +19,7 @@ import { matches } from "@/components/list-ui";
 import { AccountPicker } from "@/components/account-picker";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-function fmt(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
+function fmt(n: number, currency?: string) { return formatCurrency(Math.round(n), currency); }
 
 interface SalarySlip {
   id: string; month: number; year: number;

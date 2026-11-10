@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency, fmtDate } from "@/lib/format";
+import { formatCurrency, fmtDate, currencySymbol, currencyPad } from "@/lib/format";
 import { DateBox, Group, TILE, Tile, type TileColor } from "@/components/ui/apple";
 import { ActionButton, Avatar, IdentityCard, InfoRow, MiniStat, ProfileShell, waLink } from "@/components/ui/profile-kit";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
@@ -147,8 +147,8 @@ function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () =
             {id => (
               <div>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                  <input id={id} type="number" inputMode="numeric" min="0" step="100" autoFocus value={amount}
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+                  <input style={{ paddingLeft: currencyPad() }} id={id} type="number" inputMode="numeric" min="0" step="100" autoFocus value={amount}
                     onChange={e => setAmountAuto(e.target.value)} placeholder="0"
                     className={cn(inputCls, "pl-8 h-12 text-lg font-bold tabular-nums", amt > total && total >= 0 && dues && "ring-2 ring-[#F2B04B]")} />
                 </div>

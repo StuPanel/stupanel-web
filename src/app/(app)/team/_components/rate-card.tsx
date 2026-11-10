@@ -13,6 +13,7 @@ import { Aperture, Box, Briefcase, Camera, Film, Image as ImageIcon, Lightbulb, 
 import { cn } from "@/lib/utils";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
+import { currencySymbol, currencyPad } from "@/lib/format";
 
 export type RateLine = { id: string; roleId: string; unit: string; rate: string; withSetup: string; workType: string; label: string };
 export type SetupItem = { id: string; category: string; name: string; rent: string; rentUnit: string };
@@ -173,8 +174,8 @@ function Money({ value, onChange, label, title, sub, accent, hint }: { value: st
         {sub && <span className="block text-[11px] text-[#9893A8] truncate">{sub}</span>}
       </span>
       <span className="relative block">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-        <input type="number" inputMode="numeric" min="0" step="100" aria-label={label} value={value} placeholder={hint != null ? `${hint} (studio)` : "0"}
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+        <input style={{ paddingLeft: currencyPad() }} type="number" inputMode="numeric" min="0" step="100" aria-label={label} value={value} placeholder={hint != null ? `${hint} (studio)` : "0"}
           onChange={e => onChange(e.target.value)} className={cn(inputCls, "h-10 pl-7 pr-2 text-sm tabular-nums bg-white", accent && value && "text-[#5B3FD0] font-semibold")} />
       </span>
     </label>
@@ -217,8 +218,8 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
                   </button>
                   <div className="col-span-2 sm:col-span-1 flex gap-1.5">
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-                      <input type="number" inputMode="numeric" min="0" step="100" aria-label={`${i.name || c.l} — rent`} value={i.rent}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+                      <input style={{ paddingLeft: currencyPad() }} type="number" inputMode="numeric" min="0" step="100" aria-label={`${i.name || c.l} — rent`} value={i.rent}
                         onChange={e => set(i.id, { rent: e.target.value })} placeholder="Rent" className={cn(inputCls, "h-10 pl-7 pr-2 text-sm tabular-nums")} />
                     </div>
                     <select aria-label="Rent per" value={i.rentUnit} onChange={e => set(i.id, { rentUnit: e.target.value })} className={cn(inputCls, "h-10 w-[124px] flex-shrink-0 text-sm pr-7 cursor-pointer")}>

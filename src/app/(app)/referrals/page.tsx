@@ -56,7 +56,7 @@ export default function ReferralsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-7">
           <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
           <StatCard icon={Users} color="blue" label="Clients referred" value={String(totals.clients)} sub={`${totals.bookings} programs`} />
-          <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue, "BDT")} />
+          <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue)} />
         </div>
       )}
 
@@ -83,7 +83,7 @@ export default function ReferralsPage() {
                       {g.clientCount} client{g.clientCount === 1 ? "" : "s"} · {g.bookingCount} program{g.bookingCount === 1 ? "" : "s"}{g.phone ? ` · ${g.phone}` : ""}
                     </span>
                   </span>
-                  <span className="text-sm font-bold text-[#1F8A5B] tabular-nums flex-shrink-0">{formatCurrency(g.revenue, "BDT")}</span>
+                  <span className="text-sm font-bold text-[#1F8A5B] tabular-nums flex-shrink-0">{formatCurrency(g.revenue)}</span>
                   {isOpen ? <ChevronUp className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
                 </button>
                 {isOpen && (

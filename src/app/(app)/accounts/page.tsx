@@ -101,7 +101,7 @@ function AccountsInner() {
 
   return (
     <div>
-      <PageHeader icon={Landmark} color="blue" title="Accounts" sub="Cash, bKash, bank — where every taka is">
+      <PageHeader icon={Landmark} color="blue" title="Accounts" sub="Cash, bank, mobile wallets — where your money is">
         <button onClick={() => setDrawer({ kind: "entry", dir: "income" })} className="h-10 px-4 rounded-full bg-white text-[14px] font-semibold text-[#1F8A5B] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB]"><ArrowDownLeft className="w-4 h-4" />Money in</button>
         <button onClick={() => setDrawer({ kind: "entry", dir: "expense" })} className="h-10 px-4 rounded-full bg-white text-[14px] font-semibold text-[#C2304F] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB]"><ArrowUpRight className="w-4 h-4" />Expense</button>
         <button onClick={() => setDrawer({ kind: "transfer" })} disabled={active.length < 2} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] text-white text-[14px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"><ArrowLeftRight className="w-4 h-4" />Transfer</button>

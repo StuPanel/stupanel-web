@@ -84,7 +84,7 @@ const PAYMENT_TYPES = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 import { formatCurrency, localDateStr, fmtDate } from "@/lib/format";
-function fmt(n: number, cur = "BDT") { return formatCurrency(n, cur); }
+function fmt(n: number, cur?: string) { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return localDateStr(); }
 

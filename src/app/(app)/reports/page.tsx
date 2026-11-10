@@ -32,8 +32,8 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: "bg-[#8A2E2E]", refunded: "bg-[#8A2E2E]",
 };
 
-function fmt(n: number, currency = "BDT") { return formatCurrencyCompact(n, currency); }
-function fmtFull(n: number, currency = "BDT") { return formatCurrency(Math.round(n), currency); }
+function fmt(n: number, currency?: string) { return formatCurrencyCompact(n, currency); }
+function fmtFull(n: number, currency?: string) { return formatCurrency(Math.round(n), currency); }
 
 interface Summary {
   year: number; totalPrograms: number; contractValue: number; netRevenue: number;

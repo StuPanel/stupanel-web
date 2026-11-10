@@ -20,6 +20,8 @@ import { albumProgress, apiUrl, isPicked, photoUrl, timeLeft, type ClientGallery
 type Lang = "en" | "bn";
 const LANG_KEY = "sp_portal_lang";
 const bnNum = (n: number | string) => String(n).replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[Number(d)]);
+/** "2 / up to 5" → "২ / সর্বোচ্চ ৫" */
+const bnText = (s: string) => bnNum(s.replace("up to", "সর্বোচ্চ").replace("at least", "অন্তত"));
 const T = {
   en: {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
@@ -64,10 +66,10 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
         return (
           <div key={g.id} className="mx-4 mb-4 rounded-2xl overflow-hidden border border-slate-100" style={{ backgroundColor: `${brand}0D` }}>
             {g.covers.length > 0 && (
-              <div className="grid grid-cols-4 gap-0.5 h-20">
+              <div className="grid grid-cols-4 gap-0.5">
                 {g.covers.slice(0, 4).map((c, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={apiUrl(c)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  <img key={i} src={apiUrl(c)} alt="" loading="lazy" className="block w-full h-20 object-cover" />
                 ))}
               </div>
             )}
@@ -311,7 +313,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                       style={on ? { backgroundColor: brand } : undefined}>
                       <span className="flex items-center justify-between gap-3">
                         <span className="text-[13.5px] font-bold truncate">{a.name}</span>
-                        <span className="text-[12.5px] font-bold tabular-nums">{lang === "bn" ? bnNum(pr.text) : pr.text}</span>
+                        <span className="text-[12.5px] font-bold tabular-nums">{lang === "bn" ? bnText(pr.text) : pr.text}</span>
                       </span>
                       <span className={cn("block h-1 rounded-full mt-2 overflow-hidden", on ? "bg-white/25" : "bg-slate-100")}>
                         <span className={cn("block h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-400" : on ? "bg-white" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!on && !pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} />
@@ -386,7 +388,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                 const pr = albumProgress(current, pickedIn(current.id));
                 return (
                   <>
-                    <p className="text-[13px] font-semibold text-slate-800 truncate">{current.name}: <span className="tabular-nums">{lang === "bn" ? bnNum(pr.text) : pr.text}</span></p>
+                    <p className="text-[13px] font-semibold text-slate-800 truncate">{current.name}: <span className="tabular-nums">{lang === "bn" ? bnText(pr.text) : pr.text}</span></p>
                     <div className="h-1.5 rounded-full bg-slate-100 mt-1.5 overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-500" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} /></div>
                   </>
                 );
@@ -456,7 +458,7 @@ function Chooser({ token, galleryId, brand, lang, setLang, onClose }: {
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[15px] font-bold text-slate-900">{a.name}</p>
                       <span className={cn("h-7 px-2.5 rounded-full text-[12.5px] font-bold inline-flex items-center", pr.under || pr.over ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                        {lang === "bn" ? bnNum(pr.text) : pr.text}
+                        {lang === "bn" ? bnText(pr.text) : pr.text}
                       </span>
                     </div>
                     <p className={cn("text-[12.5px] mt-1", pr.under || pr.over ? "text-rose-600" : "text-slate-500")}>

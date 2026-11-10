@@ -478,3 +478,6 @@ html:not([data-backdrop="plain"]) .sp-shell main
   background-color: rgba(255, 255, 255, .74);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(22, 18, 40, .04), 0 12px 30px -14px rgba(40, 28, 96, .16);
 }
+
+/* Nothing smaller than 12px anywhere (design system §3) — old 10/11px labels are lifted here in one place. */
+.text-\[10px\], .text-\[11px\], .text-\[11\.5px\] { font-size: 12px; }

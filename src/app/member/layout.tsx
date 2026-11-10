@@ -44,7 +44,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
   useEffect(() => { try { setIsManager(localStorage.getItem("user_role") === "manager"); } catch { /* ignore */ } }, []);
   return (
     <aside className={cn("flex flex-col w-full h-full bg-white overflow-hidden",
-      !isMobile && "rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]")}>
+      !isMobile && "sp-glass rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]")}>
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <Link href="/member/dashboard" onClick={onClose} className="flex items-center gap-2.5">
           <BrandMark size={34} />
@@ -207,7 +207,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
-          <div className="pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
+          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
             {mobileTabs.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (

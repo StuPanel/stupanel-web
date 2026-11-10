@@ -13,6 +13,8 @@ import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
 import { StudioLogo } from "@/components/studio-logo";
 import { BRAND } from "@/lib/brand";
+import { PortalMusic } from "./_components/portal-music";
+import type { ClientMusic } from "@/lib/music";
 import { portalHeaders, withPortalSession, clearPortalSession, waLink } from "@/lib/portal-session";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 import { PortalFiles, type PortalDriveFile } from "./_components/portal-files";
@@ -427,7 +429,7 @@ function PaymentBar({ grandTotal, paidAmount, currency, brand }: {
 }
 
 // ─── Booking Card ─────────────────────────────────────────────────────────────
-function BookingCard({ b, brand, token, studio }: { b: PortalData["bookings"][0]; brand: string; token: string; studio: Studio }) {
+function BookingCard({ b, brand, token, studio, music, onMusicChanged }: { b: PortalData["bookings"][0]; brand: string; token: string; studio: Studio; music?: ClientMusic; onMusicChanged: () => void }) {
   // Files waiting? Show them straight away.
   const [expanded, setExpanded] = useState(!!b.delivery);
   const bal = Math.max(0, Number(b.grandTotal) - Number(b.paidAmount));
@@ -479,6 +481,8 @@ function BookingCard({ b, brand, token, studio }: { b: PortalData["bookings"][0]
         )}
       </div>
 
+      {music && <PortalMusic token={token} music={music} brand={brand} onChanged={onMusicChanged} />}
+
       {/* Expanded delivery */}
       {expanded && (
         <div className="px-4 pb-4 -mt-1">
@@ -514,6 +518,15 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const [error, setError] = useState("");
   const [gate, setGate] = useState<null | { kind: "locked" | "retired"; meta: PortalMeta | null }>(null);
   const [tab, setTab] = useState<Tab>("programs");
+  const [music, setMusic] = useState<ClientMusic[]>([]);
+
+  async function loadMusic() {
+    try {
+      const r = await fetch(`${API}/public/portal/${token}/music`, { headers: portalHeaders(token) });
+      if (r.ok) setMusic(await r.json());
+    } catch { /* music is an extra — the portal works without it */ }
+  }
+  useEffect(() => { if (data) loadMusic(); }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadPortal() {
     try {
@@ -677,6 +690,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                 <div className="space-y-3">
                   {bkgs.map(b => (
                     <BookingCard key={b.id} b={b} brand={brand} token={token}
+                      music={music.find(m => m.bookingId === b.id)} onMusicChanged={loadMusic}
                       studio={{ name: data.company.name, phone: data.company.phone, bkashNumber: data.company.bkashNumber, nagadNumber: data.company.nagadNumber }} />
                   ))}
                 </div>

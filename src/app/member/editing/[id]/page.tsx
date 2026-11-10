@@ -1,5 +1,6 @@
 "use client";
 
+import { EditorMusic } from "./editor-music";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -272,6 +273,8 @@ export default function EditorWorkspacePage() {
         )}
 
         {/* Creative Brief */}
+        <EditorMusic assignmentId={id} />
+
         {hasBrief && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
             <button onClick={() => setShowBrief(!showBrief)}

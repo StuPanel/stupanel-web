@@ -16,7 +16,7 @@ export function EditorMusic({ assignmentId }: { assignmentId: string }) {
   if (!d || !d.parts.length) return null;
   const final = d.status === "submitted";
   return (
-    <div className="bg-white rounded-[20px] p-4 sp-card shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+    <div className="min-w-0 bg-white rounded-[20px] p-4 sp-card shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
       <div className="flex items-center gap-2.5 mb-3">
         <span className="w-9 h-9 rounded-[12px] bg-[#F7E6F3] flex items-center justify-center"><Music2 className="w-4 h-4 text-[#9E3A8C]" /></span>
         <div>
@@ -36,7 +36,7 @@ export function EditorMusic({ assignmentId }: { assignmentId: string }) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={s.thumb} alt="" className="w-14 h-9 rounded-[8px] object-cover flex-shrink-0" loading="lazy" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-semibold text-[#17151F] truncate">{s.title}</span>
+                      <span className="block text-[13px] font-semibold text-[#17151F] line-clamp-2 sm:line-clamp-1">{s.title}</span>
                       {s.note && <span className="block text-[12px] text-[#9E3A8C] truncate">“{s.note}”</span>}
                     </span>
                     <ExternalLink className="w-4 h-4 text-[#6B6680] flex-shrink-0" />

@@ -324,7 +324,7 @@ export function WatermarkPane() {
                       className={cn("h-12 px-3 rounded-[14px] text-[17px] truncate transition-all",
                         wm.font === f ? "bg-[#EEE8FD] text-[#3E2A9E] ring-2 ring-[#7D5CEF]" : "bg-[#F5F3FA] text-[#17151F] hover:bg-[#EEEBF4]")}
                       style={{ fontFamily: family(f), fontWeight: WEIGHT[f] ?? 700 }} title={f}>
-                      {f === "Hind Siliguri" ? "স্টুডিও Aa" : (wm.text.trim() || "Studio").slice(0, 12)}
+                      {(wm.text.trim() || "Studio").slice(0, 12)}
                     </button>
                   ))}
                 </div>

@@ -14,9 +14,7 @@ import { API_URL as API } from "@/lib/api";
 import { portalHeaders } from "@/lib/portal-session";
 import { embedUrl, type ClientMusic, type MusicPick, type MusicSong } from "@/lib/music";
 
-type Lang = "en" | "bn";
 const T = {
-  en: {
     card: "Choose your music", cardSub: "Tell us the songs you want in your videos", open: "Choose songs", see: "See your songs", change: "Change songs",
     done: (a: number, b: number) => `${a} of ${b} parts done`, sent: "Sent to the studio", sentOn: (d: string) => `Sent on ${d}`,
     yours: "Your choices", upTo: (n: number) => `Up to ${n} songs. The first one is your first choice.`, none: "No song yet. Add one from below.",
@@ -28,24 +26,9 @@ const T = {
     anyNote: "Anything else about the music? (optional)", send: "Send to the studio", sending: "Sending…", after: "After sending, the list is locked. You can ask the studio to open it again.",
     locked: "Your songs are with the studio", lockedSub: "Need a change? Ask the studio to open it again.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
     first: "1st choice", order: (n: number) => `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"} choice`, up: "Move up", down: "Move down", remove: "Remove", close: "Close", youtube: "Open on YouTube", songs: (n: number) => `${n} song${n === 1 ? "" : "s"}`,
-  },
-  bn: {
-    card: "আপনার গান বাছুন", cardSub: "ভিডিওতে কোন গান চান, আমাদের জানান", open: "গান বাছুন", see: "আপনার গান দেখুন", change: "গান বদলান",
-    done: (a: number, b: number) => `${b}টি পর্বের ${a}টি হয়েছে`, sent: "স্টুডিওতে পাঠানো হয়েছে", sentOn: (d: string) => `${d} তারিখে পাঠানো হয়েছে`,
-    yours: "আপনার পছন্দ", upTo: (n: number) => `সর্বোচ্চ ${n}টি গান। প্রথমটি আপনার প্রথম পছন্দ।`, none: "এখনো কোনো গান নেই। নিচ থেকে যোগ করুন।",
-    note: "এডিটরের জন্য নোট (ঐচ্ছিক) — যেমন: ১:২০ থেকে শুরু", own: "নিজের পছন্দের গান দিন", ownHint: "YouTube-এ গানটি খুলুন → Share → Copy link → এখানে পেস্ট করুন",
-    paste: "YouTube লিংক পেস্ট করুন", add: "যোগ করুন", ideas: "স্টুডিওর সাজেশন", studioPick: "স্টুডিওর পছন্দ", added: "যোগ হয়েছে", listen: "শুনুন",
-    full: (n: number) => `এই পর্বে ${n}টি গান বাছা হয়ে গেছে। নতুন দিতে চাইলে একটি সরান।`, dup: "এই গানটি এই পর্বে আগেই আছে।",
-    saving: "সেভ হচ্ছে…", saved: "সেভ হয়েছে", notSaved: "সেভ হয়নি — ইন্টারনেট দেখুন", next: "পরের পর্ব", back: "পেছনে", review: "দেখে পাঠান",
-    reviewTitle: "আপনার গানগুলো দেখে নিন", reviewSub: "স্টুডিও ঠিক এটাই পাবে।", empty: "কোনো গান বাছা হয়নি — স্টুডিও বেছে নেবে", warn: (l: string) => `এই পর্বগুলোতে গান বাছেননি: ${l}। চাইলে এভাবেই পাঠাতে পারেন — ওগুলো স্টুডিও বেছে নেবে।`,
-    anyNote: "গান নিয়ে আর কিছু বলার আছে? (ঐচ্ছিক)", send: "স্টুডিওতে পাঠান", sending: "পাঠানো হচ্ছে…", after: "পাঠানোর পর তালিকা লক হয়ে যাবে। বদলাতে চাইলে স্টুডিওকে আবার খুলে দিতে বলতে পারবেন।",
-    locked: "আপনার গান স্টুডিওর কাছে আছে", lockedSub: "কিছু বদলাতে চান? স্টুডিওকে আবার খুলে দিতে বলুন।", ask: "বদলাতে চাই", why: "কী বদলাতে চান? (ঐচ্ছিক)", askSend: "অনুরোধ পাঠান", asked: "অনুরোধ পাঠানো হয়েছে — স্টুডিও খুলে দেবে।",
-    first: "১ম পছন্দ", order: (n: number) => `${["", "১ম", "২য়", "৩য়", "৪র্থ", "৫ম", "৬ষ্ঠ", "৭ম", "৮ম", "৯ম", "১০ম"][n] ?? n} পছন্দ`, up: "উপরে", down: "নিচে", remove: "সরান", close: "বন্ধ করুন", youtube: "YouTube-এ খুলুন", songs: (n: number) => `${n}টি গান`,
-  },
 } as const;
-const LANG_KEY = "sp_portal_lang";
 
-const fmt = (d: string | null, lang: Lang) => d ? new Intl.DateTimeFormat(lang === "bn" ? "bn-BD" : "en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(d)) : "";
+const fmt = (d: string | null) => d ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(d)) : "";
 
 function Thumb({ song, onPlay, playing, label }: { song: MusicSong; onPlay: () => void; playing: boolean; label: string }) {
   return (
@@ -61,10 +44,8 @@ function Thumb({ song, onPlay, playing, label }: { song: MusicSong; onPlay: () =
 }
 
 export function PortalMusic({ token, music, brand, onChanged }: { token: string; music: ClientMusic; brand: string; onChanged: () => void }) {
-  const [lang, setLang] = useState<Lang>("en");
   const [open, setOpen] = useState(false);
-  useEffect(() => { try { const l = localStorage.getItem(LANG_KEY); if (l === "bn" || l === "en") setLang(l); } catch { /* ignore */ } }, []);
-  const t = T[lang];
+  const t = T;
   const sent = music.status === "submitted";
 
   return (
@@ -85,17 +66,16 @@ export function PortalMusic({ token, music, brand, onChanged }: { token: string;
           {sent ? t.see : music.counts.total ? t.change : t.open}
         </button>
       </div>
-      {open && <MusicSheet token={token} music={music} brand={brand} lang={lang}
-        setLang={l => { setLang(l); try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ } }}
+      {open && <MusicSheet token={token} music={music} brand={brand}
         onClose={() => { setOpen(false); onChanged(); }} />}
     </>
   );
 }
 
-function MusicSheet({ token, music, brand, lang, setLang, onClose }: {
-  token: string; music: ClientMusic; brand: string; lang: Lang; setLang: (l: Lang) => void; onClose: () => void;
+function MusicSheet({ token, music, brand, onClose }: {
+  token: string; music: ClientMusic; brand: string; onClose: () => void;
 }) {
-  const t = T[lang];
+  const t = T;
   const [picks, setPicks] = useState<Record<string, MusicPick[]>>(music.picks);
   const [status, setStatus] = useState(music.status);
   const [note, setNote] = useState(music.clientNote ?? "");
@@ -231,14 +211,6 @@ function MusicSheet({ token, music, brand, lang, setLang, onClose }: {
             <h2 className="text-[18px] font-extrabold text-slate-900 leading-tight truncate">{t.card}</h2>
             <p className="text-[13px] text-slate-500 truncate">{music.program}</p>
           </div>
-          <div className="flex rounded-full bg-white p-0.5 text-[12px] font-bold flex-shrink-0" role="group" aria-label="Language">
-            {(["en", "bn"] as const).map(l => (
-              <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l}
-                className={cn("h-8 px-2.5 rounded-full", lang === l ? "text-white" : "text-slate-500")} style={lang === l ? { backgroundColor: brand } : undefined}>
-                {l === "en" ? "EN" : "বাং"}
-              </button>
-            ))}
-          </div>
           <button type="button" onClick={onClose} aria-label={t.close} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-slate-500 flex-shrink-0"><X className="w-4 h-4" /></button>
         </div>
 
@@ -262,7 +234,7 @@ function MusicSheet({ token, music, brand, lang, setLang, onClose }: {
           {locked && (
             <div className="mb-3 rounded-2xl bg-emerald-50 border border-emerald-100 p-3.5">
               <p className="text-sm font-bold text-emerald-800 flex items-center gap-1.5"><Lock className="w-4 h-4" />{t.locked}</p>
-              <p className="text-[13px] text-emerald-800/80 mt-0.5">{music.submittedAt ? `${t.sentOn(fmt(music.submittedAt, lang))}. ` : ""}{asked ? t.asked : t.lockedSub}</p>
+              <p className="text-[13px] text-emerald-800/80 mt-0.5">{music.submittedAt ? `${t.sentOn(fmt(music.submittedAt))}. ` : ""}{asked ? t.asked : t.lockedSub}</p>
               {!asked && !asking && <button type="button" onClick={() => setAsking(true)} className="mt-2.5 h-9 px-4 rounded-full bg-white text-emerald-800 text-[13px] font-semibold border border-emerald-200">{t.ask}</button>}
               {asking && (
                 <div className="mt-2.5 space-y-2">

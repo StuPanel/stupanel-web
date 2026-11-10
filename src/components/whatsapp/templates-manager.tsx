@@ -129,7 +129,7 @@ function TemplateForm({ initial, onSave, onCancel }: {
           value={body}
           onChange={e => setBody(e.target.value)}
           rows={8}
-          placeholder={`Assalamu Alaikum {{clientName}} bhai/apu,\n\nApnar booking confirm hoyeche! 🎉\n\nBooking: {{bookingNumber}}\nEvent: {{eventName}}\nDate: {{eventDate}}\nLocation: {{eventLocation}}\nPackage: {{package}}\n\nTotal: {{totalAmount}}\nPaid: {{paidAmount}}\nDue: {{dueAmount}}\n\nThank you for choosing {{companyName}}! 🙏`}
+          placeholder={`Hi {{clientName}},\n\nYour booking is confirmed! 🎉\n\nBooking: {{bookingNumber}}\nEvent: {{eventName}}\nDate: {{eventDate}}\nLocation: {{eventLocation}}\nPackage: {{package}}\n\nTotal: {{totalAmount}}\nPaid: {{paidAmount}}\nDue: {{dueAmount}}\n\nThank you for choosing {{companyName}}! 🙏`}
           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-300 focus:outline-none focus:border-indigo-400 resize-y font-mono leading-relaxed"
         />
         <p className="text-xs text-[#6B6680] flex items-center gap-1">

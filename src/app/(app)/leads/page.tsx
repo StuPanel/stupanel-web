@@ -29,7 +29,7 @@ function LeadCard({ lead, onOpen, onDragStart, dragging }: {
 }) {
   const dates = Array.isArray(lead.eventDates) ? lead.eventDates : [];
   const fu = lead.stage !== "booked" && lead.stage !== "lost" ? followUpInfo(lead.followUpAt) : null;
-  const wa = waLink(lead.phone, `Assalamu Alaikum ${lead.name.split(" ")[0]}, `);
+  const wa = waLink(lead.phone, `Hi ${lead.name.split(" ")[0]}, `);
   const value = money(lead.booking?.grandTotal ?? lead.quote?.grandTotal ?? lead.budget);
   return (
     <div role="button" tabIndex={0} draggable onDragStart={onDragStart} onClick={onOpen}

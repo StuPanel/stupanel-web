@@ -434,7 +434,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   }
 
   function shareWA() {
-    const msg = `Assalamu Alaikum ${q.client.firstName} bhai/apu,\n\nApnar quotation ready.\n\nQuote: ${q.quoteNumber}\nAmount: ${sym}${Number(q.grandTotal).toLocaleString()}\n\nView here:\n${publicUrl}`;
+    const msg = `Hi ${q.client.firstName},\n\nYour quotation is ready.\n\nQuote: ${q.quoteNumber}\nAmount: ${sym}${Number(q.grandTotal).toLocaleString()}\n\nView here:\n${publicUrl}`;
     window.open(`https://wa.me?text=${encodeURIComponent(msg)}`, "_blank");
   }
 

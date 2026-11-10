@@ -90,6 +90,8 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<"" | "quote" | "program" | "log" | "lost">("");
   const [error, setError] = useState("");
+  /** Same phone/email is already an open lead — open it, or add anyway. */
+  const [dup, setDup] = useState<{ id: string; name: string; stage: string } | null>(null);
   const [logKind, setLogKind] = useState<"call" | "whatsapp" | "meeting" | "note">("call");
   const [logText, setLogText] = useState("");
   const [logFollow, setLogFollow] = useState<string | null | undefined>(undefined);
@@ -100,7 +102,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
     if (!open) return;
     setCurrent(lead);
     setF(lead ? fromLead(lead) : { ...blank, followUpAt: followUpChoices()[1].value });
-    setError(""); setLogText(""); setLogFollow(undefined); setLogKind("call"); setLostOpen(false);
+    setError(""); setDup(null); setLogText(""); setLogFollow(undefined); setLogKind("call"); setLostOpen(false);
   }, [open, lead]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF(p => ({ ...p, [k]: v }));
@@ -118,15 +120,17 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
     };
   }
 
-  async function save(close = true): Promise<Lead | null> {
+  async function save(close = true, allowDuplicate = false): Promise<Lead | null> {
     if (!f.name.trim()) { setError("Please write the name."); return null; }
     if (f.budget.trim() && isNaN(Number(f.budget))) { setError("Budget should be a number."); return null; }
-    setSaving(true); setError("");
+    setSaving(true); setError(""); setDup(null);
     try {
       const r = await apiFetch(isNew ? `${API}/leads` : `${API}/leads/${l!.id}`, {
-        method: isNew ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body()),
+        method: isNew ? "POST" : "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body(), ...(isNew && allowDuplicate ? { allowDuplicate: true } : {}) }),
       });
       const d = await r.json().catch(() => ({}));
+      if (r.status === 409 && d?.code === "LEAD_EXISTS" && d.lead) { setDup(d.lead); return null; }
       if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save."); return null; }
       notify(isNew ? "Lead added" : "Saved");
       onSaved(d);
@@ -195,7 +199,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
 
   const st = stageOf(l?.stage ?? f.stage);
   const fu = followUpInfo(l?.followUpAt ?? null);
-  const greet = `Assalamu Alaikum ${f.name.split(" ")[0] || ""}, `;
+  const greet = `Hi ${f.name.split(" ")[0] || ""}, `;
   const wa = waLink(f.phone, greet);
   const closed = l?.stage === "booked" || l?.stage === "lost";
 
@@ -218,6 +222,17 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
       </>}>
 
       {error && <p className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#C2304F] text-sm">{error}</p>}
+      {dup && (
+        <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FCF0DE] text-[#7A4A0B] text-sm">
+          <p><b>{dup.name}</b> is already a lead with this phone or email ({stageOf(dup.stage).label}).</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { const id = dup.id; setDup(null); onClose(); router.push(`/leads?open=${id}`); }}
+              className="h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold">Open that lead</button>
+            <button type="button" onClick={() => save(true, true)} disabled={saving}
+              className="h-9 px-4 rounded-full bg-white text-[#17151F] text-[13px] font-semibold disabled:opacity-50">Add as a new lead</button>
+          </div>
+        </div>
+      )}
 
       {!isNew && l && (
         <>

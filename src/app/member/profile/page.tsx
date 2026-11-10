@@ -114,7 +114,7 @@ export default function MemberProfilePage() {
             <Field label="First name" required>{id => <input id={id} value={firstName} onChange={e => setFirstName(e.target.value)} required className={inputCls} />}</Field>
             <Field label="Last name">{id => <input id={id} value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} />}</Field>
           </div>
-          <Field label="Phone / WhatsApp">{id => <input id={id} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" className={inputCls} />}</Field>
+          <Field label="Phone / WhatsApp">{id => <input id={id} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number" className={inputCls} />}</Field>
           <Field label="About you" hint="A line about your work — the studio sees this.">{id => <textarea id={id} rows={2} value={bio} onChange={e => setBio(e.target.value)} placeholder="Wedding photographer, Sony A7 IV" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}</Field>
         </FormGroup>
         {saveErr && <p role="alert" className="mb-3 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{saveErr}</p>}

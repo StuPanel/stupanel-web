@@ -178,7 +178,7 @@ export function MyProfile({ embedded = false }: { embedded?: boolean }) {
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
             <Input value={phone} onChange={e => setPhone(e.target.value)}
-              placeholder="01XXXXXXXXX" className="h-9 text-sm pl-9" />
+              placeholder="Phone number" className="h-9 text-sm pl-9" />
           </div>
         </div>
 

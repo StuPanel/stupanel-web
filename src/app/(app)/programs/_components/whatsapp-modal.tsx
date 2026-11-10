@@ -82,7 +82,7 @@ export function WhatsAppModal({ booking, onClose, preferCategory }: {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Phone Number</label>
               <input value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="01XXXXXXXXX"
+                placeholder="Phone number"
                 className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
             </div>
 

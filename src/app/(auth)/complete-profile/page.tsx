@@ -129,7 +129,7 @@ export default function CompleteProfilePage() {
               type="tel"
               value={form.phone}
               onChange={set("phone")}
-              placeholder="+880 1234 567890"
+              placeholder="Phone number"
               className="pl-10 h-11 border-slate-200"
             />
           </div>

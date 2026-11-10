@@ -181,7 +181,7 @@ export default function OnboardingPage() {
                   <Label className="text-slate-700 text-sm font-medium">City / Location</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input placeholder="e.g. Dhaka"
+                    <Input placeholder="e.g. your city"
                       value={info.city} onChange={setInfoField("city")}
                       className="pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400" />
                   </div>

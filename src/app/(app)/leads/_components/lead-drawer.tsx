@@ -356,7 +356,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
       <FormGroup title={isNew ? "Who is asking?" : "Details"}>
         <Field label="Name" required>{id => <input id={id} value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Nusrat Jahan" className={inputCls} autoFocus={isNew} />}</Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-[#EEEBF4]">
-          <Field label="Phone / WhatsApp">{id => <input id={id} value={f.phone} onChange={e => set("phone", e.target.value)} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />}</Field>
+          <Field label="Phone / WhatsApp">{id => <input id={id} value={f.phone} onChange={e => set("phone", e.target.value)} inputMode="tel" placeholder="Phone number" className={inputCls} />}</Field>
           <Field label="Email">{id => <input id={id} value={f.email} onChange={e => set("email", e.target.value)} inputMode="email" placeholder="name@gmail.com" className={inputCls} />}</Field>
         </div>
         <Field label="Where did they find you?">
@@ -371,7 +371,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
         <Field label="Event type">
           {id => (
             <>
-              <input id={id} list="lead-event-types" value={f.eventType} onChange={e => set("eventType", e.target.value)} placeholder="Wedding, Holud, Birthday…" className={inputCls} />
+              <input id={id} list="lead-event-types" value={f.eventType} onChange={e => set("eventType", e.target.value)} placeholder="Wedding, engagement, birthday…" className={inputCls} />
               <datalist id="lead-event-types">{workTypes.map(w => <option key={w} value={w} />)}</datalist>
             </>
           )}

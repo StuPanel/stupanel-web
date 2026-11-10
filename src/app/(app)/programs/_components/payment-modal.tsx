@@ -119,7 +119,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-600">Reference / TrxID</Label>
-              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="bKash TrxID, bank ref..." className="h-10 border-slate-200 text-sm" />
+              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="Transaction ID, bank ref…" className="h-10 border-slate-200 text-sm" />
             </div>
 
             <div className="space-y-1.5">

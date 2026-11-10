@@ -144,7 +144,7 @@ export function RateEditor({ roles, lines, onChange, workTypes, fallback, emptyT
                   </div>
                   {l.unit === "custom" && (
                     <input aria-label="Name of this price" value={l.label} onChange={e => set(l.id, { label: e.target.value })}
-                      placeholder="Name it — e.g. Holud only, Same-day edit…" className={cn(inputCls, "h-10 text-sm mt-2 bg-white")} />
+                      placeholder="Name it — e.g. Ceremony only, Same-day edit…" className={cn(inputCls, "h-10 text-sm mt-2 bg-white")} />
                   )}
                   <div className={cn("grid gap-2 mt-2", editor ? "grid-cols-1" : "grid-cols-2")}>
                     <Money label={editor ? `${r.label} price` : `${r.label} — work only`} title={editor ? "Price" : "Work only"} sub={editor ? undefined : "Uses someone else's gear"} value={l.rate} onChange={v => set(l.id, { rate: v })}

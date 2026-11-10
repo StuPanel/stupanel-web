@@ -41,14 +41,14 @@ export function GeneralPane() {
     <>
       <Group title="Studio">
         <Row id="name" label="Studio name"><TextField label="Studio name" value={data.name ?? ""} onCommit={save("name")} placeholder="My Photography Studio" /></Row>
-        <Row id="phone" label="Phone" hint="Clients use this to call or WhatsApp you"><TextField label="Phone" type="tel" value={data.phone ?? ""} onCommit={save("phone")} placeholder="01XXXXXXXXX" /></Row>
+        <Row id="phone" label="Phone" hint="Clients use this to call or WhatsApp you"><TextField label="Phone" type="tel" value={data.phone ?? ""} onCommit={save("phone")} placeholder="Phone number" /></Row>
         <Row id="website" label="Website"><TextField label="Website" type="url" value={data.website ?? ""} onCommit={save("website")} placeholder="https://yourstudio.com" /></Row>
       </Group>
 
       <Group title="Location">
         <Row id="address" label="Address" stack><TextArea label="Address" rows={2} value={data.address ?? ""} onCommit={save("address")} placeholder="House, road, area…" /></Row>
-        <Row id="city" label="City"><TextField label="City" value={data.city ?? ""} onCommit={save("city")} placeholder="Dhaka" /></Row>
-        <Row id="state" label="State / Division" hint="Optional"><TextField label="State or division" value={data.state ?? ""} onCommit={save("state")} placeholder="Dhaka Division" /></Row>
+        <Row id="city" label="City"><TextField label="City" value={data.city ?? ""} onCommit={save("city")} placeholder="City" /></Row>
+        <Row id="state" label="State / Division" hint="Optional"><TextField label="State or division" value={data.state ?? ""} onCommit={save("state")} placeholder="State or region" /></Row>
         <Row id="country" label="Country"><TextField label="Country" value={data.country ?? ""} onCommit={save("country")} placeholder="Bangladesh" /></Row>
       </Group>
 

@@ -101,7 +101,7 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
         <Field label="Phone / WhatsApp" required>
           {id => (
             <>
-              <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX"
+              <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number"
                 value={value.phone} onChange={set("phone")} autoComplete="off" />
               {same && (
                 <div role="status" className="mt-2 flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] bg-[#FDECEF]">
@@ -147,13 +147,13 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
       <MoreDetails sub={extraCount ? `${extraCount} filled` : "Second phone, Facebook, address, work, VIP, notes"} defaultOpen={extraCount > 0}>
         <FormGroup title="Contact">
           <Field label="Second phone">
-            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={value.phoneSecondary} onChange={set("phoneSecondary")} />}
+            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number" value={value.phoneSecondary} onChange={set("phoneSecondary")} />}
           </Field>
           <Field label="Facebook profile">
             {id => <input id={id} className={inputCls} placeholder="facebook.com/username" value={value.facebookProfile} onChange={set("facebookProfile")} />}
           </Field>
           <Field label="City">
-            {id => <input id={id} className={inputCls} placeholder="Feni" value={value.city} onChange={set("city")} />}
+            {id => <input id={id} className={inputCls} placeholder="City" value={value.city} onChange={set("city")} />}
           </Field>
           <Field label="Address">
             {id => <input id={id} className={inputCls} placeholder="House, road, area" value={value.address} onChange={set("address")} />}

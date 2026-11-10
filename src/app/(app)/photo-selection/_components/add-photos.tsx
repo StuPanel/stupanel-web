@@ -135,7 +135,9 @@ export function AddPhotos({ galleryId, programId, albums, onClose, onAdded, onUp
       if (n[f.path]) delete n[f.path];
       else {
         const same = fitAlbum(albums, lastPart(f.path));
-        n[f.path] = same ? same.id : NEW;
+        // Only one album and it is still empty (and no other folder is going there): fill it first
+        const lone = albums.length === 1 && !albums[0].total && !Object.values(n).includes(albums[0].id) ? albums[0] : undefined;
+        n[f.path] = same ? same.id : lone ? lone.id : NEW;
       }
       return n;
     });

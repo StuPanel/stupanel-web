@@ -8,7 +8,7 @@ import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
   CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
-  MessageSquareText, Sparkles, Target,
+  MessageSquareText, Sparkles, Target, Music2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
@@ -41,6 +41,7 @@ export const navigation = [
       { name: "Team", href: "/team", icon: UserCog, color: "blue" as TileColor },
       { name: "Packages", href: "/packages", icon: Package, color: "violet" as TileColor },
       { name: "Delivery", href: "/delivery", icon: ImageIcon, color: "teal" as TileColor },
+      { name: "Music", href: "/music", icon: Music2, color: "orchid" as TileColor },
     ],
   },
   {

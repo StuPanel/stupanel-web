@@ -21,6 +21,7 @@ import { InvoiceCard } from "./invoice-card";
 import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { RawDriveSection } from "./raw-drive-section";
+import { MusicSection } from "./music-section";
 import type { Booking, ShiftAssignment } from "./types";
 import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
 import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
@@ -636,13 +637,14 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
   const [genInvoicing, setGenInvoicing] = useState(false);
   const [localBooking, setLocalBooking] = useState<Booking | null>(null);
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
+  const [musicOn, setMusicOn] = useState(false);
   const router = useRouter();
 
   useEffect(() => { setLocalBooking(booking); }, [booking]);
   useEffect(() => {
     if (!booking) return;
     apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null)
-      .then(d => d && setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name]))))
+      .then(d => { if (!d) return; setMusicOn(!!d.features?.musicSelection); setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name]))); })
       .catch(() => {});
   }, [booking?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -772,6 +774,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
             <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
             <RawDriveSection booking={b} teamMembers={teamMembers ?? []} />
+            {musicOn && <MusicSection booking={b} />}
             <CreativeBriefSection booking={b} onSaved={refreshBooking} />
           </div>
         </section>

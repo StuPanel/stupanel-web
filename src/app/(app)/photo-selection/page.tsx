@@ -118,7 +118,7 @@ function Card({ g, i }: { g: GalleryCard; i: number }) {
       style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
       <div className="relative aspect-[16/9] rounded-[16px] overflow-hidden bg-[#F5F3FA]">
         {covers.length ? (
-          <div className={cn("absolute inset-0 grid gap-0.5", covers.length >= 3 ? "grid-cols-[2fr_1fr] grid-rows-2" : covers.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
+          <div className={cn("absolute inset-0 grid gap-0.5", covers.length >= 3 ? "grid-cols-[2fr_1fr] grid-rows-2" : covers.length === 2 ? "grid-cols-2 grid-rows-1" : "grid-cols-1 grid-rows-1")}>
             {covers.slice(0, 3).map((c, k) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={k} src={apiUrl(c)} alt="" loading="lazy"

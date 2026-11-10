@@ -64,10 +64,10 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
         return (
           <div key={g.id} className="mx-4 mb-4 rounded-2xl overflow-hidden border border-slate-100" style={{ backgroundColor: `${brand}0D` }}>
             {g.covers.length > 0 && (
-              <div className="grid grid-cols-4 gap-0.5 h-20">
+              <div className="grid grid-cols-4 gap-0.5">
                 {g.covers.slice(0, 4).map((c, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={apiUrl(c)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  <img key={i} src={apiUrl(c)} alt="" loading="lazy" className="block w-full h-20 object-cover" />
                 ))}
               </div>
             )}

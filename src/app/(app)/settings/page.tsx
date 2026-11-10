@@ -20,6 +20,7 @@ import { CatalogPane, InvoicesPane, PaymentPane, QuotesPane, TaxPane } from "./_
 import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
 import { IntegrationsPane, SecurityPane } from "./_panes/account";
 import { AppearancePane } from "./_panes/appearance";
+import { WatermarkPane } from "./_panes/watermark";
 import { MyProfile } from "@/components/account/my-profile";
 import { WhatsAppTemplates } from "@/components/whatsapp/templates-manager";
 import { DeliveryRulesPane, FeaturesPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
@@ -27,7 +28,7 @@ import { DeliveryRulesPane, FeaturesPane, TeamPayPane, WorkTypesPane } from "./_
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   general: GeneralPane, branding: BrandingPane, online: OnlinePane,
   payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, tax: TaxPane, catalog: CatalogPane,
-  features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane,
+  features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane, watermark: WatermarkPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   whatsapp: () => <WhatsAppTemplates embedded />,
   profile: () => <MyProfile embedded />, appearance: AppearancePane, security: SecurityPane, integrations: IntegrationsPane,

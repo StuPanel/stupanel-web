@@ -14,6 +14,8 @@ import { PortalChat } from "./_components/portal-chat";
 import { StudioLogo } from "@/components/studio-logo";
 import { BRAND } from "@/lib/brand";
 import { PortalMusic } from "./_components/portal-music";
+import { PortalPhotos } from "./_components/portal-photos";
+import type { ClientGalleryCard } from "@/lib/photos";
 import type { ClientMusic } from "@/lib/music";
 import { portalHeaders, withPortalSession, clearPortalSession, waLink } from "@/lib/portal-session";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
@@ -429,7 +431,7 @@ function PaymentBar({ grandTotal, paidAmount, currency, brand }: {
 }
 
 // ─── Booking Card ─────────────────────────────────────────────────────────────
-function BookingCard({ b, brand, token, studio, music, onMusicChanged }: { b: PortalData["bookings"][0]; brand: string; token: string; studio: Studio; music?: ClientMusic; onMusicChanged: () => void }) {
+function BookingCard({ b, brand, token, studio, music, onMusicChanged, photos }: { b: PortalData["bookings"][0]; brand: string; token: string; studio: Studio; music?: ClientMusic; onMusicChanged: () => void; photos: ClientGalleryCard[] }) {
   // Files waiting? Show them straight away.
   const [expanded, setExpanded] = useState(!!b.delivery);
   const bal = Math.max(0, Number(b.grandTotal) - Number(b.paidAmount));
@@ -481,6 +483,7 @@ function BookingCard({ b, brand, token, studio, music, onMusicChanged }: { b: Po
         )}
       </div>
 
+      {photos.length > 0 && <PortalPhotos token={token} galleries={photos} brand={brand} onChanged={onMusicChanged} />}
       {music && <PortalMusic token={token} music={music} brand={brand} onChanged={onMusicChanged} />}
 
       {/* Expanded delivery */}
@@ -519,12 +522,17 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const [gate, setGate] = useState<null | { kind: "locked" | "retired"; meta: PortalMeta | null }>(null);
   const [tab, setTab] = useState<Tab>("programs");
   const [music, setMusic] = useState<ClientMusic[]>([]);
+  const [photos, setPhotos] = useState<ClientGalleryCard[]>([]);
 
   async function loadMusic() {
     try {
-      const r = await fetch(`${API}/public/portal/${token}/music`, { headers: portalHeaders(token) });
+      const [r, p] = await Promise.all([
+        fetch(`${API}/public/portal/${token}/music`, { headers: portalHeaders(token) }),
+        fetch(`${API}/public/portal/${token}/photos`, { headers: portalHeaders(token) }),
+      ]);
       if (r.ok) setMusic(await r.json());
-    } catch { /* music is an extra — the portal works without it */ }
+      if (p.ok) setPhotos(await p.json());
+    } catch { /* music and photos are extras — the portal works without them */ }
   }
   useEffect(() => { if (data) loadMusic(); }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -690,7 +698,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
                 <div className="space-y-3">
                   {bkgs.map(b => (
                     <BookingCard key={b.id} b={b} brand={brand} token={token}
-                      music={music.find(m => m.bookingId === b.id)} onMusicChanged={loadMusic}
+                      music={music.find(m => m.bookingId === b.id)} onMusicChanged={loadMusic} photos={photos.filter(x => x.bookingId === b.id)}
                       studio={{ name: data.company.name, phone: data.company.phone, bkashNumber: data.company.bkashNumber, nagadNumber: data.company.nagadNumber }} />
                   ))}
                 </div>

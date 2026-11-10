@@ -36,7 +36,7 @@ function Features() {
   return (
     <>
       <Group title="Client features" note="These features are being built. Your choice is saved now and used as soon as each one is ready. Each program will be able to change it too.">
-        <Row id="f-photoSelection" label="Photo selection" hint="Clients tick the photos they want for their album, from the program's Drive folder">
+        <Row id="f-photoSelection" label="Photo selection" hint="Clients pick the photos for their albums in their portal — from the program's Drive files or your upload">
           <Switch label="Photo selection" on={f.photoSelection} onChange={v => set("photoSelection", v)} />
         </Row>
         <Row id="f-musicSelection" label="Music selection" hint="Clients choose songs for their video from your list or a YouTube link">

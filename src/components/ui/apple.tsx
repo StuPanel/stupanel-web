@@ -29,8 +29,9 @@ export function Tile({ icon: Icon, color, size = 28, className }: {
 }) {
   const bg = color in TILE ? TILE[color as TileColor] : color;
   return (
-    <span className={cn("inline-flex items-center justify-center flex-shrink-0 shadow-[inset_0_-1px_0_rgba(0,0,0,.12)]", className)}
-      style={{ width: size, height: size, borderRadius: size * 0.28, background: bg }} aria-hidden="true">
+    <span className={cn("inline-flex items-center justify-center flex-shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,.35),inset_0_-1px_0_rgba(0,0,0,.14),0_4px_10px_-6px_rgba(22,18,40,.45)]", className)}
+      style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: bg,
+        backgroundImage: "linear-gradient(180deg, rgba(255,255,255,.26) 0%, rgba(255,255,255,0) 58%, rgba(0,0,0,.08) 100%)" }} aria-hidden="true">
       <Icon className="text-white" style={{ width: size * 0.56, height: size * 0.56 }} strokeWidth={2.2} />
     </span>
   );

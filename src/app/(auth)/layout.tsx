@@ -10,7 +10,8 @@ const features = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex sp-shell">
+      <div className="sp-scene" aria-hidden="true" />
 
       {/* ── LEFT — Brand panel (desktop) ── */}
       <div className="hidden lg:flex lg:w-[50%] xl:w-[52%] relative overflow-hidden flex-col justify-between p-12 m-3 rounded-[28px]"
@@ -84,7 +85,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Form area */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6">
           <div className="w-full max-w-[420px]">
-            <div className="bg-white rounded-3xl shadow-[0_20px_60px_-30px_rgba(91,63,208,0.35)] border border-slate-200/80 p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="sp-glass bg-white rounded-3xl shadow-[0_20px_60px_-30px_rgba(91,63,208,0.35)] border border-slate-200/80 p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
               {children}
             </div>
           </div>

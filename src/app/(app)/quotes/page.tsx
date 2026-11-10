@@ -275,7 +275,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
               </div>
               <div className="col-span-2 space-y-1">
                 <Label className="text-xs text-slate-500">Venue</Label>
-                <Input value={venue} onChange={e => setVenue(e.target.value)} placeholder="e.g. Radisson Blu, Dhaka" className="h-10 border-slate-200 text-sm" />
+                <Input value={venue} onChange={e => setVenue(e.target.value)} placeholder="e.g. Grand Hotel ballroom" className="h-10 border-slate-200 text-sm" />
               </div>
             </div>
           </div>

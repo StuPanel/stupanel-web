@@ -555,7 +555,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               }
                               if (e.key === "Escape") { e.preventDefault(); setShowNewFolder(false); setNewFolderInput(""); }
                             }}
-                            placeholder="Folder name (e.g. Holud Photos)"
+                            placeholder="Folder name (e.g. Ceremony Photos)"
                             autoFocus
                             className="flex-1 h-8 text-xs px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-slate-700 outline-none focus:border-indigo-500" />
                           <button
@@ -803,7 +803,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                               }
                               if (e.key === "Escape") { e.preventDefault(); setDriveShowNewFolder(false); setDriveNewFolderInput(""); }
                             }}
-                            placeholder="Folder name (e.g. Holud Photos)"
+                            placeholder="Folder name (e.g. Ceremony Photos)"
                             autoFocus
                             className="flex-1 h-9 text-sm px-3 rounded-xl bg-[#F5F3FA] text-[#17151F] outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
                           <button

@@ -497,7 +497,7 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
         <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
           <input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/…"
             className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
-          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name (optional) — e.g. Holud · Camera A"
+          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name (optional) — e.g. Ceremony · Camera A"
             onKeyDown={e => { if (e.key === "Enter") add(); }}
             className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
           <p className="text-[11px] text-[#8A8599]">Make sure the editor can open it on Drive (share the folder with them, or &quot;Anyone with the link&quot;).</p>

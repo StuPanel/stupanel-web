@@ -168,7 +168,7 @@ function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () =
           )}</Field>
           <div className="px-4 py-3"><AccountPicker label="Paid from" value={walletId} method={method} payOut={amt} onChange={setWalletId} /></div>
           <Field label="Date">{id => <input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />}</Field>
-          <Field label="Note">{id => <input id={id} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. bKash TrxID" className={inputCls} />}</Field>
+          <Field label="Note">{id => <input id={id} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. transaction ID" className={inputCls} />}</Field>
         </FormGroup>
 
         {dues && dues.length > 0 && (

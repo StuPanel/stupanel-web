@@ -300,7 +300,7 @@ function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRo
             )}
           </Field>
           <Field label="Phone / WhatsApp" required={!isStaff} hint={!isStaff ? "Used to send them program details on WhatsApp." : undefined}>
-            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={form.phone} onChange={set("phone")} />}
+            {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number" value={form.phone} onChange={set("phone")} />}
           </Field>
           <Field label="Email" hint="Optional — they get program reminder emails here.">
             {id => <input id={id} className={inputCls} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} />}

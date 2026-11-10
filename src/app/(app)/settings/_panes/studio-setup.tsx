@@ -157,7 +157,7 @@ function TypeCard({ type: t, open, onToggle, onChange, onRemove }: {
                   if (events.some(x => x.name.toLowerCase() === n.toLowerCase())) return;
                   setEvents([...events, { id: newId(), name: n }]); setPart("");
                 }}>
-                <input aria-label={`New part for ${t.name}`} value={part} onChange={e => setPart(e.target.value)} placeholder="Add a part, e.g. Gaye Holud"
+                <input aria-label={`New part for ${t.name}`} value={part} onChange={e => setPart(e.target.value)} placeholder="Add a part, e.g. Engagement"
                   maxLength={60} className="flex-1 h-9 rounded-full bg-white border border-[#E6E2EE] px-4 text-sm placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
                 <button type="submit" disabled={!part.trim()} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1 disabled:opacity-50">
                   <Plus className="w-3.5 h-3.5" /> Add

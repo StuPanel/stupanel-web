@@ -176,7 +176,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
         )}</Field>
         <div className="px-4 py-3"><AccountPicker key={entry?.id ?? "none"} label="Paid from" value={form.walletId} method={form.method} payOut={parseFloat(form.amount) || 0} onChange={w => setForm(f => ({ ...f, walletId: w }))} /></div>
         <Field label="Date">{id => <input id={id} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={inputCls} />}</Field>
-        <Field label="Note">{id => <input id={id} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="e.g. bKash TrxID" className={inputCls} />}</Field>
+        <Field label="Note">{id => <input id={id} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="e.g. transaction ID" className={inputCls} />}</Field>
       </FormGroup>
     </FormDrawer>
   );

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
+import { fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 
@@ -124,7 +124,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
   const [eventDate, setEventDate] = useState(quote?.eventDate ? new Date(quote.eventDate).toISOString().slice(0,10) : prefill?.eventDate ?? "");
   const [venue, setVenue] = useState(quote?.venue ?? prefill?.venue ?? "");
   const [selectedProgramId, setSelectedProgramId] = useState(quote?.program ? "" : "");
-  const [currency, setCurrency] = useState(quote?.currency ?? "BDT");
+  const [currency, setCurrency] = useState(quote?.currency ?? getStudioCurrency());
   const [items, setItems] = useState<QuoteItem[]>(quote?.items ?? [{ id: crypto.randomUUID(), name: "", qty: 1, unitPrice: 0, total: 0 }]);
   const [discountType, setDiscountType] = useState<"percent"|"fixed"|"">("percent");
   const [discountValue, setDiscountValue] = useState(0);

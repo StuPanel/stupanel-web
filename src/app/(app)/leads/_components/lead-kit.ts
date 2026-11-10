@@ -62,9 +62,6 @@ export const money = (v: unknown) => {
   const n = Number(v);
   return v == null || v === "" || isNaN(n) ? 0 : n;
 };
-export const taka = (n: number) => "৳" + Math.round(n).toLocaleString("en-US");
-export const takaShort = (n: number) =>
-  n >= 100000 ? `৳${(n / 100000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, "")}L` : n >= 1000 ? `৳${Math.round(n / 1000)}K` : taka(n);
 
 const DAY = 86400000;
 const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());

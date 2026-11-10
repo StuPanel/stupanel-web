@@ -32,7 +32,7 @@ const CAT_ICON: Record<string, { icon: React.ElementType; tile: string }> = {
   bag: { icon: Briefcase, tile: "violet" }, computer: { icon: Laptop, tile: "blue" }, storage: { icon: HardDrive, tile: "green" },
 };
 
-function fmt(n?: number | null, currency = "BDT") { return n != null ? formatCurrency(Math.round(n), currency) : "—"; }
+function fmt(n?: number | null, currency?: string) { return n != null ? formatCurrency(Math.round(n), currency) : "—"; }
 
 interface Equipment {
   id: string; name: string; category: string; brand?: string; model?: string;

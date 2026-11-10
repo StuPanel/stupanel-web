@@ -11,9 +11,10 @@ import { CLIENT_SOURCES } from "@/components/client-form-fields";
 import { waLink } from "@/lib/portal-session";
 import { LeadDrawer } from "./_components/lead-drawer";
 import {
-  LOST_REASONS, STAGES, ago, followUpInfo, lostLabel, money, shortDay, stageOf, taka, takaShort,
+  LOST_REASONS, STAGES, ago, followUpInfo, lostLabel, money, shortDay, stageOf,
   type Lead, type LeadStage, type LeadStats,
 } from "./_components/lead-kit";
+import { fmtMoney, fmtMoneyShort } from "@/lib/format";
 
 const sourceLabel = (s: string) => CLIENT_SOURCES.find(c => c.value === s)?.label ?? (s === "other" ? "Other" : s);
 const FU_TONE = {
@@ -38,7 +39,7 @@ function LeadCard({ lead, onOpen, onDragStart, dragging }: {
         CARD_SHADOW, dragging && "opacity-40")}>
       <div className="flex items-start gap-2">
         <p className="flex-1 min-w-0 text-[14.5px] font-bold text-[#17151F] leading-snug truncate">{lead.name}</p>
-        {value > 0 && <span className="text-[13px] font-bold text-[#17151F] tabular-nums">{takaShort(value)}</span>}
+        {value > 0 && <span className="text-[13px] font-bold text-[#17151F] tabular-nums">{fmtMoneyShort(value)}</span>}
       </div>
       {(lead.eventType || dates.length > 0) && (
         <p className="mt-1 text-[12.5px] text-[#4A4658] flex items-center gap-1.5 min-w-0">
@@ -208,14 +209,14 @@ function LeadsBoard() {
   return (
     <div>
       <PageHeader icon={Target} color="violet" title="Leads"
-        sub={st ? `${st.open} open · ${taka(st.openValue)} in the pipeline` : "People who asked about a shoot"}>
+        sub={st ? `${st.open} open · ${fmtMoney(st.openValue)} in the pipeline` : "People who asked about a shoot"}>
         <SearchField className="flex-1 min-w-0 sm:w-60 sm:flex-none" value={search} onChange={setSearch} placeholder="Search leads" />
         <MainButton onClick={openNew} icon={Plus}>Add lead</MainButton>
       </PageHeader>
 
       {st && leads.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <StatCard icon={Wallet} color="violet" label="In the pipeline" value={takaShort(st.openValue)} sub={`${st.open} open lead${st.open === 1 ? "" : "s"}`} />
+          <StatCard icon={Wallet} color="violet" label="In the pipeline" value={fmtMoneyShort(st.openValue)} sub={`${st.open} open lead${st.open === 1 ? "" : "s"}`} />
           <button type="button" onClick={() => setFilter(f => (f === "due" ? "all" : "due"))} className={cn("text-left rounded-[20px] transition-shadow", filter === "due" && "ring-2 ring-[#B4690E]")}>
             <StatCard icon={BellRing} color={st.overdue ? "red" : "orchid"} label="Follow up today" value={st.followUpsDue}
               sub={st.overdue ? `${st.overdue} overdue` : filter === "due" ? "Showing these only" : "Tap to see them"} />
@@ -265,7 +266,7 @@ function LeadsBoard() {
                 </button>
               ))}
             </div>
-            {stats?.perStage[mobileStage]?.value ? <p className="px-1 mb-2 text-[12.5px] text-[#6B6680]">{taka(stats.perStage[mobileStage].value)} in {stageOf(mobileStage).label.toLowerCase()}</p> : null}
+            {stats?.perStage[mobileStage]?.value ? <p className="px-1 mb-2 text-[12.5px] text-[#6B6680]">{fmtMoney(stats.perStage[mobileStage].value)} in {stageOf(mobileStage).label.toLowerCase()}</p> : null}
             <div className="space-y-2.5">
               {byStage[mobileStage].length === 0 && <p className="text-center text-[13px] text-[#A29DB3] py-10">Nothing here.</p>}
               {byStage[mobileStage].map(l => (
@@ -290,7 +291,7 @@ function LeadsBoard() {
                     <p className="text-[13.5px] font-bold text-[#17151F]">{s.label}</p>
                     <span className="text-[12px] font-semibold text-[#6B6680] bg-white rounded-full px-1.5 min-w-[20px] text-center">{list.length}</span>
                     <span className="flex-1" />
-                    {value > 0 && <span className="text-[12px] font-semibold text-[#6B6680] tabular-nums">{takaShort(value)}</span>}
+                    {value > 0 && <span className="text-[12px] font-semibold text-[#6B6680] tabular-nums">{fmtMoneyShort(value)}</span>}
                   </div>
                   <div ref={el => { colRefs.current[s.key] = el; }} className="space-y-2 min-h-[80px]">
                     {list.map((l, i) => (

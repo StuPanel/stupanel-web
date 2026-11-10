@@ -35,6 +35,7 @@ export function GeneralPane() {
     if (k === "name" && !v) { notify("Studio name can't be empty", { error: true }); return; }
     const ok = await patch({ [k]: v });
     if (ok && k === "name") window.dispatchEvent(new CustomEvent("branding-updated", { detail: { companyName: v } }));
+    if (ok && k === "currency") window.dispatchEvent(new CustomEvent("branding-updated", { detail: { currency: v } }));
   };
   return (
     <>
@@ -52,7 +53,7 @@ export function GeneralPane() {
       </Group>
 
       <Group title="Region" note="Currency is used on new quotes, invoices and reports. Old documents keep their currency.">
-        <Row id="currency" label="Currency"><Select label="Currency" value={data.currency ?? "BDT"} options={CURRENCIES} onChange={v => patch({ currency: v })} /></Row>
+        <Row id="currency" label="Currency"><Select label="Currency" value={data.currency ?? "BDT"} options={CURRENCIES} onChange={save("currency")} /></Row>
         <Row id="timezone" label="Time zone" hint="Used for dates, reminders and reports"><Select label="Time zone" value={data.timezone ?? "Asia/Dhaka"} options={TIMEZONES} onChange={v => patch({ timezone: v })} /></Row>
       </Group>
 

@@ -10,7 +10,7 @@ import { AccountPicker } from "@/components/account-picker";
 import { Check, Loader2, Lock, Trash2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, currencySymbol, currencyPad } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { FormDrawer, FormGroup, Field, inputCls } from "@/components/ui/form-kit";
@@ -158,8 +158,8 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
       <FormGroup title="Payment">
         <Field label="Amount" required>{id => (
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-            <input id={id} type="number" inputMode="numeric" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+            <input style={{ paddingLeft: currencyPad() }} id={id} type="number" inputMode="numeric" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
               className={cn(inputCls, "pl-8 h-12 text-lg font-bold tabular-nums", (parseFloat(form.amount) || 0) > due && "ring-2 ring-[#F2B04B]")} />
             {(parseFloat(form.amount) || 0) > due && (
               <p role="alert" className="mt-2 text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">

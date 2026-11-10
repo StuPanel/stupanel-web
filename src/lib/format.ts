@@ -9,10 +9,44 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 /**
+ * The signed-in studio's currency (Settings → General → Currency).
+ * Set by AuthProvider once the studio loads; money shown without its own currency uses it.
+ */
+let studioCurrency = "BDT";
+export function setStudioCurrency(c: string | null | undefined) { studioCurrency = c || "BDT"; }
+export function getStudioCurrency() { return studioCurrency; }
+
+/** "৳", "$", "€"… or "AED " for currencies without a symbol. */
+export function currencySymbol(currency = studioCurrency): string {
+  return CURRENCY_SYMBOLS[currency] ?? currency + " ";
+}
+
+/** Taka and rupee use 1,00,000 grouping; everything else 100,000. */
+function groupLocale(currency: string) { return currency === "BDT" || currency === "INR" ? "en-IN" : "en-US"; }
+
+/** Whole amount with the studio's currency, e.g. "৳12,500" or "$12,500". */
+export function fmtMoney(amount: number | string | null | undefined, currency = studioCurrency): string {
+  const n = Number(amount);
+  if (amount == null || amount === "" || isNaN(n)) return "—";
+  return currencySymbol(currency) + Math.round(n).toLocaleString(groupLocale(currency));
+}
+
+/** Short amount: lakh for taka/rupee (৳1.5L), K / M for others ($12K, $1.2M). */
+export function fmtMoneyShort(amount: number, currency = studioCurrency): string {
+  const s = currencySymbol(currency);
+  const n = Math.round(amount);
+  if (currency === "BDT" || currency === "INR") {
+    if (n >= 100000) return `${s}${(n / 100000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, "")}L`;
+  } else if (n >= 1_000_000) return `${s}${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1000) return `${s}${Math.round(n / 1000)}K`;
+  return fmtMoney(n, currency);
+}
+
+/**
  * Format a monetary amount with the correct currency symbol.
  * Supports BDT, USD, EUR, GBP, INR. Falls back to the currency code for others.
  */
-export function formatCurrency(amount: number | string | null | undefined, currency = "BDT"): string {
+export function formatCurrency(amount: number | string | null | undefined, currency = studioCurrency): string {
   const num = Number(amount);
   if (isNaN(num)) return "—";
   const symbol = CURRENCY_SYMBOLS[currency] ?? currency + " ";
@@ -23,7 +57,7 @@ export function formatCurrency(amount: number | string | null | undefined, curre
  * Compact currency format for dashboard stats (e.g. $12.5K, $1.2M).
  * Uses K / M for thousands / millions — internationally standard.
  */
-export function formatCurrencyCompact(amount: number | string | null | undefined, currency = "BDT"): string {
+export function formatCurrencyCompact(amount: number | string | null | undefined, currency = studioCurrency): string {
   const num = Number(amount);
   if (isNaN(num)) return "—";
   const symbol = CURRENCY_SYMBOLS[currency] ?? currency + " ";
@@ -71,4 +105,9 @@ export function localDateStr(d: Date = new Date()): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** Left padding for a money box with the currency sign inside it (wider for codes like "AED"). */
+export function currencyPad(): string | undefined {
+  return currencySymbol().trim().length > 1 ? "3.25rem" : undefined;
 }

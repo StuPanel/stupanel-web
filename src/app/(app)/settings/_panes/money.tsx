@@ -8,6 +8,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { SearchPill, matches } from "@/components/list-ui";
 import { cn } from "@/lib/utils";
 import { Group, NumberField, Row, TextArea, TextField, useSettings } from "../_ui";
+import { fmtMoney } from "@/lib/format";
 
 // ─── Payment methods ──────────────────────────────────────────────────────────
 export function PaymentPane() {
@@ -124,9 +125,9 @@ export function TaxPane() {
       </Group>
       <Group title="Example">
         <div className="px-4 sm:px-5 py-4 space-y-2 text-sm tabular-nums">
-          <div className="flex justify-between text-[#4A4658]"><span>Subtotal</span><span>৳ {sub.toLocaleString()}</span></div>
-          {pct > 0 && <div className="flex justify-between text-[#4A4658]"><span>{label} ({pct}%)</span><span>+ ৳ {tax.toLocaleString()}</span></div>}
-          <div className="flex justify-between font-bold text-[#17151F] border-t border-[#EEEBF4] pt-2"><span>Total</span><span>৳ {(sub + tax).toLocaleString()}</span></div>
+          <div className="flex justify-between text-[#4A4658]"><span>Subtotal</span><span>{fmtMoney(sub)}</span></div>
+          {pct > 0 && <div className="flex justify-between text-[#4A4658]"><span>{label} ({pct}%)</span><span>+ {fmtMoney(tax)}</span></div>}
+          <div className="flex justify-between font-bold text-[#17151F] border-t border-[#EEEBF4] pt-2"><span>Total</span><span>{fmtMoney(sub + tax)}</span></div>
         </div>
       </Group>
     </>

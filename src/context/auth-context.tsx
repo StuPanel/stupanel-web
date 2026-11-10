@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiFetch, API_URL as API } from "@/lib/api";
+import { setStudioCurrency } from "@/lib/format";
 
 export interface UserProfile {
   id?: string;
@@ -23,6 +24,8 @@ interface AuthContextValue {
   emailVerified: boolean;
   companyLogo: string;
   companyName: string;
+  /** Studio currency code, e.g. "BDT", "USD". */
+  currency: string;
   setCompanyLogo: (url: string) => void;
   setCompanyName: (name: string) => void;
   refetchUser: () => void;
@@ -34,6 +37,7 @@ const AuthContext = createContext<AuthContextValue>({
   emailVerified: true,
   companyLogo: "",
   companyName: "",
+  currency: "BDT",
   setCompanyLogo: () => {},
   setCompanyName: () => {},
   refetchUser: () => {},
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [currency, setCurrency] = useState("BDT");
 
   const load = useCallback(async () => {
     const token = localStorage.getItem("access_token");
@@ -61,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const comp = await compRes.json();
         setCompanyLogo(comp.logoUrl ?? "");
         if (comp.name)   setCompanyName(comp.name);
+        setStudioCurrency(comp.currency);
+        setCurrency(comp.currency || "BDT");
       }
     } catch {
       // network error — don't crash, just proceed
@@ -77,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const d = (e as CustomEvent).detail;
       if (d && "logoUrl" in d) setCompanyLogo(d.logoUrl ?? ""); // null/"" = logo removed
       if (d?.companyName) setCompanyName(d.companyName);
+      if (d?.currency) { setStudioCurrency(d.currency); setCurrency(d.currency); }
     }
     window.addEventListener("branding-updated", onBranding);
     return () => window.removeEventListener("branding-updated", onBranding);
@@ -89,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       emailVerified: user?.emailVerified ?? true,
       companyLogo,
       companyName,
+      currency,
       setCompanyLogo,
       setCompanyName,
       refetchUser: load,

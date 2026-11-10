@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Banknote, Building2, Landmark, Smartphone, Wallet } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { fmtMoney } from "@/lib/format";
 
 export interface AccountOption { id: string; name: string; type: string; accountNumber?: string | null; isDefault: boolean }
 
@@ -88,7 +89,7 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
                 {a.accountNumber && <span className={cn("font-normal", on ? "text-white/70" : "text-slate-400")}>··{a.accountNumber.slice(-4)}</span>}
                 {balances && balances[a.id] !== undefined && (
                   <span className={cn("font-semibold tabular-nums", balances[a.id] < 0 ? (on ? "text-rose-200" : "text-rose-600") : (on ? "text-white/75" : "text-slate-500"))}>
-                    ৳{Math.round(balances[a.id]).toLocaleString("en-IN")}
+                    {fmtMoney(balances[a.id])}
                   </span>
                 )}
               </button>
@@ -98,7 +99,7 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
       )}
       {short && (
         <p role="alert" className="text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">
-          This account has only ৳{Math.round(picked!).toLocaleString("en-IN")}. After this payment it will be ৳{Math.round(picked! - payOut!).toLocaleString("en-IN")} (minus).
+          This account has only {fmtMoney(picked!)}. After this payment it will be {fmtMoney(picked! - payOut!)} (minus).
         </p>
       )}
     </div>

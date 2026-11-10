@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, fmtMoney, currencySymbol, currencyPad } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
@@ -80,8 +80,8 @@ const Card = ({ children, className }: { children: React.ReactNode; className?: 
 function Money({ value, onChange, label, big, readOnly, placeholder }: { value: string; onChange?: (v: string) => void; label: string; big?: boolean; readOnly?: boolean; placeholder?: string }) {
   return (
     <div className="relative">
-      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">৳</span>
-      <input type="number" inputMode="numeric" min="0" step="100" aria-label={label} value={value} readOnly={readOnly}
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+      <input style={{ paddingLeft: currencyPad() }} type="number" inputMode="numeric" min="0" step="100" aria-label={label} value={value} readOnly={readOnly}
         onChange={e => onChange?.(e.target.value)} placeholder={placeholder ?? "0"}
         className={cn(inputCls, "pl-8 tabular-nums", big && "h-12 text-lg font-bold", readOnly && "opacity-70 cursor-not-allowed")} />
     </div>
@@ -734,7 +734,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                               <div className="flex flex-wrap gap-2">
                                 {s.assignments.map(a => {
                                   const m = team.find(t => t.id === a.id); const rc = role(a.role);
-                                  const setupLabel = a.setup === "rented" ? `Rented${a.rental?.amount ? ` ৳${a.rental.amount}` : ""}` : a.setup === "other" ? (a.gear?.length ? `${a.gear[0].name}${a.gear.length > 1 ? ` +${a.gear.length - 1}` : ""}` : "Others' gear") : "Own setup";
+                                  const setupLabel = a.setup === "rented" ? `Rented${a.rental?.amount ? ` ${fmtMoney(a.rental.amount)}` : ""}` : a.setup === "other" ? (a.gear?.length ? `${a.gear[0].name}${a.gear.length > 1 ? ` +${a.gear.length - 1}` : ""}` : "Others' gear") : "Own setup";
                                   return (
                                     <div key={`${a.id}-${a.role}`} className="inline-flex items-center gap-2 h-11 pl-1.5 pr-1 rounded-full bg-[#F5F3FA]">
                                       <button type="button" onClick={() => setAssign({ open: true, start: null, editing: { slot: { dayId: d.id, shiftId: s.id }, a } })} className="inline-flex items-center gap-2 text-left">

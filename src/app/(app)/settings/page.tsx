@@ -248,7 +248,7 @@ export default function SettingsPage() {
       <div className="md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
 
         {/* ── Desktop sidebar ── */}
-        <aside className="hidden md:flex flex-col sticky top-[68px] max-h-[calc(100vh-5.5rem)] bg-white rounded-[22px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
+        <aside className="hidden md:flex flex-col sticky top-[68px] max-h-[calc(100vh-5.5rem)] sp-glass bg-white rounded-[22px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
           <div className="p-3 pb-2">{searchBox(searchRef, "settings-search")}</div>
           <nav className="flex-1 overflow-y-auto px-2 pb-3" aria-label="Settings sections">
             {q ? resultList("settings-search") : GROUPS.map(g => (

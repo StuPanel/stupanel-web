@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as HeaderIcon, Film, ShieldAlert, PhoneCall, Music2 } from "lucide-react";
+import { Bell as HeaderIcon, Film, ShieldAlert, PhoneCall, Music2, Images } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
 
 import { apiFetch } from "@/lib/api";
@@ -31,7 +31,7 @@ function markSeen(ids: string[]) {
 
 interface Notif {
   id: string; type: string; priority: "high" | "medium" | "low";
-  title: string; body: string; bookingId?: string; bookingNumber?: string; leadId?: string; createdAt: string;
+  title: string; body: string; bookingId?: string; bookingNumber?: string; leadId?: string; galleryId?: string; createdAt: string;
   client?: { firstName: string; lastName?: string | null; phone?: string | null };
 }
 interface NotifResponse { total: number; unread: number; items: Notif[]; }
@@ -44,6 +44,7 @@ const TYPE_CFG: Record<string, { icon: typeof Bell; bg: string; iconColor: strin
   new:      { icon: Plus,          bg: "bg-emerald-50",iconColor: "text-emerald-600",border: "border-emerald-100"},
   review:   { icon: Film,        bg: "bg-[#EEE8FD]", iconColor: "text-[#5B3FD0]",  border: "border-[#E4DCFB]" },
   music:    { icon: Music2,        bg: "bg-[#FBF2FA]", iconColor: "text-[#9E3A8C]",  border: "border-[#F6E2F3]" },
+  photos:   { icon: Images,        bg: "bg-[#FDECEF]", iconColor: "text-[#C2304F]",  border: "border-[#F8D5DC]" },
   lead:     { icon: PhoneCall,     bg: "bg-[#EEE8FD]", iconColor: "text-[#7D5CEF]",  border: "border-[#E4DCFB]" },
   backup:   { icon: ShieldAlert,   bg: "bg-[#FDECEF]", iconColor: "text-[#C2304F]",  border: "border-[#F8D5DC]" },
 };
@@ -51,11 +52,12 @@ const PRIORITY_DOT: Record<string, string> = {
   high: "bg-red-500", medium: "bg-amber-400", low: "bg-slate-300",
 };
 const TYPE_LABEL: Record<string, string> = {
-  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review", music: "Music", lead: "Follow-up", backup: "Backup",
+  upcoming: "Upcoming", overdue: "Overdue", stuck: "Stuck", payment: "Payment Due", new: "New", review: "To review", photos: "Photos", music: "Music", lead: "Follow-up", backup: "Backup",
 };
 const FILTER_TABS = [
   { key: "all",      label: "All" },
   { key: "review",   label: "To review" },
+  { key: "photos",   label: "Photos" },
   { key: "music",    label: "Music" },
   { key: "lead",     label: "Follow-ups" },
   { key: "backup",   label: "Backup" },
@@ -219,7 +221,7 @@ export default function NotificationsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => router.push(n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/programs")}
+                      onClick={() => router.push(n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/programs")}
                       className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white/80 hover:bg-white border border-white/50 text-xs font-medium text-slate-700 transition-colors shadow-sm">
                       View <ChevronRight className="w-3 h-3" />
                     </button>

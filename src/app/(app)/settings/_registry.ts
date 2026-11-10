@@ -6,13 +6,13 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook,
+  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Stamp,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
   | "payment" | "quotes" | "invoices" | "tax" | "catalog"
-  | "features" | "worktypes" | "team" | "delivery"
+  | "features" | "worktypes" | "team" | "delivery" | "watermark"
   | "bookings" | "portal" | "notifications" | "whatsapp"
   | "profile" | "appearance" | "security" | "integrations";
 
@@ -52,6 +52,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event প্রোগ্রাম বুকিং" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices টিম বেতন দাম" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive ডেলিভারি" },
+      { id: "watermark", title: "Watermark", sub: "Your mark on the photos clients choose from", icon: Stamp, color: C.red, keywords: "watermark logo copyright photo selection protect ওয়াটারমার্ক লোগো" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal পোর্টাল" },
       { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert নোটিফিকেশন payment reminder রিমাইন্ডার" },
       { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms হোয়াটসঅ্যাপ মেসেজ টেমপ্লেট" },
@@ -89,6 +90,10 @@ export const ENTRIES: Entry[] = [
   { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube গান" },
   { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album অ্যালবাম" },
   { id: "f-faceRecognition", pane: "features", section: "Coming soon", label: "Face recognition", keywords: "selfie guest face" },
+
+  // Watermark
+  { id: "wm-on", pane: "watermark", section: "Watermark", label: "Use a watermark", keywords: "watermark on off protect" },
+  { id: "wm-text", pane: "watermark", section: "Your mark", label: "Watermark text, font and colour", keywords: "text font colour copyright logo" },
 
   // Work types & shifts
   { id: "workTypes", pane: "worktypes", section: "Program types", label: "Program types and their parts", keywords: "work type wedding corporate school birthday parts days holud biye reception shift template ধরন হলুদ বিয়ে" },

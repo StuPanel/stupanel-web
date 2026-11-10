@@ -319,6 +319,9 @@ html.sp-locked, html.sp-locked body { overflow: hidden; }
 
 /* ── Centre pop-ups, empty states, cards ─────────────────────────────────── */
 @keyframes sp-pop { from { opacity: 0; transform: translateY(10px) scale(.97) } to { opacity: 1; transform: none } }
+.sp-fade-in { animation: sp-fade .2s ease both; }
+.sp-pop-in { animation: sp-pop .38s cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .sp-pop-in, .sp-fade-in { animation: none; } }
 .sp-modal {
   background: #fff;
   border-radius: 22px;

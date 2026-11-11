@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tile } from "@/components/ui/apple";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
@@ -71,30 +72,30 @@ function ItemRow({ item, onChange, onRemove, canRemove }: {
   item: QuoteItem; onChange: (i: QuoteItem) => void; onRemove: () => void; canRemove: boolean;
 }) {
   return (
-    <div className="flex items-start gap-2 p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl">
-      <div className="flex-1 space-y-2">
-        <div className="flex gap-2">
+    <div className="flex items-start gap-2 p-3 bg-[#F7F5FB] rounded-[16px]">
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input value={item.name} onChange={e => onChange({ ...item, name: e.target.value })}
             placeholder="Item name" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
           <input value={item.description ?? ""} onChange={e => onChange({ ...item, description: e.target.value })}
             placeholder="Description (optional)" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
         </div>
         <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1.5 flex-1">
-            <span className="text-xs text-[#6B6680] w-6">Qty</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-[#6B6680]">Qty</span>
             <input type="number" min="1" value={item.qty}
               onChange={e => { const q = Number(e.target.value)||1; onChange({ ...item, qty: q, total: q * item.unitPrice }); }}
               className="w-16 h-8 px-2 text-center rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
           </div>
-          <div className="flex items-center gap-1.5 flex-1">
-            <span className="text-xs text-[#6B6680] w-10">Price</span>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <span className="text-xs text-[#6B6680]">Price</span>
             <input type="number" min="0" value={item.unitPrice}
               onChange={e => { const p = Number(e.target.value)||0; onChange({ ...item, unitPrice: p, total: item.qty * p }); }}
               className="flex-1 h-8 px-2 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
           </div>
-          <div className="flex items-center gap-1.5 flex-1">
-            <span className="text-xs text-[#6B6680] w-8">Total</span>
-            <span className="font-bold text-sm text-[#17151F]">{item.total.toLocaleString()}</span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs text-[#6B6680]">Total</span>
+            <span className="font-bold text-sm text-[#17151F] tabular-nums">{item.total.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -217,21 +218,22 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
   return (
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-2xl flex flex-col">
-        <div className="px-6 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-[#17151F] text-lg">{isEdit ? "Edit Quote" : "New Quote"}</h2>
-            {isEdit && <p className="text-xs text-[#8A8599] mt-0.5">{quote.quoteNumber} · v{quote.version}</p>}
+      <div className="sp-drawer sp-form z-50 sm:max-w-2xl flex flex-col">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#EEEBF4] flex-shrink-0">
+            <Tile icon={FileText} color="deep" size={40} />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit quote" : "New quote"}</h2>
+              <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{isEdit ? `${quote.quoteNumber} · version ${quote.version}` : "Price, package and terms for a client"}</p>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
           </div>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F1EFF6]"><X className="w-5 h-5 text-[#6B6680]" /></button>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
           {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
 
           {/* Client */}
           <div className="space-y-1.5 relative">
-            <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Client *</Label>
+            <Label className="text-[13px] font-semibold text-[#4A4658]">Client *</Label>
             {selectedClient ? (
               <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
                 <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-[#5B3FD0] font-bold text-sm">{selectedClient.firstName[0]}</div>
@@ -262,7 +264,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
 
           {/* Event Info */}
           <div className="space-y-3">
-            <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Event Info</Label>
+            <Label className="text-[13px] font-semibold text-[#4A4658]">Event Info</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-[#6B6680]">Event Type</Label>
@@ -286,7 +288,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           {/* Package auto-fill */}
           {programs.some(p => p.isActive !== false) && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Auto-fill from Package</Label>
+              <Label className="text-[13px] font-semibold text-[#4A4658]">Auto-fill from Package</Label>
               <select value={selectedProgramId} onChange={e => pickProgram(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white">
                 <option value="">Pick a package to auto-fill items…</option>
@@ -298,7 +300,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           {/* Line Items */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Line Items *</Label>
+              <Label className="text-[13px] font-semibold text-[#4A4658]">Line Items *</Label>
               <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium">
                 <Plus className="w-3.5 h-3.5" />Add Item
               </button>
@@ -315,7 +317,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
 
           {/* Pricing */}
           <div className="space-y-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-2xl p-4">
-            <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Pricing</Label>
+            <Label className="text-[13px] font-semibold text-[#4A4658]">Pricing</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-[#6B6680]">Currency</Label>
@@ -362,17 +364,17 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           {/* Valid Until + Notes */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Valid Until</Label>
+              <Label className="text-[13px] font-semibold text-[#4A4658]">Valid Until</Label>
               <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Notes for Client</Label>
+              <Label className="text-[13px] font-semibold text-[#4A4658]">Notes for Client</Label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
                 placeholder="Any special notes for the client…"
                 className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Terms & Conditions</Label>
+              <Label className="text-[13px] font-semibold text-[#4A4658]">Terms & Conditions</Label>
               <textarea value={terms} onChange={e => setTerms(e.target.value)} rows={4}
                 className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm font-mono focus:outline-none focus:border-indigo-400 resize-y text-xs" />
             </div>

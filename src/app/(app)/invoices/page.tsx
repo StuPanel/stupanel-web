@@ -194,11 +194,11 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
   }
 
   return (
-    <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl space-y-2">
+    <div className="p-3 bg-[#F7F5FB] rounded-[16px] space-y-2">
       {/* Row 1: Name + Description */}
       <div className="flex items-start gap-2">
-        <div className="flex-1 space-y-2">
-          <div className="flex gap-2">
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input value={item.name} onChange={e => onChange({ ...item, name: e.target.value })}
               placeholder="Item name *" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
             <input value={item.description ?? ""} onChange={e => onChange({ ...item, description: e.target.value })}
@@ -206,7 +206,7 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
           </div>
           {/* Row 2: Category + Unit */}
           <div className="flex gap-2">
-            <div className="flex-1 relative">
+            <div className="flex-1 min-w-0 relative">
               <input value={item.category ?? ""} onChange={e => onChange({ ...item, category: e.target.value })}
                 list={`cat-list-${item.id}`} placeholder="Category"
                 className="w-full h-8 px-3 rounded-lg border border-[#E4E0EC] text-xs focus:outline-none focus:border-indigo-400 bg-white" />
@@ -491,23 +491,24 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       {catalogOpen && <CatalogModal currency={currency} onSelect={addFromCatalog} onClose={() => setCatalogOpen(false)} />}
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-stretch justify-end">
-        <div className="w-full max-w-[1140px] bg-white shadow-2xl flex">
+        <div className="w-full max-w-[1160px] bg-white shadow-[-16px_0_48px_rgba(22,18,40,.22)] flex sm:rounded-l-[24px] overflow-hidden">
 
           {/* ── LEFT: Form panel ── */}
-          <div className="w-full lg:w-[440px] flex-shrink-0 flex flex-col border-r border-[#E4E0EC] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
-              <div>
-                <h2 className="font-bold text-[#17151F] text-lg">New Invoice</h2>
-                <p className="text-xs text-[#8A8599] mt-0.5">Preview updates live on the right</p>
+          <div className="sp-form w-full lg:w-[460px] flex-shrink-0 flex flex-col border-r border-[#EEEBF4] overflow-hidden">
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#EEEBF4] flex-shrink-0">
+              <Tile icon={Receipt} color="orchid" size={40} />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">New invoice</h2>
+                <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">The preview on the right updates as you type</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F1EFF6]"><X className="w-5 h-5 text-[#6B6680]" /></button>
+              <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
 
               {/* Client */}
               <div className="space-y-1.5 relative">
-                <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Client *</Label>
+                <Label className="text-[13px] font-semibold text-[#4A4658]">Client *</Label>
                 {selectedClient ? (
                   <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
                     <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-[#5B3FD0] font-bold text-sm">{selectedClient.firstName[0]}</div>
@@ -539,7 +540,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Booking link */}
               {selectedClient && clientBookings.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Link to Booking <span className="text-[#8A8599] font-normal normal-case">(optional)</span></Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Link to Booking <span className="text-[#8A8599] font-normal normal-case">(optional)</span></Label>
                   <select value={selectedBookingId} onChange={e => setSelectedBookingId(e.target.value)}
                     className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                     <option value="">No booking linked</option>
@@ -551,15 +552,15 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Dates + Currency */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Issue Date</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Issue Date</Label>
                   <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Due Date</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Due Date</Label>
                   <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Currency</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Currency</Label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
                     className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                     {["BDT","USD","INR","GBP"].map(c => <option key={c} value={c}>{c}</option>)}
@@ -570,7 +571,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Items */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Line Items *</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Line Items *</Label>
                   <div className="flex gap-2">
                     <button onClick={() => setCatalogOpen(true)}
                       className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#F7F4FE]">
@@ -620,12 +621,12 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Notes + Terms */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Notes</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Notes</Label>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any notes for the client…"
                     className="w-full px-3 py-2 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Terms & Conditions</Label>
+                  <Label className="text-[13px] font-semibold text-[#4A4658]">Terms & Conditions</Label>
                   <textarea value={terms} onChange={e => setTerms(e.target.value)} rows={3} placeholder="Payment terms…"
                     className="w-full px-3 py-2 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
                 </div>
@@ -724,7 +725,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
     <>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
+      <div className="sp-drawer sp-form z-50 sm:max-w-lg flex flex-col">
         <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
           <div>
             <div className="flex items-center gap-2">
@@ -790,7 +791,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           )}
 
           {/* Share link */}
-          <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl flex items-center gap-2">
+          <div className="p-3 bg-[#F7F5FB] rounded-[16px] flex items-center gap-2">
             <Link2 className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
             <p className="text-xs text-[#4A4658] truncate flex-1">{url}</p>
             <button onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Copied!", type: "success" }); }}
@@ -811,7 +812,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
 
           {/* Items */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Line Items</p>
+            <p className="text-[13px] font-semibold text-[#4A4658]">Line Items</p>
             <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
               {inv.items.map((item, i) => (
                 <div key={item.id} className={cn("px-4 py-3 flex items-start justify-between gap-2", i > 0 && "border-t border-[#F1EFF6]")}>
@@ -839,7 +840,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           </div>
 
           {/* Totals */}
-          <div className="bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl p-4 space-y-1.5 text-sm">
+          <div className="bg-[#F7F5FB] rounded-[16px] p-4 space-y-1.5 text-sm">
             <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span>{c}{Number(inv.subtotal).toLocaleString()}</span></div>
             {Number(inv.discountAmount) > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{c}{Number(inv.discountAmount).toLocaleString()}</span></div>}
             {Number(inv.taxAmount) > 0 && <div className="flex justify-between text-[#6B6680]"><span>{inv.taxLabel} ({inv.taxPercent}%)</span><span>+{c}{Number(inv.taxAmount).toLocaleString()}</span></div>}
@@ -853,7 +854,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           {/* Payment History */}
           {(payments.length > 0 || payLoading) && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Payment History</p>
+              <p className="text-[13px] font-semibold text-[#4A4658]">Payment History</p>
               {payLoading ? (
                 <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
               ) : (
@@ -878,7 +879,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
 
           {/* Timeline */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Timeline</p>
+            <p className="text-[13px] font-semibold text-[#4A4658]">Timeline</p>
             {[
               { label: "Issued", date: inv.issueDate, dot: "bg-[#8A8599]" },
               { label: "Due", date: inv.dueDate, dot: "bg-[#E9A63A]" },
@@ -895,7 +896,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           </div>
 
           {inv.notes && (
-            <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl">
+            <div className="p-3 bg-[#F7F5FB] rounded-[16px]">
               <p className="text-xs font-semibold text-[#6B6680] mb-1">Notes</p>
               <p className="text-xs text-[#4A4658]">{inv.notes}</p>
             </div>

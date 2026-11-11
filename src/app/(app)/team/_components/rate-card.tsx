@@ -6,7 +6,7 @@
  * Rate line = one price for (kind of work, unit, program type).
  *   rate      → work only (they use someone else's gear)
  *   withSetup → with their own gear (shoot roles only)
- *   workType  → "" = all programs, or a work type from Settings (e.g. Muslim wedding)
+ *   workType  → "" = all programs, or a work type from Settings (e.g. Wedding)
  * Setup item = a piece of gear they own + rent paid to them when someone else uses it.
  */
 import { Aperture, Box, Briefcase, Camera, Film, Image as ImageIcon, Lightbulb, Mic, Navigation, Package, Plus, Trash2, Video } from "lucide-react";

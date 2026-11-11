@@ -4,8 +4,8 @@ export { fmtDate } from "@/lib/format";
 export function uid() { return Math.random().toString(36).slice(2, 9); }
 
 export const EVENT_TYPES = [
-  "Wedding", "Holud", "Reception", "Engagement", "Akd",
-  "Birthday", "Corporate", "Party", "Naming Ceremony", "Other",
+  "Wedding", "Holud", "Reception", "Engagement", "Pre-wedding",
+  "Birthday", "Corporate", "Party", "Portrait", "Other",
 ];
 
 export const STATUS_CFG: Record<string, { label: string; badge: string; dot: string }> = {

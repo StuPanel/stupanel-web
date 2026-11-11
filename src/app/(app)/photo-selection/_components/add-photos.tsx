@@ -25,7 +25,7 @@ const mb = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` :
 const folderLabel = (p: string) => p || "Main folder";
 const lastPart = (p: string) => p.split("/").filter(Boolean).pop() || "Photos";
 const NEW = "__new__";
-/** An album that fits a folder name: same name, or one name inside the other ("Holud" ↔ "Gaye Holud"). */
+/** An album that fits a folder name: same name, or one name inside the other ("Holud" ↔ "Holud day"). */
 const fitAlbum = (albums: Album[], folder: string) => {
   const f = folder.trim().toLowerCase();
   if (!f) return undefined;

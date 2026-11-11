@@ -246,6 +246,10 @@ body {
 }
 .sp-attn { animation: sp-attn 1.2s ease-in-out 2; position: relative; z-index: 1; }
 .sp-attn:not(input):not(select):not(textarea) { border-radius: 16px; }
+/* Something just added or opened (not an error): a soft violet ring. */
+@keyframes sp-attn-info { 0%, 100% { box-shadow: 0 0 0 2px rgba(125, 92, 239, .55), 0 0 0 6px rgba(125, 92, 239, .12); } 50% { box-shadow: 0 0 0 2px rgba(125, 92, 239, .7), 0 0 0 10px rgba(125, 92, 239, .05); } }
+.sp-attn-info { animation: sp-attn-info 1.2s ease-in-out 2; position: relative; z-index: 1; border-radius: 16px; }
+@media (prefers-reduced-motion: reduce) { .sp-attn-info { animation: none; box-shadow: 0 0 0 2px rgba(125, 92, 239, .55); } }
 @media (prefers-reduced-motion: reduce) { .sp-attn { animation: none; box-shadow: 0 0 0 2px rgba(194, 48, 79, .9); } }
 @keyframes sp-drawer-in { from { opacity: 0; transform: translateX(28px) } to { opacity: 1; transform: none } }
 @keyframes sp-toast-in { from { opacity: 0; transform: translate(-50%, -14px) } to { opacity: 1; transform: translate(-50%, 0) } }

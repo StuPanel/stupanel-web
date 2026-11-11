@@ -154,7 +154,7 @@ export function CatalogPane() {
     try {
       const r = await apiFetch(`${API}/service-catalog?limit=200`);
       const d = await r.json();
-      setItems(d.data ?? []);
+      setItems(Array.isArray(d) ? d : (d?.data ?? []));
     } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);

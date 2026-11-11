@@ -11,10 +11,11 @@ import { currencySymbol, fmtDate } from "@/lib/format";
 import { StudioLogo } from "@/components/studio-logo";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 
-interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; }
+interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; isPackageBase?: boolean; kind?: string; days?: string[]; }
+interface QuoteDay { id: string; eventType: string; date: string; location: string }
 interface Quote {
   id: string; quoteNumber: string; status: string; version: number;
-  eventType?: string; eventDate?: string; venue?: string; currency: string;
+  eventType?: string; eventDate?: string; venue?: string; currency: string; eventDays?: QuoteDay[];
   subtotal: number; discountAmount: number; taxAmount: number; grandTotal: number;
   advanceRequired: number; validUntil?: string; notes?: string; termsAndConditions?: string;
   items: QuoteItem[];
@@ -80,10 +81,12 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
   const canAct = ["sent", "viewed"].includes(quote.status) && !done;
   const clientName = `${quote.client.firstName} ${quote.client.lastName ?? ""}`.trim();
   const contact = [quote.company.phone, quote.company.email].filter(Boolean).join(" · ");
+  const qDays = quote.eventDays ?? [];
+  const dayNames = new Map(qDays.map((d, i) => [d.id, d.eventType || `Day ${i + 1}`]));
   const facts: [string, React.ReactNode][] = [
     ...(quote.eventType ? [["Event", quote.eventType] as [string, React.ReactNode]] : []),
-    ...(quote.eventDate ? [["Date", fmtDate(quote.eventDate)] as [string, React.ReactNode]] : []),
-    ...(quote.venue ? [["Venue", quote.venue] as [string, React.ReactNode]] : []),
+    ...(!qDays.length && quote.eventDate ? [["Date", fmtDate(quote.eventDate)] as [string, React.ReactNode]] : []),
+    ...(!qDays.length && quote.venue ? [["Venue", quote.venue] as [string, React.ReactNode]] : []),
     ...(quote.program ? [["Package", quote.program.name] as [string, React.ReactNode]] : []),
     ...(quote.validUntil ? [["Valid until", <span key="v" className={new Date(quote.validUntil) < new Date() && !["accepted", "converted"].includes(quote.status) ? "text-[#C2304F]" : ""}>{fmtDate(quote.validUntil)}</span>] as [string, React.ReactNode]] : []),
   ];
@@ -170,6 +173,24 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
               </dl>
             )}
 
+            {qDays.length > 0 && (
+              <>
+                <h2 className="text-[15px] font-bold text-[#17151F] mt-7 mb-2.5">Your days</h2>
+                <ol className="rounded-[14px] border border-[#E9E5F1] divide-y divide-[#E9E5F1] overflow-hidden">
+                  {qDays.map((d, i) => (
+                    <li key={d.id} className="flex items-center gap-3 px-4 py-3 text-[14px]">
+                      <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-semibold text-[#17151F]">{d.eventType || `Day ${i + 1}`}</span>
+                        {d.location && <span className="block text-[12.5px] text-[#6B6680]">{d.location}</span>}
+                      </span>
+                      <span className="font-semibold text-[#17151F] tabular-nums flex-shrink-0">{d.date ? fmtDate(d.date) : "Date to be set"}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+
             <h2 className="text-[15px] font-bold text-[#17151F] mt-7 mb-2.5">What&apos;s included</h2>
             <div className="rounded-[14px] border border-[#E9E5F1] overflow-hidden">
               <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_56px_110px_110px] gap-3 px-4 py-2.5 bg-[#FBFAFD] text-[12px] font-semibold text-[#6B6680] border-b border-[#E9E5F1]">
@@ -179,8 +200,9 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                 {quote.items.map(item => (
                   <li key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_56px_110px_110px] gap-x-3 gap-y-0.5 px-4 py-3 text-[14px]">
                     <span className="min-w-0">
-                      <span className="block font-semibold text-[#17151F]">{item.name}</span>
+                      <span className="block font-semibold text-[#17151F]">{item.name}{item.kind === "extra" && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#126B66] bg-[#E3F2F1] px-1.5 py-0.5 rounded-full">Extra</span>}</span>
                       {item.description && <span className="block text-[12.5px] text-[#6B6680] mt-0.5 leading-relaxed">{item.description}</span>}
+                      {!!item.days?.length && <span className="block text-[12.5px] text-[#5B3FD0] mt-0.5">{item.days.map(id => dayNames.get(id)).filter(Boolean).join(" · ")}</span>}
                       <span className="sm:hidden block text-[12.5px] text-[#6B6680] mt-0.5 tabular-nums">{item.qty} × {money(item.unitPrice)}</span>
                     </span>
                     <span className="hidden sm:block text-center text-[#4A4658] tabular-nums">{item.qty}</span>

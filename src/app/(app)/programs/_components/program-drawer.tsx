@@ -40,7 +40,7 @@ const role = (id: string) => TEAM_ROLES.find(r => r.id === id) ?? { id, label: i
 const fullName = (m?: { firstName: string; lastName?: string | null }) => m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : "";
 const num = (v: string) => parseFloat(v) || 0;
 /** Old packages saved day keys like "pre_wedding" — make them readable. */
-const dayName = (v: string): string => (/^[a-z_]+$/.test(v) ? v.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ") : v.trim());
+export const dayName = (v: string): string => (/^[a-z_]+$/.test(v) ? v.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ") : v.trim());
 
 /** Old bookings stored member ids in shift.memberIds. */
 function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
@@ -61,7 +61,7 @@ const SECTION_TINT: Record<number, { bg: string; ring: string }> = {
   5: { bg: "#FAEFF8", ring: "#F1DCEC" },
   6: { bg: "#F3F1F6", ring: "#E6E2EE" },
 };
-function Section({ n, title, sub, done, children, right, name }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode; name?: string }) {
+export function Section({ n, title, sub, done, children, right, name }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode; name?: string }) {
   const tint = SECTION_TINT[n] ?? SECTION_TINT[6];
   return (
     <section data-field={name} className="mb-5 rounded-[24px] p-3 sm:p-4" style={{ background: tint.bg, boxShadow: `inset 0 0 0 1px ${tint.ring}` }}>
@@ -78,7 +78,7 @@ function Section({ n, title, sub, done, children, right, name }: { n: number; ti
     </section>
   );
 }
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) =>
+export const Card = ({ children, className }: { children: React.ReactNode; className?: string }) =>
   <div className={cn("bg-white rounded-[20px]", CARD_SHADOW, className)}>{children}</div>;
 
 function Money({ value, onChange, label, big, readOnly, placeholder }: { value: string; onChange?: (v: string) => void; label: string; big?: boolean; readOnly?: boolean; placeholder?: string }) {
@@ -93,7 +93,7 @@ function Money({ value, onChange, label, big, readOnly, placeholder }: { value: 
 }
 
 // ─── Client picker ────────────────────────────────────────────────────────────
-function ClientPicker({ client, onPick, mode, setMode, newClient, setNewClient }: {
+export function ClientPicker({ client, onPick, mode, setMode, newClient, setNewClient }: {
   client: Client | null; onPick: (c: Client | null) => void;
   mode: "search" | "new"; setMode: (m: "search" | "new") => void;
   newClient: ClientFormData; setNewClient: (c: ClientFormData) => void;
@@ -158,6 +158,21 @@ function ClientPicker({ client, onPick, mode, setMode, newClient, setNewClient }
       </button>
     </Card>
   );
+}
+
+/** Save the client typed in "New client". Shared by the program and quote forms. */
+export async function saveNewClient(nc: ClientFormData): Promise<{ id: string } | { error: string }> {
+  const r = await apiFetch(`${API}/clients`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      firstName: nc.firstName.trim(), lastName: nc.lastName.trim() || undefined, phone: nc.phone.trim(), email: nc.email.trim() || undefined,
+      phoneSecondary: nc.phoneSecondary.trim() || undefined, facebookProfile: nc.facebookProfile.trim() || undefined, city: nc.city.trim() || undefined,
+      source: nc.source || undefined, referredByClientId: nc.source === "referral" && nc.referredByClientId ? nc.referredByClientId : undefined,
+      referredByName: nc.source === "referral" && !nc.referredByClientId && nc.referredByName.trim() ? nc.referredByName.trim() : undefined,
+      address: nc.address.trim() || undefined, occupation: nc.occupation.trim() || undefined, companyName: nc.companyName.trim() || undefined,
+      vipStatus: nc.vipStatus, notes: nc.notes.trim() || undefined, internalNotes: nc.internalNotes.trim() || undefined,
+    }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) return { error: Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save the client." };
+  return { id: d.id };
 }
 
 // ─── Add / edit a person on a shift ───────────────────────────────────────────
@@ -656,18 +671,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     try {
       let clientId = client?.id;
       if (!clientId) {
-        const nc = newClient;
-        const r = await apiFetch(`${API}/clients`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-          firstName: nc.firstName.trim(), lastName: nc.lastName.trim() || undefined, phone: nc.phone.trim(), email: nc.email.trim() || undefined,
-          phoneSecondary: nc.phoneSecondary.trim() || undefined, facebookProfile: nc.facebookProfile.trim() || undefined, city: nc.city.trim() || undefined,
-          source: nc.source || undefined, referredByClientId: nc.source === "referral" && nc.referredByClientId ? nc.referredByClientId : undefined,
-          referredByName: nc.source === "referral" && !nc.referredByClientId && nc.referredByName.trim() ? nc.referredByName.trim() : undefined,
-          address: nc.address.trim() || undefined, occupation: nc.occupation.trim() || undefined, companyName: nc.companyName.trim() || undefined,
-          vipStatus: nc.vipStatus, notes: nc.notes.trim() || undefined, internalNotes: nc.internalNotes.trim() || undefined,
-        }) });
-        const d = await r.json();
-        if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save the client."); return; }
-        clientId = d.id;
+        const made = await saveNewClient(newClient);
+        if ("error" in made) { setError(made.error); return; }
+        clientId = made.id;
       }
       const sorted = [...typedDays].sort((a, b) => a.date.localeCompare(b.date));
       const body = {

@@ -3,10 +3,15 @@
  *
  * The browser sends each file straight to Google in 32 MB pieces (our server
  * only opens the session), up to 3 files at a time. If the internet drops it
- * waits and continues from the last byte Google has. If the tab or PC closes,
- * the unfinished list is remembered on this device; the user picks the same
- * files again and each one continues where it stopped (Google keeps a session
- * for about a week).
+ * waits and continues from the last byte Google has.
+ *
+ * The WHOLE batch is remembered on this device the moment it is added — files that are
+ * uploading and files still waiting in line. If the tab or PC closes, the user picks the
+ * same files or folder again: finished files are skipped, half-done ones continue where
+ * they stopped (Google keeps a session for about a week) and the rest start.
+ *
+ * Pause all / Resume / Cancel all work on every Drive upload in this tab. A paused upload
+ * keeps its place; nothing is lost if the page is closed while paused.
  */
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
@@ -46,6 +51,7 @@ export type PendingUpload = {
   fileName: string;
   size: number;
   lastModified: number;
+  /** Google's upload address; "" while the file is still waiting in line. */
   uploadUrl: string;
   createdAt: number;
   uploadName?: string;
@@ -66,14 +72,36 @@ type Job = {
 };
 
 // ─── pending list (survives reloads) ──────────────────────────────────────────
+function fpOf(p: { kind?: DriveKind; fileName: string; size: number; lastModified: number; bookingId: string; folderPath?: string }) {
+  const base = [p.fileName, p.size, p.lastModified, p.bookingId, p.folderPath ?? ""];
+  return (p.kind && p.kind !== "delivery" ? [p.kind, ...base] : base).join("|");
+}
+/** Kept in memory so a batch of thousands of files isn't parsed again for every file. */
+let pendingCache: PendingUpload[] | null = null;
 function readPending(): PendingUpload[] {
-  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); } catch { return []; }
+  if (pendingCache) return pendingCache;
+  try {
+    const raw = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]") as (Omit<PendingUpload, "fp"> & { fp?: string })[];
+    pendingCache = Array.isArray(raw) ? raw.map(p => ({ ...p, fp: p.fp ?? fpOf(p), uploadUrl: p.uploadUrl ?? "" })) : [];
+  } catch { pendingCache = []; }
+  return pendingCache;
 }
 function writePending(list: PendingUpload[]) {
-  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+  pendingCache = list;
+  // The fingerprint is rebuilt on read — leaving it out keeps a big batch well inside the browser's storage limit.
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list.map(p => ({ ...p, fp: undefined })))); } catch { /* storage full — still works until the page closes */ }
   pendingListeners.forEach(fn => fn(list));
 }
 const pendingListeners = new Set<(l: PendingUpload[]) => void>();
+// Another tab changed the list.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", e => {
+    if (e.key !== PENDING_KEY) return;
+    pendingCache = null;
+    const list = readPending();
+    pendingListeners.forEach(fn => fn(list));
+  });
+}
 
 export function subscribePending(fn: (l: PendingUpload[]) => void) {
   pendingListeners.add(fn);
@@ -85,21 +113,73 @@ export function discardPending(fp?: string) {
 }
 
 function fingerprint(file: File, bookingId: string, folderPath?: string, kind: DriveKind = "delivery") {
-  const base = [file.name, file.size, file.lastModified, bookingId, folderPath ?? ""];
-  return (kind !== "delivery" ? [kind, ...base] : base).join("|");
+  return fpOf({ kind, fileName: file.name, size: file.size, lastModified: file.lastModified, bookingId, folderPath });
 }
 
 // ─── queue ────────────────────────────────────────────────────────────────────
 const queue: Job[] = [];
+const runningJobs = new Set<Job>();
+const failedJobs = new Map<string, Job>();
 const activeFps = new Set<string>();
 let running = 0;
 
+// Pause all: running files stop after the piece Google already has; everything keeps its place.
+let paused = false;
+const pausedListeners = new Set<(p: boolean) => void>();
+const emitPaused = () => pausedListeners.forEach(fn => fn(paused));
+export function subscribePaused(fn: (p: boolean) => void) {
+  pausedListeners.add(fn);
+  fn(paused);
+  return () => { pausedListeners.delete(fn); };
+}
+export function pauseDriveUploads() {
+  if (paused) return;
+  paused = true;
+  for (const job of runningJobs) job.xhr?.abort();
+  emitPaused();
+}
+export function resumeDriveUploads() {
+  if (!paused) return;
+  paused = false;
+  emitPaused();
+  pump();
+}
+/** Stop every Drive upload in this tab and forget it. Files that already finished stay on Drive. */
+export function cancelAllDriveUploads() {
+  const jobs = [...runningJobs, ...queue];
+  const fps = new Set<string>();
+  for (const job of jobs) {
+    job.cancelled = true;
+    job.xhr?.abort();
+    fps.add(fingerprint(job.file, job.bookingId, job.folderPath, job.kind));
+  }
+  queue.length = 0;
+  writePending(readPending().filter(p => !fps.has(p.fp)));
+  uploadStore.cancelMany(jobs.map(j => j.id));
+  if (paused) { paused = false; emitPaused(); }
+  return jobs.length;
+}
+/** Try again the files that failed (their place in the list is kept). */
+export function retryFailedDriveUploads() {
+  const jobs = [...failedJobs.values()];
+  failedJobs.clear();
+  for (const job of jobs) {
+    uploadStore.update(job.id, { error: undefined, status: "queued", progress: 0, speed: 0 });
+    queue.push(job);
+  }
+  pump();
+  return jobs.length;
+}
+export const failedDriveUploadCount = () => failedJobs.size;
+
 function pump() {
+  if (paused) return;
   while (running < PARALLEL && queue.length) {
     const job = queue.shift()!;
     if (job.cancelled) continue;
     running++;
-    runJob(job).finally(() => { running--; pump(); });
+    runningJobs.add(job);
+    runJob(job).finally(() => { running--; runningJobs.delete(job); pump(); });
   }
 }
 
@@ -113,12 +193,24 @@ export function uploadToDrive(opts: {
   plans?: Map<File, UploadPlan>;
   onDone?: (f: DriveFileResult) => void;
 }) {
+  const known = new Set(readPending().map(p => p.fp));
+  const remember: PendingUpload[] = [];
   for (const file of opts.files) {
     const id = crypto.randomUUID();
     const folderPath = opts.folderFor?.(file);
     const plan = opts.plans?.get(file);
     const kind = opts.kind ?? "delivery";
     const job: Job = { kind, id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, onDone: opts.onDone };
+    const fp = fingerprint(file, job.bookingId, folderPath, kind);
+    // Remember every file now — also the ones waiting in line — so a closed tab loses nothing.
+    if (!known.has(fp)) {
+      known.add(fp);
+      remember.push({
+        kind, fp, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, fileName: file.name,
+        size: file.size, lastModified: file.lastModified, uploadUrl: "", createdAt: Date.now(),
+        uploadName: plan?.name, replaceFileId: plan?.replaceFileId,
+      });
+    }
     uploadStore.add({
       id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
       bookingId: opts.bookingId, bookingName: opts.bookingName,
@@ -128,10 +220,12 @@ export function uploadToDrive(opts: {
     uploadStore.registerCancel(id, () => {
       job.cancelled = true;
       job.xhr?.abort();
-      discardPending(fingerprint(file, job.bookingId, folderPath, kind));
+      failedJobs.delete(id);
+      discardPending(fp);
     });
     queue.push(job);
   }
+  if (remember.length) writePending([...readPending(), ...remember]);
   pump();
 }
 
@@ -213,7 +307,10 @@ async function runJob(job: Job) {
 
   try {
     // 1. Session: reuse a remembered one (resume) or open a new one.
+    if (paused) throw new Error("paused");
     let pending = readPending().find(p => p.fp === fp);
+    // Remembered but never started (it was waiting in line): open a session like a new file.
+    if (pending && !pending.uploadUrl) pending = undefined;
     let offset = 0;
     let fileId: string | undefined;
     if (pending) {
@@ -228,6 +325,8 @@ async function runJob(job: Job) {
       const s = await api<{ uploadUrl: string }>(ep.session, {
         fileName: job.plan?.name ?? file.name, mimeType: file.type || "application/octet-stream", size: total, folderPath,
       });
+      // Cancelled while the session was opening: don't remember it again.
+      if (job.cancelled) throw new Error("cancelled");
       pending = {
         kind, fp, bookingId, bookingName: job.bookingName, folderPath, fileName: file.name,
         size: total, lastModified: file.lastModified, uploadUrl: s.uploadUrl, createdAt: Date.now(),
@@ -240,6 +339,7 @@ async function runJob(job: Job) {
     let failures = 0;
     while (!fileId && (offset < total || total === 0)) {
       if (job.cancelled) throw new Error("cancelled");
+      if (paused) throw new Error("paused");
       const end = Math.min(offset + CHUNK, total);
       update({ status: "uploading" });
       try {
@@ -256,7 +356,9 @@ async function runJob(job: Job) {
         if (r.status === 404 || r.status === 410) { discardPending(fp); throw new Error("Upload session expired — please upload this file again"); }
         throw new Error(`http ${r.status}`);
       } catch (err) {
-        if (job.cancelled || (err as Error).message === "cancelled") throw new Error("cancelled");
+        if (job.cancelled) throw new Error("cancelled");
+        if (paused) throw new Error("paused");
+        if ((err as Error).message === "cancelled") throw new Error("cancelled");
         if ((err as Error).message.startsWith("Upload session expired")) throw err;
         failures++;
         update({ status: "waiting" });
@@ -281,8 +383,15 @@ async function runJob(job: Job) {
     job.onDone?.(result);
   } catch (err) {
     const msg = (err as Error).message;
-    if (msg === "cancelled") update({ cancelled: true, error: "Cancelled", status: "cancelled" });
-    else update({ error: msg || "Upload failed", status: "error" });
+    if (msg === "paused" && !job.cancelled) {
+      // Keep its place at the front; Resume continues from the last piece Google has.
+      update({ status: "paused", speed: 0 });
+      queue.unshift(job);
+    } else if (msg === "cancelled" || job.cancelled) {
+      if (readPending().some(p => p.fp === fp)) discardPending(fp);
+      update({ cancelled: true, error: "Cancelled", status: "cancelled" });
+    }
+    else { failedJobs.set(job.id, job); update({ error: msg || "Upload failed", status: "error", speed: 0 }); }
   } finally {
     activeFps.delete(fp);
   }

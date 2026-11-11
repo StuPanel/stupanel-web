@@ -157,7 +157,7 @@ function withAccount(url: string, email?: string | null) {
   try { const u = new URL(url); u.searchParams.set("authuser", email); return u.toString(); } catch { return url; }
 }
 
-type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string }[]; folderUrl?: string | null; folders?: { url: string; email: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
+type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string }[]; folderUrl?: string | null; folders?: { url: string; email: string; label?: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
 
 /**
  * For an editor on this program: open the program's raw folder on Google Drive (view + download).
@@ -236,10 +236,10 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
             </a>
             {(st.folders?.length ?? 0) > 1 && (
               <div className="space-y-1">
-                <p className="text-[12px] text-[#6B6680]">Some files are in another Drive:</p>
+                <p className="text-[12px] text-[#6B6680]">More raw files:</p>
                 {st.folders!.slice(1).map(f => (
                   <a key={f.url} href={withAccount(f.url, st.sharedEmail)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#5B3FD0]">
-                    <ExternalLink className="w-3.5 h-3.5" />More raw files ({f.email})
+                    <ExternalLink className="w-3.5 h-3.5" />{f.label ? f.label : `More raw files (${f.email})`}
                   </a>
                 ))}
               </div>

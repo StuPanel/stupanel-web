@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
+import { CURRENCY_OPTIONS, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 
@@ -33,7 +33,7 @@ function fmtDateTime(d: string | Date | null | undefined) {
   const hh = h % 12 || 12;
   return `${fmtDate(dt)}  ${hh}:${String(m).padStart(2,"0")} ${ampm}`;
 }
-function currSym(c: string) { return c === "BDT" ? "৳" : c === "USD" ? "$" : c === "EUR" ? "€" : c === "GBP" ? "£" : c === "INR" ? "₹" : c + " "; }
+const currSym = (c?: string) => currencySymbol(c || getStudioCurrency());
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS: Record<string, { label: string; badge: string; dot: string; icon: typeof Clock }> = {
@@ -47,7 +47,7 @@ const STATUS: Record<string, { label: string; badge: string; dot: string; icon: 
 };
 
 const EVENT_TYPES = ["Wedding","Pre-Wedding","Reception","Engagement","Birthday","Corporate","Product","Fashion","Other"];
-const CURRENCIES  = ["BDT","USD"];
+const CURRENCIES  = CURRENCY_OPTIONS.map(c => c.value);
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Client { id: string; firstName: string; lastName?: string; phone?: string; }

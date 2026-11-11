@@ -16,6 +16,7 @@ export const CURRENCY_OPTIONS = [
   { value: "GBP", label: "£ GBP — British Pound" },
   { value: "EUR", label: "€ EUR — Euro" },
   { value: "AED", label: "AED — UAE Dirham" },
+  { value: "SAR", label: "SAR — Saudi Riyal" },
 ];
 
 /**

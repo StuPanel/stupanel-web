@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { PAYMENT_METHODS } from "./constants";
 import type { Booking } from "./types";
-import { formatCurrency, localDateStr } from "@/lib/format";
+import { currencyPad, currencySymbol, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { AccountPicker } from "@/components/account-picker";
 
 export function PaymentModal({ booking, onClose, onSaved }: {
@@ -36,8 +36,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 
   if (!booking) return null;
   const bk = booking;
-  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
-  const sym = SYMS[bk.currency] ?? bk.currency;
+  const sym = currencySymbol(bk.currency).trim();
   const due = Number(bk.grandTotal) - Number(bk.paidAmount);
 
   async function submit() {
@@ -51,7 +50,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
         body: JSON.stringify({
           bookingId: bk.id,
           amount: amt,
-          currency: bk.currency ?? "BDT",
+          currency: bk.currency || getStudioCurrency(),
           paymentMethod: method,
           paymentDate: date,
           referenceNumber: ref || undefined,
@@ -90,7 +89,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{sym}</span>
             <input id={id} type="number" inputMode="decimal" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus
-              className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} />
+              className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(bk.currency) }} />
           </div>
         )}</Field>
         <div className="grid grid-cols-2">

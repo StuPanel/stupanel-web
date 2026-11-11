@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
+import { currencySymbol, fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
 import { CARD_SHADOW, Chips, DateBox, EmptyState, StatCard, Tile } from "@/components/ui/apple";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
@@ -23,7 +23,7 @@ import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 import { PortalFiles, type PortalDriveFile } from "./_components/portal-files";
 import { setStudioCountry } from "@/lib/phone";
 
-function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
+const sym = (cur = "BDT") => currencySymbol(cur);
 function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
 function fmtBytes(n: number): string {
   if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;

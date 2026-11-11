@@ -5,6 +5,7 @@
  * Used by Settings → Invoice designer (live preview) and the public client pages.
  * Plain inline styles so it looks the same on screen, in print and in the PDF.
  */
+import { currencySymbol } from "@/lib/format";
 import type { CSSProperties, ReactNode } from "react";
 import { BN_FONT, FONTS, HAND_FONT, PAPER, colorsOf, type InvoiceDesign, type SectionKey } from "./design";
 import { amountInWords } from "./words";
@@ -39,7 +40,6 @@ export interface DocData {
   };
 }
 
-const SYM: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€", GBP: "£", INR: "₹" };
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export function docDate(d?: string | null) {
   if (!d) return "";
@@ -71,7 +71,7 @@ export function InvoiceDocument({ data, design, className, style }: { data: DocD
   const { primary, secondary } = colorsOf(design);
   const font = FONTS.find(f => f.id === design.font) ?? FONTS[0];
   const T = design.template;
-  const money = (n: number) => `${SYM[data.currency] ?? data.currency + " "}${Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("en-IN") : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (n: number) => `${currencySymbol(data.currency)}${Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("en-IN") : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const isReceipt = data.kind === "receipt";
   const isQuote = data.kind === "quotation";
   const title = isReceipt ? "MONEY RECEIPT" : isQuote ? "QUOTATION" : "INVOICE";

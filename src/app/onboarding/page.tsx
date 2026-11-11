@@ -1,5 +1,6 @@
 "use client";
 
+import { CURRENCY_OPTIONS } from "@/lib/format";
 import { apiFetch } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import { useState, useEffect } from "react";
@@ -21,14 +22,7 @@ const STUDIO_TYPES = [
   { id: "mixed",     icon: "📷", label: "Mixed / General",   desc: "Multiple photography services" },
 ];
 
-const CURRENCIES = [
-  { code: "BDT", symbol: "৳", name: "Bangladeshi Taka" },
-  { code: "USD", symbol: "$", name: "US Dollar" },
-  { code: "INR", symbol: "₹", name: "Indian Rupee" },
-  { code: "GBP", symbol: "£", name: "British Pound" },
-  { code: "AED", symbol: "د.إ", name: "UAE Dirham" },
-  { code: "SAR", symbol: "﷼", name: "Saudi Riyal" },
-];
+const CURRENCIES = CURRENCY_OPTIONS;
 
 const STEPS = ["Studio Type", "Basic Info", "Done!"];
 
@@ -195,9 +189,7 @@ export default function OnboardingPage() {
                     <select value={info.currency} onChange={setInfoField("currency")}
                       className="w-full h-11 pl-10 pr-4 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 appearance-none cursor-pointer">
                       {CURRENCIES.map(c => (
-                        <option key={c.code} value={c.code}>
-                          {c.symbol} {c.code} — {c.name}
-                        </option>
+                        <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
                   </div>

@@ -9,7 +9,7 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Edit3, FileText, Loader2, MapPin,
+  ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Edit3, FileText, HardDrive, Loader2, MapPin,
   MessageCircle, MoreHorizontal, Plus, RotateCcw, Trash2, User, Users, Wallet, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -32,7 +32,7 @@ import { CreativeBriefSection, DeliveryOverview, EditorsSection, PrivateNotes, R
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import type { Booking, Package, ShiftAssignment, TeamMember } from "../_components/types";
 
-const TABS = ["overview", "money", "team", "editing", "delivery", "documents"] as const;
+const TABS = ["overview", "money", "team", "raw", "editing", "delivery", "documents"] as const;
 type Tab = (typeof TABS)[number];
 type Pay = { id: string; amount: number | string; paymentDate?: string; paymentMethod?: string; receiptNumber?: string | null; receiptToken?: string | null; notes?: string | null };
 type Todo = { tone: "red" | "amber" | "violet"; icon: React.ElementType; title: string; sub: string; run: () => void };
@@ -176,6 +176,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     { id: "overview", label: "Overview" },
     { id: "money", label: "Money", count: pays.length },
     { id: "team", label: "Team", count: crew },
+    { id: "raw", label: "Raw files" },
     { id: "editing", label: "Editing" },
     { id: "delivery", label: "Delivery" },
     { id: "documents", label: "Documents" },
@@ -405,11 +406,20 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
             </>
           )}
 
+          {tab === "raw" && <RawDriveSection booking={b} teamMembers={team} />}
+
           {tab === "editing" && (
             <Section>
               <div className={cn(card, "p-3 space-y-3")}>
                 <EditorsSection booking={b} teamMembers={team} onSaved={load} />
-                <RawDriveSection booking={b} teamMembers={team} />
+                <button type="button" onClick={() => setTab("raw")} className="w-full rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3 text-left hover:border-[#CFC8DD] transition-colors">
+                  <Tile icon={HardDrive} color="green" size={36} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold text-[#17151F]">Raw files</span>
+                    <span className="block text-[12px] text-[#6B6680] truncate">Upload cards and manage copies in the Raw files tab</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-[#A29DB3] flex-shrink-0" />
+                </button>
                 {musicOn && <MusicSection booking={b} />}
                 <CreativeBriefSection booking={b} onSaved={load} />
               </div>

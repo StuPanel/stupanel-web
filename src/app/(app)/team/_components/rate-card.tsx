@@ -9,6 +9,7 @@
  *   workType  → "" = all programs, or a work type from Settings (e.g. Wedding)
  * Setup item = a piece of gear they own + rent paid to them when someone else uses it.
  */
+import { useState } from "react";
 import { Aperture, Box, Briefcase, Camera, Film, Image as ImageIcon, Lightbulb, Mic, Navigation, Package, Plus, Trash2, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tile, type TileColor } from "@/components/ui/apple";
@@ -95,73 +96,129 @@ export function firstLine(roleId: string, defaultUnit: string): RateLine {
 }
 
 // ─── Work & pay ─────────────────────────────────────────────────────────────
+/**
+ * One picker per kind of work: choose the unit (shift / day / program…) and the program type,
+ * and the two boxes show the price for exactly that pair. Every pair keeps its own price;
+ * all saved prices are listed underneath so nothing is hidden.
+ */
 export function RateEditor({ roles, lines, onChange, workTypes, fallback, emptyText }: {
   roles: RoleInfo[]; lines: RateLine[]; onChange: (lines: RateLine[]) => void; workTypes: { id: string; name: string }[];
   /** Studio prices — shown as grey hints in empty boxes. */
   fallback?: SavedRate[];
   emptyText?: string;
 }) {
-  const set = (id: string, p: Partial<RateLine>) => onChange(lines.map(l => l.id === id ? { ...l, ...p } : l));
-  const remove = (id: string) => onChange(lines.filter(l => l.id !== id));
-  function add(roleId: string) {
-    const used = new Set(lines.filter(l => l.roleId === roleId && !l.workType).map(l => l.unit));
-    const next = unitsFor(roleId).find(u => !used.has(u.v) && u.v !== "custom")?.v ?? "custom";
-    onChange([...lines, { id: uid(), roleId, unit: next, rate: "", withSetup: "", workType: "", label: "" }]);
-  }
-
   if (!roles.length) return <p className="px-4 py-4 text-sm text-[#A29DB3]">{emptyText ?? "Pick what they do first — then set a price for each."}</p>;
-
   return (
     <div className="divide-y divide-[#EEEBF4]">
-      {roles.map(r => {
-        const Icon = r.icon;
-        const mine = lines.filter(l => l.roleId === r.id);
-        const editor = isEditorRole(r.id);
-        return (
-          <div key={r.id} className="px-4 py-4">
-            <div className="flex items-center gap-2.5 mb-3">
-              <Tile icon={Icon} color={r.tile as TileColor} size={28} />
-              <p className="flex-1 text-[15px] font-bold text-[#17151F]">{r.label}</p>
-            </div>
-            <div className="space-y-2.5">
-              {mine.map(l => (
-                <div key={l.id} className="rounded-[16px] bg-[#FAF9FC] border border-[#EEEBF4] p-3">
-                  <div className="flex gap-2 items-center">
-                    <select aria-label={`${r.label} — price unit`} value={l.unit} onChange={e => set(l.id, { unit: e.target.value })}
-                      className={cn(inputCls, "h-10 text-sm pr-7 cursor-pointer min-w-0 flex-1 bg-white")}>
-                      {unitsFor(r.id).map(u => <option key={u.v} value={u.v}>{u.l}</option>)}
-                    </select>
-                    <select aria-label={`${r.label} — for which programs`} value={l.workType} onChange={e => set(l.id, { workType: e.target.value })}
-                      className={cn(inputCls, "h-10 text-sm pr-7 cursor-pointer min-w-0 flex-1 bg-white", l.workType && "bg-[#EEE8FD] text-[#5B3FD0] font-semibold")}>
-                      <option value="">All programs</option>
-                      {workTypes.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                      {l.workType && !workTypes.some(w => w.id === l.workType) && <option value={l.workType}>{l.workType}</option>}
-                    </select>
-                    <button type="button" onClick={() => remove(l.id)} aria-label="Remove this price"
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {l.unit === "custom" && (
-                    <input aria-label="Name of this price" value={l.label} onChange={e => set(l.id, { label: e.target.value })}
-                      placeholder="Name it — e.g. Ceremony only, Same-day edit…" className={cn(inputCls, "h-10 text-sm mt-2 bg-white")} />
-                  )}
-                  <div className={cn("grid gap-2 mt-2", editor ? "grid-cols-1" : "grid-cols-2")}>
-                    <Money label={editor ? `${r.label} price` : `${r.label} — work only`} title={editor ? "Price" : "Work only"} sub={editor ? undefined : "Uses someone else's gear"} value={l.rate} onChange={v => set(l.id, { rate: v })}
-                      hint={studioPrice(fallback, l)?.rate} />
-                    {!editor && <Money label={`${r.label} — with own setup`} title="With own setup" sub="Brings their own gear" value={l.withSetup} onChange={v => set(l.id, { withSetup: v })} accent
-                      hint={studioPrice(fallback, l)?.withSetup} />}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={() => add(r.id)}
-              className="mt-3 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#5B3FD0]">
-              <Plus className="w-3.5 h-3.5" />Add a price
-            </button>
-          </div>
-        );
-      })}
+      {roles.map(r => <RoleRates key={r.id} role={r} lines={lines} onChange={onChange} workTypes={workTypes} fallback={fallback} />)}
+    </div>
+  );
+}
+
+type Sel = { unit: string; workType: string; label: string };
+const hasPrice = (l: RateLine) => l.rate.trim() !== "" || l.withSetup.trim() !== "";
+const fmtNum = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? `${currencySymbol().trim()}${n.toLocaleString("en-US")}` : ""; };
+
+function RoleRates({ role: r, lines, onChange, workTypes, fallback }: {
+  role: RoleInfo; lines: RateLine[]; onChange: (lines: RateLine[]) => void; workTypes: { id: string; name: string }[]; fallback?: SavedRate[];
+}) {
+  const Icon = r.icon;
+  const editor = isEditorRole(r.id);
+  const mine = lines.filter(l => l.roleId === r.id);
+  // Until the person picks something, show the first saved price (lines can arrive after the first render).
+  const [picked, setPicked] = useState<Sel | null>(null);
+  const first = mine.find(hasPrice) ?? mine[0];
+  const sel: Sel = picked ?? (first ? { unit: first.unit, workType: first.workType, label: first.label } : { unit: unitsFor(r.id)[0].v, workType: "", label: "" });
+  const setSel = (next: Sel | ((s: Sel) => Sel)) => setPicked(typeof next === "function" ? next(sel) : next);
+  const matches = (l: RateLine, s: Sel) => l.unit === s.unit && l.workType === s.workType && (s.unit !== "custom" || l.label === s.label);
+  const current = mine.find(l => matches(l, sel));
+  const typeName = (id: string) => (id ? workTypes.find(w => w.id === id)?.name ?? id : "All programs");
+
+  /** Write a price for the pair that is picked now (makes the line the first time). */
+  function setPrice(p: Partial<Pick<RateLine, "rate" | "withSetup">>) {
+    if (current) onChange(lines.map(l => (l.id === current.id ? { ...l, ...p } : l)));
+    else onChange([...lines, { id: uid(), roleId: r.id, unit: sel.unit, workType: sel.workType, label: sel.label, rate: "", withSetup: "", ...p }]);
+  }
+  /** Renaming a custom price keeps its amount. */
+  function setLabel(label: string) {
+    if (current) onChange(lines.map(l => (l.id === current.id ? { ...l, label } : l)));
+    setSel(s => ({ ...s, label }));
+  }
+  const saved = mine.filter(hasPrice).sort((a, b) =>
+    (a.workType ? 1 : 0) - (b.workType ? 1 : 0) || typeName(a.workType).localeCompare(typeName(b.workType))
+    || unitsFor(r.id).findIndex(u => u.v === a.unit) - unitsFor(r.id).findIndex(u => u.v === b.unit));
+  const hint = studioPrice(fallback, { roleId: r.id, ...sel });
+
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-center gap-2.5 mb-3">
+        <Tile icon={Icon} color={r.tile as TileColor} size={28} />
+        <p className="flex-1 text-[15px] font-bold text-[#17151F]">{r.label}</p>
+        {saved.length > 0 && <span className="text-[12px] font-semibold text-[#6B6680]">{saved.length} price{saved.length === 1 ? "" : "s"}</span>}
+      </div>
+
+      <div className="rounded-[16px] bg-[#FAF9FC] border border-[#EEEBF4] p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block min-w-0">
+            <span className="block px-0.5 mb-1 text-[12px] font-bold text-[#4A4658]">Price for</span>
+            <select aria-label={`${r.label} — price unit`} value={sel.unit} onChange={e => setSel(s => ({ ...s, unit: e.target.value, label: "" }))}
+              className={cn(inputCls, "h-10 text-sm pr-7 cursor-pointer w-full bg-white")}>
+              {unitsFor(r.id).map(u => <option key={u.v} value={u.v}>{u.l}</option>)}
+            </select>
+          </label>
+          <label className="block min-w-0">
+            <span className="block px-0.5 mb-1 text-[12px] font-bold text-[#4A4658]">Program type</span>
+            <select aria-label={`${r.label} — for which programs`} value={sel.workType} onChange={e => setSel(s => ({ ...s, workType: e.target.value }))}
+              className={cn(inputCls, "h-10 text-sm pr-7 cursor-pointer w-full bg-white", sel.workType && "bg-[#EEE8FD] text-[#5B3FD0] font-semibold")}>
+              <option value="">All programs</option>
+              {workTypes.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              {sel.workType && !workTypes.some(w => w.id === sel.workType) && <option value={sel.workType}>{sel.workType}</option>}
+            </select>
+          </label>
+        </div>
+        {sel.unit === "custom" && (
+          <input aria-label="Name of this price" value={sel.label} onChange={e => setLabel(e.target.value)}
+            placeholder="Name it — e.g. Ceremony only, Same-day edit…" className={cn(inputCls, "h-10 text-sm mt-2 bg-white")} />
+        )}
+        <div className={cn("grid gap-2 mt-2.5", editor ? "grid-cols-1" : "grid-cols-2")}>
+          <Money label={editor ? `${r.label} price` : `${r.label} — work only`} title={editor ? "Price" : "Work only"} sub={editor ? undefined : "Uses someone else's gear"}
+            value={current?.rate ?? ""} onChange={v => setPrice({ rate: v })} hint={hint?.rate} />
+          {!editor && <Money label={`${r.label} — with own setup`} title="With own setup" sub="Brings their own gear" accent
+            value={current?.withSetup ?? ""} onChange={v => setPrice({ withSetup: v })} hint={hint?.withSetup} />}
+        </div>
+        <p className="mt-2 px-0.5 text-[11.5px] text-[#8A8599]" aria-live="polite">
+          {current && hasPrice(current)
+            ? <>Saved for <strong className="font-semibold text-[#4A4658]">{unitLabel(r.id, sel.unit, sel.label)} · {typeName(sel.workType)}</strong>. Pick another to set a different price.</>
+            : <>No price yet for <strong className="font-semibold text-[#4A4658]">{unitLabel(r.id, sel.unit, sel.label)} · {typeName(sel.workType)}</strong>{hint ? " — the studio price is used." : "."}</>}
+        </p>
+      </div>
+
+      {saved.length > 0 && (
+        <ul className="mt-2.5 rounded-[16px] border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden" aria-label={`${r.label} — saved prices`}>
+          {saved.map(l => {
+            const on = current?.id === l.id;
+            return (
+              <li key={l.id} className={cn("flex items-center", on ? "bg-[#F3EFFE]" : "bg-white")}>
+                <button type="button" onClick={() => setSel({ unit: l.unit, workType: l.workType, label: l.label })} aria-pressed={on}
+                  className="flex-1 min-w-0 flex items-center gap-3 pl-3.5 pr-1 py-2.5 text-left hover:bg-[#F7F5FB]">
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[13.5px] font-semibold text-[#17151F] truncate">{unitLabel(r.id, l.unit, l.label)}</span>
+                    <span className={cn("block text-[12px] truncate", l.workType ? "text-[#5B3FD0] font-semibold" : "text-[#6B6680]")}>{typeName(l.workType)}</span>
+                  </span>
+                  <span className="text-right flex-shrink-0 leading-tight">
+                    {l.rate.trim() !== "" && <span className="block text-[13.5px] font-bold text-[#17151F] tabular-nums">{fmtNum(l.rate)}</span>}
+                    {!editor && l.withSetup.trim() !== "" && <span className="block text-[12px] font-semibold text-[#5B3FD0] tabular-nums">{fmtNum(l.withSetup)} with setup</span>}
+                  </span>
+                </button>
+                <button type="button" onClick={() => onChange(lines.filter(x => x.id !== l.id))} aria-label={`Remove ${unitLabel(r.id, l.unit, l.label)} · ${typeName(l.workType)}`}
+                  className="w-10 h-10 mr-1 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

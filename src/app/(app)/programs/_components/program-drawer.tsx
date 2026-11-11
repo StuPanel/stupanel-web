@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtMoney, currencySymbol, currencyPad, getStudioCurrency } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
+import { jumpToField } from "@/lib/jump-to-field";
 import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/ui/form-kit";
@@ -60,10 +61,10 @@ const SECTION_TINT: Record<number, { bg: string; ring: string }> = {
   5: { bg: "#FAEFF8", ring: "#F1DCEC" },
   6: { bg: "#F3F1F6", ring: "#E6E2EE" },
 };
-function Section({ n, title, sub, done, children, right }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode }) {
+function Section({ n, title, sub, done, children, right, name }: { n: number; title: string; sub?: React.ReactNode; done?: boolean; children: React.ReactNode; right?: React.ReactNode; name?: string }) {
   const tint = SECTION_TINT[n] ?? SECTION_TINT[6];
   return (
-    <section className="mb-5 rounded-[24px] p-3 sm:p-4" style={{ background: tint.bg, boxShadow: `inset 0 0 0 1px ${tint.ring}` }}>
+    <section data-field={name} className="mb-5 rounded-[24px] p-3 sm:p-4" style={{ background: tint.bg, boxShadow: `inset 0 0 0 1px ${tint.ring}` }}>
       <div className="flex items-center gap-2.5 px-1 mb-2.5">
         <span className={cn("w-6 h-6 rounded-full text-[12px] font-bold flex items-center justify-center flex-shrink-0",
           done ? "bg-[#1F8A5B] text-white" : "bg-[#17151F] text-white")}>{done ? <Check className="w-3.5 h-3.5" /> : n}</span>
@@ -629,12 +630,28 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
   async function submit() {
     setError("");
-    if (!step1) { setError("Pick a client, or add a new one with name and phone."); return; }
-    if (!step2) { setError("Give the program a name."); return; }
-    if (!days.length) { setError("Add at least one day."); return; }
-    if (!step3) { setError("Every day needs a date."); return; }
-    if (!step4) { setError("Write the contract amount."); return; }
-    if (!isEdit && advance > net) { setError("Advance can't be more than the total."); return; }
+    const stop = (msg: string, field?: string) => { setError(msg); jumpToField(field); };
+    if (!step1) return stop("Pick a client, or add a new one with name and phone.", clientMode === "new" ? undefined : "client");
+    if (!step2) return stop("Give the program a name.", "eventName");
+    if (!days.length) return stop("Add at least one day.", "days");
+    if (!step3) { const d = days.find(x => !x.date); return stop("Every day needs a date.", d ? `day-date-${d.id}` : "days"); }
+    if (!step4) return stop("Write the contract amount.", "total");
+    if (!isEdit && advance > net) return stop("Advance can't be more than the total.", "advance");
+    // Someone works for ৳0 because no price is set for this kind of work or program type.
+    if (!billLocked) {
+      const zero = bill.entries.filter(e => e.memberId && (e.lines ?? []).some(l => l.kind === "work" && !Number(l.amount)));
+      if (zero.length) {
+        setOpenBill(zero[0].id);
+        jumpToField(`pay-${zero[0].id}`);
+        const names = zero.map(e => e.memberName).filter(Boolean).join(", ");
+        const go = await askConfirm({
+          title: "Price missing",
+          message: `${names} ${zero.length === 1 ? "has" : "have"} no price for this work, so the pay is ${formatCurrency(0)}. Type the amount in Team pay, or save with ${formatCurrency(0)}.`,
+          confirmLabel: `Save with ${formatCurrency(0)}`, cancelLabel: "Add the price",
+        });
+        if (!go) { jumpToField(`pay-${zero[0].id}`); return; }
+      }
+    }
     setSaving(true);
     try {
       let clientId = client?.id;
@@ -723,7 +740,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
             <div className="min-w-0">
               {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
 
-              <Section n={1} title="Client" done={step1}>
+              <Section n={1} title="Client" done={step1} name="client">
                 <ClientPicker client={client} onPick={c => setClient(c)} mode={clientMode} setMode={setClientMode} newClient={newClient} setNewClient={setNewClient} />
               </Section>
 
@@ -739,7 +756,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     </div>
                   </div>
                   <div className="border-t border-[#EEEBF4] grid sm:grid-cols-[1fr_240px]">
-                    <Field label="Name" required>{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
+                    <Field label="Name" required name="eventName">{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
                     <Field label="Package">{id => (
                       <select id={id} value={packageId} onChange={e => choosePackage(e.target.value)}
                         className={cn(inputCls, "cursor-pointer")}>
@@ -751,7 +768,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                 </Card>
               </Section>
 
-              <Section n={3} title="Days & team" sub="Each day, its shifts, and who works them" done={step3 && people > 0}
+              <Section n={3} title="Days & team" sub="Each day, its shifts, and who works them" done={step3 && people > 0} name="days"
                 right={days.length > 0 ? <button type="button" onClick={() => addDay()} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Plus className="w-3.5 h-3.5" />Day</button> : undefined}>
                 {days.length === 0 && (
                   <Card className="p-5 text-center">
@@ -772,7 +789,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                           <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
                           <input list="sp-day-names" value={d.eventType} onChange={e => setDay(d.id, { eventType: e.target.value })} placeholder="Day name — Ceremony, Wedding…" aria-label={`Day ${i + 1} name`} className={cn(inputCls, "h-10 text-sm font-semibold")} />
                           <button type="button" onClick={() => setDays(ds => ds.filter(x => x.id !== d.id))} aria-label="Remove day" className="sm:order-last w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Trash2 className="w-4 h-4" /></button>
-                          <input type="date" value={d.date} onChange={e => setDay(d.id, { date: e.target.value })} aria-label={`Day ${i + 1} date`} className={cn(inputCls, "h-10 text-sm col-start-2 sm:col-start-auto", !d.date && "ring-1 ring-[#C2304F]/30")} />
+                          <input type="date" data-field={`day-date-${d.id}`} value={d.date} onChange={e => setDay(d.id, { date: e.target.value })} aria-label={`Day ${i + 1} date`} className={cn(inputCls, "h-10 text-sm col-start-2 sm:col-start-auto", !d.date && "ring-1 ring-[#C2304F]/30")} />
                           <div className="relative col-start-2 sm:col-start-auto">
                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
                             <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
@@ -862,11 +879,11 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
               <Section n={4} title="Money from the client" done={step4}>
                 <Card>
                   <div className="grid sm:grid-cols-2">
-                    <Field label="Contract amount" required>{() => <Money value={money.total} onChange={v => setMoney(m => ({ ...m, total: v }))} label="Contract amount" big />}</Field>
+                    <Field label="Contract amount" required name="total">{() => <Money value={money.total} onChange={v => setMoney(m => ({ ...m, total: v }))} label="Contract amount" big />}</Field>
                     <Field label="Discount">{() => <Money value={money.discount} onChange={v => setMoney(m => ({ ...m, discount: v }))} label="Discount" />}</Field>
                   </div>
                   <div className="border-t border-[#EEEBF4] grid sm:grid-cols-2">
-                    <Field label={isEdit ? "Advance (use Record payment for more)" : "Advance received now"}>{() => <Money value={money.advance} onChange={v => setMoney(m => ({ ...m, advance: v }))} label="Advance" readOnly={isEdit} />}</Field>
+                    <Field label={isEdit ? "Advance (use Record payment for more)" : "Advance received now"} name="advance">{() => <Money value={money.advance} onChange={v => setMoney(m => ({ ...m, advance: v }))} label="Advance" readOnly={isEdit} />}</Field>
                     {!isEdit && advance > 0 ? (
                       <Field label="Paid by">{() => (
                         <div className="space-y-3">
@@ -897,9 +914,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                       const m = team.find(t => t.id === e.memberId);
                       const r0 = role((e.role || "").split(", ")[0] || m?.memberRoles[0] || "");
                       const isOpen = openBill === e.id;
-                      const missing = (e.lines ?? []).some(l => l.auto && !l.amount);
+                      const missing = (e.lines ?? []).some(l => l.kind === "work" && !Number(l.amount));
                       return (
-                        <div key={e.id}>
+                        <div key={e.id} data-field={`pay-${e.id}`}>
                           <button type="button" onClick={() => setOpenBill(isOpen ? null : e.id)} aria-expanded={isOpen} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FB]">
                             <Tile icon={r0.icon} color={r0.tile as TileColor} size={32} />
                             <span className="flex-1 min-w-0">
@@ -922,7 +939,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                                   <span className="text-[13.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(l.amount)}</span>
                                 </div>
                               ) : (
-                                <div key={l.id} className="flex items-center gap-2 rounded-[12px] bg-[#FAF9FC] border border-[#EEEBF4] px-3 py-2">
+                                <div key={l.id} className={cn("flex items-center gap-2 rounded-[12px] border px-3 py-2", l.kind === "work" && !Number(l.amount) ? "bg-[#FEF5F7] border-[#F3C4CF]" : "bg-[#FAF9FC] border-[#EEEBF4]")}>
                                   <div className="flex-1 min-w-0">
                                     {l.auto ? <p className="text-[13px] font-semibold text-[#17151F] truncate">{l.label}</p>
                                       : <input value={l.label} onChange={ev => renameLine(e.memberId!, l.id, ev.target.value)} aria-label="Line name" className="w-full bg-transparent text-[13px] font-semibold text-[#17151F] outline-none" />}

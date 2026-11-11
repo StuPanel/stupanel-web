@@ -16,6 +16,7 @@ import { CARD_SHADOW } from "@/components/ui/apple";
 import { FormDrawer, FormGroup, Field, inputCls } from "@/components/ui/form-kit";
 import { fmtDate } from "./constants";
 import { BILL_LOCKED_STATUSES, type Booking, type CostEntry } from "./types";
+import { jumpToField } from "@/lib/jump-to-field";
 
 const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const methodName = (v: string) => METHODS.find(m => m.v === v)?.l ?? v;
@@ -122,8 +123,8 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
 
   async function save() {
     const amount = parseFloat(form.amount) || 0;
-    if (amount <= 0) { setErr("Write the amount."); return; }
-    if (!form.walletId) { setErr("Pick the account the money was paid from."); return; }
+    if (amount <= 0) { setErr("Write the amount."); jumpToField("amount"); return; }
+    if (!form.walletId) { setErr("Pick the account the money was paid from."); jumpToField("wallet"); return; }
     const over = amount > due + 0.009;
     if (over && !(await askConfirm({
       title: "Pay more than the bill?",
@@ -156,7 +157,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
       </>}>
       {err && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{err}</div>}
       <FormGroup title="Payment">
-        <Field label="Amount" required>{id => (
+        <Field label="Amount" required name="amount">{id => (
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
             <input style={{ paddingLeft: currencyPad() }} id={id} type="number" inputMode="numeric" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}

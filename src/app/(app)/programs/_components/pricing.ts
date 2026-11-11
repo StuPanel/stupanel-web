@@ -50,6 +50,15 @@ type Work = { day: EventDay; shiftLabel: string; a: ShiftAssignment };
  * `keep` = previous entries: manual lines (bonus, transport, cut…) and amounts the user
  * typed over an auto line are kept; paidAmount is kept.
  */
+export const NO_PRICE_NOTE = "No price set — type the amount";
+const KEPT_NOTE = "No price for this program type — kept the earlier amount";
+
+/** The line this bill already had (saved before), when it had an amount. */
+function keptLine(keep: CostEntry[], memberId: string, key: string): BillLine | undefined {
+  const l = keep.find(e => e.memberId === memberId)?.lines?.find(x => x.key === key);
+  return l && Number(l.amount) > 0 ? l : undefined;
+}
+
 export function buildBill(opts: {
   days: EventDay[]; team: TeamMember[]; studioRates: Rate[]; payMode: string; keep?: CostEntry[];
   /** Editing work (not tied to a shift). */
@@ -92,11 +101,13 @@ export function buildBill(opts: {
       const own = setup === "own";
       const price = rate ? (own ? (rate.withSetup ?? rate.rate) : rate.rate) : 0;
       const [one, many] = UNIT_WORD[unit] ?? ["", ""];
-      add(memberId, {
-        id: lid(), key: `work|${k}`, kind: "work", auto: true, role, setup: setup as BillLine["setup"],
-        label: `${roleName(role)}${own ? " · own setup" : setup === "other" ? " · others' gear" : " · rented gear"}`,
+      const label = `${roleName(role)}${own ? " · own setup" : setup === "other" ? " · others' gear" : " · rented gear"}`;
+      // No price for this work / program type: keep what this bill had before instead of dropping it to 0.
+      const before = !rate ? keptLine(keep, memberId, `work|${k}`) : undefined;
+      add(memberId, before ? { ...before, id: lid(), auto: true, role, setup: setup as BillLine["setup"], label, note: KEPT_NOTE } : {
+        id: lid(), key: `work|${k}`, kind: "work", auto: true, role, setup: setup as BillLine["setup"], label,
         qty: rate ? qty : shifts, unit: rate ? unit : "per_shift", unitPrice: price, amount: Math.round(price * (rate ? qty : shifts)),
-        note: rate ? `${qty} ${qty === 1 ? one : many}` : "No price set — type the amount",
+        note: rate ? `${qty} ${qty === 1 ? one : many}` : NO_PRICE_NOTE,
       });
 
       // Gear from someone else: rent goes to the owner
@@ -162,10 +173,12 @@ export function buildBill(opts: {
     const rate = findRate(m.roleRates as Rate[], studioRates, e.role, "per_program", programType)
       ?? (m.roleRates as Rate[] | undefined)?.find(r => r.roleId === e.role)
       ?? studioRates.find(r => r.roleId === e.role);
+    const before = !rate ? keptLine(keep, m.id, `edit|${e.role}`) : undefined;
+    if (before) { add(m.id, { ...before, id: lid(), auto: true, role: e.role, label: roleName(e.role), note: KEPT_NOTE }); continue; }
     add(m.id, {
       id: lid(), key: `edit|${e.role}`, kind: "work", auto: true, role: e.role,
       label: roleName(e.role), qty: 1, unit: rate?.rateType ?? "per_program", unitPrice: rate?.rate ?? 0, amount: rate?.rate ?? 0,
-      note: rate ? (rate.rateType === "per_program" ? "whole program" : rate.label || rate.rateType.replace(/^per_/, "per ").replace(/_/g, " ")) : "No price set — type the amount",
+      note: rate ? (rate.rateType === "per_program" ? "whole program" : rate.label || rate.rateType.replace(/^per_/, "per ").replace(/_/g, " ")) : NO_PRICE_NOTE,
     });
   }
 

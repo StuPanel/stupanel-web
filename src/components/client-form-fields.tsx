@@ -88,7 +88,7 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
   return (
     <div>
       <FormGroup title="Client">
-        <Field label="Name" required>
+        <Field label="Name" required name="firstName">
           {id => (
             <div className="grid grid-cols-2 gap-2">
               <input id={id} className={inputCls} placeholder="First name" value={value.firstName} onChange={set("firstName")}
@@ -98,7 +98,7 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
             </div>
           )}
         </Field>
-        <Field label="Phone / WhatsApp" required>
+        <Field label="Phone / WhatsApp" required name="phone">
           {id => (
             <>
               <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number"

@@ -9,6 +9,7 @@ import { SearchPill, matches } from "@/components/list-ui";
 import { cn } from "@/lib/utils";
 import { Group, NumberField, Row, TextArea, TextField, useSettings } from "../_ui";
 import { CURRENCY_OPTIONS, fmtMoney } from "@/lib/format";
+import { jumpToField } from "@/lib/jump-to-field";
 
 // ─── Payment methods ──────────────────────────────────────────────────────────
 export function PaymentPane() {
@@ -160,7 +161,7 @@ export function CatalogPane() {
 
   async function save() {
     if (!editing) return;
-    if (!editing.form.name.trim()) { setError("Please enter a name"); return; }
+    if (!editing.form.name.trim()) { setError("Please enter a name"); jumpToField(); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(editing.id ? `${API}/service-catalog/${editing.id}` : `${API}/service-catalog`, {

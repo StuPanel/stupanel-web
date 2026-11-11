@@ -8,6 +8,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { FormDrawer } from "@/components/ui/form-kit";
 import { notify } from "@/components/feedback";
+import { jumpToField } from "@/lib/jump-to-field";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -91,8 +92,8 @@ export function ClientDrawer({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.firstName.trim()) { setError("Please write the client's name."); return; }
-    if (!form.phone.trim()) { setError("Please add a phone number — it's how you'll reach them."); return; }
+    if (!form.firstName.trim()) { setError("Please write the client's name."); jumpToField("firstName"); return; }
+    if (!form.phone.trim()) { setError("Please add a phone number — it's how you'll reach them."); jumpToField("phone"); return; }
     setError("");
     setLoading(true);
 

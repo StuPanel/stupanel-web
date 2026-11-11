@@ -21,6 +21,7 @@ import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/component
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 import { askConfirm } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
+import { jumpToField } from "@/lib/jump-to-field";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 const sym = (cur?: string) => currencySymbol(cur || getStudioCurrency());
@@ -281,9 +282,9 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
 
   async function save() {
     const amt = Number(amount);
-    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
-    if (amt > balance) { setError(`That's more than what's still due (${formatCurrency(balance, inv.currency)}).`); return; }
-    if (!walletId) { setError("Pick the account the money went into."); return; }
+    if (!amt || amt <= 0) { setError("Enter a valid amount."); jumpToField("amount"); return; }
+    if (amt > balance) { setError(`That's more than what's still due (${formatCurrency(balance, inv.currency)}).`); jumpToField("amount"); return; }
+    if (!walletId) { setError("Pick the account the money went into."); jumpToField("wallet"); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(`${API}/studio-invoices/${inv.id}/payments`, {
@@ -320,7 +321,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
       {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
 
       <FormGroup>
-        <Field label="Amount" required>{id => (
+        <Field label="Amount" required name="amount">{id => (
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{currencySymbol(inv.currency).trim()}</span>
             <input id={id} type="number" inputMode="decimal" min="0" max={balance} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus
@@ -409,8 +410,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   }
 
   async function save() {
-    if (!selectedClient) { setError("Select a client."); return; }
-    if (items.every(i => !i.name.trim())) { setError("Add at least one item."); return; }
+    if (!selectedClient) { setError("Select a client."); jumpToField("client"); return; }
+    if (items.every(i => !i.name.trim())) { setError("Add at least one item."); jumpToField("items"); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(`${API}/studio-invoices`, {
@@ -487,10 +488,10 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
+              {error && <p role="alert" className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
 
               {/* Client */}
-              <div className="space-y-1.5 relative">
+              <div data-field="client" className="space-y-1.5 relative">
                 <Label className="text-[13px] font-semibold text-[#4A4658]">Client *</Label>
                 {selectedClient ? (
                   <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
@@ -552,7 +553,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               </div>
 
               {/* Items */}
-              <div className="space-y-2">
+              <div data-field="items" className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-[13px] font-semibold text-[#4A4658]">Line Items *</Label>
                   <div className="flex gap-2">

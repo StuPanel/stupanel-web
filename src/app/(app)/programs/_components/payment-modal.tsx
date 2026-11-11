@@ -10,6 +10,7 @@ import { PAYMENT_METHODS } from "./constants";
 import type { Booking } from "./types";
 import { currencyPad, currencySymbol, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { AccountPicker } from "@/components/account-picker";
+import { jumpToField } from "@/lib/jump-to-field";
 
 export function PaymentModal({ booking, onClose, onSaved }: {
   booking: Booking | null;
@@ -41,8 +42,8 @@ export function PaymentModal({ booking, onClose, onSaved }: {
 
   async function submit() {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
-    if (!walletId) { setError("Pick the account the money went into."); return; }
+    if (!amt || amt <= 0) { setError("Enter a valid amount."); jumpToField("amount"); return; }
+    if (!walletId) { setError("Pick the account the money went into."); jumpToField("wallet"); return; }
     setError(""); setLoading(true);
     try {
       const r = await apiFetch(`${API}/payments`, {
@@ -85,7 +86,7 @@ export function PaymentModal({ booking, onClose, onSaved }: {
       {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
 
       <FormGroup>
-        <Field label="Amount" required>{id => (
+        <Field label="Amount" required name="amount">{id => (
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{sym}</span>
             <input id={id} type="number" inputMode="decimal" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus

@@ -58,13 +58,15 @@ export function FormGroup({ title, note, children, className }: {
 }
 
 /** One row: label (+hint) over the control. `children` may use the id passed to render. */
-export function Field({ label, hint, required, children, className }: {
+export function Field({ label, hint, required, name, children, className }: {
   label: React.ReactNode; hint?: React.ReactNode; required?: boolean; className?: string;
+  /** Lets a failed save jump here: jumpToField(name). */
+  name?: string;
   children: (id: string) => React.ReactNode;
 }) {
   const id = useId();
   return (
-    <div className={cn("px-4 py-3.5", className)}>
+    <div data-field={name} data-required={required || undefined} className={cn("px-4 py-3.5", className)}>
       <label htmlFor={id} className="block text-[13px] font-semibold text-[#4A4658] mb-1.5">
         {label}{required && <span className="text-[#C2304F]"> *</span>}
       </label>

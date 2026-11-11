@@ -18,6 +18,7 @@ import { RateEditor, SetupEditor, firstLine, gearHasRent, itemsToSetup, linesToR
 import { currencySymbol, currencyPad } from "@/lib/format";
 import { useAuth } from "@/context/auth-context";
 import { AREAS } from "@/lib/access";
+import { jumpToField } from "@/lib/jump-to-field";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -482,7 +483,7 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (pass.length < 6) { setError("Minimum 6 characters."); return; }
+    if (pass.length < 6) { setError("Minimum 6 characters."); jumpToField(); return; }
     setError(""); setLoading(true);
     const r = await apiFetch(`${API}/team/${member!.id}/reset-password`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword: pass }),

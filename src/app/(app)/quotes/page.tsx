@@ -23,6 +23,7 @@ import { API_URL as API } from "@/lib/api";
 import { CURRENCY_OPTIONS, currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
+import { jumpToField } from "@/lib/jump-to-field";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -191,8 +192,8 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
   }
 
   async function save() {
-    if (!selectedClient) { setError("Please select a client."); return; }
-    if (items.every(i => !i.name.trim())) { setError("Add at least one item."); return; }
+    if (!selectedClient) { setError("Please select a client."); jumpToField("client"); return; }
+    if (items.every(i => !i.name.trim())) { setError("Add at least one item."); jumpToField("items"); return; }
     setError(""); setSaving(true);
     try {
       const body = {
@@ -232,10 +233,10 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           </div>
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
+          {error && <p role="alert" className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
 
           {/* Client */}
-          <div className="space-y-1.5 relative">
+          <div data-field="client" className="space-y-1.5 relative">
             <Label className="text-[13px] font-semibold text-[#4A4658]">Client *</Label>
             {selectedClient ? (
               <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
@@ -301,7 +302,7 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           )}
 
           {/* Line Items */}
-          <div className="space-y-2">
+          <div data-field="items" className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[13px] font-semibold text-[#4A4658]">Line Items *</Label>
               <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium">
@@ -614,9 +615,9 @@ function ConfirmBookingDrawer({ quote, onClose, onDone }: { quote: Quote; onClos
   async function save() {
     const amt = Number(amount);
     if (paid) {
-      if (!amt || amt <= 0) { setError("Enter the advance the client paid, or switch it off."); return; }
-      if (amt > total) { setError(`That's more than the quote total (${formatCurrency(total, quote.currency)}).`); return; }
-      if (!walletId) { setError("Pick the account the money went into."); return; }
+      if (!amt || amt <= 0) { setError("Enter the advance the client paid, or switch it off."); jumpToField("advance"); return; }
+      if (amt > total) { setError(`That's more than the quote total (${formatCurrency(total, quote.currency)}).`); jumpToField("advance"); return; }
+      if (!walletId) { setError("Pick the account the money went into."); jumpToField("wallet"); return; }
     }
     setSaving(true); setError("");
     try {
@@ -654,7 +655,7 @@ function ConfirmBookingDrawer({ quote, onClose, onDone }: { quote: Quote; onClos
         <SwitchRow label="The client has paid an advance" on={paid} onChange={setPaid} />
         {paid && (
           <>
-            <Field label="Advance received" required>{id => (
+            <Field label="Advance received" required name="advance">{id => (
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{currencySymbol(quote.currency).trim()}</span>
                 <input id={id} type="number" inputMode="decimal" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0"

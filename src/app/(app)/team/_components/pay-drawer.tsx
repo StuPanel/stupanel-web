@@ -10,6 +10,7 @@ import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit
 import { payoutLine, type Payout } from "@/lib/member-prefs";
 import { askConfirm, notify } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
+import { jumpToField } from "@/lib/jump-to-field";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export interface Member {
@@ -104,8 +105,8 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!(amt > 0)) { setError("Write how much you are paying."); return; }
-    if (!walletId) { setError("Pick the account the money was paid from."); return; }
+    if (!(amt > 0)) { setError("Write how much you are paying."); jumpToField("amount"); return; }
+    if (!walletId) { setError("Pick the account the money was paid from."); jumpToField("wallet"); return; }
     if (!dues?.length) { setError("Nothing is owed on any program. Pay from the program instead."); return; }
     if (Math.abs(splitSum - amt) > 0.009) { setError(`The programs add up to ${formatCurrency(splitSum)}, not ${formatCurrency(amt)}.`); return; }
     const over = amt > total + 0.009 || (dues ?? []).some(p => (split[p.id] ?? 0) > p.due + 0.009);
@@ -142,7 +143,7 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
       <form id="pay-form" onSubmit={submit} noValidate>
         {error && <div role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{error}</div>}
         <FormGroup title="Payment">
-          <Field label="Amount" required>
+          <Field label="Amount" required name="amount">
             {id => (
               <div>
                 <div className="relative">

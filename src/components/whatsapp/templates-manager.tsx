@@ -15,6 +15,7 @@ import { inputCls } from "@/components/ui/form-kit";
 import { askConfirm } from "@/components/feedback";
 import { API_URL as API } from "@/lib/api";
 import { EditableSelect } from "@/components/ui/editable-select";
+import { jumpToField } from "@/lib/jump-to-field";
 
 
 const CATEGORIES: { key: string; label: string; color: string; tile: TileColor }[] = [
@@ -67,8 +68,8 @@ function TemplateForm({ initial, onSave, onCancel }: {
   }
 
   async function save() {
-    if (!name.trim()) { setError("Template name is required."); return; }
-    if (!body.trim()) { setError("Message body is required."); return; }
+    if (!name.trim()) { setError("Template name is required."); jumpToField(); return; }
+    if (!body.trim()) { setError("Message body is required."); jumpToField(); return; }
     setError(""); setLoading(true);
     try {
       const url = initial ? `${API}/wa-templates/${initial.id}` : `${API}/wa-templates`;

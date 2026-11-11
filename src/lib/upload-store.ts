@@ -13,7 +13,7 @@ export interface UploadEntry {
   size?: number;
   sent?: number;
   speed?: number; // bytes/second
-  status?: "queued" | "uploading" | "waiting" | "resuming" | "finishing" | "done" | "error" | "cancelled";
+  status?: "queued" | "uploading" | "waiting" | "resuming" | "finishing" | "done" | "error" | "cancelled" | "paused";
 }
 
 type Listener = (uploads: UploadEntry[]) => void;
@@ -60,6 +60,16 @@ class UploadStore {
     if (fn) { fn(); this.cancels.delete(id); }
     const e = this.map.get(id);
     if (e) { this.map.set(id, { ...e, cancelled: true, error: "Cancelled" }); this.notify(); }
+  }
+
+  /** Mark many uploads cancelled with one screen update (the caller has already stopped them). */
+  cancelMany(ids: string[]) {
+    for (const id of ids) {
+      this.xhrs.delete(id); this.cancels.delete(id);
+      const e = this.map.get(id);
+      if (e && !e.done) this.map.set(id, { ...e, cancelled: true, error: "Cancelled", status: "cancelled" });
+    }
+    this.notify();
   }
 
   clearDone() {

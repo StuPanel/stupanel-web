@@ -121,8 +121,8 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     uploadInto.current = null;
     const folderFor = (f: File) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
-      // Keep the card's own sub-folders (DCIM/100CANON…), minus the picked folder itself.
-      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(clean).filter(Boolean) : [];
+      // Keep the picked folder itself ("Clip") and the card's own sub-folders (DCIM/100CANON…).
+      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(0, -1).map(clean).filter(Boolean) : [];
       return [...target, ...sub].join("/") || undefined;
     };
     const total = files.reduce((s, f) => s + f.size, 0);

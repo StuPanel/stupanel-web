@@ -72,7 +72,7 @@ export function MemberRawUpload({ bookingId, bookingNumber }: { bookingId: strin
     const files = Array.from(list);
     const folderFor = (f: File) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
-      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(clean).filter(Boolean) : [];
+      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(0, -1).map(clean).filter(Boolean) : [];
       // "Add to this folder" in the browser → that folder (server keeps it inside my own folder).
       if (into != null) {
         const segs = into.split("/").filter(Boolean);

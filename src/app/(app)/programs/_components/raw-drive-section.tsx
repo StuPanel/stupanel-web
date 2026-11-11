@@ -289,7 +289,9 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(d?.message || `Couldn't link the folder (${email})`, { error: true }); return; }
       setData(cur => cur ? { ...cur, links: d.links ?? cur.links, backup: d.backup ?? cur.backup } : cur);
-      notify(`Linked "${d.link?.label ?? folder.name}"${d.sharedWith ? ` · shared with ${d.sharedWith} editor${d.sharedWith === 1 ? "" : "s"}` : ""}`);
+      if (d.shareError) notify(`Linked "${d.link?.label ?? folder.name}", but Google did not share it with the editor: ${d.shareError}`, { error: true });
+      else notify(`Linked "${d.link?.label ?? folder.name}"${d.sharedWith ? ` · shared with ${d.sharedWith} editor${d.sharedWith === 1 ? "" : "s"}` : ""}`);
+      if (d.shareError) console.warn("[raw] linked folder share error:", d.shareError);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Couldn't open Google Drive", { error: true });
     } finally { setLinking(null); }

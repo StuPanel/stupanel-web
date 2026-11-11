@@ -8,13 +8,12 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, Save, Lock, Eye, EyeOff, CheckCircle,
-  Phone, FileText, ShieldCheck, Mail, Crown,
+  Loader2, Save, Eye, EyeOff, CheckCircle,
+  ShieldCheck, Mail, Crown,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CARD_SHADOW } from "@/components/ui/apple";
+import { inputCls } from "@/components/ui/form-kit";
 import { API_URL as API } from "@/lib/api";
 
 
@@ -125,161 +124,97 @@ export function MyProfile({ embedded = false }: { embedded?: boolean }) {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+      <Loader2 className="w-7 h-7 animate-spin text-[#7D5CEF]" aria-label="Loading" />
     </div>
   );
 
   const initials = ((profile?.firstName?.[0] ?? "") + (profile?.lastName?.[0] ?? "")).toUpperCase() || "A";
 
+  const lbl = "block text-[13px] font-semibold text-[#4A4658] mb-1.5";
+  const card = cn("bg-white rounded-[20px]", CARD_SHADOW);
+  const eye = (on: boolean, set: (f: (p: boolean) => boolean) => void, what: string) => (
+    <button type="button" onClick={() => set(p => !p)} aria-label={on ? `Hide ${what}` : `Show ${what}`}
+      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#EEEBF4]">
+      {on ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+    </button>
+  );
+  const mismatch = !!confirmPw && newPw !== confirmPw;
+
   return (
     <div className="space-y-6">
       {!embedded && <PageHeader icon={HeaderIcon} color="deep" title="My Account" sub="Your profile and password" />}
 
-      {/* Identity card */}
-      <div className="flex items-center gap-4 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5">
-        <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-xl text-white flex-shrink-0">
-          {initials}
-        </div>
+      <section className={cn(card, "p-5 flex items-center gap-4")}>
+        {profile?.avatarUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={profile.avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover ring-2 ring-white flex-shrink-0" />
+          : <span className="w-16 h-16 rounded-full bg-gradient-to-br from-[#8E72F2] to-[#5B3FD0] text-white text-[22px] font-bold flex items-center justify-center ring-2 ring-white flex-shrink-0">{initials}</span>}
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-[#17151F] text-base">{profile?.firstName} {profile?.lastName ?? ""}</p>
-            {profile?.isOwner && (
-              <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
-                <Crown className="w-3 h-3" />Owner
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-[#6B6680] flex items-center gap-1 mt-0.5 truncate">
-            <Mail className="w-3.5 h-3.5 flex-shrink-0" />{profile?.email}
+          <p className="text-[18px] font-extrabold tracking-[-0.01em] text-[#17151F] flex items-center gap-2 flex-wrap">
+            {profile?.firstName} {profile?.lastName ?? ""}
+            {profile?.isOwner && <span className="h-6 px-2.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold inline-flex items-center gap-1"><Crown className="w-3.5 h-3.5" />Owner</span>}
           </p>
-          <p className="text-xs text-[#6B6680] capitalize mt-0.5">{profile?.role}</p>
+          <p className="text-[13.5px] text-[#6B6680] flex items-center gap-1.5 mt-0.5 min-w-0"><Mail className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate">{profile?.email}</span></p>
+          {!profile?.isOwner && <p className="text-[12.5px] text-[#6B6680] capitalize mt-0.5">{profile?.role}</p>}
         </div>
-      </div>
+      </section>
 
-      {/* Personal info */}
-      <form onSubmit={saveProfile} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5 space-y-4">
-        <p className="text-sm font-bold text-slate-800">Personal Info</p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">First Name *</Label>
-            <Input value={firstName} onChange={e => setFirstName(e.target.value)}
-              placeholder="Md Faisal" required className="h-9 text-sm" />
+      <section>
+        <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">About you</h2>
+        <form onSubmit={saveProfile} className={cn(card, "p-4 sm:p-5 space-y-4")}>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block"><span className={lbl}>First name <span className="text-[#C2304F]">*</span></span>
+              <input value={firstName} onChange={e => setFirstName(e.target.value)} required autoComplete="given-name" className={inputCls} /></label>
+            <label className="block"><span className={lbl}>Last name</span>
+              <input value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="family-name" className={inputCls} /></label>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Last Name</Label>
-            <Input value={lastName} onChange={e => setLastName(e.target.value)}
-              placeholder="Ahmed" className="h-9 text-sm" />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Phone</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
-            <Input value={phone} onChange={e => setPhone(e.target.value)}
-              placeholder="Phone number" className="h-9 text-sm pl-9" />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Bio</Label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#6B6680]" />
-            <textarea value={bio} onChange={e => setBio(e.target.value)}
-              placeholder="Studio owner, photographer..."
-              rows={2}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none" />
-          </div>
-        </div>
-
-        {saveErr && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{saveErr}</p>
-        )}
-
-        <Button type="submit" disabled={saving} className="w-full h-9 text-sm gap-2">
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-           savedOk ? <CheckCircle className="w-3.5 h-3.5" /> :
-           <Save className="w-3.5 h-3.5" />}
-          {savedOk ? "Saved!" : "Save Changes"}
-        </Button>
-      </form>
-
-      {/* Change / set password */}
-      <form onSubmit={changePassword} className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-5 space-y-4">
-        <div>
-          <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-[#6B6680]" />{profile?.hasPassword ? "Change Password" : "Set Password"}
-          </p>
-          {!profile?.hasPassword && (
-            <p className="text-xs text-[#6B6680] mt-1">
-              You signed up with Google and don&apos;t have a password yet — set one so you can also log in with your email.
-            </p>
-          )}
-        </div>
-
-        {profile?.hasPassword && (
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Current Password *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
-              <Input type={showCurrent ? "text" : "password"}
-                value={currentPw} onChange={e => setCurrentPw(e.target.value)}
-                placeholder="Enter current password" required
-                className="h-9 text-sm pl-9 pr-9" />
-              <button type="button" onClick={() => setShowCurrent(p => !p)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6680] hover:text-slate-600">
-                {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">New Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
-            <Input type={showNew ? "text" : "password"}
-              value={newPw} onChange={e => setNewPw(e.target.value)}
-              placeholder="Min. 8 characters" required
-              className="h-9 text-sm pl-9 pr-9" />
-            <button type="button" onClick={() => setShowNew(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6680] hover:text-slate-600">
-              {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          <label className="block"><span className={lbl}>Phone</span>
+            <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="Phone number" className={inputCls} /></label>
+          <label className="block"><span className={lbl}>About</span>
+            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="A line about you (optional)"
+              className={cn(inputCls, "h-auto py-3 resize-none leading-relaxed")} /></label>
+          {saveErr && <p role="alert" className="text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{saveErr}</p>}
+          <div className="flex justify-end">
+            <button type="submit" disabled={saving} className="h-11 px-6 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50 w-full sm:w-auto justify-center">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : savedOk ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              {savedOk ? "Saved" : "Save changes"}
             </button>
           </div>
-        </div>
+        </form>
+      </section>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-600">Confirm New Password *</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
-            <Input type="password"
-              value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-              placeholder="Re-enter new password" required
-              className={cn("h-9 text-sm pl-9",
-                confirmPw && newPw !== confirmPw ? "border-red-300 focus-visible:ring-red-400" : ""
-              )} />
-          </div>
-          {confirmPw && newPw !== confirmPw && (
-            <p className="text-xs text-red-500">Passwords don&apos;t match</p>
+      <section>
+        <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">{profile?.hasPassword ? "Password" : "Set a password"}</h2>
+        <form onSubmit={changePassword} className={cn(card, "p-4 sm:p-5 space-y-4")}>
+          {!profile?.hasPassword && <p className="text-[13px] text-[#6B6680]">You signed up with Google. Set a password so you can also sign in with your email.</p>}
+          {profile?.hasPassword && (
+            <label className="block"><span className={lbl}>Current password</span>
+              <span className="relative block">
+                <input type={showCurrent ? "text" : "password"} value={currentPw} onChange={e => setCurrentPw(e.target.value)} required autoComplete="current-password" className={cn(inputCls, "pr-12")} />
+                {eye(showCurrent, setShowCurrent, "current password")}
+              </span></label>
           )}
-        </div>
-
-        {pwErr && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{pwErr}</p>
-        )}
-
-        <Button type="submit"
-          disabled={pwSaving || (!!confirmPw && newPw !== confirmPw)}
-          variant="outline"
-          className="w-full h-9 text-sm gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-          {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-           pwOk ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> :
-           <ShieldCheck className="w-3.5 h-3.5" />}
-          {pwOk ? (profile?.hasPassword ? "Password Changed!" : "Password Set!") : (profile?.hasPassword ? "Change Password" : "Set Password")}
-        </Button>
-      </form>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block"><span className={lbl}>New password</span>
+              <span className="relative block">
+                <input type={showNew ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="At least 8 characters" required autoComplete="new-password" className={cn(inputCls, "pr-12")} />
+                {eye(showNew, setShowNew, "new password")}
+              </span></label>
+            <label className="block"><span className={lbl}>Type it again</span>
+              <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required autoComplete="new-password" aria-invalid={mismatch}
+                className={cn(inputCls, mismatch && "border-[#C2304F] focus:border-[#C2304F]")} />
+              {mismatch && <span className="block text-[12.5px] text-[#C2304F] mt-1.5">The two passwords are different</span>}
+            </label>
+          </div>
+          {pwErr && <p role="alert" className="text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{pwErr}</p>}
+          <div className="flex justify-end">
+            <button type="submit" disabled={pwSaving || mismatch} className="h-11 px-6 rounded-full bg-[#17151F] text-white text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50 w-full sm:w-auto justify-center">
+              {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : pwOk ? <CheckCircle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+              {pwOk ? (profile?.hasPassword ? "Password changed" : "Password set") : (profile?.hasPassword ? "Change password" : "Set password")}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

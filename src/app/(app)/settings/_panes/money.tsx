@@ -95,7 +95,7 @@ export function InvoicesPane() {
         </Row>
       </Group>
 
-      <Group title="Numbering" note={<>A program&apos;s invoice uses the program number. Invoices made by hand (album, prints…): <span className="font-mono font-semibold text-[#17151F]">{pfx}-{pad(start)}, {pfx}-{pad(start + 1)}…</span></>}>
+      <Group title="Numbering" note={<>A program&apos;s invoice uses the program number. Invoices made by hand (album, prints…): <span className="font-semibold text-[#17151F] tabular-nums">{pfx}-{pad(start)}, {pfx}-{pad(start + 1)}…</span></>}>
         <Row id="invoicePrefix" label="Prefix" hint="Letters before the number, like INV or SP">
           <TextField label="Invoice prefix" value={data.invoicePrefix ?? "INV"} maxLength={20} mono align="right" onCommit={v => patch({ invoicePrefix: v || "INV" })} />
         </Row>

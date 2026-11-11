@@ -130,7 +130,7 @@ export function ClaimCard({ c, showProgram, onDone }: { c: Claim; showProgram?: 
               </button>
             </>}
           </div>
-          {mode === "" && <p className="text-[12px] text-[#6B6680]">Approve adds it to {c.memberName?.split(" ")[0] ?? "their"} bill on this program — you owe it to them, and the program&apos;s profit goes down.</p>}
+          {mode === "" && <p className="text-[12px] text-[#6B6680]">Approve adds it to {c.memberName?.split(" ")[0] ?? "their"} bill on this program — it becomes due to them, and the program&apos;s profit goes down.</p>}
           {changed && !note.trim() && <p className="text-[12px] text-[#7A4800]">Write why the amount is different — they will see it.</p>}
         </div>
       )}

@@ -220,8 +220,8 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
           {/* What the studio owes them */}
           {(st.totalPrograms > 0 || earned > 0) && <div className={cn(card, "p-5")}>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{owed > 0 ? "You owe" : "Pay"}</p>
-              <p className="text-[12.5px] text-[#6B6680]">{st.totalPrograms} program{st.totalPrograms === 1 ? "" : "s"}{st.thisMonthPrograms ? ` · ${st.thisMonthPrograms} this month` : ""}</p>
+              <p className="min-w-0 truncate text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{owed > 0 ? `Due to ${m.firstName}` : "Pay"}</p>
+              <p className="shrink-0 text-[12.5px] text-[#6B6680]">{st.totalPrograms} program{st.totalPrograms === 1 ? "" : "s"}{st.thisMonthPrograms ? ` · ${st.thisMonthPrograms} this month` : ""}</p>
             </div>
             <p className={cn("text-[30px] font-extrabold tracking-[-0.02em] tabular-nums leading-tight mt-0.5", owed > 0 ? "text-[#C2304F]" : "text-[#17151F]")}>
               {owed > 0 ? formatCurrency(owed) : earned > 0 ? "All settled" : formatCurrency(0)}

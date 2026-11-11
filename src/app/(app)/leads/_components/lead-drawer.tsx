@@ -18,6 +18,7 @@ import {
   type Lead, type LeadStage,
 } from "./lead-kit";
 import { currencySymbol, fmtMoney } from "@/lib/format";
+import { jumpToField } from "@/lib/jump-to-field";
 
 type Form = {
   name: string; phone: string; email: string; eventType: string; eventDates: string[]; venue: string;
@@ -121,8 +122,8 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
   }
 
   async function save(close = true, allowDuplicate = false): Promise<Lead | null> {
-    if (!f.name.trim()) { setError("Please write the name."); return null; }
-    if (f.budget.trim() && isNaN(Number(f.budget))) { setError("Budget should be a number."); return null; }
+    if (!f.name.trim()) { setError("Please write the name."); jumpToField("name"); return null; }
+    if (f.budget.trim() && isNaN(Number(f.budget))) { setError("Budget should be a number."); jumpToField("budget"); return null; }
     setSaving(true); setError(""); setDup(null);
     try {
       const r = await apiFetch(isNew ? `${API}/leads` : `${API}/leads/${l!.id}`, {
@@ -354,7 +355,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
 
       {/* Details */}
       <FormGroup title={isNew ? "Who is asking?" : "Details"}>
-        <Field label="Name" required>{id => <input id={id} value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Nusrat Jahan" className={inputCls} autoFocus={isNew} />}</Field>
+        <Field label="Name" required name="name">{id => <input id={id} value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Nusrat Jahan" className={inputCls} autoFocus={isNew} />}</Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-[#EEEBF4]">
           <Field label="Phone / WhatsApp">{id => <input id={id} value={f.phone} onChange={e => set("phone", e.target.value)} inputMode="tel" placeholder="Phone number" className={inputCls} />}</Field>
           <Field label="Email">{id => <input id={id} value={f.email} onChange={e => set("email", e.target.value)} inputMode="email" placeholder="name@gmail.com" className={inputCls} />}</Field>
@@ -397,7 +398,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
         <DateCheck dates={f.eventDates} />
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-[#EEEBF4]">
           <Field label="Venue">{id => <input id={id} value={f.venue} onChange={e => set("venue", e.target.value)} placeholder="Hall / area" className={inputCls} />}</Field>
-          <Field label={`Budget (${currencySymbol().trim()})`}>{id => <input id={id} value={f.budget} onChange={e => set("budget", e.target.value.replace(/[^\d.]/g, ""))} inputMode="numeric" placeholder="e.g. 60000" className={inputCls} />}</Field>
+          <Field label={`Budget (${currencySymbol().trim()})`} name="budget">{id => <input id={id} value={f.budget} onChange={e => set("budget", e.target.value.replace(/[^\d.]/g, ""))} inputMode="numeric" placeholder="e.g. 60000" className={inputCls} />}</Field>
         </div>
       </FormGroup>
 

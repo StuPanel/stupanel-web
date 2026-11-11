@@ -82,6 +82,7 @@ const PAYMENT_TYPES = [
 
 import { CURRENCY_OPTIONS, currencyPad, currencySymbol, formatCurrency, getStudioCurrency, localDateStr, fmtDate } from "@/lib/format";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { jumpToField } from "@/lib/jump-to-field";
 function fmt(n: number, cur?: string) { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return localDateStr(); }
@@ -159,9 +160,9 @@ function PaymentDrawer({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.bookingId) { setError("Please select a booking."); return; }
-    if (!form.amount || parseFloat(form.amount) <= 0) { setError("Amount must be greater than 0."); return; }
-    if (!form.walletId) { setError("Pick the account the money went into."); return; }
+    if (!form.bookingId) { setError("Please select a booking."); jumpToField("booking"); return; }
+    if (!form.amount || parseFloat(form.amount) <= 0) { setError("Amount must be greater than 0."); jumpToField("amount"); return; }
+    if (!form.walletId) { setError("Pick the account the money went into."); jumpToField("wallet"); return; }
     setError("");
     setLoading(true);
 
@@ -216,7 +217,7 @@ function PaymentDrawer({
         {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
 
         <FormGroup>
-          <Field label="Program" required>{id => (
+          <Field label="Program" required name="booking">{id => (
             <select id={id} value={form.bookingId} onChange={handleBookingChange} className={inputCls}>
               <option value="">Choose a program…</option>
               {bookings.map(b => (
@@ -244,7 +245,7 @@ function PaymentDrawer({
 
         <FormGroup>
           <div className="grid grid-cols-[1fr_auto]">
-            <Field label="Amount" required className="min-w-0">{id => (
+            <Field label="Amount" required name="amount" className="min-w-0">{id => (
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{sym}</span>
                 <input id={id} type="number" inputMode="decimal" min="0" step="0.01" placeholder="0" value={form.amount} onChange={set("amount")}

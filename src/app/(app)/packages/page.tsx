@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { CURRENCY_OPTIONS, currencySymbol, formatCurrency, getStudioCurrency } from "@/lib/format";
 import { matches } from "@/components/list-ui";
 import { TEAM_ROLES } from "../team/_components/rate-card";
+import { jumpToField } from "@/lib/jump-to-field";
 
 interface StaffingLine { role: string; level?: string; count: number; }
 
@@ -128,7 +129,7 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
   }
 
   async function save() {
-    if (!f.name.trim()) { setError("Give the package a name."); return; }
+    if (!f.name.trim()) { setError("Give the package a name."); jumpToField(); return; }
     for (const [k, label] of [["basePrice", "Price"], ["deliveryDays", "Delivery days"], ["durationHours", "Hours"], ["durationDays", "Days"], ["photoEditCount", "Edited photos"], ["trailerCount", "Trailers"], ["fullVideoCount", "Full videos"]] as const) {
       const v = f[k] as string;
       if (v.trim() && (isNaN(Number(v)) || Number(v) < 0)) { setError(`${label} should be a number.`); return; }

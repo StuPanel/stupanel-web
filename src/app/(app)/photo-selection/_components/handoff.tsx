@@ -18,6 +18,7 @@ import { CARD_SHADOW, Initial, Tile, type TileColor } from "@/components/ui/appl
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { isPicked, type GalleryDetail, type Handoff } from "@/lib/photos";
 import { canSortLocally, pickFolder, sortLocally, type SortProgress, type SortResult } from "@/lib/local-sort";
+import { jumpToField } from "@/lib/jump-to-field";
 
 const errText = (d: { message?: string | string[] }, f: string) => (Array.isArray(d.message) ? d.message[0] : d.message) || f;
 const STATUS_TEXT: Record<string, string> = {
@@ -248,7 +249,7 @@ function DesignerDrawer({ g, current, pickedCount, onClose, onSaved }: {
   }, []);
 
   async function save() {
-    if (!userId) { setError("Choose who designs the album."); return; }
+    if (!userId) { setError("Choose who designs the album."); jumpToField(); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(`${API}/photo-selection/${g.id}/designer`, {

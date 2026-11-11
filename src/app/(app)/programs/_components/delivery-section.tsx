@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "./constants";
 import type { Booking } from "./types";
+import { jumpToField } from "@/lib/jump-to-field";
 
 export function DeliverySection({ booking, r2Enabled, onRefresh }: {
   booking: Booking;
@@ -33,7 +34,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
   const r2InputRef = useRef<HTMLInputElement>(null);
 
   async function saveLink() {
-    if (!link.trim()) { setError("Drive link is required."); return; }
+    if (!link.trim()) { setError("Drive link is required."); jumpToField(); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(`${API}/bookings/${booking.id}/delivery`, {

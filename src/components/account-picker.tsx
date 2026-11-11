@@ -71,7 +71,7 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
   }, [list, method]);
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div data-field="wallet" className={cn("space-y-1.5", className)}>
       <p className="text-xs font-medium text-[#4A4658] flex items-center gap-1"><Landmark className="w-3.5 h-3.5" />{label} *</p>
       {list.length === 0 ? (
         <div className="h-10 rounded-lg bg-[#F1EFF6] animate-pulse" />

@@ -13,6 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, X } from "lucide-react";
+import { jumpToField } from "@/lib/jump-to-field";
 
 type Toast = { id: number; text: string; error: boolean };
 type Ask = {
@@ -36,6 +37,7 @@ let seq = 0;
 
 export function notify(text: string, opts?: { error?: boolean }) {
   const t = { id: ++seq, text, error: !!opts?.error };
+  if (t.error) jumpToField(undefined, { toMessage: false }); // an empty required field in the open form, if any
   if (pushToast) pushToast(t);
   else if (typeof window !== "undefined") window.alert(text); // host not mounted yet
 }

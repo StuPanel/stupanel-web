@@ -157,7 +157,7 @@ function withAccount(url: string, email?: string | null) {
   try { const u = new URL(url); u.searchParams.set("authuser", email); return u.toString(); } catch { return url; }
 }
 
-type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string }[]; folderUrl?: string | null; folders?: { url: string; email: string; label?: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
+type EditorStatus = { isEditor: boolean; hasFolder?: boolean; links?: { id: string; url: string; label: string; folder?: boolean }[]; folderUrl?: string | null; folders?: { url: string; email: string; label?: string }[]; sharedEmail?: string | null; defaultEmail?: string | null };
 
 /**
  * For an editor on this program: open the program's raw folder on Google Drive (view + download).
@@ -219,12 +219,17 @@ export function EditorRawAccess({ bookingId }: { bookingId: string }) {
                 <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || "Raw files link"}</span>
-                  <span className="block text-[11px] text-[#6B6680] truncate">{l.url}</span>
+                  <span className="block text-[11px] text-[#6B6680] truncate">{l.folder ? "Raw files folder on the studio's Drive" : l.url}</span>
                 </span>
                 <ExternalLink className="w-3.5 h-3.5 text-[#8A8599]" />
               </a>
             ))}
           </div>
+        )}
+        {st.links?.some(l => l.folder) && (
+          <p className="text-[12px] text-[#6B6680]">
+            If Drive says &quot;You need access&quot;, ask the studio to share that folder with <b className="text-[#17151F]">{st.sharedEmail || st.defaultEmail || "your Google email"}</b>.
+          </p>
         )}
         {!st.hasFolder ? (
           !st.links?.length && <p className="text-sm text-[#6B6680]">The studio hasn&apos;t added raw files for this program yet.</p>

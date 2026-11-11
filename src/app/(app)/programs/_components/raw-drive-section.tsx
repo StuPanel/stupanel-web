@@ -289,9 +289,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(d?.message || `Couldn't link the folder (${email})`, { error: true }); return; }
       setData(cur => cur ? { ...cur, links: d.links ?? cur.links, backup: d.backup ?? cur.backup } : cur);
-      if (d.shareError) notify(`Linked "${d.link?.label ?? folder.name}", but Google did not share it with the editor: ${d.shareError}`, { error: true });
-      else notify(`Linked "${d.link?.label ?? folder.name}"${d.sharedWith ? ` · shared with ${d.sharedWith} editor${d.sharedWith === 1 ? "" : "s"}` : ""}`);
-      if (d.shareError) console.warn("[raw] linked folder share error:", d.shareError);
+      notify(`Linked "${d.link?.label ?? folder.name}"`);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Couldn't open Google Drive", { error: true });
     } finally { setLinking(null); }
@@ -585,6 +583,22 @@ function RawLinks({ bookingId, links, onSaved, canPick, picking, onPick }: {
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Google does not let StuPanel share a folder it did not make. For each linked folder we ask
+  // which of the program's editors can't open it yet, so the studio can share it in Drive.
+  type Access = { editors: { userId: string; name: string; email: string }[]; links: { id: string; checked: boolean; anyone: boolean; missing: string[] }[] };
+  const [access, setAccess] = useState<Access | null>(null);
+  const [checking, setChecking] = useState(false);
+  const folderIds = links.filter(l => l.folder).map(l => l.id).join(",");
+  const checkAccess = useCallback(() => {
+    if (!folderIds) { setAccess(null); return; }
+    setChecking(true);
+    apiFetch(`${API}/google-drive/raw/${bookingId}/link-access`)
+      .then(r => (r.ok ? r.json() : null)).then((d: Access | null) => setAccess(d)).catch(() => {})
+      .finally(() => setChecking(false));
+  }, [bookingId, folderIds]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { checkAccess(); }, [checkAccess]);
+
   async function save(next: { id?: string; url: string; label?: string }[]) {
     setBusy(true);
     try {
@@ -606,7 +620,7 @@ function RawLinks({ bookingId, links, onSaved, canPick, picking, onPick }: {
   }
   async function remove(l: RawLink) {
     const ok = await askConfirm(l.folder
-      ? { title: `Unlink "${l.label}"?`, message: "Only the connection is removed. The folder and its files stay on your Drive. Editors lose the access StuPanel gave them to it.", confirmLabel: "Unlink", danger: true }
+      ? { title: `Unlink "${l.label}"?`, message: "Only the connection is removed. The folder, its files and who it is shared with stay as they are on your Drive.", confirmLabel: "Unlink", danger: true }
       : { title: "Remove this link?", message: "Only the link is removed from StuPanel — the files on Drive are not touched.", confirmLabel: "Remove", danger: true });
     if (ok && await save(links.filter(x => x.id !== l.id))) notify(l.folder ? "Folder unlinked" : "Link removed");
   }
@@ -614,22 +628,49 @@ function RawLinks({ bookingId, links, onSaved, canPick, picking, onPick }: {
 
   return (
     <div className="space-y-2">
-      <p className="text-[12.5px] text-[#6B6680]">Files that are already on Google Drive (for example synced from your PC) don&apos;t need uploading — point StuPanel at the folder. Editors of this program get it too.</p>
-      {links.map(l => (
-        <div key={l.id} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
-          {l.folder ? <Cloud className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" /> : <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />}
-          <a href={l.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || host(l.url)}</span>
-            <span className="block text-[11px] text-[#6B6680] truncate">
-              {l.folder ? ["Linked Drive folder", [l.part, l.who].filter(Boolean).join(" · ") || "whole program", l.email].filter(Boolean).join(" · ") : l.url}
-            </span>
-          </a>
-          <button type="button" onClick={() => remove(l)} disabled={busy} title={l.folder ? "Unlink folder" : "Remove link"} aria-label={l.folder ? `Unlink ${l.label}` : "Remove link"}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
+      <p className="text-[12.5px] text-[#6B6680]">Files that are already on Google Drive (for example synced from your PC) don&apos;t need uploading — point StuPanel at the folder.</p>
+      {links.map(l => {
+        const acc = l.folder ? access?.links.find(x => x.id === l.id) : undefined;
+        const need = acc && access!.editors.length > 0 && (acc.missing.length > 0 || !acc.checked);
+        const emails = (acc?.missing ?? []).filter(m => m.includes("@"));
+        return (
+          <div key={l.id} className="rounded-xl bg-[#F7F5FB]">
+            <div className="flex items-center gap-2 px-3 py-2">
+              {l.folder ? <Cloud className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" /> : <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />}
+              <a href={l.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || host(l.url)}</span>
+                <span className="block text-[11px] text-[#6B6680] truncate">
+                  {l.folder ? ["Linked Drive folder", [l.part, l.who].filter(Boolean).join(" · ") || "whole program", l.email].filter(Boolean).join(" · ") : l.url}
+                </span>
+              </a>
+              <button type="button" onClick={() => remove(l)} disabled={busy} title={l.folder ? "Unlink folder" : "Remove link"} aria-label={l.folder ? `Unlink ${l.label}` : "Remove link"}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+            {acc && access!.editors.length > 0 && !need && (
+              <p className="px-3 pb-2 -mt-0.5 text-[11.5px] font-semibold text-[#1F8A5B] inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />{acc.anyone ? "Anyone with the link can open it" : "Your editors can open it"}</p>
+            )}
+            {need && (
+              <div className="mx-2 mb-2 rounded-[10px] bg-[#FFF3E0] px-3 py-2.5" role="status">
+                <p className="text-[12.5px] font-semibold text-[#7A4800]">{acc!.checked ? "Your editor can't open this folder yet" : "Check that your editor can open this folder"}</p>
+                <p className="text-[12px] text-[#7A4800] mt-0.5">Google only lets you share your own folders. Open it in Drive, press <b>Share</b> and add:</p>
+                <p className="text-[12.5px] font-semibold text-[#17151F] mt-1 break-words">{acc!.missing.join(", ")}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-8 px-3 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" />Open in Drive</a>
+                  {emails.length > 0 && (
+                    <button type="button" onClick={() => { navigator.clipboard?.writeText(emails.join(", ")).then(() => notify(emails.length === 1 ? "Email copied" : "Emails copied")).catch(() => notify("Couldn't copy", { error: true })); }}
+                      className="h-8 px-3 rounded-full bg-white text-[#17151F] text-[12px] font-semibold inline-flex items-center gap-1.5 border border-[#E6E2EE]">Copy email{emails.length === 1 ? "" : "s"}</button>
+                  )}
+                  <button type="button" onClick={checkAccess} disabled={checking} className="h-8 px-3 rounded-full bg-white text-[#17151F] text-[12px] font-semibold inline-flex items-center gap-1.5 border border-[#E6E2EE] disabled:opacity-60">
+                    <RefreshCw className={cn("w-3.5 h-3.5", checking && "animate-spin")} />I shared it — check again
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
       {adding ? (
         <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
           <input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" aria-label="Link"

@@ -231,8 +231,10 @@ function RoleRates({ role: r, lines, onChange, workTypes, fallback }: {
                     <span className={cn("block text-[12px] truncate", l.workType ? "text-[#5B3FD0] font-semibold" : "text-[#6B6680]")}>{typeName(l.workType)}</span>
                   </span>
                   <span className="text-right flex-shrink-0 leading-tight">
-                    {l.rate.trim() !== "" && <span className="block text-[13.5px] font-bold text-[#17151F] tabular-nums">{fmtNum(l.rate)}</span>}
-                    {!editor && l.withSetup.trim() !== "" && <span className="block text-[12px] font-semibold text-[#5B3FD0] tabular-nums">{fmtNum(l.withSetup)} with setup</span>}
+                    {!editor && l.withSetup.trim() !== "" ? (<>
+                      <span className="block text-[13.5px] font-bold text-[#17151F] tabular-nums">{fmtNum(l.withSetup)}<span className="text-[11.5px] font-medium text-[#6B6680]"> with setup</span></span>
+                      {l.rate.trim() !== "" && <span className="block text-[12px] font-semibold text-[#6B6680] tabular-nums">{fmtNum(l.rate)} work only</span>}
+                    </>) : l.rate.trim() !== "" && <span className="block text-[13.5px] font-bold text-[#17151F] tabular-nums">{fmtNum(l.rate)}</span>}
                   </span>
                 </button>
                 <button type="button" onClick={() => onChange(lines.filter(x => x.id !== l.id))} aria-label={`Remove ${unitLabel(r.id, l.unit, l.label)} · ${typeName(l.workType)}`}

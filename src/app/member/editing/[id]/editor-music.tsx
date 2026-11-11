@@ -1,29 +1,28 @@
 "use client";
 
 /** The client's chosen songs, for the editor of this program. */
-import { useEffect, useState } from "react";
-import { ExternalLink, Music2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Section, card } from "@/components/ui/profile-page";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import type { MusicPart, MusicPick } from "@/lib/music";
 
 type Data = { status: string; submittedAt: string | null; clientNote: string | null; parts: (MusicPart & { songs: MusicPick[] })[] };
 
-export function EditorMusic({ assignmentId }: { assignmentId: string }) {
+/** `onLoaded` tells the page whether the client picked any songs. */
+export function EditorMusic({ assignmentId, onLoaded }: { assignmentId: string; onLoaded?: (has: boolean) => void }) {
   const [d, setD] = useState<Data | null>(null);
+  const cb = useRef(onLoaded);
+  useEffect(() => { cb.current = onLoaded; });
   useEffect(() => {
-    apiFetch(`${API}/member/editing/${assignmentId}/music`).then(r => (r.ok ? r.text() : "")).then(t => { try { setD(t ? JSON.parse(t) : null); } catch { setD(null); } }).catch(() => {});
+    apiFetch(`${API}/member/editing/${assignmentId}/music`).then(r => (r.ok ? r.text() : "")).then(t => { let v: Data | null = null; try { v = t ? JSON.parse(t) : null; } catch { v = null; } setD(v); cb.current?.(!!v?.parts?.length); }).catch(() => cb.current?.(false));
   }, [assignmentId]);
   if (!d || !d.parts.length) return null;
   const final = d.status === "submitted";
   return (
-    <div className="min-w-0 bg-white rounded-[20px] p-4 sp-card shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-9 h-9 rounded-[12px] bg-[#F7E6F3] flex items-center justify-center"><Music2 className="w-4 h-4 text-[#9E3A8C]" /></span>
-        <div>
-          <p className="text-[15px] font-bold text-[#17151F]">Client&apos;s songs</p>
-          <p className="text-[12.5px] text-[#6B6680]">{final ? "Final list from the client. 1 = first choice." : "The client is still choosing — this can change."}</p>
-        </div>
-      </div>
+    <Section title="Client's songs" action={<span className="text-[12.5px] text-[#6B6680] text-right">{final ? "Final list · 1 = first choice" : "Still choosing — can change"}</span>}>
+    <div className={cn(card, "p-4 sm:p-5 min-w-0")}>
       <div className="space-y-3">
         {d.parts.map(p => (
           <div key={p.key}>
@@ -49,5 +48,6 @@ export function EditorMusic({ assignmentId }: { assignmentId: string }) {
         {d.clientNote && <p className="text-[13px] text-[#4A4658]"><b className="text-[#17151F]">Client&apos;s note:</b> {d.clientNote}</p>}
       </div>
     </div>
+    </Section>
   );
 }

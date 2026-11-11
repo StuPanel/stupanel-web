@@ -125,6 +125,20 @@ export function TabBar<T extends string>({ tabs, value, onChange, label }: {
   );
 }
 
+/**
+ * After a button elsewhere on the page switches the tab, bring the tab area into view
+ * if it is below the screen (on phones the tabs sit under the summary cards).
+ * Give the element `scroll-mt-20` so it stops under the top bar.
+ */
+export function revealPanel(el: HTMLElement | null) {
+  if (!el) return;
+  requestAnimationFrame(() => {
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.5) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+  });
+}
+
 export const MENU_CLS = "bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1";
 export const MENU_ITEM = "w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]";
 

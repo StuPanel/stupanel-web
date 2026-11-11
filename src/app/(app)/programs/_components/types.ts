@@ -90,6 +90,8 @@ export interface BillLine {
   note?: string;
   days?: string[];
   shifts?: number;
+  /** Gear rent: who used it on this program. */
+  users?: string[];
 }
 
 export interface TeamPayment { id: string; amount: number; method: string; date: string; note?: string; walletId?: string; walletName?: string }

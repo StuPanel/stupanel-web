@@ -192,7 +192,9 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
         setup: cleanSetup,
       };
       const body = isEdit
-        ? { ...base, username: freelancer ? undefined : (form.username || undefined) }
+        ? { ...base, username: freelancer ? undefined : (form.username || undefined),
+            // The member edits their own gear too — tell the server what we loaded, so their changes since are kept.
+            setupSeen: (editing?.setup ?? []).map(g => g.id).filter(Boolean) }
         : freelancer
           ? { ...base, memberType: "freelancer" }
           : { ...base, memberType: "staff", username: form.username, password: form.password };

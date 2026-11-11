@@ -35,10 +35,10 @@ export async function pickDriveFolder(title = "Choose the folder with the raw fi
   return new Promise(resolve => {
     const view = new g.picker.DocsView(g.picker.ViewId.FOLDERS)
       .setIncludeFolders(true).setSelectFolderEnabled(true).setMimeTypes("application/vnd.google-apps.folder")
-      .setParent("root");
+      .setParent("root").setLabel("My Drive");
     const shared = new g.picker.DocsView(g.picker.ViewId.FOLDERS)
       .setIncludeFolders(true).setSelectFolderEnabled(true).setMimeTypes("application/vnd.google-apps.folder")
-      .setOwnedByMe(false);
+      .setOwnedByMe(false).setLabel("Shared with me");
     let b = new g.picker.PickerBuilder()
       .setTitle(title)
       .addView(view).addView(shared)

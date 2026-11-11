@@ -8,7 +8,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { SearchPill, matches } from "@/components/list-ui";
 import { cn } from "@/lib/utils";
 import { Group, NumberField, Row, TextArea, TextField, useSettings } from "../_ui";
-import { fmtMoney } from "@/lib/format";
+import { CURRENCY_OPTIONS, fmtMoney } from "@/lib/format";
 
 // ─── Payment methods ──────────────────────────────────────────────────────────
 export function PaymentPane() {
@@ -248,7 +248,7 @@ export function CatalogPane() {
                   <input className={cn(inputCls, "mt-1.5 tabular-nums")} type="number" min={0} value={editing.form.defaultPrice} onChange={e => set("defaultPrice", Number(e.target.value))} /></label>
                 <label className="block"><span className="text-xs font-semibold text-[#4A4658]">Currency</span>
                   <select className={cn(inputCls, "mt-1.5")} value={editing.form.currency} onChange={e => set("currency", e.target.value)}>
-                    {["BDT", "USD", "INR", "GBP", "EUR", "AED"].map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+                    {CURRENCY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}</select></label>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-[#EEEBF4] flex gap-3">

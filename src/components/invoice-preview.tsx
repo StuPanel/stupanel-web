@@ -1,5 +1,6 @@
 "use client";
 
+import { currencySymbol, getStudioCurrency } from "@/lib/format";
 import { useState } from "react";
 import { BRAND, safeLogo } from "@/lib/brand";
 
@@ -75,10 +76,7 @@ function fmt(d?: string | null): string {
   return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
 }
 
-function sym(cur = "BDT"): string {
-  const map: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹", AED:"AED " };
-  return map[cur] ?? (cur + " ");
-}
+const sym = (cur?: string) => currencySymbol(cur || getStudioCurrency());
 
 function money(n: number, s: string): string {
   return `${s}${Number(n).toLocaleString()}`;

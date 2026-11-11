@@ -1,6 +1,7 @@
 "use client";
 
 /** A client's account statement, in the studio's invoice colours and fonts. */
+import { currencySymbol } from "@/lib/format";
 import { BN_FONT, FONTS, PAPER, colorsOf, type InvoiceDesign } from "./design";
 import { docDate, type DocStudio } from "./invoice-document";
 
@@ -14,14 +15,13 @@ export interface StatementData {
   currency: string;
 }
 
-const SYM: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€", GBP: "£", INR: "₹" };
 
 export function StatementDocument({ data, design }: { data: StatementData; design: InvoiceDesign }) {
   const paper = PAPER[design.paper === "pos80" ? "a4" : design.paper];
   const { primary } = colorsOf(design);
   const font = FONTS.find(f => f.id === design.font) ?? FONTS[0];
   const head = { fontFamily: `'${font.head}', '${BN_FONT}', sans-serif`, fontWeight: font.headWeight };
-  const money = (n: number) => `${SYM[data.currency] ?? ""}${Math.round(n).toLocaleString("en-IN")}`;
+  const money = (n: number) => `${currencySymbol(data.currency)}${Math.round(n).toLocaleString("en-IN")}`;
   const ink = "#1D1B24", soft = "#6B6680", line = "#E6E2EE";
   const fs = design.paper === "a5" ? 10.5 : 12;
   const name = `${data.client.firstName} ${data.client.lastName ?? ""}`.trim();

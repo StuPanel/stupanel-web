@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { currencyPad, currencySymbol, fmtDate, formatCurrency, localDateStr } from "@/lib/format";
+import { CURRENCY_OPTIONS, currencyPad, currencySymbol, getStudioCurrency, fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
@@ -23,7 +23,7 @@ import { askConfirm } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
-function sym(cur = "BDT") { return cur === "BDT" ? "৳" : cur === "USD" ? "$" : cur === "EUR" ? "€" : cur === "GBP" ? "£" : cur === "INR" ? "₹" : cur + " "; }
+const sym = (cur?: string) => currencySymbol(cur || getStudioCurrency());
 
 const UNITS = ["service", "hour", "day", "piece", "album", "copy", "session", "package", "item", "GB"];
 const CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album", "Printing", "Other"];
@@ -354,7 +354,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const [clientDropdown, setClientDropdown] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState("");
-  const [currency, setCurrency] = useState("BDT");
+  const [currency, setCurrency] = useState(getStudioCurrency());
   const [issueDate, setIssueDate] = useState(localDateStr());
   const [dueDate, setDueDate] = useState(() => { const d = new Date(); d.setDate(d.getDate()+7); return localDateStr(d); });
   const [items, setItems] = useState<InvoiceItem[]>([{ id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0, total: 0 }]);
@@ -546,7 +546,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
                   <Label className="text-[13px] font-semibold text-[#4A4658]">Currency</Label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
                     className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
-                    {["BDT","USD","INR","GBP"].map(c => <option key={c} value={c}>{c}</option>)}
+                    {CURRENCY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
                   </select>
                 </div>
               </div>

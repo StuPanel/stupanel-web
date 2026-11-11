@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtMoney } from "@/lib/format";
 import { Crown as HeaderIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
 
@@ -33,7 +34,7 @@ const METHOD_LABEL: Record<Method, string> = { bkash: "bKash", nagad: "Nagad", r
 const METHOD_COLOR: Record<Method, string> = { bkash: "#E2136E", nagad: "#EC1C24", rocket: "#8C3494" };
 
 function money(n: number, cur = "BDT") {
-  return `${cur === "BDT" ? "৳" : cur + " "}${n.toLocaleString("en-IN")}`;
+  return fmtMoney(n, cur);
 }
 function fmtDate(d: string | null) {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";

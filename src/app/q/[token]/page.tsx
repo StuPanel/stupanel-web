@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
+import { currencySymbol, fmtDate } from "@/lib/format";
 import { StudioLogo } from "@/components/studio-logo";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 
@@ -73,8 +73,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
   if (loading) return <PublicLoading />;
   if (notFound || !quote) return <PublicMessage icon={AlertTriangle} title="Quote not found" text="This quote link isn't working or was removed. Please ask the studio for a new link." />;
 
-  const SYMS: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" };
-  const sym = SYMS[quote.currency] ?? `${quote.currency} `;
+  const sym = currencySymbol(quote.currency);
   const money = (n: number | string) => `${sym}${Number(n).toLocaleString(quote.currency === "BDT" || quote.currency === "INR" ? "en-IN" : "en-US")}`;
   const sc = STATUS_CFG[quote.status] ?? STATUS_CFG.sent;
   const isExpired = quote.status === "expired";

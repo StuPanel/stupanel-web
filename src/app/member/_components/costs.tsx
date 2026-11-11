@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { Field, FormDrawer, inputCls } from "@/components/ui/form-kit";
 import { Chip, Empty, Section, card, linkBtn, softBtn } from "@/components/ui/profile-page";
-import { CLAIM_CATS, CLAIM_STATUS, catIcon, catLabel, type Claim } from "@/components/team-costs";
+import { CLAIM_CATS, CLAIM_STATUS, CatIcon, catLabel, type Claim } from "@/components/team-costs";
 import { todayStr } from "@/lib/member-prefs";
 
 /** Shrink a phone photo of a receipt: longest side 1600 px, JPG, kept under ~400 KB. */
@@ -102,13 +102,12 @@ export function MyCosts({ bookingId, title = "Costs I paid", canAdd = true, onCh
         <>
           <div className="space-y-2.5">
             {list.map(c => {
-              const Icon = catIcon(c.category);
               const st = CLAIM_STATUS[c.status];
               const editable = c.status !== "approved";
               return (
                 <div key={c.id} className={cn(card, "p-4")}>
                   <div className="flex items-start gap-3">
-                    <span className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Icon className="w-[18px] h-[18px]" /></span>
+                    <span className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><CatIcon v={c.category} className="w-[18px] h-[18px]" /></span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14.5px] font-semibold text-[#17151F] truncate">{catLabel(c.category)}{c.note ? ` · ${c.note}` : ""}</p>
                       <p className="text-[12.5px] text-[#6B6680] truncate">

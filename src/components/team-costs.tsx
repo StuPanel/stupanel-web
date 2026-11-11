@@ -33,6 +33,11 @@ export const CLAIM_CATS: { v: string; l: string; icon: React.ElementType }[] = [
 ];
 export const catLabel = (v: string) => CLAIM_CATS.find(c => c.v === v)?.l ?? "Cost";
 export const catIcon = (v: string) => CLAIM_CATS.find(c => c.v === v)?.icon ?? ReceiptText;
+/** The icon of a cost's kind. */
+export function CatIcon({ v, className }: { v: string; className?: string }) {
+  const I = CLAIM_CATS.find(c => c.v === v)?.icon ?? ReceiptText;
+  return <I className={className} />;
+}
 export const CLAIM_STATUS: Record<Claim["status"], { label: string; tone: "amber" | "green" | "red" }> = {
   pending: { label: "Waiting", tone: "amber" }, approved: { label: "Approved", tone: "green" }, rejected: { label: "Declined", tone: "red" },
 };
@@ -44,7 +49,6 @@ export function ClaimCard({ c, showProgram, onDone }: { c: Claim; showProgram?: 
   const [amount, setAmount] = useState(String(c.amount));
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
-  const Icon = catIcon(c.category);
   const st = CLAIM_STATUS[c.status];
   const changed = mode === "change" && Math.abs(money(amount) - c.amount) > 0.009;
 
@@ -72,7 +76,7 @@ export function ClaimCard({ c, showProgram, onDone }: { c: Claim; showProgram?: 
         <div className="flex-1 min-w-0">
           <p className="text-[14.5px] font-semibold text-[#17151F] truncate">{c.memberName ?? "Team member"}</p>
           <p className="text-[12.5px] text-[#6B6680] truncate flex items-center gap-1">
-            <Icon className="w-3.5 h-3.5 flex-shrink-0" />{catLabel(c.category)}{c.spentOn ? ` · ${fmtDate(c.spentOn)}` : ""}
+            <CatIcon v={c.category} className="w-3.5 h-3.5 flex-shrink-0" />{catLabel(c.category)}{c.spentOn ? ` · ${fmtDate(c.spentOn)}` : ""}
             {showProgram && c.program ? <> · <Link href={`/programs/${c.program.id}?tab=money`} className="font-semibold text-[#5B3FD0] hover:underline truncate">{c.program.eventName || c.program.bookingNumber}</Link></> : null}
           </p>
         </div>

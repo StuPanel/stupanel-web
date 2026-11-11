@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import type { Booking } from "./types";
+import { waNumber } from "@/lib/phone";
 
 interface WaTemplate { id: string; name: string; category: string; body: string; }
 
@@ -53,9 +54,7 @@ export function WhatsAppModal({ booking, onClose, preferCategory }: {
   function sendWA() {
     const msg = mode === "template" ? preview : customMsg;
     if (!msg.trim()) return;
-    const num = phone.replace(/\D/g, "");
-    const bd = num.startsWith("0") ? "88" + num : num.startsWith("880") ? num : num;
-    window.open(`https://wa.me/${bd}?text=${encodeURIComponent(msg)}`, "_blank");
+    window.open(`https://wa.me/${waNumber(phone) ?? ""}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   if (!booking) return null;

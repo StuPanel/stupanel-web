@@ -8,7 +8,7 @@ import { setPortalSession, waLink } from "@/lib/portal-session";
 
 export type PortalMeta = {
   active: boolean;
-  studio: { name: string; logoUrl?: string | null; whatsapp?: string | null };
+  studio: { name: string; logoUrl?: string | null; whatsapp?: string | null; country?: string | null };
 };
 
 /**

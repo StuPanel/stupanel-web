@@ -13,6 +13,7 @@ import { fmtDate, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StatusBadge, Spinner } from "../../_components/kit";
 import { EditorRawAccess, MemberRawUpload } from "../../_components/raw-upload";
+import { waNumber } from "@/lib/phone";
 
 type ProgramHub = {
   id: string;
@@ -71,9 +72,7 @@ const ASSIGNMENT_STATUS: Record<string, { label: string; cls: string }> = {
 
 
 function wa(phone: string) {
-  const clean = phone.replace(/\D/g, "");
-  const num = clean.startsWith("0") ? "88" + clean : clean.startsWith("88") ? clean : clean;
-  return `https://wa.me/${num}`;
+  return `https://wa.me/${waNumber(phone) ?? ""}`;
 }
 
 export default function ProgramHubPage() {

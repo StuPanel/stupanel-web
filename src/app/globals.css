@@ -486,3 +486,16 @@ html:not([data-backdrop="plain"]) .sp-shell main :where([class~="bg-white"]):whe
 /* Documents a client reads (quote, contract) stay solid white paper on the glass backdrop */
 .sp-paper { background-color: #fff; box-shadow: 0 1px 2px rgba(22, 18, 40, .05), 0 24px 60px -24px rgba(40, 28, 96, .32); }
 @media print { .sp-paper { box-shadow: none; } }
+
+/* Older big forms (quote and invoice editors): same soft fields as FormDrawer.
+   Scoped to .sp-form and on purpose outside @layer so it wins over the per-field classes. */
+.sp-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), select, textarea) {
+  background-color: #F5F3FA; border-color: transparent; border-radius: 12px; color: #17151F;
+  transition: background-color .15s, border-color .15s, box-shadow .15s;
+}
+.sp-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), select, textarea):focus {
+  background-color: #fff; border-color: #7D5CEF; box-shadow: 0 0 0 4px rgba(125, 92, 239, .12); outline: none;
+}
+.sp-form :is(input, textarea)::placeholder { color: #A29DB3; }
+.sp-form :is(input, select) { min-width: 0; }
+.sp-form :is([class*="bg-[#F7F5FB]"], [class*="bg-[#F7F4FE]"], [class*="bg-[#F5F3FA]"]) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { background-color: #fff !important; }

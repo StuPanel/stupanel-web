@@ -17,7 +17,32 @@ import { inputCls } from "@/components/ui/form-kit";
 import { currencySymbol, currencyPad } from "@/lib/format";
 
 export type RateLine = { id: string; roleId: string; unit: string; rate: string; withSetup: string; workType: string; label: string };
-export type SetupItem = { id: string; category: string; name: string; rent: string; rentUnit: string };
+/** A piece of gear in the editor: one rent box per unit (shift / day / program). */
+export type SetupItem = { id: string; category: string; name: string; rents: Record<string, string> };
+/** A saved piece of gear (API shape). `rent` + `rentUnit` = the main price; `rents` = every unit that has a price. */
+export type SavedGear = { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> };
+export const RENT_UNITS = [{ v: "per_shift", l: "Per shift", s: "shift" }, { v: "per_day", l: "Per day", s: "day" }, { v: "per_program", l: "Per program", s: "program" }] as const;
+
+/** Every rent a piece of gear has, in unit order. Old gear has a single rent. */
+export function gearRents(g: Pick<SavedGear, "rent" | "rentUnit" | "rents">): { unit: string; short: string; amount: number }[] {
+  const map: Record<string, number> = g.rents && Object.keys(g.rents).length ? g.rents : (Number(g.rent) > 0 ? { [g.rentUnit || "per_shift"]: Number(g.rent) } : {});
+  return RENT_UNITS.filter(u => Number(map[u.v]) > 0).map(u => ({ unit: u.v, short: u.s, amount: Number(map[u.v]) }));
+}
+export function setupToItems(setup: SavedGear[] | undefined | null): SetupItem[] {
+  return Array.isArray(setup) ? setup.map(g => ({
+    id: g.id || uid(), category: g.category, name: g.name,
+    rents: Object.fromEntries(gearRents(g).map(r => [r.unit, String(r.amount)])),
+  })) : [];
+}
+export function itemsToSetup(items: SetupItem[]): SavedGear[] {
+  return items.filter(g => g.name.trim()).map(g => {
+    const rents: Record<string, number> = {};
+    for (const u of RENT_UNITS) { const n = parseFloat(g.rents[u.v] ?? ""); if (n > 0) rents[u.v] = n; }
+    const main = RENT_UNITS.find(u => rents[u.v] != null)?.v ?? "per_shift";
+    return { id: g.id, category: g.category, name: g.name.trim(), rent: rents[main] ?? 0, rentUnit: main, rents };
+  });
+}
+export const gearHasRent = (g: SetupItem) => RENT_UNITS.some(u => (g.rents[u.v] ?? "").trim() !== "");
 export type RoleInfo = { id: string; label: string; icon: React.ElementType; tile: string };
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -250,11 +275,10 @@ export const SETUP_CATS: { v: string; l: string; icon: React.ElementType; tile: 
   { v: "kit", l: "Full kits", icon: Package, tile: "violet", ph: "e.g. Photo kit: body + 2 lenses + light" },
   { v: "other", l: "Other", icon: Box, tile: "ink", ph: "e.g. Monitor, tripod" },
 ];
-const RENT_UNITS = [{ v: "per_shift", l: "per shift" }, { v: "per_day", l: "per day" }, { v: "per_program", l: "per program" }];
 
 export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange: (items: SetupItem[]) => void }) {
   const set = (id: string, p: Partial<SetupItem>) => onChange(items.map(i => i.id === id ? { ...i, ...p } : i));
-  const add = (category: string) => onChange([...items, { id: uid(), category, name: "", rent: "", rentUnit: "per_shift" }]);
+  const add = (category: string) => onChange([...items, { id: uid(), category, name: "", rents: {} }]);
   const used = SETUP_CATS.filter(c => items.some(i => i.category === c.v));
   const unused = SETUP_CATS.filter(c => !items.some(i => i.category === c.v));
 
@@ -267,21 +291,26 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
             <h3 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658] flex items-center gap-2"><Tile icon={c.icon} color={c.tile} size={20} />{c.l}</h3>
             <div className="bg-white rounded-[20px] divide-y divide-[#EEEBF4] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
               {mine.map(i => (
-                <div key={i.id} className="px-4 py-3 grid grid-cols-[1fr_36px] sm:grid-cols-[1fr_236px_36px] gap-2 items-center">
-                  <input aria-label={`${c.l} — name`} value={i.name} onChange={e => set(i.id, { name: e.target.value })} placeholder={c.ph} className={cn(inputCls, "h-10 text-sm")} />
-                  <button type="button" onClick={() => onChange(items.filter(x => x.id !== i.id))} aria-label="Remove"
-                    className="sm:order-last w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <div className="col-span-2 sm:col-span-1 flex gap-1.5">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
-                      <input style={{ paddingLeft: currencyPad() }} type="number" inputMode="numeric" min="0" step="100" aria-label={`${i.name || c.l} — rent`} value={i.rent}
-                        onChange={e => set(i.id, { rent: e.target.value })} placeholder="Rent" className={cn(inputCls, "h-10 pl-7 pr-2 text-sm tabular-nums")} />
-                    </div>
-                    <select aria-label="Rent per" value={i.rentUnit} onChange={e => set(i.id, { rentUnit: e.target.value })} className={cn(inputCls, "h-10 w-[124px] flex-shrink-0 text-sm pr-7 cursor-pointer")}>
-                      {RENT_UNITS.map(u => <option key={u.v} value={u.v}>{u.l}</option>)}
-                    </select>
+                <div key={i.id} className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <input aria-label={`${c.l} — name`} value={i.name} onChange={e => set(i.id, { name: e.target.value })} placeholder={c.ph} className={cn(inputCls, "h-10 text-sm flex-1 min-w-0")} />
+                    <button type="button" onClick={() => onChange(items.filter(x => x.id !== i.id))} aria-label={`Remove ${i.name || c.l}`}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {RENT_UNITS.map(u => (
+                      <label key={u.v} className="block min-w-0">
+                        <span className="block px-0.5 mb-1 text-[11.5px] font-bold text-[#4A4658] truncate">{u.l}</span>
+                        <span className="relative block">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{currencySymbol().trim()}</span>
+                          <input style={{ paddingLeft: currencyPad() }} type="number" inputMode="numeric" min="0" step="100" aria-label={`${i.name || c.l} — rent ${u.l.toLowerCase()}`}
+                            value={i.rents[u.v] ?? ""} onChange={e => set(i.id, { rents: { ...i.rents, [u.v]: e.target.value } })} placeholder="—"
+                            className={cn(inputCls, "h-10 pl-7 pr-1.5 text-sm tabular-nums w-full", (i.rents[u.v] ?? "") !== "" && "font-semibold text-[#17151F]")} />
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -307,7 +336,7 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
           })}
         </div>
         <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">
-          The rent goes to this member when <strong>someone else</strong> works with their gear on a program. When they use it themselves, the &quot;With own setup&quot; price is used instead.
+          Each piece of gear can have its own rent <strong>per shift</strong>, <strong>per day</strong> and <strong>per program</strong> — fill the ones you use and leave the rest empty. The rent goes to this member when <strong>someone else</strong> works with their gear on a program. When they use it themselves, the &quot;With own setup&quot; price is used instead.
         </p>
       </section>
     </div>

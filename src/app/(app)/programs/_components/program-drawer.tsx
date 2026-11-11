@@ -24,7 +24,7 @@ import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/u
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { TEAM_ROLES } from "../../team/_components/rate-card";
 import { EVENT_TYPES, fmtDate, uid } from "./constants";
-import { buildBill, findRate, ROLE_NAME, type Rate } from "./pricing";
+import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
 
@@ -336,7 +336,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                           <button key={g.id} type="button" role="checkbox" aria-checked={on}
                             onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === owner.id && x.itemId === g.id)) : [...gear, { ownerId: owner.id, itemId: g.id, name: g.name }])}
                             className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
-                            {on && <Check className="w-3 h-3" />}{g.name} · {formatCurrency(g.rent)}
+                            {on && <Check className="w-3 h-3" />}{g.name}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : ""; })()}
                           </button>
                         );
                       })}

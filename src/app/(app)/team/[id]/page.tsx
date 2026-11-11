@@ -24,7 +24,7 @@ import { useAuth } from "@/context/auth-context";
 import { STATUS_CFG } from "../../programs/_components/constants";
 import { MONTHS, PayDrawer, role, type MemberPayment, type ProfileData } from "../_components/pay-drawer";
 import { DeleteDialog, MemberDrawer, ResetPassDialog } from "../_components/member-drawer";
-import { SETUP_CATS, unitLabel } from "../_components/rate-card";
+import { SETUP_CATS, gearRents, unitLabel } from "../_components/rate-card";
 
 const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 const TABS = ["overview", "programs", "payments", "prices", "about"] as const;
@@ -348,7 +348,9 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                 ) : (
                   <List>{gear.map(g => { const cat = SETUP_CATS.find(c => c.v === g.category) ?? SETUP_CATS[SETUP_CATS.length - 1]; return (
                     <Row key={g.id} icon={cat.icon} color={cat.tile} title={g.name} sub={cat.l}
-                      right={<span className="text-[14.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(g.rent))}<span className="text-[12px] font-medium text-[#6B6680]"> / {g.rentUnit === "per_program" ? "program" : g.rentUnit === "per_day" ? "day" : "shift"}</span></span>} />
+                      right={gearRents(g).length ? gearRents(g).map(x => (
+                        <span key={x.unit} className="text-[13.5px] font-bold text-[#17151F] tabular-nums whitespace-nowrap">{formatCurrency(x.amount)}<span className="text-[12px] font-medium text-[#6B6680]"> / {x.short}</span></span>
+                      )) : <span className="text-[12.5px] text-[#8A8599]">No rent</span>} />
                   ); })}</List>
                 )}
               </Section>

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { RateEditor, SetupEditor, firstLine, linesToRates, ratesToLines, uid, type RateLine, type SavedRate, type SetupItem } from "./rate-card";
+import { RateEditor, SetupEditor, firstLine, gearHasRent, itemsToSetup, linesToRates, ratesToLines, setupToItems, type RateLine, type SavedGear, type SavedRate, type SetupItem } from "./rate-card";
 import { currencySymbol, currencyPad } from "@/lib/format";
 import { useAuth } from "@/context/auth-context";
 import { AREAS } from "@/lib/access";
@@ -45,7 +45,7 @@ export interface Member {
   bio?: string; memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
-  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
+  setup?: SavedGear[];
   role?: string;
   /** Manager only: parts of the studio they can use. */
   managerAreas?: string[];
@@ -103,7 +103,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     setTab("who");
     setAccess({ manager: editing?.role === "manager", areas: editing?.managerAreas ?? [] });
     setLines(ratesToLines(editing?.roleRates));
-    setSetup(Array.isArray(editing?.setup) ? editing!.setup!.map(g => ({ id: g.id || uid(), category: g.category, name: g.name, rent: g.rent ? String(g.rent) : "", rentUnit: g.rentUnit || "per_shift" })) : []);
+    setSetup(setupToItems(editing?.setup));
     if (editing) {
       const realEmail = editing.email?.includes(".internal") ? "" : (editing.email ?? "");
       setForm({ firstName: editing.firstName, lastName: editing.lastName ?? "",
@@ -170,7 +170,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     if (!form.firstName.trim()) return fail("Please write their name.", "who");
     if (freelancer && !form.phone.trim()) return fail("A freelancer needs a phone number — it's their ID.", "who");
     if (lines.some(l => l.unit === "custom" && !l.label.trim() && (l.rate || l.withSetup))) return fail("Please name each \"Other\" price.", "pay");
-    if (setup.some(g => !g.name.trim() && g.rent)) return fail("Please write a name for each piece of gear.", "setup");
+    if (setup.some(g => !g.name.trim() && gearHasRent(g))) return fail("Please write a name for each piece of gear.", "setup");
     if (!freelancer) {
       if (!form.username.trim()) return fail("Please choose a username for their login.", "login");
       if (unCheck.available === false) return fail("That username is taken — pick another.", "login");
@@ -180,7 +180,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     try {
       const payRateVal = form.payRate ? parseFloat(form.payRate) : undefined;
       const cleanRoleRates = linesToRates(lines, form.memberRoles);
-      const cleanSetup = setup.filter(g => g.name.trim()).map(g => ({ id: g.id, category: g.category, name: g.name.trim(), rent: parseFloat(g.rent) || 0, rentUnit: g.rentUnit }));
+      const cleanSetup = itemsToSetup(setup);
       const base = {
         firstName: form.firstName, lastName: form.lastName || undefined,
         phone: form.phone || undefined, email: form.email || undefined,

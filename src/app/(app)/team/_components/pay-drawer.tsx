@@ -17,7 +17,7 @@ export interface Member {
   memberRoles: string[]; isActive: boolean;
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
-  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string }[];
+  setup?: { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> }[];
   createdAt: string; adminNotes?: string;
 }
 

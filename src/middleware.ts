@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/payments",
   "/invoices",
   "/quotes",
+  "/contracts",
   "/team",
   "/packages",
   "/delivery",
@@ -60,6 +61,7 @@ const PUBLIC_PREFIXES = [
   "/portal",
   "/inv/",
   "/q/",
+  "/c/",
   "/r/",
   "/track",
 ];

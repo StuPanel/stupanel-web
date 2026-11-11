@@ -22,6 +22,7 @@ import { WhatsAppModal } from "./whatsapp-modal";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { RawDriveSection } from "./raw-drive-section";
 import { MusicSection } from "./music-section";
+import { ContractCard } from "./contract-card";
 import type { Booking, ShiftAssignment } from "./types";
 import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
 import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
@@ -766,6 +767,8 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
         </Group>
 
         <InvoiceCard bookingId={b.id} version={`${b.status}|${b.paidAmount}|${b.grandTotal}|${(b.eventDays ?? []).map(d => d.date).join(",")}`} />
+
+        <ContractCard key={b.id} bookingId={b.id} />
 
         <div className="mb-7"><TeamPaySection booking={b} onSaved={refreshBooking} /></div>
 

@@ -6,14 +6,14 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle, Bell, CalendarDays, Clock, DollarSign, Film, Images, Music2, PhoneCall, Plus, ShieldAlert,
+  AlertTriangle, Bell, CalendarDays, FileSignature, Clock, DollarSign, Film, Images, Music2, PhoneCall, Plus, ShieldAlert,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import type { TileColor } from "@/components/ui/apple";
 
 export interface Notif {
   id: string; type: string; priority: "high" | "medium" | "low";
-  title: string; body: string; bookingId?: string; bookingNumber?: string; leadId?: string; galleryId?: string; createdAt: string;
+  title: string; body: string; bookingId?: string; bookingNumber?: string; leadId?: string; galleryId?: string; contractId?: string; createdAt: string;
   client?: { firstName: string; lastName?: string | null; phone?: string | null };
 }
 
@@ -26,6 +26,7 @@ export const TYPE_META: Record<string, { icon: typeof Bell; color: TileColor; la
   review: { icon: Film, color: "violet", label: "To review" },
   music: { icon: Music2, color: "orchid", label: "Music" },
   photos: { icon: Images, color: "red", label: "Photos" },
+  contract: { icon: FileSignature, color: "green", label: "Contract" },
   lead: { icon: PhoneCall, color: "deep", label: "Follow-up" },
   backup: { icon: ShieldAlert, color: "red", label: "Backup" },
 };
@@ -33,7 +34,7 @@ export const metaOf = (type: string) => TYPE_META[type] ?? { icon: Bell, color: 
 
 /** Where a notification opens. */
 export function notifHref(n: Notif) {
-  return n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/notifications";
+  return n.contractId ? `/contracts/${n.contractId}` : n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/notifications";
 }
 
 /** "Now", "5m", "3h", "2d", "11 Nov". */

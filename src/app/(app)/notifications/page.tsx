@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { dayGroup, metaOf, notifHref, timeAgo, TYPE_META, useNotifications, type Notif } from "@/lib/notifications";
 import { WhatsAppModal } from "../programs/_components/whatsapp-modal";
 
-const KIND_ORDER = ["review", "photos", "music", "lead", "backup", "upcoming", "overdue", "payment", "stuck", "new"];
+const KIND_ORDER = ["review", "contract", "photos", "music", "lead", "backup", "upcoming", "overdue", "payment", "stuck", "new"];
 
 export default function NotificationsPage() {
   const router = useRouter();

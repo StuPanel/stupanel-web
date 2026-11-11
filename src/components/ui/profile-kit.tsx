@@ -32,9 +32,11 @@ export function ProfileShell({ open, onClose, label, children }: {
 }
 
 /** Big round initial avatar. */
-export function Avatar({ name, color = "#7D5CEF", size = 64 }: { name: string; color?: string; size?: number }) {
+export function Avatar({ name, color = "#7D5CEF", size = 64, src }: { name: string; color?: string; size?: number; /** The person's photo, when they have one. */ src?: string | null }) {
   const parts = name.trim().split(/\s+/);
   const ini = ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
+  // eslint-disable-next-line @next/next/no-img-element
+  if (src) return <img src={src} alt="" width={size} height={size} className="rounded-full object-cover flex-shrink-0 bg-[#EEE8FD]" style={{ width: size, height: size }} />;
   return (
     <div aria-hidden className="rounded-full flex items-center justify-center text-white font-extrabold flex-shrink-0"
       style={{ width: size, height: size, background: color, fontSize: size * 0.36 }}>{ini}</div>

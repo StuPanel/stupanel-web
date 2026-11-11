@@ -19,6 +19,8 @@ export interface Member {
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> }[];
   createdAt: string; adminNotes?: string;
+  /** The member's own photo (they add it in their panel). */
+  avatarUrl?: string | null;
 }
 
 export interface ProgramEntry {

@@ -174,7 +174,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
         <aside className="lg:sticky lg:top-20 space-y-4 mb-4 lg:mb-0">
           <div className={cn(card, "p-5", !m.isActive && "opacity-90", more && "relative z-30")}>
             <div className="flex items-center gap-4 lg:flex-col lg:text-center lg:gap-3">
-              <Avatar name={name} color={TILE[main.tile]} size={68} />
+              <Avatar name={name} color={TILE[main.tile]} size={68} src={m.avatarUrl} />
               <div className="flex-1 min-w-0 lg:flex-none lg:w-full">
                 <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight break-words">{name}</h1>
                 <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{[m.memberRoles.map(r => role(r).label).join(", ") || "No role yet", m.memberId].join(" · ")}</p>

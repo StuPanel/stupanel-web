@@ -1,11 +1,12 @@
 "use client";
 
 import { CURRENCY_OPTIONS } from "@/lib/format";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link2, Loader2, Plus, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
+import { useRef, useState } from "react";
+import { Link2, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { StudioLogo } from "@/components/studio-logo";
+import { ImageCropModal } from "@/components/ui/image-crop";
 import { BRAND, safeLogo } from "@/lib/brand";
 import { LanguageGroup } from "./studio-setup";
 import { Group, Row, Select, TextArea, TextField, useSettings, useSynced } from "../_ui";
@@ -109,7 +110,7 @@ export function BrandingPane() {
 
   return (
     <>
-      {cropSrc && <LogoCropModal src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
+      {cropSrc && <ImageCropModal title="Position your logo" src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
       <Group title="Logo" note="JPG, PNG or WebP. A square logo looks best. It saves as soon as you upload it.">
         <div id="set-logo" className="sp-set-row px-4 sm:px-5 py-5 flex flex-col sm:flex-row sm:items-center gap-4 scroll-mt-28">
           <div className="relative w-fit">
@@ -178,121 +179,6 @@ function Preview({ label, children }: { label: string; children: React.ReactNode
       <p className="text-xs font-semibold text-[#6B6680] mb-1.5">{label}</p>
       <div className="rounded-[16px] border border-[#E3DFEC] overflow-hidden bg-white">{children}</div>
     </div>
-  );
-}
-
-// ─── Logo crop (round guide, drag + zoom) ────────────────────────────────────
-const CD = 280; // on-screen size
-const CO = 400; // saved size
-
-function LogoCropModal({ src, onSave, onClose }: { src: string; onSave: (b: Blob) => void; onClose: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const scaleRef = useRef(1);
-  const offsetRef = useRef({ x: 0, y: 0 });
-  const minRef = useRef(1);
-  const [scale, setScaleS] = useState(1);
-  const [offset, setOffsetS] = useState({ x: 0, y: 0 });
-  const [minScale, setMinScale] = useState(1);
-  const [exporting, setExporting] = useState(false);
-  const dragging = useRef(false);
-  const lastPos = useRef({ x: 0, y: 0 });
-
-  const applyScale = (s: number) => { scaleRef.current = s; setScaleS(s); };
-  const applyOffset = (o: { x: number; y: number }) => { offsetRef.current = o; setOffsetS(o); };
-
-  const redraw = useCallback(() => {
-    const c = canvasRef.current, img = imgRef.current;
-    if (!c || !img) return;
-    const ctx = c.getContext("2d")!;
-    ctx.clearRect(0, 0, CD, CD);
-    ctx.drawImage(img, offsetRef.current.x, offsetRef.current.y, img.width * scaleRef.current, img.height * scaleRef.current);
-  }, []);
-  useEffect(() => { redraw(); }, [scale, offset, redraw]);
-
-  useEffect(() => {
-    const image = new Image();
-    image.onload = () => {
-      const s = Math.max(CD / image.width, CD / image.height);
-      imgRef.current = image; minRef.current = s; setMinScale(s);
-      applyScale(s);
-      applyOffset({ x: (CD - image.width * s) / 2, y: (CD - image.height * s) / 2 });
-    };
-    image.src = src;
-  }, [src]);
-
-  function clamp(x: number, y: number, sc: number) {
-    const img = imgRef.current;
-    if (!img) return { x, y };
-    return { x: Math.min(0, Math.max(CD - img.width * sc, x)), y: Math.min(0, Math.max(CD - img.height * sc, y)) };
-  }
-  function zoomTo(next: number) {
-    if (!imgRef.current) return;
-    const s = Math.min(4, Math.max(minRef.current, next));
-    const cur = scaleRef.current;
-    if (Math.abs(s - cur) < 0.001) return;
-    const r = s / cur, c = CD / 2, { x, y } = offsetRef.current;
-    applyScale(s);
-    applyOffset(clamp(c - (c - x) * r, c - (c - y) * r, s));
-  }
-  function exportCrop() {
-    const img = imgRef.current;
-    if (!img) return;
-    setExporting(true);
-    const out = document.createElement("canvas");
-    out.width = CO; out.height = CO;
-    const r = CO / CD, { x, y } = offsetRef.current, sc = scaleRef.current;
-    out.getContext("2d")!.drawImage(img, x * r, y * r, img.width * sc * r, img.height * sc * r);
-    const tryQ = (q: number) => out.toBlob(b => {
-      if (!b) { setExporting(false); return; }
-      if (b.size > 600 * 1024 && q > 0.25) tryQ(q - 0.08);
-      else { setExporting(false); onSave(b); }
-    }, "image/jpeg", q);
-    tryQ(0.9);
-  }
-
-  return (
-    <>
-      <div className="sp-backdrop z-[80]" onClick={onClose} />
-      <div className="fixed inset-0 z-[81] flex items-center justify-center p-4 pointer-events-none">
-        <div role="dialog" aria-modal="true" aria-label="Position your logo" className="sp-modal pointer-events-auto w-full max-w-sm p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="font-bold text-[#17151F] text-lg">Position your logo</h2>
-              <p className="text-sm text-[#6B6680]">Drag to move · scroll or use the slider to zoom</p>
-            </div>
-            <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><X className="w-4 h-4" /></button>
-          </div>
-          <div className="relative mx-auto mt-5 overflow-hidden rounded-[20px]" style={{ width: CD, height: CD }}>
-            <canvas ref={canvasRef} width={CD} height={CD} className="block cursor-grab active:cursor-grabbing touch-none select-none"
-              onPointerDown={e => { dragging.current = true; lastPos.current = { x: e.clientX, y: e.clientY }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
-              onPointerMove={e => {
-                if (!dragging.current) return;
-                const dx = e.clientX - lastPos.current.x, dy = e.clientY - lastPos.current.y;
-                lastPos.current = { x: e.clientX, y: e.clientY };
-                applyOffset(clamp(offsetRef.current.x + dx, offsetRef.current.y + dy, scaleRef.current));
-              }}
-              onPointerUp={() => { dragging.current = false; }} onPointerLeave={() => { dragging.current = false; }}
-              onWheel={e => zoomTo(scaleRef.current + (e.deltaY < 0 ? 0.08 : -0.08))} />
-            <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle ${CD / 2 - 12}px at center, transparent 99%, rgba(23,21,31,.55) 100%)` }} />
-            <div className="absolute pointer-events-none rounded-full border-2 border-white/80" style={{ inset: 12 }} />
-          </div>
-          <div className="flex items-center gap-3 mt-4">
-            <button onClick={() => zoomTo(scaleRef.current - 0.15)} aria-label="Zoom out" className="w-9 h-9 rounded-full bg-[#F5F3FA] flex items-center justify-center"><ZoomOut className="w-4 h-4 text-[#4A4658]" /></button>
-            <input type="range" aria-label="Zoom" min={Math.round(minScale * 100)} max={400} value={Math.round(scale * 100)}
-              onChange={e => zoomTo(Number(e.target.value) / 100)} className="flex-1 accent-[#7D5CEF]" />
-            <button onClick={() => zoomTo(scaleRef.current + 0.15)} aria-label="Zoom in" className="w-9 h-9 rounded-full bg-[#F5F3FA] flex items-center justify-center"><ZoomIn className="w-4 h-4 text-[#4A4658]" /></button>
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="flex-1 h-11 rounded-full bg-[#F5F3FA] text-[#17151F] text-sm font-semibold hover:bg-[#EEEBF4]">Cancel</button>
-            <button onClick={exportCrop} disabled={exporting}
-              className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
-              {exporting && <Loader2 className="w-4 h-4 animate-spin" />}Use this
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
   );
 }
 

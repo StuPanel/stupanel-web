@@ -14,7 +14,6 @@ const STATUS_HEX: Record<string, string> = {
 };
 import { ProgramRow, DeleteDialog } from "./_components/program-card";
 import { ProgramDrawer, type ProgramDraft } from "./_components/program-drawer";
-import { ViewDrawer } from "./_components/view-drawer";
 import type { Booking, Client, Package, TeamMember } from "./_components/types";
 
 // Module-level cache: packages/team/company rarely change, no need to re-fetch on every filter/page change
@@ -39,10 +38,7 @@ export default function ProgramsPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [newForClient, setNewForClient] = useState<Client | null>(null);
   const [newDraft, setNewDraft] = useState<ProgramDraft | null>(null);
-  const [viewTarget, setViewTarget] = useState<Booking | null>(null);
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
-  /** Edit opened from a program's page — go back to it after Cancel / Save. */
-  const [backToView, setBackToView] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
 
   const fetchAll = useCallback(async () => {
@@ -78,25 +74,11 @@ export default function ProgramsPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Auto-open drawer when navigating from search (?view=id)
+  // Old links (?view=id) go to the program's own page
   useEffect(() => {
     const viewId = searchParams.get("view");
-    if (!viewId || loading) return;
-    const found = bookings.find((b) => b.id === viewId);
-    if (found) {
-      setViewTarget(found);
-      router.replace("/programs", { scroll: false });
-    } else {
-      // Not in current page — fetch directly
-      apiFetch(`${API}/bookings/${viewId}`).then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          setViewTarget(data);
-          router.replace("/programs", { scroll: false });
-        }
-      });
-    }
-  }, [searchParams, bookings, loading, router]);
+    if (viewId) router.replace(`/programs/${viewId}`);
+  }, [searchParams, router]);
 
   // "Create a program for them" from the Clients page (?newFor=clientId)
   useEffect(() => {
@@ -121,12 +103,6 @@ export default function ProgramsPage() {
   const allStatuses = Object.entries(meta.statusCounts ?? {}).filter(([, c]) => c > 0);
 
 
-  function reopenView() {
-    const id = backToView;
-    setBackToView(null);
-    if (!id) return;
-    apiFetch(`${API}/bookings/${id}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setViewTarget(d); }).catch(() => {});
-  }
   return (
     <div>
       <PageHeader icon={Camera} color="deep" title="Programs"
@@ -157,7 +133,7 @@ export default function ProgramsPage() {
         <Group>
           {bookings.map(b => (
             <ProgramRow key={b.id} b={b}
-              onView={() => setViewTarget(b)}
+              onView={() => router.push(`/programs/${b.id}`)}
               onEdit={() => setEditTarget(b)}
               onDelete={() => setDeleteTarget(b)} />
           ))}
@@ -170,19 +146,11 @@ export default function ProgramsPage() {
         initialClient={newForClient} initialDraft={newDraft} />
       <ProgramDrawer
         open={!!editTarget}
-        onClose={() => { setEditTarget(null); reopenView(); }}
-        onSaved={() => { fetchAll(); setEditTarget(null); reopenView(); }}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => { fetchAll(); setEditTarget(null); }}
         packages={packages}
         teamMembers={teamMembers}
         initialBooking={editTarget}
-      />
-      <ViewDrawer
-        booking={viewTarget}
-        onClose={() => setViewTarget(null)}
-        onEdit={latest => { setEditTarget(viewTarget ? { ...viewTarget, ...latest } : latest); setBackToView(latest.id); setViewTarget(null); }}
-        onRefresh={fetchAll}
-        r2Enabled={r2Enabled}
-        teamMembers={teamMembers}
       />
       <DeleteDialog booking={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={fetchAll} />
     </div>

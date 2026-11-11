@@ -1,34 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  X, Edit3, DollarSign, MessageCircle, FileText,
-  Loader2, MapPin, TrendingUp, HardDrive, Link2, Cloud,
-  ExternalLink, Calendar, Users, Check,
-  Clapperboard, Palette, Camera, Wallet,
-} from "lucide-react";
+import { Loader2, HardDrive, Link2, Cloud, ExternalLink, Check, Clapperboard, Palette } from "lucide-react";
 import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
-import { useRouter } from "next/navigation";
-import { STATUS_CFG, fmtDate } from "./constants";
-import { formatCurrency } from "@/lib/format";
-import { StatusPipeline } from "./program-card";
-import { PaymentModal } from "./payment-modal";
-import { TeamPaySection } from "./team-pay-section";
-import { InvoiceCard } from "./invoice-card";
-import { WhatsAppModal } from "./whatsapp-modal";
-import { DeliveryModal } from "../../delivery/_components/delivery-modal";
-import { RawDriveSection } from "./raw-drive-section";
-import { MusicSection } from "./music-section";
-import { ContractCard } from "./contract-card";
+import { fmtDate } from "./constants";
 import type { Booking, ShiftAssignment } from "./types";
-import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
-import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
+import { Group, Tile } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
 
-function DeliveryOverview({ booking }: { booking: Booking }) {
+export function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -66,7 +49,7 @@ function DeliveryOverview({ booking }: { booking: Booking }) {
   );
 }
 
-function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {
+export function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {
   const brief = ((booking as any).creativeBrief ?? {}) as any;
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -353,7 +336,7 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
   );
 }
 
-function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void }) {
+export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void }) {
   const [assignments, setAssignments] = useState<EditorAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -571,23 +554,14 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   );
 }
 
-const ROLE_LABEL: Record<string, string> = {
+export const ROLE_LABEL: Record<string, string> = {
   photographer: "Photographer", cinematographer: "Cinematographer", drone_pilot: "Drone", assistant: "Assistant",
   photo_editor: "Photo editor", video_editor: "Video editor",
 };
-const SETUP_LABEL: Record<string, string> = { own: "Own setup", other: "Others' gear", rented: "Rented gear" };
-
-function Row({ l, v, strong, tone, sub }: { l: React.ReactNode; v: React.ReactNode; strong?: boolean; tone?: "red" | "green"; sub?: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 px-4 py-3">
-      <span className={cn("text-[15px]", strong ? "font-semibold text-[#17151F]" : "text-[#4A4658]")}>{l}{sub && <span className="block text-xs text-[#6B6680]">{sub}</span>}</span>
-      <span className={cn("tabular-nums", strong ? "text-[17px] font-extrabold" : "text-[15px] font-semibold text-[#17151F]", tone === "red" && "text-[#C2304F]", tone === "green" && "text-[#1F8A5B]")}>{v}</span>
-    </div>
-  );
-}
+export const SETUP_LABEL: Record<string, string> = { own: "Own setup", other: "Others' gear", rented: "Rented gear" };
 
 /** Team-only notes on a program. Saves a second after you stop typing (and when you leave the box). */
-function PrivateNotes({ booking, onSaved }: { booking: Booking; onSaved: (notes: string) => void }) {
+export function PrivateNotes({ booking, onSaved }: { booking: Booking; onSaved: (notes: string) => void }) {
   const [value, setValue] = useState(booking.internalNotes ?? "");
   const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
   const saved = useRef(booking.internalNotes ?? "");
@@ -640,194 +614,5 @@ function PrivateNotes({ booking, onSaved }: { booking: Booking; onSaved: (notes:
           className={cn(inputCls, "h-auto py-2.5 resize-y min-h-[84px] leading-relaxed")} />
       </div>
     </Group>
-  );
-}
-
-export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, teamMembers }: {
-  booking: Booking | null;
-  onClose: () => void;
-  /** Opens the edit form with the latest copy of the program (notes or payments may have changed here). */
-  onEdit: (latest: Booking) => void;
-  onRefresh: () => void;
-  r2Enabled: boolean;
-  teamMembers?: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[];
-}) {
-  const [paymentOpen, setPaymentOpen] = useState(false);
-  const [waOpen, setWaOpen] = useState(false);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
-  const [genInvoicing, setGenInvoicing] = useState(false);
-  const [localBooking, setLocalBooking] = useState<Booking | null>(null);
-  const [typeNames, setTypeNames] = useState<Record<string, string>>({});
-  const [musicOn, setMusicOn] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => { setLocalBooking(booking); }, [booking]);
-  useEffect(() => {
-    if (!booking) return;
-    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null)
-      .then(d => { if (!d) return; setMusicOn(!!d.features?.musicSelection); setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name]))); })
-      .catch(() => {});
-  }, [booking?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function refreshBooking() {
-    if (!localBooking) return;
-    try {
-      const r = await apiFetch(`${API}/bookings/${localBooking.id}`, { headers: { "Content-Type": "application/json" } });
-      if (r.ok) setLocalBooking(await r.json());
-    } catch { /* silent */ }
-    onRefresh();
-  }
-
-  async function makeInvoice() {
-    if (!b) return;
-    setGenInvoicing(true);
-    try {
-      const r = await apiFetch(`${API}/studio-invoices/generate/${b.id}`, { method: "POST" });
-      const d = await r.json();
-      if (r.ok && d.publicToken) window.open(`/inv/${d.publicToken}`, "_blank");
-      else if (!r.ok) router.push("/invoices");
-    } catch { /* silent */ } finally { setGenInvoicing(false); }
-  }
-
-  const b = localBooking;
-  if (!b) return null;
-  const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-  const net = Number(b.grandTotal);
-  const paid = Number(b.paidAmount);
-  const due = net - paid;
-  const profit = Number(b.profitAmount);
-  const teamCost = (b.costEntries ?? []).reduce((s, e) => s + Number(e.totalBill || 0), 0);
-  const costs: [string, number][] = ([["Team pay", teamCost], ["Equipment rent", Number(b.equipCost)], ["Transport", Number(b.transportCost)], ["Album / print", Number(b.albumCost)], ["Other", Number(b.otherCost)]] as [string, number][]).filter(([, v]) => v > 0);
-  const days = [...(b.eventDays ?? [])].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
-  const typeId = days.find(d => d.programType)?.programType;
-  const typeName = typeId ? typeNames[typeId] ?? typeId.replace(/-/g, " ") : "";
-  const who = (id: string, fallback?: string) => {
-    const m = teamMembers?.find(t => t.id === id);
-    return m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : fallback ?? "Someone";
-  };
-  const clientName = `${b.client.firstName} ${b.client.lastName ?? ""}`.trim();
-  const dateText = days.length
-    ? days[0].date ? `${fmtDate(days[0].date)}${days.length > 1 && days[days.length - 1].date !== days[0].date ? ` – ${fmtDate(days[days.length - 1].date)}` : ""}` : "No date"
-    : b.eventDate ? fmtDate(b.eventDate) : "No date";
-
-  return (
-    <>
-      <ProfileShell open label="Program" onClose={onClose}>
-        <IdentityCard
-          avatar={<Tile icon={Camera} color="deep" size={64} className="rounded-[20px]" />}
-          name={b.eventName ?? b.bookingNumber}
-          sub={<>{clientName}{b.client.phone ? ` · ${b.client.phone}` : ""}</>}
-          chips={<>
-            <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", sc.badge)}>{sc.label}</span>
-            {typeName && <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-[#F5F3FA] text-[#4A4658]">{typeName}</span>}
-            <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-[#F5F3FA] text-[#4A4658] inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{dateText}</span>
-            <span className="text-xs px-2 py-1 rounded-full font-mono text-[#6B6680]">{b.bookingNumber}</span>
-          </>}
-          actions={<>
-            <ActionButton icon={DollarSign} label="Payment" tone="green" onClick={() => setPaymentOpen(true)} disabled={due <= 0} />
-            <ActionButton icon={MessageCircle} label="WhatsApp" tone="green" onClick={() => setWaOpen(true)} disabled={!b.client?.phone} />
-            <ActionButton icon={genInvoicing ? Loader2 : FileText} label="Invoice" tone="blue" onClick={makeInvoice} disabled={genInvoicing} />
-            <ActionButton icon={Edit3} label="Edit" tone="violet" onClick={() => onEdit(b)} />
-          </>}
-        />
-
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <MiniStat icon={Wallet} color="blue" label="Contract" value={formatCurrency(net, b.currency)} sub={Number(b.discountAmount) > 0 ? `after ${formatCurrency(Number(b.discountAmount), b.currency)} discount` : undefined} />
-          <MiniStat icon={Check} color="green" label="Client paid" value={formatCurrency(paid, b.currency)} />
-          <MiniStat icon={DollarSign} color="red" label="Client owes" value={formatCurrency(Math.max(0, due), b.currency)} tone={due > 0 ? "red" : "green"} />
-          <MiniStat icon={TrendingUp} color="violet" label="Profit" value={formatCurrency(profit, b.currency)} tone={profit >= 0 ? "green" : "red"} sub={net > 0 ? `${Math.round((profit / net) * 100)}% of contract` : undefined} />
-        </div>
-
-        <section className="mb-6">
-          <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Status</h2>
-          <div className={cn("bg-white rounded-[20px] p-3", CARD_SHADOW)}>
-            <StatusPipeline current={b.status} bookingId={b.id} onChanged={refreshBooking} hideTitle />
-          </div>
-        </section>
-
-        <Group title="Days & team" action={<button type="button" onClick={() => onEdit(b)} className="text-[13px] font-semibold text-[#5B3FD0]">Change</button>}>
-          {days.length === 0 && <p className="px-4 py-4 text-sm text-[#A29DB3]">No days added yet.</p>}
-          {days.map((day, i) => {
-            const people = day.shifts.flatMap(s => (s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? []).map(a => ({ a, shift: s.label })));
-            return (
-              <div key={day.id} className="px-4 py-3.5">
-                <div className="flex items-start gap-3">
-                  <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-[#17151F]">{day.eventType || `Day ${i + 1}`}</p>
-                    <p className="text-xs text-[#6B6680] flex flex-wrap items-center gap-x-2">
-                      <span>{day.date ? fmtDate(day.date) : "No date"}</span>
-                      {day.location && <span className="inline-flex items-center gap-0.5"><MapPin className="w-3 h-3" />{day.location}</span>}
-                    </p>
-                    {people.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {people.map(({ a, shift }, k) => (
-                          <span key={`${a.id}-${a.role}-${k}`} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] text-[#17151F]">
-                            <Users className="w-3 h-3 text-[#6B6680]" />
-                            <span className="font-semibold">{who(a.id, a.name)}</span>
-                            <span className="text-[#6B6680]">· {ROLE_LABEL[a.role] ?? a.role.replace(/_/g, " ")}{day.shifts.length > 1 ? ` · ${shift}` : ""}{a.setup ? ` · ${SETUP_LABEL[a.setup] ?? a.setup}` : ""}</span>
-                          </span>
-                        ))}
-                      </div>
-                    ) : <p className="mt-1.5 text-xs text-[#A29DB3]">Nobody on this day yet.</p>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </Group>
-
-        <Group title="Money">
-          <Row l="Contract" v={formatCurrency(Number(b.totalAmount), b.currency)} />
-          {Number(b.discountAmount) > 0 && <Row l="Discount" v={`− ${formatCurrency(Number(b.discountAmount), b.currency)}`} />}
-          <Row l="Client paid" v={formatCurrency(paid, b.currency)} tone="green" />
-          <Row l="Client still owes" v={formatCurrency(Math.max(0, due), b.currency)} strong tone={due > 0 ? "red" : "green"} />
-          {costs.map(([l, v]) => <Row key={l} l={l} v={`− ${formatCurrency(v, b.currency)}`} />)}
-          <Row l="Profit" v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
-        </Group>
-
-        <InvoiceCard bookingId={b.id} version={`${b.status}|${b.paidAmount}|${b.grandTotal}|${(b.eventDays ?? []).map(d => d.date).join(",")}`} />
-
-        <ContractCard key={b.id} bookingId={b.id} />
-
-        <div className="mb-7"><TeamPaySection booking={b} onSaved={refreshBooking} /></div>
-
-        <section className="mb-7 space-y-3">
-          <h2 className="px-1 text-[13px] font-bold text-[#4A4658]">Editing & files</h2>
-          <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
-            <EditorsSection booking={b} teamMembers={teamMembers ?? []} onSaved={refreshBooking} />
-            <RawDriveSection booking={b} teamMembers={teamMembers ?? []} />
-            {musicOn && <MusicSection booking={b} />}
-            <CreativeBriefSection booking={b} onSaved={refreshBooking} />
-          </div>
-        </section>
-
-        <section className="mb-7">
-          <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Delivery</h2>
-          <div className={cn("bg-white rounded-[20px] p-3 space-y-3", CARD_SHADOW)}>
-            <DeliveryOverview booking={b} />
-            <button type="button" onClick={() => setDeliveryOpen(true)}
-              className="w-full h-11 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-sm font-semibold">Manage delivery</button>
-          </div>
-        </section>
-
-        <PrivateNotes key={b.id} booking={b} onSaved={notes => { setLocalBooking(cur => cur && cur.id === b.id ? { ...cur, internalNotes: notes } : cur); onRefresh(); }} />
-      </ProfileShell>
-
-      <PaymentModal
-        booking={paymentOpen ? b : null}
-        onClose={() => setPaymentOpen(false)}
-        onSaved={refreshBooking}
-      />
-      <WhatsAppModal
-        booking={waOpen ? b : null}
-        onClose={() => setWaOpen(false)}
-      />
-      <DeliveryModal
-        booking={deliveryOpen ? (b as any) : null}
-        onClose={() => setDeliveryOpen(false)}
-        onSaved={() => { refreshBooking(); setDeliveryOpen(false); }}
-      />
-    </>
   );
 }

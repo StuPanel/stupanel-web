@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency, fmtDate } from "@/lib/format";
 import { DateBox } from "@/components/ui/apple";
 import { Avatar, waLink } from "@/components/ui/profile-kit";
-import { Chip, CHIP, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useTab } from "@/components/ui/profile-page";
+import { Chip, CHIP, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
 import { CLIENT_SOURCES } from "@/components/client-form-fields";
 import { PortalAccessModal } from "@/components/portal-access-modal";
 import { STATUS_CFG } from "../../programs/_components/constants";
@@ -75,8 +75,10 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
   const [deleting, setDeleting] = useState(false);
   const [portal, setPortal] = useState(false);
   const [more, setMore] = useState(false);
+  const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [payFor, setPayFor] = useState<Program | null>(null);
   const [payPick, setPayPick] = useState(false);
+  const payRef = useDismiss<HTMLDivElement>(payPick, () => setPayPick(false));
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "invoice" | "payment">("all");
 
   const load = useCallback(async () => {
@@ -159,7 +161,7 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
       <div className="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5 lg:items-start">
         {/* ── Left: who + money ─────────────────────────────────────────── */}
         <aside className="lg:sticky lg:top-20 space-y-4 mb-4 lg:mb-0">
-          <div className={cn(card, "p-5")}>
+          <div className={cn(card, "p-5", more && "relative z-30")}>
             <div className="flex items-center gap-4 lg:flex-col lg:text-center lg:gap-3">
               <Avatar name={name} color="#1F5C99" size={68} />
               <div className="flex-1 min-w-0 lg:flex-none lg:w-full">
@@ -171,14 +173,13 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-1 mt-5 relative">
+            <div ref={moreRef} className="grid grid-cols-4 gap-1 mt-5 relative">
               <QuickAction icon={MessageCircle} label="WhatsApp" tone="bg-[#E7F5EE] text-[#1F8A5B]" href={waLink(c.phone)} disabled={!c.phone} />
               <QuickAction icon={Phone} label="Call" tone="bg-[#E8F0FA] text-[#1F5C99]" href={c.phone ? `tel:${c.phone}` : undefined} disabled={!c.phone} />
               <QuickAction icon={Camera} label="New program" tone="bg-[#EEE8FD] text-[#5B3FD0]" onClick={() => router.push(`/programs?newFor=${c.id}`)} />
               <QuickAction icon={MoreHorizontal} label="Options" tone="bg-[#F1EFF6] text-[#17151F]" onClick={() => setMore(m => !m)} />
               {more && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setMore(false)} />
                   <div role="menu" className="absolute right-0 top-[76px] w-56 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
                     {[
                       { icon: Edit3, label: "Edit details", run: () => setEditing(true) },
@@ -197,7 +198,7 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* Money at a glance */}
-          {(st.programs > 0 || st.total > 0) && <div className={cn(card, "p-5")}>
+          {(st.programs > 0 || st.total > 0) && <div className={cn(card, "p-5", payPick && "relative z-30")}>
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{st.due > 0 ? "Still due" : "Money"}</p>
               <p className="text-[12.5px] text-[#6B6680]">{st.programs} program{st.programs === 1 ? "" : "s"}</p>
@@ -213,13 +214,12 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
               <span className="text-[#6B6680]">of <span className="font-bold text-[#17151F] tabular-nums">{formatCurrency(st.total)}</span></span>
             </div>
             {owing.length > 0 && (
-              <div className="relative mt-4">
+              <div ref={payRef} className="relative mt-4">
                 <button type="button" onClick={recordPayment} className="w-full h-11 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
                   <Wallet className="w-4 h-4" />Record payment
                 </button>
                 {payPick && (
                   <>
-                    <div className="fixed inset-0 z-20" onClick={() => setPayPick(false)} />
                     <div role="menu" aria-label="Which program?" className="absolute left-0 right-0 top-[50px] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
                       <p className="px-3 pt-2 pb-1 text-[12px] font-bold text-[#6B6680]">Which program?</p>
                       {owing.map(b => (

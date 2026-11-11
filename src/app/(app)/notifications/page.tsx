@@ -34,7 +34,7 @@ export default function NotificationsPage() {
   async function reload() { setRefreshing(true); await refresh(); setRefreshing(false); }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <PageHeader icon={HeaderIcon} color="red" title="Notifications"
         sub={<>{important > 0 && <span className="font-semibold text-[#C2304F]">{important} important · </span>}{unread.length} unread · {items.length} active{dismissedCount ? ` · ${dismissedCount} cleared` : ""}</>}>
         <div className="flex items-center gap-2">

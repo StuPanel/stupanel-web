@@ -130,29 +130,23 @@ export default function ChecklistPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <PageHeader icon={HeaderIcon} color="orchid" title="Checklist" sub={<>Manage shoot day tasks and per-program checklists</>}>
-        <div className="flex gap-2">
-          <button onClick={() => setView("templates")}
-            className={cn("h-10 px-4 rounded-full text-sm font-semibold transition-colors",
-              view === "templates" ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
-            Templates
-          </button>
-          <button onClick={() => setView("program")}
-            className={cn("h-10 px-4 rounded-full text-sm font-semibold transition-colors",
-              view === "program" ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
-            By Program
-          </button>
+      <PageHeader icon={HeaderIcon} color="orchid" title="Checklist" sub={<>Tasks for the shoot day, and a checklist for each program</>}>
+        <div role="tablist" aria-label="Show" className="inline-flex p-1 rounded-full bg-white shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+          {([["templates", "Templates"], ["program", "By program"]] as const).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
+              className={cn("h-9 px-4 rounded-full text-[13px] font-semibold transition-colors", view === k ? "bg-[#16141D] text-white" : "text-[#4A4658] hover:text-[#17151F]")}>{l}</button>
+          ))}
         </div>
       </PageHeader>
 
       {/* ── Templates View ── */}
       {view === "templates" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-[#6B6680]">Default tasks auto-assigned to every new program checklist</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-[#6B6680]">Every new program gets these tasks</p>
             <button onClick={() => setAddingFor("template")}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors">
-              <Plus className="w-4 h-4" />Add Task
+              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors whitespace-nowrap flex-shrink-0">
+              <Plus className="w-4 h-4" />Add task
             </button>
           </div>
 
@@ -290,7 +284,7 @@ export default function ChecklistPage() {
               <div className="flex justify-end">
                 <button onClick={() => setAddingFor("program")}
                   className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold transition-colors">
-                  <Plus className="w-4 h-4" />Add Task
+                  <Plus className="w-4 h-4" />Add task
                 </button>
               </div>
 
@@ -342,7 +336,7 @@ export default function ChecklistPage() {
               {programItems.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
                   <p className="text-[#6B6680] text-sm">No checklist items for this program</p>
-                  <p className="text-xs text-[#6B6680] mt-1">Add template tasks or click "Add Task" above</p>
+                  <p className="text-xs text-[#6B6680] mt-1">Add template tasks or tap "Add task" above</p>
                 </div>
               )}
             </>

@@ -96,7 +96,7 @@ export default function MemberProfilePage() {
   const btn = "w-full h-12 rounded-full text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60 transition-colors";
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details and password" />
 
       <IdentityCard

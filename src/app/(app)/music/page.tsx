@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Music library: the songs this studio likes to suggest to clients.
+ * Music Library: the songs this studio likes to suggest to clients.
  * A song with tags (e.g. "Holud", "Teaser") is shown to clients for parts with that name;
  * a song without tags is shown for every part.
+ * Tags = the parts of the studio's program types (Settings) + the studio's own tags (Edit tags here).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Flame, Loader2, Music2, Play, Plus, Trash2, X } from "lucide-react";
+import { Check, ExternalLink, Flame, Loader2, Music2, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -15,7 +16,6 @@ import { CARD_SHADOW, EmptyState, PageHeader, SearchField } from "@/components/u
 import { inputCls } from "@/components/ui/form-kit";
 import { embedUrl, type LibrarySong } from "@/lib/music";
 
-const VIDEO_TAGS = ["Teaser", "Highlight", "Full video", "Reel"];
 const err = async (r: Response) => { const d = await r.json().catch(() => ({})); return (Array.isArray(d.message) ? d.message[0] : d.message) || "Something went wrong"; };
 
 export default function MusicLibraryPage() {
@@ -23,6 +23,12 @@ export default function MusicLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [dayTags, setDayTags] = useState<string[]>([]);
+  /** The studio's own tags (Settings → musicTags); null until loaded. */
+  const [ownTags, setOwnTags] = useState<string[] | null>(null);
+  const [editTags, setEditTags] = useState(false);
+  const [draft, setDraft] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [savingTags, setSavingTags] = useState(false);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("");
   const [url, setUrl] = useState("");
@@ -41,10 +47,28 @@ export default function MusicLibraryPage() {
       const names = new Set<string>();
       for (const w of (d.workTypes ?? []) as { active?: boolean; events?: { name: string }[] }[]) if (w.active !== false) for (const e of w.events ?? []) names.add(e.name);
       setDayTags([...names]);
+      setOwnTags(Array.isArray(d.musicTags) ? d.musicTags : []);
     }).catch(() => {});
   }, []);
 
-  const allTags = useMemo(() => [...new Set([...dayTags, ...VIDEO_TAGS, ...songs.flatMap(s => s.tags)])], [dayTags, songs]);
+  const allTags = useMemo(() => [...new Set([...dayTags, ...(ownTags ?? []), ...songs.flatMap(s => s.tags)])], [dayTags, ownTags, songs]);
+
+  function startEdit() { setDraft(ownTags ?? []); setNewTag(""); setEditTags(true); }
+  function addDraft() {
+    const t = newTag.trim().replace(/\s+/g, " ");
+    if (!t) return;
+    if ([...dayTags, ...draft].some(x => x.toLowerCase() === t.toLowerCase())) { notify(`"${t}" is already a tag`, { error: true }); return; }
+    setDraft(d => [...d, t]); setNewTag("");
+  }
+  async function saveTags() {
+    setSavingTags(true);
+    try {
+      const r = await apiFetch(`${API}/companies/settings`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ musicTags: draft }) });
+      if (!r.ok) { notify(await err(r), { error: true }); return; }
+      const d = await r.json();
+      setOwnTags(Array.isArray(d.musicTags) ? d.musicTags : draft); setEditTags(false); notify("Tags saved");
+    } finally { setSavingTags(false); }
+  }
   const shown = useMemo(() => {
     const k = q.trim().toLowerCase();
     return songs.filter(s => (!k || s.title.toLowerCase().includes(k) || (s.channel ?? "").toLowerCase().includes(k)) && (!filter || s.tags.includes(filter)));
@@ -79,7 +103,7 @@ export default function MusicLibraryPage() {
 
   return (
     <div>
-      <PageHeader icon={Music2} color="orchid" title="Music" sub={`${songs.length} song${songs.length === 1 ? "" : "s"} in your library — suggested to clients when they choose music`}>
+      <PageHeader icon={Music2} color="orchid" title="Music Library" sub={`${songs.length} song${songs.length === 1 ? "" : "s"} in your library — suggested to clients when they choose music`}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder="Search songs" />
       </PageHeader>
 
@@ -100,10 +124,54 @@ export default function MusicLibraryPage() {
             {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Add
           </button>
         </div>
-        <p className="text-[12.5px] font-semibold text-[#4A4658] mt-3 mb-1.5">Good for <span className="font-normal text-[#6B6680]">— leave empty to suggest it everywhere</span></p>
-        <div className="flex flex-wrap gap-1.5">
-          {allTags.map(t => <button key={t} type="button" aria-pressed={tags.includes(t)} onClick={() => setTags(p => (p.includes(t) ? p.filter(x => x !== t) : [...p, t]))} className={tagChip(tags.includes(t))}>{t}</button>)}
+        <div className="flex items-center gap-2 mt-3 mb-1.5">
+          <p className="flex-1 text-[12.5px] font-semibold text-[#4A4658]">Good for <span className="font-normal text-[#6B6680]">— leave empty to suggest it everywhere</span></p>
+          {!editTags && ownTags !== null && (
+            <button type="button" onClick={startEdit} className="h-8 px-3 rounded-full text-[12.5px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5">
+              <Pencil className="w-3.5 h-3.5" />Edit tags
+            </button>
+          )}
         </div>
+        {!editTags ? (
+          <div className="flex flex-wrap gap-1.5">
+            {allTags.map(t => <button key={t} type="button" aria-pressed={tags.includes(t)} onClick={() => setTags(p => (p.includes(t) ? p.filter(x => x !== t) : [...p, t]))} className={tagChip(tags.includes(t))}>{t}</button>)}
+          </div>
+        ) : (
+          <div className="rounded-[16px] bg-[#F5F3FA] p-3.5 space-y-3">
+            {dayTags.length > 0 && (
+              <div>
+                <p className="text-[12px] font-semibold text-[#6B6680] mb-1.5">From your program types <Link href="/settings?pane=worktypes" className="text-[#5B3FD0] font-semibold hover:underline">change in Settings</Link></p>
+                <div className="flex flex-wrap gap-1.5">{dayTags.map(t => <span key={t} className="h-8 px-3 rounded-full text-[12.5px] font-semibold bg-white/70 text-[#6B6680] inline-flex items-center">{t}</span>)}</div>
+              </div>
+            )}
+            <div>
+              <p className="text-[12px] font-semibold text-[#6B6680] mb-1.5">Your own tags — e.g. Wedding trailer, Outdoor trailer, Teaser</p>
+              <div className="flex flex-wrap gap-1.5">
+                {draft.map((t, i) => (
+                  <span key={t} className="h-8 pl-1 pr-1 rounded-full bg-white text-[#17151F] inline-flex items-center gap-0.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+                    <input value={t} aria-label={`Rename ${t}`} maxLength={40} size={Math.max(4, t.length)}
+                      onChange={e => setDraft(d => d.map((x, j) => (j === i ? e.target.value : x)))}
+                      className="h-7 px-2 rounded-full bg-transparent text-[12.5px] font-semibold outline-none focus:bg-[#F5F3FA]" />
+                    <button type="button" onClick={() => setDraft(d => d.filter((_, j) => j !== i))} aria-label={`Remove ${t}`} className="w-6 h-6 rounded-full hover:bg-[#FDECEF] text-[#6B6680] hover:text-[#C2304F] flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>
+                  </span>
+                ))}
+                {!draft.length && <span className="text-[12.5px] text-[#6B6680] self-center">No tags of your own yet.</span>}
+              </div>
+              <div className="flex gap-2 mt-2.5">
+                <input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addDraft(); } }} maxLength={40}
+                  placeholder="New tag, e.g. Outdoor trailer" aria-label="New tag" className="flex-1 h-10 px-3.5 rounded-[12px] bg-white text-[14px] outline-none border border-transparent focus:border-[#7D5CEF]" />
+                <button type="button" onClick={addDraft} disabled={!newTag.trim()} className="h-10 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold disabled:opacity-50 inline-flex items-center gap-1"><Plus className="w-4 h-4" />Add</button>
+              </div>
+            </div>
+            <p className="text-[11.5px] text-[#6B6680]">A tag shows a song to clients for a part with the same name. Songs keep a tag even if you remove it here.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditTags(false)} className="h-9 px-4 rounded-full bg-white text-[#4A4658] text-[13px] font-semibold">Cancel</button>
+              <button type="button" onClick={saveTags} disabled={savingTags} className="h-9 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">
+                {savingTags ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Save tags
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {songs.length > 0 && (
@@ -123,7 +191,7 @@ export default function MusicLibraryPage() {
       )}
 
       {loading ? <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}><div className="sp-skel h-4 w-48 rounded-full" /></div>
-        : songs.length === 0 ? <EmptyState icon={Music2} title="No songs yet" text="Add the songs you often use for Holud, Wedding, teasers and reels. Clients will see them as your suggestions." />
+        : songs.length === 0 ? <EmptyState icon={Music2} title="No songs yet" text="Add the songs you often use for each part of a program, teasers and reels. Clients will see them as your suggestions." />
         : shown.length === 0 ? <p className="text-center text-sm text-[#6B6680] py-10">No song matches.</p>
         : (
           <ul className={cn("bg-white rounded-[20px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>

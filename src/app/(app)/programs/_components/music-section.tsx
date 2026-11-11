@@ -37,6 +37,11 @@ export function MusicSection({ booking }: { booking: Booking }) {
   const [library, setLibrary] = useState<LibrarySong[] | null>(null);
   const [showLib, setShowLib] = useState(false);
   const [portal, setPortal] = useState(false);
+  /** The studio's own music tags (e.g. Outdoor trailer) — offered as parts too. */
+  const [ownTags, setOwnTags] = useState<string[]>([]);
+  useEffect(() => {
+    apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null)).then(d => setOwnTags(Array.isArray(d?.musicTags) ? d.musicTags : [])).catch(() => {});
+  }, []);
 
   const client = (booking as unknown as { client?: Client }).client;
   const program = booking.eventName || booking.bookingNumber;
@@ -136,6 +141,9 @@ export function MusicSection({ booking }: { booking: Booking }) {
           ))}
           {defaults.filter(d => !parts.some(p => p.key === d.key)).map(d => (
             <button key={d.key} type="button" onClick={() => setParts([...parts, d])} className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#6B6680]")}><Plus className="w-3 h-3" />{d.label}</button>
+          ))}
+          {ownTags.filter(t => ![...parts, ...defaults].some(p => p.label.toLowerCase() === t.toLowerCase())).map(t => (
+            <button key={`tag-${t}`} type="button" onClick={() => setParts([...parts, { key: `custom-${Date.now()}-${t.length}`, label: t, kind: "custom" }])} className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#6B6680]")}><Plus className="w-3 h-3" />{t}</button>
           ))}
         </div>
         <div className="flex gap-2">
@@ -243,7 +251,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
         {showLib && (
           <ul className="mt-2 max-h-56 overflow-y-auto rounded-[14px] bg-white divide-y divide-[#EEEBF4]">
             {library === null && <li className="p-3 text-[13px] text-[#6B6680]">Loading…</li>}
-            {library?.length === 0 && <li className="p-3 text-[13px] text-[#6B6680]">Your library is empty. Add songs in <a href="/music" className="font-semibold text-[#5B3FD0]">Music</a>.</li>}
+            {library?.length === 0 && <li className="p-3 text-[13px] text-[#6B6680]">Your library is empty. Add songs in <a href="/music" className="font-semibold text-[#5B3FD0]">Music Library</a>.</li>}
             {library?.map(x => {
               const has = s.suggestions.some(y => y.youtubeId === x.youtubeId);
               return (

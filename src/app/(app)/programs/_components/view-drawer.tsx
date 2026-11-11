@@ -41,63 +41,26 @@ function DeliveryOverview({ booking }: { booking: Booking }) {
   const method = booking.deliveryMethod;
   const linksCount = (booking.deliveryLinks as any[])?.length ?? 0;
 
-  if (!method) {
-    return (
-      <div className="rounded-xl border border-dashed border-[#E4E0EC] px-4 py-3 text-center">
-        <p className="text-xs text-[#8A8599]">No delivery set yet</p>
-      </div>
-    );
-  }
-
-  const methodMeta = {
-    drive_auto: { icon: <HardDrive className="w-4 h-4 text-[#1F8A5B]" />, label: "Drive Auto", color: "text-[#1F8A5B]" },
-    drive_link: { icon: <Link2 className="w-4 h-4 text-[#7D5CEF]" />, label: "Drive Link", color: "text-[#5B3FD0]" },
-    r2: { icon: <Cloud className="w-4 h-4 text-[#1F5C99]" />, label: "R2 Cloud", color: "text-[#1F5C99]" },
-  }[method] ?? { icon: <HardDrive className="w-4 h-4 text-[#6B6680]" />, label: method, color: "text-[#4A4658]" };
+  const label = { drive_auto: "Google Drive folder", drive_link: "Drive link", r2: "StuPanel cloud" }[method ?? ""] ?? (method ? method : "");
+  const openUrl = method === "drive_auto" ? booking.driveFolderUrl : method === "drive_link" ? booking.deliveryLink : null;
+  const facts = !method ? ["Nothing set yet"] : [
+    method === "r2" ? `${r2FileCount ?? "—"} file${r2FileCount === 1 ? "" : "s"}` : method === "drive_auto" ? "Folder ready" : null,
+    `${linksCount} link${linksCount === 1 ? "" : "s"}`,
+    booking.deliveryDate ? `Delivered ${fmtDate(booking.deliveryDate)}` : null,
+  ].filter(Boolean);
 
   return (
-    <div className="rounded-xl border border-[#E4E0EC] bg-[#F7F5FB] overflow-hidden">
-      {/* Method header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E4E0EC] bg-white">
-        <div className="flex items-center gap-2">
-          {methodMeta.icon}
-          <span className={`text-xs font-semibold ${methodMeta.color}`}>{methodMeta.label}</span>
-        </div>
-        {method === "drive_auto" && booking.driveFolderUrl && (
-          <a href={booking.driveFolderUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">
-            <ExternalLink className="w-3 h-3" /> Open Folder
-          </a>
-        )}
-        {method === "drive_link" && (booking.deliveryLink || linksCount > 0) && (
-          <a href={booking.deliveryLink ?? "#"} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">
-            <ExternalLink className="w-3 h-3" /> Open
-          </a>
-        )}
+    <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3">
+      <Tile icon={method === "r2" ? Cloud : method === "drive_link" ? Link2 : HardDrive} color={method ? "teal" : "ink"} size={36} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[14px] font-bold text-[#17151F]">{method ? label : "Delivery"}</p>
+        <p className="text-[12.5px] text-[#6B6680] truncate">{facts.join(" · ")}</p>
       </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 divide-x divide-[#E4E0EC]">
-        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
-          <span className="text-base font-bold text-[#17151F]">
-            {method === "r2" ? (r2FileCount ?? "—") : (method === "drive_auto" ? "✓" : linksCount)}
-          </span>
-          <span className="text-xs text-[#8A8599]">
-            {method === "r2" ? "Files" : method === "drive_auto" ? "Folder" : "Links"}
-          </span>
-        </div>
-        <div className="flex flex-col items-center justify-center py-3 gap-0.5">
-          <span className="text-base font-bold text-[#17151F]">{linksCount}</span>
-          <span className="text-xs text-[#8A8599]">Links</span>
-        </div>
-        <div className="flex flex-col items-center justify-center py-3 gap-0.5 px-1">
-          <span className="text-xs font-semibold text-[#33303F] text-center leading-tight">
-            {booking.deliveryDate ? fmtDate(booking.deliveryDate) : "—"}
-          </span>
-          <span className="text-xs text-[#8A8599]">Date</span>
-        </div>
-      </div>
+      {openUrl && (
+        <a href={openUrl} target="_blank" rel="noopener noreferrer" className="h-9 px-3.5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-shrink-0">
+          <ExternalLink className="w-3.5 h-3.5" />Open
+        </a>
+      )}
     </div>
   );
 }
@@ -130,18 +93,18 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
   const hasInfo = brief.videoStyle || brief.photoStyle || brief.colorStyle || brief.musicInfo || brief.specialInstructions;
 
   return (
-    <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F7F5FB] border-b border-[#E4E0EC]">
-        <div className="flex items-center gap-2">
-          <Palette className="w-3.5 h-3.5 text-[#6B6680]" />
-          <span className="text-xs font-semibold text-[#4A4658]">Creative Brief</span>
-          {hasInfo && <span className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-1.5 py-0.5 rounded-full font-medium">Set</span>}
+    <div className="rounded-2xl border border-[#E6E2EE] overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <Tile icon={Palette} color="orchid" size={36} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-bold text-[#17151F]">Creative brief</p>
+          <p className="text-[12.5px] text-[#6B6680] truncate">{hasInfo ? "Style, colour and notes for the editors" : "Not written yet"}</p>
         </div>
-        <button onClick={() => setEditing(!editing)} className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">{editing ? "Cancel" : "Edit"}</button>
+        <button type="button" onClick={() => setEditing(!editing)} className="h-9 px-3.5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[13px] font-semibold text-[#17151F] flex-shrink-0">{editing ? "Cancel" : hasInfo ? "Edit" : "Write"}</button>
       </div>
 
       {editing ? (
-        <div className="p-4 space-y-3 bg-white">
+        <div className="p-3 pt-0 space-y-3">
           {[
             { key: "videoStyle", label: "Video Style", placeholder: "Cinematic, emotional storytelling..." },
             { key: "photoStyle", label: "Photo Style", placeholder: "Light & airy, natural tones..." },
@@ -149,36 +112,36 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
             { key: "musicInfo", label: "Music", placeholder: "e.g. Soft instrumental, upbeat for the reel" },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
-              <p className="text-xs text-[#6B6680] mb-1">{label}</p>
+              <p className="text-[12.5px] font-semibold text-[#4A4658] mb-1">{label}</p>
               <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                placeholder={placeholder} className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                placeholder={placeholder} className="w-full h-10 px-3 rounded-[10px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#A29DB3] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
             </div>
           ))}
           <div>
-            <p className="text-xs text-[#6B6680] mb-1">Special Instructions</p>
+            <p className="text-[12.5px] font-semibold text-[#4A4658] mb-1">Special Instructions</p>
             <textarea value={form.specialInstructions} onChange={e => setForm(f => ({ ...f, specialInstructions: e.target.value }))}
               placeholder="Highlight the first dance, include all family moments..." rows={3}
-              className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF] resize-none" />
+              className="w-full px-3 py-2.5 rounded-[10px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#A29DB3] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF] resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-[#6B6680] mb-1">Editing Deadline</p>
+              <p className="text-[12.5px] font-semibold text-[#4A4658] mb-1">Editing Deadline</p>
               <input type="date" value={form.editingDeadline} onChange={e => setForm(f => ({ ...f, editingDeadline: e.target.value }))}
-                className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                className="w-full h-10 px-3 rounded-[10px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#A29DB3] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
             </div>
             <div>
-              <p className="text-xs text-[#6B6680] mb-1">Delivery Deadline</p>
+              <p className="text-[12.5px] font-semibold text-[#4A4658] mb-1">Delivery Deadline</p>
               <input type="date" value={form.deliveryDeadline} onChange={e => setForm(f => ({ ...f, deliveryDeadline: e.target.value }))}
-                className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                className="w-full h-10 px-3 rounded-[10px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#A29DB3] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
             </div>
           </div>
           <button onClick={save} disabled={saving}
-            className="w-full py-2 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Creative Brief
+            className="w-full h-11 bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold rounded-full flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save brief
           </button>
         </div>
       ) : hasInfo ? (
-        <div className="p-4 space-y-2 bg-white">
+        <div className="px-3 pb-3 pt-2.5 space-y-2 border-t border-[#EEEBF4]">
           {brief.videoStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Video Style</span><span className="text-[#17151F]">{brief.videoStyle}</span></div>}
           {brief.photoStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Photo Style</span><span className="text-[#17151F]">{brief.photoStyle}</span></div>}
           {brief.colorStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Color Grade</span><span className="text-[#17151F]">{brief.colorStyle}</span></div>}
@@ -186,15 +149,13 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
           {brief.specialInstructions && <p className="text-xs text-[#4A4658] bg-[#F7F4FE] rounded-lg px-3 py-2 mt-1">{brief.specialInstructions}</p>}
           {(brief.editingDeadline || brief.deliveryDeadline) && (
             <div className="flex gap-4 text-xs text-[#6B6680] pt-1">
-              {brief.editingDeadline && <span>✏️ Editing by {brief.editingDeadline}</span>}
-              {brief.deliveryDeadline && <span>📦 Delivery by {brief.deliveryDeadline}</span>}
+              {brief.editingDeadline && <span>Edit by {brief.editingDeadline}</span>}
+              {brief.deliveryDeadline && <span>Deliver by {brief.deliveryDeadline}</span>}
             </div>
           )}
         </div>
       ) : (
-        <div className="px-4 py-3 text-center bg-white">
-          <p className="text-xs text-[#8A8599]">No creative brief yet — click Edit to add</p>
-        </div>
+        null
       )}
     </div>
   );
@@ -449,18 +410,18 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   }
 
   return (
-    <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F7F5FB] border-b border-[#E4E0EC]">
-        <div className="flex items-center gap-2">
-          <Clapperboard className="w-3.5 h-3.5 text-[#6B6680]" />
-          <span className="text-xs font-semibold text-[#4A4658]">Editor Assignments</span>
-          {!loading && assignments.length > 0 && <span className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-1.5 py-0.5 rounded-full font-medium">{assignments.length}</span>}
+    <div className="rounded-2xl border border-[#E6E2EE] overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <Tile icon={Clapperboard} color="violet" size={36} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-bold text-[#17151F]">Editors</p>
+          <p className="text-[12.5px] text-[#6B6680] truncate">{loading ? "…" : assignments.length ? `${assignments.length} assigned` : "Nobody assigned yet"}</p>
         </div>
-        <button onClick={() => setEditing(!editing)} className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">{editing ? "Cancel" : "Assign"}</button>
+        <button type="button" onClick={() => setEditing(!editing)} className="h-9 px-3.5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[13px] font-semibold text-[#17151F] flex-shrink-0">{editing ? "Cancel" : "Assign"}</button>
       </div>
 
       {editing ? (
-        <div className="p-4 space-y-4 bg-white">
+        <div className="p-3 pt-0 space-y-4">
           {editorMembers.length === 0 ? (
             <p className="text-xs text-[#8A8599] text-center">No members with editor roles found</p>
           ) : (
@@ -489,13 +450,13 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                           <p className="text-xs text-[#8A8599] mb-0.5">Editing Deadline</p>
                           <input type="date" value={e.editingDeadline ?? ""}
                             onChange={ev => updateDraftField(m.id, e.role, "editingDeadline", ev.target.value)}
-                            className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                            className="w-full h-9 px-2.5 rounded-[10px] bg-[#F5F3FA] text-[13px] text-[#17151F] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
                         </div>
                         <div>
                           <p className="text-xs text-[#8A8599] mb-0.5">Delivery Deadline</p>
                           <input type="date" value={e.deliveryDeadline ?? ""}
                             onChange={ev => updateDraftField(m.id, e.role, "deliveryDeadline", ev.target.value)}
-                            className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                            className="w-full h-9 px-2.5 rounded-[10px] bg-[#F5F3FA] text-[13px] text-[#17151F] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
                         </div>
                       </div>
                       <div>
@@ -518,7 +479,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                         <p className="text-xs text-[#8A8599] mb-0.5">Studio Note</p>
                         <input value={e.studioNote ?? ""} onChange={ev => updateDraftField(m.id, e.role, "studioNote", ev.target.value)}
                           placeholder="Instructions for this editor..."
-                          className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
+                          className="w-full h-9 px-2.5 rounded-[10px] bg-[#F5F3FA] text-[13px] text-[#17151F] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
                       </div>
                     </div>
                   ))}
@@ -527,14 +488,14 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
             </div>
           )}
           <button onClick={save} disabled={saving}
-            className="w-full py-2 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Assignments
+            className="w-full h-11 bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold rounded-full flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save editors
           </button>
         </div>
       ) : loading ? (
-        <div className="py-4 flex justify-center bg-white"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
+        <div className="py-4 flex justify-center border-t border-[#EEEBF4]"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
       ) : assignments.length > 0 ? (
-        <div className="divide-y divide-[#F1EFF6] bg-white">
+        <div className="divide-y divide-[#F1EFF6] border-t border-[#EEEBF4]">
           {assignments.map(a => {
             const name = `${a.user?.firstName ?? ""} ${a.user?.lastName ?? ""}`.trim();
             const statusCfg = ASSIGNMENT_STATUS_CFG[a.status] ?? { label: a.status, cls: "bg-[#F1EFF6] text-[#4A4658]" };
@@ -548,8 +509,8 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.cls}`}>{statusCfg.label}</span>
-                  {a.editingDeadline && <span className="text-xs text-[#8A8599]">✏️ {fmtDate(a.editingDeadline)}</span>}
-                  {a.deliveryDeadline && <span className="text-xs text-[#8A8599]">📦 {fmtDate(a.deliveryDeadline)}</span>}
+                  {a.editingDeadline && <span className="text-xs text-[#8A8599]">Edit by {fmtDate(a.editingDeadline)}</span>}
+                  {a.deliveryDeadline && <span className="text-xs text-[#8A8599]">Deliver by {fmtDate(a.deliveryDeadline)}</span>}
                 </div>
                 {a.progress && (a.progress.plan.length > 0 || a.progress.done > 0) && (
                   <div className="rounded-xl bg-[#F7F5FB] px-3 py-2 space-y-2">

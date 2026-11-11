@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, DollarSign } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Wallet } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { PAYMENT_METHODS } from "./constants";
@@ -69,74 +68,46 @@ export function PaymentModal({ booking, onClose, onSaved }: {
   }
 
   return (
-    <>
-      <div className="sp-backdrop z-50" onClick={onClose} />
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
-          <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-[#17151F]">Record Payment</h3>
-              <p className="text-xs text-[#8A8599] mt-0.5">{booking.eventName ?? booking.bookingNumber}</p>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
-              <X className="w-4 h-4 text-[#6B6680]" />
-            </button>
-          </div>
-
-          <div className="p-5 space-y-3">
-            {due > 0 && (
-              <div className="flex items-center justify-between px-3 py-2 bg-[#FEF5F7] rounded-xl border border-[#FDECEF]">
-                <span className="text-xs text-[#C2304F]">Outstanding Due</span>
-                <span className="font-bold text-[#C2304F] text-sm">{formatCurrency(due, bk.currency)}</span>
-              </div>
-            )}
-            {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg">{error}</p>}
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A4658]">Amount *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8599] text-sm">{sym}</span>
-                <Input type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)}
-                  placeholder="0" className="pl-7 h-11 border-[#E4E0EC] text-base font-semibold" autoFocus />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-[#4A4658]">Method</Label>
-                <select value={method} onChange={e => setMethod(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
-                  {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-[#4A4658]">Date</Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
-              </div>
-            </div>
-
-            <AccountPicker value={walletId} onChange={setWalletId} method={method} />
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A4658]">Reference / TrxID</Label>
-              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="Transaction ID, bank ref…" className="h-10 border-[#E4E0EC] text-sm" />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A4658]">Note</Label>
-              <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="h-10 border-[#E4E0EC] text-sm" />
-            </div>
-          </div>
-
-          <div className="px-5 pb-5 flex gap-3">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
-            <Button onClick={submit} disabled={loading} className="flex-1 h-11 bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
-              Record Payment
-            </Button>
-          </div>
+    <FormDrawer open onClose={onClose} onTop icon={Wallet} color="green" title="Record payment" sub={booking.eventName ?? booking.bookingNumber}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={submit} disabled={loading} className="flex-1 h-11 rounded-full bg-[#1F8A5B] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}Record payment
+          </button>
+        </>
+      }>
+      {due > 0 && (
+        <div className="mb-4 flex items-center justify-between rounded-[16px] bg-[#FDECEF] px-4 py-3">
+          <span className="text-[13px] font-semibold text-[#9C2340]">Still to pay</span>
+          <span className="text-[17px] font-extrabold text-[#C2304F] tabular-nums">{formatCurrency(due, bk.currency)}</span>
         </div>
-      </div>
-    </>
+      )}
+      {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
+
+      <FormGroup>
+        <Field label="Amount" required>{id => (
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{sym}</span>
+            <input id={id} type="number" inputMode="decimal" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus
+              className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} />
+          </div>
+        )}</Field>
+        <div className="grid grid-cols-2">
+          <Field label="Method">{id => (
+            <select id={id} value={method} onChange={e => setMethod(e.target.value)} className={inputCls}>
+              {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          )}</Field>
+          <Field label="Date" className="pl-0">{id => <input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />}</Field>
+        </div>
+        <div className="px-4 py-3.5"><AccountPicker value={walletId} onChange={setWalletId} method={method} /></div>
+      </FormGroup>
+
+      <FormGroup>
+        <Field label="Reference / transaction ID">{id => <input id={id} value={ref} onChange={e => setRef(e.target.value)} placeholder="Optional" className={inputCls} />}</Field>
+        <Field label="Note">{id => <input id={id} value={note} onChange={e => setNote(e.target.value)} placeholder="Optional" className={inputCls} />}</Field>
+      </FormGroup>
+    </FormDrawer>
   );
 }

@@ -56,6 +56,8 @@ export type PendingUpload = {
   createdAt: number;
   uploadName?: string;
   replaceFileId?: string;
+  /** The browser tab that holds this file right now (see "other tabs" below). */
+  tab?: string;
 };
 
 type Job = {
@@ -116,6 +118,37 @@ function fingerprint(file: File, bookingId: string, folderPath?: string, kind: D
   return fpOf({ kind, fileName: file.name, size: file.size, lastModified: file.lastModified, bookingId, folderPath });
 }
 
+// ─── other tabs ───────────────────────────────────────────────────────────────
+// The pending list is shared by every StuPanel tab on this device. A tab that is uploading
+// writes a heartbeat, so the other tabs know those files are busy there — not "unfinished".
+const TAB_ID = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : String(Math.random()).slice(2, 10);
+const TABS_KEY = "sp_drive_tabs_v1";
+const ALIVE_MS = 15000;
+function readTabs(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(TABS_KEY) || "{}") ?? {}; } catch { return {}; }
+}
+let beat: ReturnType<typeof setInterval> | null = null;
+function heartbeat(on: boolean) {
+  const write = (alive: boolean) => {
+    try {
+      const now = Date.now();
+      const tabs = Object.fromEntries(Object.entries(readTabs()).filter(([id, t]) => id !== TAB_ID && now - t < ALIVE_MS));
+      if (alive) tabs[TAB_ID] = now;
+      localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
+    } catch { /* ignore */ }
+  };
+  if (on) { write(true); if (!beat) beat = setInterval(() => write(true), 4000); }
+  else if (beat) { clearInterval(beat); beat = null; write(false); }
+}
+/** True when another open tab is uploading (or holding, paused) this file right now. */
+export function isUploadingElsewhere(p: PendingUpload, tabs: Record<string, number> = readTabs()) {
+  return !!p.tab && p.tab !== TAB_ID && Date.now() - (tabs[p.tab] ?? 0) < ALIVE_MS;
+}
+export function pendingElsewhere(list: PendingUpload[]) {
+  const tabs = readTabs();
+  return list.filter(p => isUploadingElsewhere(p, tabs));
+}
+
 // ─── queue ────────────────────────────────────────────────────────────────────
 const queue: Job[] = [];
 const runningJobs = new Set<Job>();
@@ -157,6 +190,7 @@ export function cancelAllDriveUploads() {
   writePending(readPending().filter(p => !fps.has(p.fp)));
   uploadStore.cancelMany(jobs.map(j => j.id));
   if (paused) { paused = false; emitPaused(); }
+  if (running === 0) heartbeat(false);
   return jobs.length;
 }
 /** Try again the files that failed (their place in the list is kept). */
@@ -179,7 +213,7 @@ function pump() {
     if (job.cancelled) continue;
     running++;
     runningJobs.add(job);
-    runJob(job).finally(() => { running--; runningJobs.delete(job); pump(); });
+    runJob(job).finally(() => { running--; runningJobs.delete(job); pump(); if (running === 0 && queue.length === 0) heartbeat(false); });
   }
 }
 
@@ -195,6 +229,8 @@ export function uploadToDrive(opts: {
 }) {
   const known = new Set(readPending().map(p => p.fp));
   const remember: PendingUpload[] = [];
+  const retake = new Set<string>();
+  if (opts.files.length) heartbeat(true);
   for (const file of opts.files) {
     const id = crypto.randomUUID();
     const folderPath = opts.folderFor?.(file);
@@ -208,9 +244,9 @@ export function uploadToDrive(opts: {
       remember.push({
         kind, fp, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, fileName: file.name,
         size: file.size, lastModified: file.lastModified, uploadUrl: "", createdAt: Date.now(),
-        uploadName: plan?.name, replaceFileId: plan?.replaceFileId,
+        uploadName: plan?.name, replaceFileId: plan?.replaceFileId, tab: TAB_ID,
       });
-    }
+    } else retake.add(fp); // remembered from an earlier visit — this tab holds it now
     uploadStore.add({
       id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
       bookingId: opts.bookingId, bookingName: opts.bookingName,
@@ -225,13 +261,14 @@ export function uploadToDrive(opts: {
     });
     queue.push(job);
   }
-  if (remember.length) writePending([...readPending(), ...remember]);
+  if (remember.length || retake.size) writePending([...readPending().map(p => (retake.has(p.fp) ? { ...p, tab: TAB_ID } : p)), ...remember]);
   pump();
 }
 
 /** Re-picked files: match them to the unfinished list and continue. */
 export function resumeWithFiles(files: File[]): { matched: number } {
-  const pending = readPending();
+  const tabs = readTabs();
+  const pending = readPending().filter(p => !isUploadingElsewhere(p, tabs));
   let matched = 0;
   type Group = { kind: DriveKind; bookingName?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
   const byProgram = new Map<string, Group>();
@@ -330,7 +367,7 @@ async function runJob(job: Job) {
       pending = {
         kind, fp, bookingId, bookingName: job.bookingName, folderPath, fileName: file.name,
         size: total, lastModified: file.lastModified, uploadUrl: s.uploadUrl, createdAt: Date.now(),
-        uploadName: job.plan?.name, replaceFileId: job.plan?.replaceFileId,
+        uploadName: job.plan?.name, replaceFileId: job.plan?.replaceFileId, tab: TAB_ID,
       };
       writePending([...readPending().filter(p => p.fp !== fp), pending]);
     }

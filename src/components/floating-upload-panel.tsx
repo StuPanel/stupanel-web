@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { uploadStore, UploadEntry } from "@/lib/upload-store";
 import {
   subscribePending, subscribePaused, resumeWithFiles, discardPending, pauseDriveUploads, resumeDriveUploads,
-  cancelAllDriveUploads, retryFailedDriveUploads, failedDriveUploadCount, type PendingUpload,
+  cancelAllDriveUploads, retryFailedDriveUploads, failedDriveUploadCount, pendingElsewhere, type PendingUpload,
 } from "@/lib/drive-uploader";
 import { askConfirm, notify } from "@/components/feedback";
 import { X, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, HardDrive, Cloud, XCircle, WifiOff, RotateCcw, FolderOpen, Files, Pause, Play } from "lucide-react";
@@ -40,6 +40,13 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   useEffect(() => subscribePending(setPending), []);
   const [paused, setPaused] = useState(false);
   useEffect(() => subscribePaused(setPaused), []);
+  // Look again every few seconds while something is remembered (another tab may have closed).
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!pending.length) return;
+    const t = setInterval(() => setTick(n => n + 1), 5000);
+    return () => clearInterval(t);
+  }, [pending.length]);
 
   // Warn before closing the tab while uploads run.
   useEffect(() => {
@@ -70,9 +77,11 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   const failed = uploads.filter(u => !!u.error && !u.cancelled);
   const done = uploads.filter(u => u.done);
   const activeFps = new Set(active.map(u => `${u.fileName}|${u.size}`));
-  const unfinished = pending.filter(p => !activeFps.has(`${p.fileName}|${p.size}`));
+  // Files another open tab is uploading right now are not "unfinished" — they are busy there.
+  const elsewhere = new Set(pendingElsewhere(pending).map(p => p.fp));
+  const unfinished = pending.filter(p => !elsewhere.has(p.fp) && !activeFps.has(`${p.fileName}|${p.size}`));
 
-  if (uploads.length === 0 && unfinished.length === 0) return null;
+  if (uploads.length === 0 && unfinished.length === 0 && elsewhere.size === 0) return null;
 
   const totalBytes = active.reduce((s, u) => s + (u.size ?? 0), 0);
   const sentBytes = active.reduce((s, u) => s + (u.sent ?? 0), 0);
@@ -132,6 +141,7 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
             {active.length > 0
               ? waiting ? "Waiting for internet…" : `${paused ? "Paused" : "Uploading"} · ${done.length} of ${uploads.filter(u => !u.cancelled).length} done · ${overall}%`
               : unfinished.length > 0 ? `${unfinished.length} unfinished upload${unfinished.length > 1 ? "s" : ""}`
+              : uploads.length === 0 ? "Uploading in another tab"
               : failed.length > 0 ? `${failed.length} upload${failed.length > 1 ? "s" : ""} failed`
               : `${done.length} upload${done.length > 1 ? "s" : ""} complete`}
           </p>
@@ -193,6 +203,12 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
             <RotateCcw className="w-3.5 h-3.5" />Try again
           </button>
         </div>
+      )}
+
+      {elsewhere.size > 0 && (
+        <p className="px-4 py-2 text-[11px] leading-snug text-[#6B6680] bg-[#FBFAFD]">
+          {elsewhere.size} file{elsewhere.size === 1 ? " is" : "s are"} uploading in another StuPanel tab. Keep that tab open.
+        </p>
       )}
 
       {/* Unfinished from an earlier visit — always visible when nothing is running (also on a phone) */}

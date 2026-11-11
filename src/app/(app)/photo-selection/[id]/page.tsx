@@ -219,7 +219,7 @@ export default function GalleryPage() {
               <span className={cn("h-7 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center", STATUS_STYLE[g.status])}>{STATUS_LABEL[g.status]}</span>
             </div>
             <p className="text-[13px] text-[#6B6680] truncate">
-              <Link href={`/clients?view=${g.client.id}`} className="hover:text-[#5B3FD0]">{g.client.name}</Link> · <Link href={`/programs?view=${g.program.id}`} className="hover:text-[#5B3FD0]">{g.program.number} {g.program.name !== g.program.number ? `· ${g.program.name}` : ""}</Link>
+              <Link href={`/clients/${g.client.id}`} className="hover:text-[#5B3FD0]">{g.client.name}</Link> · <Link href={`/programs?view=${g.program.id}`} className="hover:text-[#5B3FD0]">{g.program.number} {g.program.name !== g.program.number ? `· ${g.program.name}` : ""}</Link>
             </p>
           </div>
         </div>

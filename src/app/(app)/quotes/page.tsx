@@ -757,6 +757,14 @@ function QuotesPageInner() {
   const params = useSearchParams();
   const router = useRouter();
 
+  // Open one quote straight away (?view=quoteId) — used by the client profile
+  useEffect(() => {
+    const viewId = params.get("view");
+    if (!viewId) return;
+    router.replace("/quotes", { scroll: false });
+    apiFetch(`${API}/quotes/${viewId}`).then(r => (r.ok ? r.json() : null)).then(q => { if (q) setViewTarget(q); }).catch(() => {});
+  }, [params, router]);
+
   // "Make a quote" from a lead (?newFor=clientId&lead=leadId)
   useEffect(() => {
     const clientId = params.get("newFor");

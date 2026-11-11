@@ -88,8 +88,8 @@ function readPending(): PendingUpload[] {
 }
 function writePending(list: PendingUpload[]) {
   pendingCache = list;
-  // The fingerprint is rebuilt on read — leaving it out keeps a big batch well inside the browser's storage limit.
-  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list.map(p => ({ ...p, fp: undefined })))); } catch { /* storage full — still works until the page closes */ }
+  // The fingerprint stays in the stored list: a tab that still runs the older uploader reads it.
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch { /* storage full — still works until the page closes */ }
   pendingListeners.forEach(fn => fn(list));
 }
 const pendingListeners = new Set<(l: PendingUpload[]) => void>();

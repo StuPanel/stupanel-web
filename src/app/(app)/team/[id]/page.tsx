@@ -335,8 +335,10 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                       <Row key={`${r.roleId}-${r.rateType}-${r.workType ?? ""}-${i}`} icon={rc.icon} color={rc.tile} title={rc.label}
                         sub={`${unitLabel(r.roleId, r.rateType, r.label)} · ${r.workType ? (typeNames[r.workType] ?? r.workType) : "All programs"}`}
                         right={<>
-                          {r.rate ? <span className="text-[14.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}</span> : null}
-                          {r.withSetup != null && <span className="text-[12px] font-semibold text-[#5B3FD0] tabular-nums">{formatCurrency(Number(r.withSetup))} with setup</span>}
+                          {r.withSetup != null ? (<>
+                            <span className="text-[14.5px] font-bold text-[#17151F] tabular-nums whitespace-nowrap">{formatCurrency(Number(r.withSetup))}<span className="text-[12px] font-medium text-[#6B6680]"> with setup</span></span>
+                            {r.rate ? <span className="text-[12px] font-semibold text-[#6B6680] tabular-nums whitespace-nowrap">{formatCurrency(Number(r.rate))} work only</span> : null}
+                          </>) : r.rate ? <span className="text-[14.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(r.rate))}</span> : null}
                         </>} />
                     ); })}
                   </List>

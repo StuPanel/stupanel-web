@@ -91,8 +91,10 @@ function rateLine(m: Member, customRoles: string[]) {
   const rates = (m.roleRates ?? []).filter(r => (r.rate || r.withSetup) && !r.workType);
   for (const r of rates.slice(0, 2)) {
     const lbl = roleConfig(r.roleId, customRoles).label;
-    const price = r.rate ? formatCurrency(Number(r.rate)) : formatCurrency(Number(r.withSetup));
-    parts.push(`${lbl} ${price}${r.withSetup && r.rate ? ` (${formatCurrency(Number(r.withSetup))} with setup)` : r.withSetup && !r.rate ? " with setup" : ""} ${unitLabel(r.roleId, r.rateType, r.label).toLowerCase()}`);
+    const unit = unitLabel(r.roleId, r.rateType, r.label).toLowerCase();
+    parts.push(r.withSetup
+      ? `${lbl} ${formatCurrency(Number(r.withSetup))} with setup${r.rate ? ` (${formatCurrency(Number(r.rate))} work only)` : ""} ${unit}`
+      : `${lbl} ${formatCurrency(Number(r.rate))} ${unit}`);
   }
   const more = (m.roleRates ?? []).filter(r => r.rate || r.withSetup).length - Math.min(rates.length, 2);
   if (more > 0) parts.push(`+${more} more`);

@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus, X, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
   Check,
-  Link2, MessageCircle, FileText,
+  Link2, MessageCircle, FileText, ArrowRight,
   Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
   Monitor, Smartphone, Tablet, MoreHorizontal,
 } from "lucide-react";
@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
+import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { AccountPicker } from "@/components/account-picker";
 import { API_URL as API } from "@/lib/api";
-import { CURRENCY_OPTIONS, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
+import { CURRENCY_OPTIONS, currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 
@@ -424,13 +426,10 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
     setDetail(d => d ? { ...d, status: "sent", sentAt: new Date().toISOString() } : d);
   }
 
-  async function convertToBooking() {
-    setConverting(true);
-    const r = await apiFetch(`${API}/quotes/${q.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" } });
-    const d = await r.json();
-    setConverting(false);
-    if (r.ok) { onRefresh(); setDetail(prev => prev ? { ...prev, status: "converted" } : prev); }
-    else notify(d.message, { error: true });
+  function onBooked(bookingId: string) {
+    setConverting(false); onRefresh();
+    setDetail(prev => prev ? { ...prev, status: "converted", convertedBookingId: bookingId, convertedAt: new Date().toISOString() } : prev);
+    notify("Program created");
   }
 
   function copyLink() {
@@ -482,11 +481,12 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
             {q.status === "accepted" && !q.convertedBookingId && (
-              <PillButton tone="green" icon={CheckCircle2} onClick={convertToBooking} disabled={converting}>{converting ? "Booking…" : "Confirm booking"}</PillButton>
+              <PillButton tone="green" icon={CheckCircle2} onClick={() => setConverting(true)}>Confirm booking</PillButton>
             )}
             {q.status === "draft" && <PillButton tone="primary" icon={sending ? Loader2 : Send} onClick={sendQuote} disabled={sending}>Send</PillButton>}
             {["draft","rejected"].includes(q.status) && <PillButton icon={Edit2} onClick={onEdit}>Edit</PillButton>}
             {q.status !== "draft" && <PillButton icon={MessageCircle} onClick={shareWA}>WhatsApp</PillButton>}
+            {q.convertedBookingId && <PillButton tone="primary" icon={ArrowRight} href={`/programs?view=${q.convertedBookingId}`}>Open program</PillButton>}
             <PillButton icon={Eye} href={publicUrl} external>Preview</PillButton>
           </div>
 
@@ -497,7 +497,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
               <div className="min-w-0">
                 <p className="text-[14px] font-bold text-[#14613F]">The client accepted</p>
                 <p className="text-[12.5px] text-[#1F8A5B] mt-0.5">{fmtDateTime(q.acceptedAt)}</p>
-                <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? "It's now a program." : "Tap Confirm booking once the advance is paid."}</p>
+                <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? "It's now a program." : "Tap Confirm booking to make it a program and record the advance."}</p>
               </div>
             </div>
           )}
@@ -594,9 +594,91 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
           {q.notes && <DocCard title="Notes"><p className="text-[13.5px] text-[#4A4658] leading-relaxed whitespace-pre-line">{q.notes}</p></DocCard>}
         </>
       )}
+      {converting && <ConfirmBookingDrawer quote={q} onClose={() => setConverting(false)} onDone={onBooked} />}
     </DocDrawer>
   );
 }
+
+/** Accepted quote → program. Records the advance as a real payment when the client has paid it. */
+function ConfirmBookingDrawer({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: (bookingId: string) => void }) {
+  const advance = Number(quote.advanceRequired) || 0;
+  const [paid, setPaid] = useState(advance > 0);
+  const [amount, setAmount] = useState(advance > 0 ? String(advance) : "");
+  const [method, setMethod] = useState("cash");
+  const [walletId, setWalletId] = useState("");
+  const [ref, setRef] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const total = Number(quote.grandTotal);
+
+  async function save() {
+    const amt = Number(amount);
+    if (paid) {
+      if (!amt || amt <= 0) { setError("Enter the advance the client paid, or switch it off."); return; }
+      if (amt > total) { setError(`That's more than the quote total (${formatCurrency(total, quote.currency)}).`); return; }
+      if (!walletId) { setError("Pick the account the money went into."); return; }
+    }
+    setSaving(true); setError("");
+    try {
+      const r = await apiFetch(`${API}/quotes/${quote.id}/convert`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paid ? { advanceAmount: amt, advanceMethod: method, advanceWalletId: walletId, advanceReference: ref.trim() || undefined } : {}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setError((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't create the program."); return; }
+      onDone(d.booking?.id);
+    } catch { setError("Something went wrong."); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <FormDrawer open onClose={onClose} onTop icon={CheckCircle2} color="green" title="Confirm booking" sub={`${quote.quoteNumber} · ${quote.client.firstName} ${quote.client.lastName ?? ""}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={save} disabled={saving} className="flex-1 h-11 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Create program
+          </button>
+        </>
+      }>
+      <div className="mb-4 rounded-[16px] bg-white px-4 py-3.5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] text-[#6B6680]">Quote total</p>
+          <p className="text-[18px] font-extrabold text-[#17151F] tabular-nums">{formatCurrency(total, quote.currency)}</p>
+        </div>
+        {advance > 0 && <p className="text-[13px] text-[#6B6680] text-right">Advance asked<br /><span className="font-bold text-[#9A5B00] tabular-nums">{formatCurrency(advance, quote.currency)}</span></p>}
+      </div>
+      {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
+
+      <FormGroup note={paid ? "It's saved as the program's first payment, with a receipt." : "You can record payments later from the program."}>
+        <SwitchRow label="The client has paid an advance" on={paid} onChange={setPaid} />
+        {paid && (
+          <>
+            <Field label="Advance received" required>{id => (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{currencySymbol(quote.currency).trim()}</span>
+                <input id={id} type="number" inputMode="decimal" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0"
+                  className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(quote.currency) }} />
+              </div>
+            )}</Field>
+            <Field label="Method">{id => (
+              <select id={id} value={method} onChange={e => setMethod(e.target.value)} className={inputCls}>
+                {PAY_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            )}</Field>
+            <div className="px-4 py-3.5"><AccountPicker value={walletId} onChange={setWalletId} method={method} /></div>
+            <Field label="Reference / transaction ID">{id => <input id={id} value={ref} onChange={e => setRef(e.target.value)} placeholder="Optional" className={inputCls} />}</Field>
+          </>
+        )}
+      </FormGroup>
+    </FormDrawer>
+  );
+}
+
+const PAY_METHODS = [
+  { value: "cash", label: "Cash" }, { value: "mobile_banking", label: "Mobile wallet" }, { value: "bank_transfer", label: "Bank transfer" },
+  { value: "credit_card", label: "Card" }, { value: "cheque", label: "Cheque" }, { value: "other", label: "Other" },
+];
 
 // ─── Quote row (Apple style) ───────────────────────────────────────────────────
 const STATUS_HEX: Record<string, { bg: string; text: string }> = {

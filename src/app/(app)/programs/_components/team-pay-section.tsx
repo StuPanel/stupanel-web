@@ -17,7 +17,7 @@ import { FormDrawer, FormGroup, Field, inputCls } from "@/components/ui/form-kit
 import { fmtDate } from "./constants";
 import { BILL_LOCKED_STATUSES, type Booking, type CostEntry } from "./types";
 
-const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "bKash / Nagad" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
+const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const methodName = (v: string) => METHODS.find(m => m.v === v)?.l ?? v;
 
 export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved: () => void }) {

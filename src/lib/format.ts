@@ -8,6 +8,16 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹",
 };
 
+/** Currencies a studio can work in (Settings, packages…). */
+export const CURRENCY_OPTIONS = [
+  { value: "BDT", label: "৳ BDT — Taka" },
+  { value: "USD", label: "$ USD — US Dollar" },
+  { value: "INR", label: "₹ INR — Indian Rupee" },
+  { value: "GBP", label: "£ GBP — British Pound" },
+  { value: "EUR", label: "€ EUR — Euro" },
+  { value: "AED", label: "AED — UAE Dirham" },
+];
+
 /**
  * The signed-in studio's currency (Settings → General → Currency).
  * Set by AuthProvider once the studio loads; money shown without its own currency uses it.

@@ -1,23 +1,23 @@
 "use client";
 
-import { Package as HeaderIcon } from "lucide-react";
+/**
+ * Packages — ready-made offers a studio sells (e.g. "Wedding Premium").
+ * A package follows the studio's own setup: its days are the parts of a Program type
+ * (Settings → Program types), its team uses the studio's roles (incl. custom ones).
+ * Picking a package in a program fills price, type and days; in a quote it fills the first line.
+ */
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Package as HeaderIcon, Plus, Edit3, Trash2, Loader2, Package, CheckCircle2, Eye, EyeOff, Search, X } from "lucide-react";
 import { CARD_SHADOW, EmptyState, MainButton, PageHeader, RowsSkeleton, SearchField, Tile } from "@/components/ui/apple";
-
-import { apiFetch } from "@/lib/api";
-
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit3, Trash2, Loader2, X, AlertTriangle, Package, CheckCircle2, Eye, EyeOff, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { EditableSelect } from "@/components/ui/editable-select";
+import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { askConfirm, notify } from "@/components/feedback";
+import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
+import { CURRENCY_OPTIONS, currencySymbol, formatCurrency, getStudioCurrency } from "@/lib/format";
 import { matches } from "@/components/list-ui";
+import { TEAM_ROLES } from "../team/_components/rate-card";
 
-
-interface StaffingLine { role: string; level: string; count: number; }
+interface StaffingLine { role: string; level?: string; count: number; }
 
 interface Pkg {
   id: string; name: string; description?: string; category?: string;
@@ -30,494 +30,302 @@ interface Pkg {
   isActive: boolean; isVisibleInPortal: boolean; sortOrder: number;
 }
 
-const CATEGORIES = ["Wedding", "Portrait", "Corporate", "Video", "Birthday", "Maternity", "Event", "Other"];
+type WorkType = { id: string; name: string; active: boolean; events: { id: string; name: string }[] };
 
-const EVENT_TYPES = [
-  { value: "holud", label: "Holud" },
-  { value: "mehndi", label: "Mehndi" },
-  { value: "wedding", label: "Wedding" },
-  { value: "reception", label: "Reception" },
-  { value: "engagement", label: "Engagement" },
-  { value: "pre_wedding", label: "Pre-Wedding" },
-  { value: "other", label: "Other" },
-];
-const ROLES = [
-  { value: "photographer", label: "Photographer" },
-  { value: "cinematographer", label: "Cinematographer" },
-  { value: "drone_pilot", label: "Drone Pilot" },
-  { value: "assistant", label: "Assistant" },
-  { value: "photo_editor", label: "Photo Editor" },
-  { value: "video_editor", label: "Video Editor" },
-];
-const LEVELS = [
-  { value: "junior", label: "Junior" },
-  { value: "associate", label: "Associate" },
-  { value: "senior", label: "Senior" },
-  { value: "lead", label: "Lead" },
-  { value: "top_senior", label: "Top Senior" },
-];
-const RITUAL_PRESETS = ["Dodhi Mangal", "Ghot Purano", "Briddhi", "Bashi Biye", "Bodhu Boron"];
 const DELIVERY_METHODS = [
-  { value: "pendrive", label: "Pendrive" },
-  { value: "google_drive", label: "Google Drive" },
-  { value: "both", label: "Pendrive & Google Drive" },
+  { value: "google_drive", label: "Online (Google Drive)" },
+  { value: "pendrive", label: "USB drive" },
+  { value: "both", label: "Online + USB drive" },
   { value: "other", label: "Other" },
 ];
+const DELIVERY_LABELS: Record<string, string> = Object.fromEntries(DELIVERY_METHODS.map(d => [d.value, d.value === "other" ? "Custom delivery" : d.label]));
 
+/** Old packages saved day keys like "pre_wedding"; show them readable. */
+const dayLabel = (v: string) => (/^[a-z_]+$/.test(v) ? v.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ") : v);
+const roleLabel = (r: string) => TEAM_ROLES.find(x => x.id === r)?.label ?? r;
+/** Levels were dropped (the team has none); old ones still show. */
 const LEVEL_LABELS: Record<string, string> = { junior: "Junior", associate: "Associate", senior: "Senior", lead: "Lead", top_senior: "Top Senior" };
-const ROLE_LABELS: Record<string, string> = {
-  photographer: "Photographer", cinematographer: "Cinematographer",
-  drone_pilot: "Drone Pilot", assistant: "Assistant",
-  photo_editor: "Photo Editor", video_editor: "Video Editor",
-};
-const DELIVERY_LABELS: Record<string, string> = { pendrive: "Pendrive", google_drive: "Google Drive", both: "Pendrive & Google Drive", other: "Custom delivery" };
 
-// Renders structured package fields (staffing, deliverables) as bullet lines — shared by the card and the drawer's live preview.
-function summaryLines(p: {
-  staffing?: StaffingLine[]; durationHours?: number; durationDays?: number; durationUnit?: "hours" | "days";
-  photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
-  ritualsIncluded?: string[]; deliveryMethod?: string;
-}): string[] {
+/** "What you get" lines — shared by the card and the drawer preview. */
+function summaryLines(p: Partial<Pkg>): string[] {
   const lines: string[] = [];
   (p.staffing ?? []).forEach(s => {
-    const role = ROLE_LABELS[s.role] ?? s.role;
     const level = s.level ? `${LEVEL_LABELS[s.level] ?? s.level} ` : "";
-    lines.push(`${s.count} ${level}${role}${s.count > 1 ? "s" : ""}`);
+    lines.push(`${s.count} ${level}${roleLabel(s.role)}${s.count > 1 ? "s" : ""}`);
   });
-  if (p.durationUnit === "days" && p.durationDays) {
-    lines.push(`${p.durationDays} Day${p.durationDays > 1 ? "s" : ""} Coverage`);
-  } else if (p.durationHours) {
-    lines.push(`${p.durationHours} Hours Coverage`);
-  }
-  if (p.photoEditCount) lines.push(`${p.photoEditCount} Photo${p.photoEditCount > 1 ? "s" : ""} Edited`);
+  if (p.durationUnit === "days" && p.durationDays) lines.push(`${p.durationDays} day${p.durationDays > 1 ? "s" : ""} coverage`);
+  else if (p.durationHours) lines.push(`${p.durationHours} hours coverage`);
+  if (p.photoEditCount) lines.push(`${p.photoEditCount} edited photo${p.photoEditCount > 1 ? "s" : ""}`);
   if (p.trailerCount || p.fullVideoCount) {
     lines.push([
-      p.trailerCount ? `${p.trailerCount} Trailer${p.trailerCount > 1 ? "s" : ""}` : null,
-      p.fullVideoCount ? `${p.fullVideoCount} Full Video${p.fullVideoCount > 1 ? "s" : ""}` : null,
+      p.trailerCount ? `${p.trailerCount} trailer${p.trailerCount > 1 ? "s" : ""}` : null,
+      p.fullVideoCount ? `${p.fullVideoCount} full video${p.fullVideoCount > 1 ? "s" : ""}` : null,
     ].filter(Boolean).join(" + "));
   }
-  if (p.ritualsIncluded?.length) lines.push(`Rituals: ${p.ritualsIncluded.join(", ")}`);
+  if (p.ritualsIncluded?.length) lines.push(`Also: ${p.ritualsIncluded.join(", ")}`);
   if (p.deliveryMethod) lines.push(`Delivered via ${DELIVERY_LABELS[p.deliveryMethod] ?? p.deliveryMethod}`);
   return lines;
 }
 
+type Form = {
+  name: string; description: string; category: string; basePrice: string; currency: string; priceIsNegotiable: boolean;
+  durationUnit: "hours" | "days"; durationHours: string; durationDays: string; deliveryDays: string;
+  days: string[]; staffing: StaffingLine[]; photoEditCount: string; trailerCount: string; fullVideoCount: string;
+  extras: string[]; deliveryMethod: string; note: string; isActive: boolean; isVisibleInPortal: boolean;
+};
+const num = (v: string) => (v.trim() === "" ? null : Number(v));
+const str = (v: number | undefined | null) => (v == null ? "" : String(v));
+
 // ─── Drawer ───────────────────────────────────────────────────────────────────
-function PackageDrawer({ open, onClose, onSaved, editing }: {
+function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles }: {
   open: boolean; onClose: () => void; onSaved: () => void; editing?: Pkg | null;
+  workTypes: WorkType[]; customRoles: string[];
 }) {
   const isEdit = !!editing;
-  const blank: {
-    name: string; description: string; category: string; basePrice: string; currency: string;
-    priceIsNegotiable: boolean; durationHours: string; durationDays: string; durationUnit: "hours" | "days"; deliveryDays: string;
-    deliverablesDescription: string; isActive: boolean; isVisibleInPortal: boolean;
-    eventTypesIncluded: string[]; staffing: StaffingLine[];
-    photoEditCount: string; trailerCount: string; fullVideoCount: string;
-    ritualsIncluded: string[]; deliveryMethod: string;
-  } = {
-    name: "", description: "", category: "", basePrice: "", currency: "BDT",
-    priceIsNegotiable: true, durationHours: "", durationDays: "", durationUnit: "hours", deliveryDays: "",
-    deliverablesDescription: "", isActive: true, isVisibleInPortal: false,
-    eventTypesIncluded: [], staffing: [],
-    photoEditCount: "", trailerCount: "", fullVideoCount: "",
-    ritualsIncluded: [], deliveryMethod: "",
-  };
-  const [form, setForm] = useState(blank);
-  const [customRitual, setCustomRitual] = useState("");
-  const [customEventType, setCustomEventType] = useState("");
-  const [loading, setLoading] = useState(false);
+  const blank = (): Form => ({
+    name: "", description: "", category: "", basePrice: "", currency: getStudioCurrency(), priceIsNegotiable: true,
+    durationUnit: "hours", durationHours: "", durationDays: "", deliveryDays: "",
+    days: [], staffing: [], photoEditCount: "", trailerCount: "", fullVideoCount: "",
+    extras: [], deliveryMethod: "", note: "", isActive: true, isVisibleInPortal: false,
+  });
+  const [f, setF] = useState<Form>(blank);
+  const [newDay, setNewDay] = useState("");
+  const [newExtra, setNewExtra] = useState("");
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setError("");
-      if (editing) {
-        setForm({
-          name: editing.name, description: editing.description ?? "",
-          category: editing.category ?? "", basePrice: String(editing.basePrice),
-          currency: editing.currency, priceIsNegotiable: editing.priceIsNegotiable,
-          durationHours: editing.durationHours ? String(editing.durationHours) : "",
-          durationDays: editing.durationDays ? String(editing.durationDays) : "",
-          durationUnit: editing.durationUnit ?? "hours",
-          deliveryDays: editing.deliveryDays ? String(editing.deliveryDays) : "",
-          deliverablesDescription: editing.deliverablesDescription ?? "",
-          isActive: editing.isActive, isVisibleInPortal: editing.isVisibleInPortal,
-          eventTypesIncluded: editing.eventTypesIncluded ?? [],
-          staffing: editing.staffing ?? [],
-          photoEditCount: editing.photoEditCount ? String(editing.photoEditCount) : "",
-          trailerCount: editing.trailerCount ? String(editing.trailerCount) : "",
-          fullVideoCount: editing.fullVideoCount ? String(editing.fullVideoCount) : "",
-          ritualsIncluded: editing.ritualsIncluded ?? [],
-          deliveryMethod: editing.deliveryMethod ?? "",
-        });
-      } else {
-        setForm(blank);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!open) return;
+    setError(""); setNewDay(""); setNewExtra("");
+    setF(editing ? {
+      name: editing.name, description: editing.description ?? "", category: editing.category ?? "",
+      basePrice: str(editing.basePrice), currency: editing.currency || getStudioCurrency(), priceIsNegotiable: editing.priceIsNegotiable,
+      durationUnit: editing.durationUnit ?? "hours", durationHours: str(editing.durationHours), durationDays: str(editing.durationDays),
+      deliveryDays: str(editing.deliveryDays), days: (editing.eventTypesIncluded ?? []).map(dayLabel),
+      staffing: editing.staffing ?? [], photoEditCount: str(editing.photoEditCount), trailerCount: str(editing.trailerCount),
+      fullVideoCount: str(editing.fullVideoCount), extras: editing.ritualsIncluded ?? [], deliveryMethod: editing.deliveryMethod ?? "",
+      note: (editing.staffing?.length ? "" : editing.deliverablesDescription) ?? "",
+      isActive: editing.isActive, isVisibleInPortal: editing.isVisibleInPortal,
+    } : blank());
   }, [open, editing]);
 
-  function set(key: string) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm(prev => ({ ...prev, [key]: e.target.value }));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setF(p => ({ ...p, [k]: v }));
+  const type = workTypes.find(w => w.name.toLowerCase() === f.category.trim().toLowerCase());
+  const typeParts = type ? (type.events.length ? type.events.map(e => e.name) : [type.name]) : [];
+  const roles = [...TEAM_ROLES.map(r => ({ id: r.id, label: r.label })), ...customRoles.filter(c => !TEAM_ROLES.some(r => r.id === c)).map(c => ({ id: c, label: c }))];
+
+  function pickType(name: string) {
+    const w = workTypes.find(x => x.name === name);
+    const parts = w ? (w.events.length ? w.events.map(e => e.name) : [w.name]) : [];
+    // A new type brings its parts as the package's days (keep any extra day the studio typed)
+    setF(p => ({ ...p, category: name, days: name ? [...new Set([...parts, ...p.days.filter(d => !typeParts.includes(d))])] : p.days }));
+  }
+  const toggleDay = (d: string) => set("days", f.days.includes(d) ? f.days.filter(x => x !== d) : [...f.days, d]);
+  function addTo(k: "days" | "extras", v: string) {
+    const t = v.trim();
+    if (!t || f[k].some(x => x.toLowerCase() === t.toLowerCase())) return;
+    set(k, [...f[k], t]);
   }
 
-  function toggleEventType(v: string) {
-    setForm(prev => ({
-      ...prev,
-      eventTypesIncluded: prev.eventTypesIncluded.includes(v)
-        ? prev.eventTypesIncluded.filter(x => x !== v)
-        : [...prev.eventTypesIncluded, v],
-    }));
-  }
-  function toggleRitual(v: string) {
-    setForm(prev => ({
-      ...prev,
-      ritualsIncluded: prev.ritualsIncluded.includes(v)
-        ? prev.ritualsIncluded.filter(x => x !== v)
-        : [...prev.ritualsIncluded, v],
-    }));
-  }
-  function addCustomRitual(v: string) {
-    const t = v.trim();
-    if (!t || form.ritualsIncluded.includes(t)) return;
-    setForm(prev => ({ ...prev, ritualsIncluded: [...prev.ritualsIncluded, t] }));
-  }
-  function addCustomEventType(v: string) {
-    const t = v.trim();
-    if (!t || form.eventTypesIncluded.includes(t)) return;
-    setForm(prev => ({ ...prev, eventTypesIncluded: [...prev.eventTypesIncluded, t] }));
-  }
-  function addStaffingRow() {
-    setForm(prev => ({ ...prev, staffing: [...prev.staffing, { role: "photographer", level: "junior", count: 1 }] }));
-  }
-  function updateStaffingRow(idx: number, patch: Partial<StaffingLine>) {
-    setForm(prev => ({ ...prev, staffing: prev.staffing.map((s, i) => i === idx ? { ...s, ...patch } : s) }));
-  }
-  function removeStaffingRow(idx: number) {
-    setForm(prev => ({ ...prev, staffing: prev.staffing.filter((_, i) => i !== idx) }));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name.trim()) { setError("Package name is required."); return; }
-    setError(""); setLoading(true);
+  async function save() {
+    if (!f.name.trim()) { setError("Give the package a name."); return; }
+    for (const [k, label] of [["basePrice", "Price"], ["deliveryDays", "Delivery days"], ["durationHours", "Hours"], ["durationDays", "Days"], ["photoEditCount", "Edited photos"], ["trailerCount", "Trailers"], ["fullVideoCount", "Full videos"]] as const) {
+      const v = f[k] as string;
+      if (v.trim() && (isNaN(Number(v)) || Number(v) < 0)) { setError(`${label} should be a number.`); return; }
+    }
+    setSaving(true); setError("");
+    // Send every field (null / [] clears it) so an edit can remove things too
     const body = {
-      name: form.name.trim(),
-      description: form.description || undefined,
-      category: form.category || undefined,
-      basePrice: form.basePrice ? parseFloat(form.basePrice) : 0,
-      currency: form.currency,
-      priceIsNegotiable: form.priceIsNegotiable,
-      durationUnit: form.durationUnit,
-      durationHours: form.durationUnit === "hours" && form.durationHours ? parseFloat(form.durationHours) : undefined,
-      durationDays: form.durationUnit === "days" && form.durationDays ? parseInt(form.durationDays) : undefined,
-      deliveryDays: form.deliveryDays ? parseInt(form.deliveryDays) : undefined,
-      deliverablesDescription: form.deliverablesDescription || undefined,
-      eventTypesIncluded: form.eventTypesIncluded.length ? form.eventTypesIncluded : undefined,
-      staffing: form.staffing.length ? form.staffing : undefined,
-      photoEditCount: form.photoEditCount ? parseInt(form.photoEditCount) : undefined,
-      trailerCount: form.trailerCount ? parseInt(form.trailerCount) : undefined,
-      fullVideoCount: form.fullVideoCount ? parseInt(form.fullVideoCount) : undefined,
-      ritualsIncluded: form.ritualsIncluded.length ? form.ritualsIncluded : undefined,
-      deliveryMethod: form.deliveryMethod || undefined,
-      isActive: form.isActive,
-      isVisibleInPortal: form.isVisibleInPortal,
+      name: f.name.trim(), description: f.description.trim() || null, category: f.category.trim() || null,
+      basePrice: num(f.basePrice) ?? 0, currency: f.currency, priceIsNegotiable: f.priceIsNegotiable,
+      durationUnit: f.durationUnit,
+      durationHours: f.durationUnit === "hours" ? num(f.durationHours) : null,
+      durationDays: f.durationUnit === "days" && num(f.durationDays) != null ? Math.round(num(f.durationDays)!) : null,
+      deliveryDays: num(f.deliveryDays) == null ? null : Math.round(num(f.deliveryDays)!),
+      eventTypesIncluded: f.days, staffing: f.staffing.map(s => ({ role: s.role, count: s.count, ...(s.level ? { level: s.level } : {}) })),
+      photoEditCount: num(f.photoEditCount) == null ? null : Math.round(num(f.photoEditCount)!),
+      trailerCount: num(f.trailerCount) == null ? null : Math.round(num(f.trailerCount)!),
+      fullVideoCount: num(f.fullVideoCount) == null ? null : Math.round(num(f.fullVideoCount)!),
+      ritualsIncluded: f.extras, deliveryMethod: f.deliveryMethod || null,
+      deliverablesDescription: f.note.trim() || null,
+      isActive: f.isActive, isVisibleInPortal: f.isVisibleInPortal,
     };
     try {
-      const url = isEdit ? `${API}/packages/${editing!.id}` : `${API}/packages`;
-      const res = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) { setError(data.message || "Failed to save."); return; }
+      const r = await apiFetch(isEdit ? `${API}/packages/${editing!.id}` : `${API}/packages`, {
+        method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save."); return; }
+      notify(isEdit ? "Saved" : "Package added");
       onSaved(); onClose();
-    } catch { setError("Something went wrong."); }
-    finally { setLoading(false); }
+    } catch { setError("Something went wrong. Please try again."); }
+    finally { setSaving(false); }
   }
 
-  if (!open) return null;
+  const sym = currencySymbol(f.currency).trim();
+  const chip = (on: boolean) => cn("inline-flex items-center gap-1 h-9 px-3.5 rounded-full text-[13px] font-semibold transition-colors",
+    on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]");
+  const smallIn = "w-full h-10 px-3 rounded-[10px] bg-[#F5F3FA] text-[15px] outline-none border border-transparent focus:bg-white focus:border-[#7D5CEF]";
+  const preview = summaryLines({
+    staffing: f.staffing, durationUnit: f.durationUnit, durationHours: num(f.durationHours) ?? undefined, durationDays: num(f.durationDays) ?? undefined,
+    photoEditCount: num(f.photoEditCount) ?? undefined, trailerCount: num(f.trailerCount) ?? undefined, fullVideoCount: num(f.fullVideoCount) ?? undefined,
+    ritualsIncluded: f.extras, deliveryMethod: f.deliveryMethod,
+  });
+
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Package" : "New Package"}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-500" /></button>
+    <FormDrawer open={open} onClose={onClose} icon={Package} color="violet" title={isEdit ? "Edit package" : "New package"} sub={isEdit ? editing!.name : "A ready-made offer for programs and quotes"}
+      footer={<>
+        <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-sm font-semibold">Cancel</button>
+        <button type="button" onClick={save} disabled={saving}
+          className="flex-1 h-11 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}{isEdit ? "Save changes" : "Add package"}
+        </button>
+      </>}>
+      {error && <p role="alert" className="mb-4 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#C2304F] text-sm">{error}</p>}
+
+      <FormGroup>
+        <Field label="Name" required>{id => <input id={id} value={f.name} maxLength={255} onChange={e => set("name", e.target.value)} placeholder="e.g. Wedding Premium" className={inputCls} />}</Field>
+        <Field label="Program type" hint={workTypes.length ? "Its parts become the days of this package. Set types in Settings → Program types." : "Add program types in Settings → Program types to fill days by type."}>
+          {id => (
+            <select id={id} value={type ? type.name : f.category} onChange={e => pickType(e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+              <option value="">No type</option>
+              {workTypes.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+              {f.category && !type && <option value={f.category}>{f.category}</option>}
+            </select>
+          )}
+        </Field>
+        <div className="grid grid-cols-[1fr_130px]">
+          <Field label="Price">{id => (
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-sm">{sym}</span>
+              <input id={id} inputMode="decimal" value={f.basePrice} onChange={e => set("basePrice", e.target.value.replace(/[^\d.]/g, ""))} placeholder="0"
+                className={inputCls} style={{ paddingLeft: sym.length > 1 ? "3.25rem" : "2rem" }} />
+            </div>
+          )}</Field>
+          <Field label="Currency">{id => (
+            <select id={id} value={f.currency} onChange={e => set("currency", e.target.value)} className={cn(inputCls, "cursor-pointer px-2.5")}>
+              {CURRENCY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+            </select>
+          )}</Field>
         </div>
-        <form id="pkg-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-5 space-y-5">
-            {error && <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Package Name *</Label>
-              <Input value={form.name} onChange={set("name")} placeholder="e.g. Wedding Premium" className="h-11 border-slate-200" required />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Category</Label>
-                <EditableSelect value={form.category} onChange={v => setForm(prev => ({ ...prev, category: v }))}
-                  options={CATEGORIES.map(c => ({ value: c, label: c }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Currency</Label>
-                <select value={form.currency} onChange={set("currency")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  <option value="BDT">৳ BDT</option>
-                  <option value="USD">$ USD</option>
-                  <option value="INR">₹ INR</option>
-                  <option value="GBP">£ GBP</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Base Price</Label>
-                <Input type="number" min="0" placeholder="0" value={form.basePrice} onChange={set("basePrice")} className="h-11 border-slate-200" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Delivery (days)</Label>
-                <Input type="number" min="0" placeholder="e.g. 30" value={form.deliveryDays} onChange={set("deliveryDays")} className="h-11 border-slate-200" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-slate-700">Duration <span className="text-slate-400 font-normal">(optional)</span></Label>
-                <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-                  {(["hours", "days"] as const).map(unit => (
-                    <button key={unit} type="button" onClick={() => setForm(prev => ({ ...prev, durationUnit: unit }))}
-                      className={cn("px-3 py-1 text-xs font-medium transition-colors capitalize",
-                        form.durationUnit === unit ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50")}>
-                      {unit}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {form.durationUnit === "days" ? (
-                <Input type="number" min="0" step="1" placeholder="e.g. 2" value={form.durationDays} onChange={set("durationDays")} className="h-11 border-slate-200" />
-              ) : (
-                <Input type="number" min="0" step="0.5" placeholder="e.g. 8" value={form.durationHours} onChange={set("durationHours")} className="h-11 border-slate-200" />
-              )}
-              <p className="text-xs text-slate-400">
-                {form.durationUnit === "days" ? "Use Days for out-of-town / destination programs" : "Use Hours for in-town / studio coverage"}
-              </p>
-            </div>
+        <SwitchRow label="Price can change" hint="Shows “negotiable” next to the price" on={f.priceIsNegotiable} onChange={v => set("priceIsNegotiable", v)} />
+      </FormGroup>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Event Days Included <span className="text-slate-400 font-normal">(optional — for multi-day packages)</span></Label>
-              <div className="flex flex-wrap gap-2">
-                {EVENT_TYPES.map(et => (
-                  <button key={et.value} type="button" onClick={() => toggleEventType(et.value)}
-                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                      form.eventTypesIncluded.includes(et.value) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
-                    )}>
-                    {et.label}
-                  </button>
-                ))}
-                {form.eventTypesIncluded.filter(v => !EVENT_TYPES.some(et => et.value === v)).map(v => (
-                  <button key={v} type="button" onClick={() => toggleEventType(v)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium border bg-indigo-600 text-white border-indigo-600">
-                    {v} ×
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-1.5">
-                <Input value={customEventType} onChange={e => setCustomEventType(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomEventType(customEventType); setCustomEventType(""); } }}
-                  placeholder="Add custom event day..." className="h-8 text-xs border-slate-200 flex-1" />
-                <Button type="button" variant="outline" onClick={() => { addCustomEventType(customEventType); setCustomEventType(""); }} className="h-8 text-xs px-3 border-slate-200">Add</Button>
-              </div>
+      <FormGroup title="Days included" note="When you pick this package in a program, these days are added to it.">
+        <div className="p-4">
+          <div className="flex flex-wrap gap-2">
+            {[...new Set([...typeParts, ...f.days])].map(d => (
+              <button key={d} type="button" onClick={() => toggleDay(d)} aria-pressed={f.days.includes(d)} className={chip(f.days.includes(d))}>
+                {d}{!typeParts.includes(d) && f.days.includes(d) && <X className="w-3 h-3" />}
+              </button>
+            ))}
+            {!typeParts.length && !f.days.length && <p className="text-[13px] text-[#6B6680]">No days yet — pick a program type or add a day.</p>}
+          </div>
+          <form className="mt-3 flex gap-2" onSubmit={e => { e.preventDefault(); addTo("days", newDay); setNewDay(""); }}>
+            <input value={newDay} onChange={e => setNewDay(e.target.value)} maxLength={60} placeholder="Add a day, e.g. Reception" aria-label="New day" className={smallIn} />
+            <button type="submit" disabled={!newDay.trim()} className="h-10 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold disabled:opacity-50">Add</button>
+          </form>
+        </div>
+        <div className="grid grid-cols-[1fr_auto] items-end gap-3 px-4 py-3.5">
+          <div>
+            <p className="text-[13px] font-semibold text-[#4A4658] mb-1.5">Coverage</p>
+            <input inputMode="decimal" aria-label={f.durationUnit === "days" ? "Coverage in days" : "Coverage in hours"}
+              value={f.durationUnit === "days" ? f.durationDays : f.durationHours}
+              onChange={e => set(f.durationUnit === "days" ? "durationDays" : "durationHours", e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder={f.durationUnit === "days" ? "e.g. 2" : "e.g. 8"} className={inputCls} />
+          </div>
+          <div role="radiogroup" aria-label="Coverage unit" className="flex h-11 p-1 rounded-full bg-[#F5F3FA]">
+            {(["hours", "days"] as const).map(u => (
+              <button key={u} type="button" role="radio" aria-checked={f.durationUnit === u} onClick={() => set("durationUnit", u)}
+                className={cn("px-3.5 rounded-full text-[13px] font-semibold capitalize", f.durationUnit === u ? "bg-white text-[#17151F] shadow-sm" : "text-[#6B6680]")}>{u}</button>
+            ))}
+          </div>
+        </div>
+      </FormGroup>
+
+      <FormGroup title="Team" note="Roles come from your team (incl. your own roles).">
+        <div className="p-4 space-y-2">
+          {f.staffing.length === 0 && <p className="text-[13px] text-[#6B6680]">Who goes to the shoot? e.g. 2 Photographers, 1 Cinematographer.</p>}
+          {f.staffing.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input inputMode="numeric" aria-label={`How many ${roleLabel(s.role)}`} value={String(s.count)}
+                onChange={e => set("staffing", f.staffing.map((x, j) => j === i ? { ...x, count: Math.max(1, Math.min(99, parseInt(e.target.value.replace(/\D/g, "")) || 1)) } : x))}
+                className={cn(smallIn, "w-14 text-center")} />
+              <select aria-label="Role" value={s.role} onChange={e => set("staffing", f.staffing.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} className={cn(smallIn, "flex-1 cursor-pointer")}>
+                {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                {!roles.some(r => r.id === s.role) && <option value={s.role}>{s.role}</option>}
+              </select>
+              {s.level && <span className="text-[12px] text-[#6B6680]">{LEVEL_LABELS[s.level] ?? s.level}</span>}
+              <button type="button" onClick={() => set("staffing", f.staffing.filter((_, j) => j !== i))} aria-label={`Remove ${roleLabel(s.role)}`}
+                className="w-9 h-9 rounded-full text-[#C2304F] hover:bg-[#FDECEF] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
             </div>
+          ))}
+          <button type="button" onClick={() => set("staffing", [...f.staffing, { role: f.staffing.some(s => s.role === "photographer") ? "cinematographer" : "photographer", count: 1 }])}
+            className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#EEE8FD]">
+            <Plus className="w-4 h-4" />Add role
+          </button>
+        </div>
+      </FormGroup>
 
-            <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-slate-700">Staffing</Label>
-                <button type="button" onClick={addStaffingRow} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Add Role
-                </button>
-              </div>
-              {form.staffing.length === 0 ? (
-                <p className="text-xs text-slate-400">No staffing added yet — click &quot;Add Role&quot; to build the team for this package.</p>
-              ) : (
-                <div className="space-y-2">
-                  {form.staffing.map((s, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <EditableSelect value={s.role} onChange={v => updateStaffingRow(idx, { role: v })}
-                          options={ROLES} className="h-9 text-xs" customPlaceholder="Custom role..." />
-                      </div>
-                      <div className="flex-1">
-                        <EditableSelect value={s.level} onChange={v => updateStaffingRow(idx, { level: v })}
-                          options={LEVELS} placeholder="None" customPlaceholder="Custom level..." className="h-9 text-xs" />
-                      </div>
-                      <Input type="number" min="1" value={s.count}
-                        onChange={e => updateStaffingRow(idx, { count: parseInt(e.target.value) || 1 })}
-                        className="w-16 h-9 text-xs border-slate-200" />
-                      <button type="button" onClick={() => removeStaffingRow(idx)}
-                        className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <Label className="text-sm font-medium text-slate-700">Deliverables</Label>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Photo Edits</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.photoEditCount} onChange={set("photoEditCount")} className="h-11 text-sm border-slate-200" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Trailer</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.trailerCount} onChange={set("trailerCount")} className="h-11 text-sm border-slate-200" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Full Video</Label>
-                  <Input type="number" min="0" placeholder="0" value={form.fullVideoCount} onChange={set("fullVideoCount")} className="h-11 text-sm border-slate-200" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Rituals Included</Label>
-                <div className="flex flex-wrap gap-2">
-                  {RITUAL_PRESETS.map(r => (
-                    <button key={r} type="button" onClick={() => toggleRitual(r)}
-                      className={cn("px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                        form.ritualsIncluded.includes(r) ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"
-                      )}>
-                      {r}
-                    </button>
-                  ))}
-                  {form.ritualsIncluded.filter(r => !RITUAL_PRESETS.includes(r)).map(r => (
-                    <button key={r} type="button" onClick={() => toggleRitual(r)}
-                      className="px-2.5 py-1 rounded-full text-xs font-medium border bg-emerald-600 text-white border-emerald-600">
-                      {r} ×
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-1.5">
-                  <Input value={customRitual} onChange={e => setCustomRitual(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomRitual(customRitual); setCustomRitual(""); } }}
-                    placeholder="Add custom ritual..." className="h-8 text-xs border-slate-200 flex-1" />
-                  <Button type="button" variant="outline" onClick={() => { addCustomRitual(customRitual); setCustomRitual(""); }} className="h-8 text-xs px-3 border-slate-200">Add</Button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Delivery Method</Label>
-                <EditableSelect value={form.deliveryMethod} onChange={v => setForm(prev => ({ ...prev, deliveryMethod: v }))}
-                  options={DELIVERY_METHODS} className="h-9" />
-              </div>
-            </div>
-
-            {(form.staffing.length > 0 || form.eventTypesIncluded.length > 0) && (
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
-                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wide">Live Preview</p>
-                <p className="font-bold text-slate-900 text-sm">{form.name || "Package Name"}</p>
-                <p className="text-sm font-bold text-emerald-600">
-                  {formatCurrency(form.basePrice ? Number(form.basePrice) : 0, form.currency)}
-                  {form.priceIsNegotiable && <span className="text-xs text-slate-400 font-normal ml-1">negotiable</span>}
-                </p>
-                {form.eventTypesIncluded.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {form.eventTypesIncluded.map(v => (
-                      <span key={v} className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
-                        {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <ul className="space-y-1 mt-1">
-                  {summaryLines({
-                    staffing: form.staffing,
-                    durationUnit: form.durationUnit,
-                    durationHours: form.durationHours ? Number(form.durationHours) : undefined,
-                    durationDays: form.durationDays ? Number(form.durationDays) : undefined,
-                    photoEditCount: form.photoEditCount ? Number(form.photoEditCount) : undefined,
-                    trailerCount: form.trailerCount ? Number(form.trailerCount) : undefined,
-                    fullVideoCount: form.fullVideoCount ? Number(form.fullVideoCount) : undefined,
-                    ritualsIncluded: form.ritualsIncluded,
-                    deliveryMethod: form.deliveryMethod,
-                  }).map((line, i) => (
-                    <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />{line}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Description <span className="text-slate-400 font-normal">(optional)</span></Label>
-              <textarea value={form.description} onChange={set("description")} rows={2} placeholder="Describe what's included..."
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Custom Note <span className="text-slate-400 font-normal">(optional — used only if no staffing is set above)</span></Label>
-              <textarea value={form.deliverablesDescription} onChange={set("deliverablesDescription")} rows={2} placeholder="Free-text deliverables note for quick/simple packages..."
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
-            <div className="space-y-2">
-              {[
-                { key: "priceIsNegotiable", label: "Price is negotiable" },
-                { key: "isActive",          label: "Active (visible to staff)" },
-                { key: "isVisibleInPortal", label: "Show in client portal" },
-              ].map(opt => (
-                <label key={opt.key} className="flex items-center gap-3 cursor-pointer">
-                  <div className={cn("w-9 h-5 rounded-full transition-colors relative",
-                    (form as any)[opt.key] ? "bg-indigo-500" : "bg-slate-200"
-                  )}>
-                    <div className={cn("absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                      (form as any)[opt.key] ? "translate-x-4" : "translate-x-0.5"
-                    )} />
-                  </div>
-                  <span className="text-sm text-slate-700">{opt.label}</span>
-                  <input type="checkbox" checked={(form as any)[opt.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [opt.key]: e.target.checked }))}
-                    className="sr-only" />
-                </label>
+      <FormGroup title="What the client gets">
+        <div className="grid grid-cols-3">
+          <Field label="Edited photos">{id => <input id={id} inputMode="numeric" value={f.photoEditCount} onChange={e => set("photoEditCount", e.target.value.replace(/\D/g, ""))} placeholder="0" className={inputCls} />}</Field>
+          <Field label="Trailers">{id => <input id={id} inputMode="numeric" value={f.trailerCount} onChange={e => set("trailerCount", e.target.value.replace(/\D/g, ""))} placeholder="0" className={inputCls} />}</Field>
+          <Field label="Full videos">{id => <input id={id} inputMode="numeric" value={f.fullVideoCount} onChange={e => set("fullVideoCount", e.target.value.replace(/\D/g, ""))} placeholder="0" className={inputCls} />}</Field>
+        </div>
+        <div className="grid grid-cols-2">
+          <Field label="Delivery in (days)">{id => <input id={id} inputMode="numeric" value={f.deliveryDays} onChange={e => set("deliveryDays", e.target.value.replace(/\D/g, ""))} placeholder="e.g. 30" className={inputCls} />}</Field>
+          <Field label="Delivered via">{id => (
+            <select id={id} value={f.deliveryMethod} onChange={e => set("deliveryMethod", e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+              <option value="">—</option>
+              {DELIVERY_METHODS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              {f.deliveryMethod && !DELIVERY_METHODS.some(d => d.value === f.deliveryMethod) && <option value={f.deliveryMethod}>{f.deliveryMethod}</option>}
+            </select>
+          )}</Field>
+        </div>
+        <div className="p-4">
+          <p className="text-[13px] font-semibold text-[#4A4658] mb-1.5">Also included</p>
+          {f.extras.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2.5">
+              {f.extras.map(x => (
+                <button key={x} type="button" onClick={() => set("extras", f.extras.filter(y => y !== x))} aria-label={`Remove ${x}`} className={chip(true)}>{x}<X className="w-3 h-3" /></button>
               ))}
             </div>
-          </div>
-        </form>
-        <div className="px-5 py-4 border-t border-slate-200 flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-          <Button type="submit" form="pkg-form" disabled={loading} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? "Saving..." : "Creating..."}</> : isEdit ? "Save Changes" : "Create Package"}
-          </Button>
+          )}
+          <form className="flex gap-2" onSubmit={e => { e.preventDefault(); addTo("extras", newExtra); setNewExtra(""); }}>
+            <input value={newExtra} onChange={e => setNewExtra(e.target.value)} maxLength={80} placeholder="e.g. Drone shots, Photo album, Same-day edit" aria-label="Also included" className={smallIn} />
+            <button type="submit" disabled={!newExtra.trim()} className="h-10 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold disabled:opacity-50">Add</button>
+          </form>
         </div>
-      </div>
-    </>
-  );
-}
+      </FormGroup>
 
-// ─── Delete Dialog ────────────────────────────────────────────────────────────
-function DeleteDialog({ pkg, onClose, onDeleted }: { pkg: Pkg | null; onClose: () => void; onDeleted: () => void }) {
-  const [loading, setLoading] = useState(false);
-  if (!pkg) return null;
-  async function doDelete() {
-    setLoading(true);
-    await apiFetch(`${API}/packages/${pkg!.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" } }).catch(() => {});
-    onDeleted(); onClose(); setLoading(false);
-  }
-  return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="sp-modal w-full max-w-sm p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-500" />
+      {preview.length > 0 && (
+        <FormGroup title="Preview" note="Quotes copy these lines as the package's description.">
+          <div className="p-4">
+            <p className="font-bold text-[#17151F]">{f.name || "Package name"}</p>
+            <p className="text-[#17151F] font-extrabold mt-0.5">{formatCurrency(num(f.basePrice) ?? 0, f.currency)}{f.priceIsNegotiable && <span className="ml-1.5 text-xs font-semibold text-[#6B6680]">negotiable</span>}</p>
+            {f.days.length > 0 && <p className="text-[13px] text-[#5B3FD0] font-semibold mt-1.5">{f.days.join(" · ")}</p>}
+            <ul className="mt-2 space-y-1">
+              {preview.map((l, i) => <li key={i} className="text-sm text-[#17151F] flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-[#1F8A5B] mt-0.5 flex-shrink-0" />{l}</li>)}
+            </ul>
           </div>
-          <h3 className="font-bold text-slate-900 text-lg">Delete Package?</h3>
-          <p className="text-slate-500 text-sm mt-2"><span className="font-semibold text-slate-700">{pkg.name}</span> will be permanently deleted.</p>
-          <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-            <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Delete
-            </Button>
-          </div>
-        </div>
-      </div>
-    </>
+        </FormGroup>
+      )}
+
+      <FormGroup title="Notes">
+        <Field label="Description (optional)">{id => <textarea id={id} value={f.description} rows={2} onChange={e => set("description", e.target.value)} placeholder="Anything to say about this package" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}</Field>
+        {f.staffing.length === 0 && (
+          <Field label="What's included (short text)" hint="Used when no team is set above — quotes copy it as the description.">
+            {id => <textarea id={id} value={f.note} rows={2} onChange={e => set("note", e.target.value)} placeholder="e.g. 1 photographer, 200 edited photos" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}
+          </Field>
+        )}
+      </FormGroup>
+
+      <FormGroup>
+        <SwitchRow label="Offer it" hint="Shows when you add a program or a quote. Off = hidden there." on={f.isActive} onChange={v => set("isActive", v)} />
+        <SwitchRow label="Show on your website" hint="Coming soon — for the studio website" on={f.isVisibleInPortal} onChange={v => set("isVisibleInPortal", v)} />
+      </FormGroup>
+    </FormDrawer>
   );
 }
 
@@ -525,7 +333,6 @@ function DeleteDialog({ pkg, onClose, onDeleted }: { pkg: Pkg | null; onClose: (
 function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
   pkg: Pkg; onEdit: (p: Pkg) => void; onDelete: (p: Pkg) => void; onToggle: (p: Pkg) => void;
 }) {
-  const fmt = (n: number) => formatCurrency(Number(n), pkg.currency);
   const lines = summaryLines(pkg);
   const duration = pkg.durationUnit === "days" && pkg.durationDays ? `${pkg.durationDays} day${pkg.durationDays > 1 ? "s" : ""}` : pkg.durationHours ? `${pkg.durationHours} hours` : null;
   return (
@@ -538,41 +345,36 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
             <p className="text-xs text-[#6B6680] mt-0.5 flex items-center gap-1.5 flex-wrap">
               {pkg.category && <span>{pkg.category}</span>}
               {!pkg.isActive && <span className="font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Hidden</span>}
-              {pkg.isVisibleInPortal && <span className="font-bold text-[#1F5C99] bg-[#E6F0FB] px-1.5 py-0.5 rounded-full">In portal</span>}
             </p>
           </div>
         </div>
         <p className="mt-4 text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-none">
-          {fmt(pkg.basePrice)}
+          {formatCurrency(Number(pkg.basePrice), pkg.currency)}
           {pkg.priceIsNegotiable && <span className="ml-2 text-xs font-semibold text-[#6B6680] tracking-normal">negotiable</span>}
         </p>
         <p className="mt-1.5 text-xs text-[#6B6680]">
-          {[duration, pkg.deliveryDays ? `delivery in ${pkg.deliveryDays} days` : null].filter(Boolean).join(" · ") || "\u00A0"}
+          {[duration, pkg.deliveryDays ? `delivery in ${pkg.deliveryDays} days` : null].filter(Boolean).join(" · ") || " "}
         </p>
         {pkg.description && <p className="mt-3 text-sm text-[#4A4658] leading-relaxed line-clamp-2">{pkg.description}</p>}
         {pkg.eventTypesIncluded && pkg.eventTypesIncluded.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
             {pkg.eventTypesIncluded.map(v => (
-              <span key={v} className="text-xs px-2 py-0.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] font-semibold">
-                {EVENT_TYPES.find(e => e.value === v)?.label ?? v}
-              </span>
+              <span key={v} className="text-xs px-2 py-0.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] font-semibold">{dayLabel(v)}</span>
             ))}
           </div>
         )}
-        {lines.length > 0 && (
+        {lines.length > 0 ? (
           <ul className="mt-3 space-y-1.5">
             {lines.map((line, i) => (
-              <li key={i} className="text-sm text-[#17151F] flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#1F8A5B] mt-0.5 flex-shrink-0" />{line}
-              </li>
+              <li key={i} className="text-sm text-[#17151F] flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-[#1F8A5B] mt-0.5 flex-shrink-0" />{line}</li>
             ))}
           </ul>
-        )}
+        ) : pkg.deliverablesDescription ? <p className="mt-3 text-sm text-[#4A4658]">{pkg.deliverablesDescription}</p> : null}
       </button>
       <div className="flex border-t border-[#EEEBF4] divide-x divide-[#EEEBF4]">
         <button onClick={() => onEdit(pkg)} className="flex-1 h-11 text-sm font-semibold text-[#5B3FD0] hover:bg-[#F7F4FE] inline-flex items-center justify-center gap-1.5"><Edit3 className="w-4 h-4" />Edit</button>
         <button onClick={() => onToggle(pkg)} className="flex-1 h-11 text-sm font-semibold text-[#4A4658] hover:bg-[#F7F5FB] inline-flex items-center justify-center gap-1.5">
-          {pkg.isActive ? <><EyeOff className="w-4 h-4" />Hide</> : <><Eye className="w-4 h-4" />Show</>}
+          {pkg.isActive ? <><EyeOff className="w-4 h-4" />Hide</> : <><Eye className="w-4 h-4" />Offer again</>}
         </button>
         <button onClick={() => onDelete(pkg)} aria-label={`Delete ${pkg.name}`} className="w-14 h-11 text-[#C2304F] hover:bg-[#FDECEF] inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
       </div>
@@ -583,30 +385,45 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PackagesPage() {
   const [packages, setPackages] = useState<Pkg[]>([]);
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [editTarget, setEditTarget] = useState<Pkg | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Pkg | null>(null);
 
   const fetchPackages = useCallback(async () => {
-    setLoading(true);
     try {
-      const res = await apiFetch(`${API}/packages`, { headers: { "Content-Type": "application/json" } });
+      const res = await apiFetch(`${API}/packages`);
       if (res.ok) setPackages(await res.json());
-    } catch { /* silent */ }
+    } catch { /* keep the old list */ }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchPackages(); }, [fetchPackages]);
+  useEffect(() => {
+    fetchPackages();
+    apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null))
+      .then(d => d && setWorkTypes((d.workTypes ?? []).filter((w: WorkType) => w.active))).catch(() => {});
+    apiFetch(`${API}/team/custom-roles`).then(r => (r.ok ? r.json() : [])).then(d => setCustomRoles(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [fetchPackages]);
 
   async function toggle(pkg: Pkg) {
-    await apiFetch(`${API}/packages/${pkg.id}/toggle`, { method: "PATCH", headers: { "Content-Type": "application/json" } }).catch(() => {});
+    const r = await apiFetch(`${API}/packages/${pkg.id}/toggle`, { method: "PATCH" }).catch(() => null);
+    if (!r?.ok) { notify("Couldn't change it", { error: true }); return; }
+    notify(pkg.isActive ? `${pkg.name} hidden from programs and quotes` : `${pkg.name} offered again`);
     fetchPackages();
   }
 
-  function openNew() { setEditTarget(null); setDrawer(true); }
-  function openEdit(p: Pkg) { setEditTarget(p); setDrawer(true); }
+  async function remove(pkg: Pkg) {
+    if (!(await askConfirm({ title: `Delete "${pkg.name}"?`, message: "It won't be offered any more. Programs and quotes that already use it keep their price and details.", confirmLabel: "Delete", danger: true }))) return;
+    const r = await apiFetch(`${API}/packages/${pkg.id}`, { method: "DELETE" }).catch(() => null);
+    if (!r?.ok) { notify("Couldn't delete", { error: true }); return; }
+    notify("Package deleted");
+    fetchPackages();
+  }
+
+  const shown = useMemo(() => packages.filter(p => matches(q, p.name, p.category, p.description)), [packages, q]);
+  const openNew = () => { setEditTarget(null); setDrawer(true); };
 
   return (
     <div className="space-y-4">
@@ -618,20 +435,18 @@ export default function PackagesPage() {
       {loading ? (
         <RowsSkeleton n={4} />
       ) : packages.length === 0 ? (
-        <EmptyState icon={Package} title="No packages yet" text="Make ready-made packages to add to programs and quotes in one tap."
+        <EmptyState icon={Package} title="No packages yet" text="Make ready-made packages — pick one when you add a program or a quote and its price and days fill in."
           action={<MainButton icon={Plus} onClick={openNew}>New package</MainButton>} />
-      ) : packages.filter(p => matches(q, p.name, p.category, p.description)).length === 0 ? (
+      ) : shown.length === 0 ? (
         <EmptyState icon={Search} title={`No packages match "${q}"`} text="Try another name." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-          {packages.filter(p => matches(q, p.name, p.category, p.description)).map(p => (
-            <PackageCard key={p.id} pkg={p} onEdit={openEdit} onDelete={p => setDeleteTarget(p)} onToggle={toggle} />
-          ))}
+          {shown.map(p => <PackageCard key={p.id} pkg={p} onEdit={x => { setEditTarget(x); setDrawer(true); }} onDelete={remove} onToggle={toggle} />)}
         </div>
       )}
 
-      <PackageDrawer open={drawer} onClose={() => { setDrawer(false); setEditTarget(null); }} onSaved={fetchPackages} editing={editTarget} />
-      <DeleteDialog pkg={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={fetchPackages} />
+      <PackageDrawer open={drawer} onClose={() => { setDrawer(false); setEditTarget(null); }} onSaved={fetchPackages} editing={editTarget}
+        workTypes={workTypes} customRoles={customRoles} />
     </div>
   );
 }

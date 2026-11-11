@@ -9,7 +9,7 @@ import { Chips, EmptyState, Group, PageHeader, StatCard } from "@/components/ui/
 import { Spinner, StatusBadge } from "../_components/kit";
 import Link from "next/link";
 
-const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", other: "Other" };
+const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", other: "Other" };
 const fmtMonth = (m: number, y: number) => new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
 
 interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; upcomingAmount?: number; }

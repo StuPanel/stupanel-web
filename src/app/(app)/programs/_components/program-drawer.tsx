@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency, fmtMoney, currencySymbol, currencyPad } from "@/lib/format";
+import { formatCurrency, fmtMoney, currencySymbol, currencyPad, getStudioCurrency } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
@@ -33,10 +33,12 @@ type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: str
 type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string };
 
 const SHIFT_PRESETS = ["Day", "Evening", "Night", "Full day"];
-const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "bKash / Nagad" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
+const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const role = (id: string) => TEAM_ROLES.find(r => r.id === id) ?? { id, label: id.replace(/_/g, " "), icon: Camera, tile: "violet" };
 const fullName = (m?: { firstName: string; lastName?: string | null }) => m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : "";
 const num = (v: string) => parseFloat(v) || 0;
+/** Old packages saved day keys like "pre_wedding" — make them readable. */
+const dayName = (v: string): string => (/^[a-z_]+$/.test(v) ? v.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ") : v.trim());
 
 /** Old bookings stored member ids in shift.memberIds. */
 function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
@@ -404,6 +406,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [eventName, setEventName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [packageId, setPackageId] = useState("");
+  /** Packages fresh each time the drawer opens (a package made a minute ago shows too). */
+  const [pkgs, setPkgs] = useState<Package[]>(packages);
   const [days, setDays] = useState<EventDay[]>([]);
   const [advanceWallet, setAdvanceWallet] = useState("");
   const [money, setMoney] = useState({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
@@ -429,6 +433,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
     })).catch(() => {});
     apiFetch(`${API}/team`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setTeam(d)).catch(() => {});
+    apiFetch(`${API}/packages`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setPkgs(d)).catch(() => {});
   }, [open]);
 
   // Fill the form
@@ -498,6 +503,28 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const missingParts = parts.filter(n => !days.some(d => d.eventType.trim().toLowerCase() === n.toLowerCase()));
   const makeDay = (eventType: string, location = ""): EventDay => ({ id: uid(), eventType, date: "", location, shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] });
   const untouched = (ds: EventDay[]) => ds.every(d => !d.date && !d.location.trim() && d.shifts.every(x => x.assignments.length === 0));
+
+  /**
+   * Pick a package: its price, program type and days fill in.
+   * Days only replace the list while it is still untouched; otherwise missing ones are added.
+   */
+  function choosePackage(id: string) {
+    setPackageId(id);
+    const p = pkgs.find(x => x.id === id);
+    if (!p) return;
+    if (p.basePrice) setMoney(m => ({ ...m, total: String(p.basePrice) }));
+    const w = p.category ? studio.workTypes.find(x => x.name.toLowerCase() === p.category!.trim().toLowerCase()) : undefined;
+    if (w && !programType) setProgramType(w.id);
+    const names = (p.eventTypesIncluded ?? []).map(dayName).filter(Boolean);
+    if (!names.length) return;
+    setDays(ds => {
+      if (untouched(ds)) return names.map(n => makeDay(n, ds[0]?.location ?? ""));
+      const have = new Set(ds.map(d => d.eventType.trim().toLowerCase()));
+      return [...ds, ...names.filter(n => !have.has(n.toLowerCase())).map(n => makeDay(n, ds[ds.length - 1]?.location ?? ""))];
+    });
+  }
+  /** Offered packages, plus the one this program already uses even if it is hidden now. */
+  const offered = pkgs.filter(p => p.isActive !== false || p.id === packageId);
 
   /** Pick a type. Days are not added by themselves — its parts show as "+ part" buttons. */
   function pickType(id: string) {
@@ -599,7 +626,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const sorted = [...typedDays].sort((a, b) => a.date.localeCompare(b.date));
       const body = {
         clientId, programId: packageId || undefined, eventName: eventName.trim(),
-        eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: "BDT",
+        eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: initialBooking?.currency || pkgs.find(x => x.id === packageId)?.currency || getStudioCurrency(),
         totalAmount: total, discountAmount: discount,
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
         advanceWalletId: isEdit || !(advance > 0) ? undefined : advanceWallet || undefined,
@@ -685,10 +712,10 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                   <div className="border-t border-[#EEEBF4] grid sm:grid-cols-[1fr_240px]">
                     <Field label="Name" required>{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
                     <Field label="Package">{id => (
-                      <select id={id} value={packageId} onChange={e => { const p = packages.find(x => x.id === e.target.value); setPackageId(e.target.value); if (p?.basePrice) setMoney(m => ({ ...m, total: String(p.basePrice) })); }}
+                      <select id={id} value={packageId} onChange={e => choosePackage(e.target.value)}
                         className={cn(inputCls, "cursor-pointer")}>
                         <option value="">No package</option>
-                        {packages.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${formatCurrency(p.basePrice)}` : ""}</option>)}
+                        {offered.map(p => <option key={p.id} value={p.id}>{p.name}{p.basePrice ? ` — ${formatCurrency(p.basePrice, p.currency)}` : ""}</option>)}
                       </select>
                     )}</Field>
                   </div>

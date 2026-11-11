@@ -49,7 +49,7 @@ const CURRENCIES  = ["BDT","USD"];
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Client { id: string; firstName: string; lastName?: string; phone?: string; }
-interface Program { id: string; name: string; category?: string; basePrice: number; deliverablesDescription?: string; }
+interface Program { id: string; name: string; category?: string; basePrice: number; currency?: string; isActive?: boolean; deliverablesDescription?: string; }
 interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; isPackageBase?: boolean; }
 interface ViewLog { id: string; viewedAt: string; ipAddress?: string; deviceType?: string; browser?: string; action?: string; }
 interface Quote {
@@ -176,7 +176,10 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
     setSelectedProgramId(pid);
     const p = programs.find(x => x.id === pid);
     if (!p) return;
-    setItems([{ id: crypto.randomUUID(), name: p.name, description: p.deliverablesDescription ?? "", qty: 1, unitPrice: Number(p.basePrice), total: Number(p.basePrice), isPackageBase: true }]);
+    // The package becomes the first line; lines the user already typed stay (an earlier package line is replaced)
+    const base = { id: crypto.randomUUID(), name: p.name, description: p.deliverablesDescription ?? "", qty: 1, unitPrice: Number(p.basePrice), total: Number(p.basePrice), isPackageBase: true };
+    setItems(its => [base, ...its.filter(i => !i.isPackageBase && (i.name.trim() || i.unitPrice))]);
+    if (p.currency) setCurrency(p.currency);
   }
 
   function addItem() {
@@ -281,13 +284,13 @@ function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
           </div>
 
           {/* Package auto-fill */}
-          {programs.length > 0 && (
+          {programs.some(p => p.isActive !== false) && (
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Auto-fill from Package</Label>
               <select value={selectedProgramId} onChange={e => pickProgram(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                 <option value="">Pick a package to auto-fill items…</option>
-                {programs.map(p => <option key={p.id} value={p.id}>{p.name} — {currSym(currency)}{Number(p.basePrice).toLocaleString()}</option>)}
+                {programs.filter(p => p.isActive !== false || p.id === selectedProgramId).map(p => <option key={p.id} value={p.id}>{p.name} — {currSym(p.currency || currency)}{Number(p.basePrice).toLocaleString()}</option>)}
               </select>
             </div>
           )}

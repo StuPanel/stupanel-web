@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { Wallet, TrendingUp, CheckCircle2, Hourglass, Camera, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency } from "@/lib/format";
+import { fmtDate, formatCurrency, formatCurrencyCompact } from "@/lib/format";
 import { Chips, EmptyState, Group, PageHeader, StatCard } from "@/components/ui/apple";
 import { Spinner, StatusBadge } from "../_components/kit";
 import Link from "next/link";
 
 const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", other: "Other" };
+const SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtMonth = (m: number, y: number) => new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
 
 interface Stats { totalEarned: number; totalPaid: number; pendingAmount: number; thisMonthEarned: number; slipsPaid?: number; paidOnPrograms?: number; upcomingAmount?: number; }
@@ -46,6 +47,21 @@ export default function EarningsPage() {
   ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const pendingSlips = slips.filter(s => s.status !== "paid");
 
+  // Last 6 months: work done in each month (shoot day passed, not cancelled) — the same rule as "Total earned".
+  const nowD = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(nowD.getFullYear(), nowD.getMonth() - (5 - i), 1);
+    const mine = programs.filter(p => {
+      if (!p.eventDate || p.status === "cancelled" || p.status === "refunded") return false;
+      const e = new Date(p.eventDate);
+      return e <= nowD && e.getFullYear() === d.getFullYear() && e.getMonth() === d.getMonth();
+    });
+    return { key: `${d.getFullYear()}-${d.getMonth()}`, label: SHORT[d.getMonth()], long: fmtMonth(d.getMonth() + 1, d.getFullYear()), count: mine.length, earned: mine.reduce((s, p) => s + p.totalBill, 0), now: i === 5 };
+  });
+  const top = Math.max(...months.map(m => m.earned), 0);
+  const half = months.reduce((s, m) => s + m.earned, 0);
+  const halfCount = months.reduce((s, m) => s + m.count, 0);
+
   return (
     <div>
       <PageHeader icon={Wallet} color="green" title="My earnings" sub="What you earned, got paid and still have to get" />
@@ -58,6 +74,26 @@ export default function EarningsPage() {
         <StatCard icon={Hourglass} color="orchid" label="Still to get" value={formatCurrency(stats.pendingAmount)}
           sub={stats.upcomingAmount ? `+ ${formatCurrency(stats.upcomingAmount)} for work coming up` : undefined} />
       </div>
+
+      <Group title="Last 6 months" action={<span className="text-[12.5px] text-[#6B6680]">{halfCount} program{halfCount === 1 ? "" : "s"} · {formatCurrency(half)}</span>}>
+        {half === 0 && halfCount === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-[#A29DB3]">No finished work in the last 6 months.</p>
+        ) : (
+          <ul className="grid grid-cols-6 gap-1.5 sm:gap-3 px-3 sm:px-5 pt-5 pb-4" aria-label="Earnings by month">
+            {months.map(m => (
+              <li key={m.key} className="min-w-0 flex flex-col items-center" title={`${m.long}: ${formatCurrency(m.earned)} · ${m.count} program${m.count === 1 ? "" : "s"}`}>
+                <span className={cn("text-[11px] sm:text-[12.5px] font-bold tabular-nums whitespace-nowrap", m.earned ? "text-[#17151F]" : "text-[#B5B0C4]")}>{m.earned ? formatCurrencyCompact(m.earned) : "—"}</span>
+                <span className="mt-1.5 w-full max-w-[56px] h-28 rounded-[10px] bg-[#F5F3FA] flex items-end overflow-hidden" aria-hidden="true">
+                  <span className={cn("w-full rounded-[10px] transition-[height] duration-500", m.now ? "bg-[#5B3FD0]" : "bg-[#A994F5]")} style={{ height: top > 0 && m.earned > 0 ? `${Math.max(6, Math.round((m.earned / top) * 100))}%` : 0 }} />
+                </span>
+                <span className={cn("mt-1.5 text-[12.5px]", m.now ? "font-bold text-[#17151F]" : "font-semibold text-[#6B6680]")}>{m.label}</span>
+                <span className="text-[11px] text-[#8A8599] whitespace-nowrap">{m.count ? <>{m.count}<span className="sm:hidden"> prog.</span><span className="hidden sm:inline"> program{m.count === 1 ? "" : "s"}</span></> : "\u00A0"}</span>
+                <span className="sr-only">{m.long}: {formatCurrency(m.earned)}, {m.count} program{m.count === 1 ? "" : "s"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Group>
 
       <Chips label="Show" value={tab} onChange={setTab}
         options={[{ value: "programs", label: "By program", count: programs.length }, { value: "payments", label: "Payments", count: payments.length }]} />

@@ -14,7 +14,7 @@ import { Aperture, Box, Briefcase, Camera, Film, Image as ImageIcon, Lightbulb, 
 import { cn } from "@/lib/utils";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
-import { currencySymbol, currencyPad } from "@/lib/format";
+import { currencySymbol, currencyPad, formatCurrency } from "@/lib/format";
 
 export type RateLine = { id: string; roleId: string; unit: string; rate: string; withSetup: string; workType: string; label: string };
 /** A piece of gear in the editor: one rent box per unit (shift / day / program). */
@@ -278,7 +278,11 @@ export const SETUP_CATS: { v: string; l: string; icon: React.ElementType; tile: 
   { v: "other", l: "Other", icon: Box, tile: "ink", ph: "e.g. Monitor, tripod" },
 ];
 
-export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange: (items: SetupItem[]) => void }) {
+/**
+ * `own`: the member edits their own list — names only. Rent prices are the studio's, so they are
+ * shown as text (when set) and cannot be typed.
+ */
+export function SetupEditor({ items, onChange, own = false }: { items: SetupItem[]; onChange: (items: SetupItem[]) => void; own?: boolean }) {
   const set = (id: string, p: Partial<SetupItem>) => onChange(items.map(i => i.id === id ? { ...i, ...p } : i));
   const add = (category: string) => onChange([...items, { id: uid(), category, name: "", rents: {} }]);
   const used = SETUP_CATS.filter(c => items.some(i => i.category === c.v));
@@ -301,7 +305,13 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
+                  {own ? (
+                    <p className="mt-1.5 px-0.5 text-[12px] text-[#6B6680]">
+                      {gearHasRent(i)
+                        ? <>Rent: {RENT_UNITS.filter(u => (i.rents[u.v] ?? "").trim() !== "").map(u => `${formatCurrency(Number(i.rents[u.v]))} / ${u.s}`).join(" · ")} <span className="text-[#8A8599]">· set by the studio</span></>
+                        : "The studio sets the rent for this."}
+                    </p>
+                  ) : <div className="grid grid-cols-3 gap-2 mt-2">
                     {RENT_UNITS.map(u => (
                       <label key={u.v} className="block min-w-0">
                         <span className="block px-0.5 mb-1 text-[11.5px] font-bold text-[#4A4658] truncate">{u.l}</span>
@@ -313,7 +323,7 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
                         </span>
                       </label>
                     ))}
-                  </div>
+                  </div>}
                 </div>
               ))}
               <button type="button" onClick={() => add(c.v)} className="w-full flex items-center gap-1.5 px-4 py-3 text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F7F5FB] rounded-b-[20px]">
@@ -325,7 +335,7 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
       })}
 
       <section>
-        <h3 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">{used.length ? "Add more" : "What gear do they own?"}</h3>
+        <h3 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">{used.length ? "Add more" : own ? "What gear do you own?" : "What gear do they own?"}</h3>
         <div className="flex flex-wrap gap-2">
           {unused.map(c => {
             const Icon = c.icon;
@@ -337,9 +347,13 @@ export function SetupEditor({ items, onChange }: { items: SetupItem[]; onChange:
             );
           })}
         </div>
-        <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">
+        {own ? (
+          <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">
+            Add your own cameras, lenses, lights and other gear, so the studio knows what you can bring. The studio sets the rent price for each one.
+          </p>
+        ) : <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">
           Each piece of gear can have its own rent <strong>per shift</strong>, <strong>per day</strong> and <strong>per program</strong> — fill the ones you use and leave the rest empty. The rent goes to this member when <strong>someone else</strong> works with their gear on a program. When they use it themselves, the &quot;With own setup&quot; price is used instead.
-        </p>
+        </p>}
       </section>
     </div>
   );

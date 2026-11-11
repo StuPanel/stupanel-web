@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Eye, EyeOff, CheckCircle, ShieldCheck, UserCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Camera, Loader2, Eye, EyeOff, CheckCircle, ShieldCheck, Trash2, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/apple";
 import { Field, FormGroup, inputCls } from "@/components/ui/form-kit";
-import { Avatar, IdentityCard } from "@/components/ui/profile-kit";
-import { Spinner } from "../_components/kit";
+import { IdentityCard } from "@/components/ui/profile-kit";
+import { askConfirm, notify } from "@/components/feedback";
+import { MemberPhoto, PROFILE_EVENT, Spinner } from "../_components/kit";
 import { apiFetch, API_URL as API } from "@/lib/api";
 
 interface Profile {
@@ -20,9 +21,58 @@ interface Profile {
   avatarUrl?: string;
 }
 
+/** Centre-crop to a square and shrink, so any phone photo becomes a small JPG. */
+async function squareJpeg(file: File, size = 512): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("That file isn't a picture we can read")); i.src = url; });
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    if (!side) throw new Error("That file isn't a picture we can read");
+    const out = Math.min(size, side);
+    const c = document.createElement("canvas");
+    c.width = out; c.height = out;
+    c.getContext("2d")!.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+    return await new Promise<Blob>((ok, bad) => c.toBlob(b => (b ? ok(b) : bad(new Error("Couldn't prepare the photo"))), "image/jpeg", 0.88));
+  } finally { URL.revokeObjectURL(url); }
+}
+
 export default function MemberProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (photoRef.current) photoRef.current.value = "";
+    if (!file || photoBusy) return;
+    if (!file.type.startsWith("image/")) { notify("Please choose a photo", { error: true }); return; }
+    setPhotoBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", await squareJpeg(file), "photo.jpg");
+      const r = await apiFetch(`${API}/member/profile/photo`, { method: "POST", body: form });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Couldn't save the photo");
+      setProfile(p => (p ? { ...p, avatarUrl: d.avatarUrl } : p));
+      window.dispatchEvent(new Event(PROFILE_EVENT));
+      notify("Photo saved");
+    } catch (err) {
+      notify(err instanceof Error && err.message !== "Failed to fetch" ? err.message : "Couldn't save the photo — check your internet", { error: true });
+    } finally { setPhotoBusy(false); }
+  }
+
+  async function removePhoto() {
+    if (photoBusy || !(await askConfirm({ title: "Remove your photo?", message: "Your name's first letter will be shown instead.", confirmLabel: "Remove photo", danger: true }))) return;
+    setPhotoBusy(true);
+    try {
+      const r = await apiFetch(`${API}/member/profile/photo`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      setProfile(p => (p ? { ...p, avatarUrl: undefined } : p));
+      window.dispatchEvent(new Event(PROFILE_EVENT));
+    } catch { notify("Couldn't remove the photo", { error: true }); }
+    finally { setPhotoBusy(false); }
+  }
 
   // Profile form
   const [firstName, setFirstName] = useState("");
@@ -69,7 +119,7 @@ export default function MemberProfilePage() {
     });
     const d = await res.json();
     if (!res.ok) { setSaveErr(d.message ?? "Failed to save"); }
-    else { setSavedOk(true); setProfile(prev => prev ? { ...prev, ...d } : d); setTimeout(() => setSavedOk(false), 3000); }
+    else { setSavedOk(true); setProfile(prev => prev ? { ...prev, ...d } : d); window.dispatchEvent(new Event(PROFILE_EVENT)); setTimeout(() => setSavedOk(false), 3000); }
     setSaving(false);
   }
 
@@ -100,13 +150,27 @@ export default function MemberProfilePage() {
       <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details and password" />
 
       <IdentityCard
-        avatar={<Avatar name={`${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`} size={64} />}
+        avatar={
+          <span className="relative flex-shrink-0">
+            <MemberPhoto url={profile?.avatarUrl} name={profile?.firstName} size={72} round />
+            <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy} aria-label={profile?.avatarUrl ? "Change my photo" : "Add my photo"}
+              className="absolute -right-1 -bottom-1 w-8 h-8 rounded-full bg-[#17151F] hover:bg-black text-white flex items-center justify-center ring-2 ring-white disabled:opacity-70">
+              {photoBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+            </button>
+            <input ref={photoRef} type="file" accept="image/*" hidden onChange={onPhoto} />
+          </span>
+        }
         name={`${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || "Me"}
         sub={profile?.username ? `@${profile.username}` : undefined}
         chips={profile?.memberRoles?.map(r => (
           <span key={r} className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-2.5 py-1 rounded-full font-semibold capitalize">{r.replace(/_/g, " ")}</span>
         ))}
       />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 -mt-1 mb-6 text-[13px]">
+        <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy} className="font-semibold text-[#5B3FD0] hover:text-[#4630A8] inline-flex items-center gap-1.5"><Camera className="w-3.5 h-3.5" />{profile?.avatarUrl ? "Change photo" : "Add my photo"}</button>
+        {profile?.avatarUrl && <button type="button" onClick={removePhoto} disabled={photoBusy} className="font-semibold text-[#C2304F] hover:text-[#9C2340] inline-flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" />Remove</button>}
+        <span className="text-[#8A8599]">The studio and your team see this photo.</span>
+      </div>
 
       <form onSubmit={saveProfile} className="mb-7">
         <FormGroup title="About me">

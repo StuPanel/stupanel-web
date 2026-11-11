@@ -7,8 +7,9 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Camera, LogOut, X, UserCircle, Video,
-  Wallet, CalendarDays, MessageCircle, LayoutGrid,
+  Wallet, CalendarDays, MessageCircle, LayoutGrid, BadgeDollarSign,
 } from "lucide-react";
+import { MemberPhoto, PROFILE_EVENT } from "./_components/kit";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
@@ -24,6 +25,7 @@ const navGroups: { title: string; items: { label: string; href: string; icon: Re
   ] },
   { title: "Me", items: [
     { label: "My Earnings", href: "/member/earnings",  icon: Wallet,          color: "green" },
+    { label: "My Rates & Gear", href: "/member/rates", icon: BadgeDollarSign, color: "ink" },
     { label: "Chat",        href: "/member/chat",      icon: MessageCircle,   color: "teal" },
     { label: "My Profile",  href: "/member/profile",   icon: UserCircle,      color: "orchid" },
   ] },
@@ -36,7 +38,7 @@ const mobileTabs = [
   { label: "Schedule", href: "/member/schedule",  icon: CalendarDays },
 ];
 
-type Profile = { firstName?: string; lastName?: string; memberRoles?: string[] };
+type Profile = { firstName?: string; lastName?: string; memberRoles?: string[]; avatarUrl?: string | null };
 
 function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLogout }: {
   profile: Profile | null; chatUnread: number; pathname: string; isMobile?: boolean; onClose?: () => void; onLogout: () => void;
@@ -64,9 +66,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       {profile && (
         <div className="px-3 pb-3">
           <div className="flex items-center gap-2.5 rounded-xl bg-[#F7F5FB] border border-[#F1EFF6] p-2">
-            <div className="w-8 h-8 rounded-lg bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
-              {(profile.firstName?.[0] ?? "M").toUpperCase()}
-            </div>
+            <MemberPhoto url={profile.avatarUrl} name={profile.firstName} size={32} />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-[#17151F] truncate leading-tight">
                 {profile.firstName} {profile.lastName ?? ""}
@@ -150,10 +150,13 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     const role = localStorage.getItem("user_role");
     if (role !== "staff" && role !== "manager") { router.replace("/dashboard"); return; }
 
-    apiFetch(`${API}/member/profile`)
+    const load = () => apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setProfile(d); })
       .catch(() => {});
+    load();
+    window.addEventListener(PROFILE_EVENT, load);
+    return () => window.removeEventListener(PROFILE_EVENT, load);
   }, [router]);
 
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -197,8 +200,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
             <BrandMark size={30} />
             <span className="font-extrabold text-[16px] tracking-tight text-[#17151F]">StuPanel</span>
           </Link>
-          <Link href="/member/profile" className="w-10 h-10 rounded-full bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
-            {(profile?.firstName?.[0] ?? "M").toUpperCase()}
+          <Link href="/member/profile" aria-label="My profile" className="rounded-full">
+            <MemberPhoto url={profile?.avatarUrl} name={profile?.firstName} size={40} round />
           </Link>
         </div>
 

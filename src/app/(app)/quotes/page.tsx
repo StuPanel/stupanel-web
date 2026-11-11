@@ -6,16 +6,17 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus, X, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
-  CalendarDays, MapPin, DollarSign, Check, ChevronRight,
-  Link2, MessageCircle, FileText, MoreVertical, ArrowRight,
+  Check,
+  Link2, MessageCircle, FileText,
   Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
-  Monitor, Smartphone, Tablet, Globe, Package, MoreHorizontal,
+  Monitor, Smartphone, Tablet, MoreHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
+import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
@@ -413,7 +414,6 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   if (!quote) return null;
   const q = detail ?? quote;
   const sc = STATUS[q.status] ?? STATUS.draft;
-  const StatusIcon = sc.icon;
   const sym = currSym(q.currency);
   const publicUrl = `${SITE}/q/${q.publicToken}`;
 
@@ -443,182 +443,158 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
     window.open(`https://wa.me?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
-  const DevIcon = { mobile: Smartphone, tablet: Tablet, desktop: Monitor }[q.viewLogs?.[0]?.deviceType ?? "desktop"] ?? Monitor;
+  const chip = STATUS_HEX[q.status] ?? STATUS_HEX.draft;
+  const money = (n: number | string) => formatCurrency(Number(n), q.currency);
+  const DeviceIcon = (t?: string) => t === "mobile" ? Smartphone : t === "tablet" ? Tablet : Monitor;
+  const views = (q.viewLogs ?? []).filter(l => l.action === "viewed").slice(0, 3);
+  const timeline = [
+    { label: "Created", at: (detail as { createdAt?: string } | null)?.createdAt, dot: "#8A8599" },
+    { label: "Sent", at: q.sentAt, dot: "#2F6FB3" },
+    { label: "Viewed", at: q.viewedAt, dot: "#7D5CEF" },
+    { label: "Accepted", at: q.acceptedAt, dot: "#1F8A5B" },
+    { label: "Declined", at: q.rejectedAt, dot: "#C2304F" },
+    { label: "Booked", at: q.convertedAt, dot: "#126B66" },
+  ].filter(t => t.at);
+  const event = [
+    q.eventType && { label: "Event", value: q.eventType },
+    q.eventDate && { label: "Date", value: fmtDate(q.eventDate) },
+    q.venue && { label: "Venue", value: q.venue },
+    q.validUntil && { label: "Valid until", value: fmtDate(q.validUntil) },
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-[#17151F]">{q.quoteNumber}</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1", sc.badge)}>
-                <StatusIcon className="w-2.5 h-2.5" />{sc.label}
-              </span>
-              <span className="text-xs text-[#8A8599]">v{q.version} · {q.viewCount} views</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {["draft","rejected"].includes(q.status) && (
-              <button onClick={onEdit} className="h-8 px-3 rounded-lg border border-[#E4E0EC] text-xs font-medium text-[#4A4658] hover:bg-[#F7F5FB] flex items-center gap-1.5">
-                <Edit2 className="w-3.5 h-3.5" />Edit
-              </button>
+    <DocDrawer onClose={onClose} icon={FileText} color="violet" title={q.quoteNumber} label={`Quote ${q.quoteNumber}`}
+      badge={<StatusChip label={sc.label} bg={chip.bg} text={chip.text} />}
+      sub={[`${q.client.firstName} ${q.client.lastName ?? ""}`.trim(), `Version ${q.version}`, `${q.viewCount} view${q.viewCount === 1 ? "" : "s"}`].join(" · ")}>
+      {loading ? (
+        <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" aria-label="Loading" /></div>
+      ) : (
+        <>
+          {/* Money at a glance */}
+          <DocCard>
+            <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">Quoted total</p>
+            <p className="text-[30px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-tight mt-0.5">{money(q.grandTotal)}</p>
+            {Number(q.advanceRequired) > 0 && (
+              <p className="mt-2 text-[13px] text-[#6B6680]">Advance to book: <span className="font-bold text-[#9A5B00] tabular-nums">{money(q.advanceRequired)}</span></p>
             )}
-            {q.status === "draft" && (
-              <button onClick={sendQuote} disabled={sending} className="h-8 px-3 rounded-lg bg-[#1F5C99] hover:bg-[#1F5C99] text-white text-xs font-medium flex items-center gap-1.5">
-                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}Send
-              </button>
-            )}
+          </DocCard>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2">
             {q.status === "accepted" && !q.convertedBookingId && (
-              <button onClick={convertToBooking} disabled={converting} className="h-8 px-3 rounded-lg bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white text-xs font-semibold flex items-center gap-1.5">
-                {converting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}Confirm Booking
-              </button>
+              <PillButton tone="green" icon={CheckCircle2} onClick={convertToBooking} disabled={converting}>{converting ? "Booking…" : "Confirm booking"}</PillButton>
             )}
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
-              <X className="w-4 h-4 text-[#6B6680]" />
-            </button>
+            {q.status === "draft" && <PillButton tone="primary" icon={sending ? Loader2 : Send} onClick={sendQuote} disabled={sending}>Send</PillButton>}
+            {["draft","rejected"].includes(q.status) && <PillButton icon={Edit2} onClick={onEdit}>Edit</PillButton>}
+            {q.status !== "draft" && <PillButton icon={MessageCircle} onClick={shareWA}>WhatsApp</PillButton>}
+            <PillButton icon={Eye} href={publicUrl} external>Preview</PillButton>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* View Tracking Banner */}
-            {q.viewedAt && (
-              <div className="bg-[#F7F4FE] border border-[#EEE8FD] rounded-2xl p-4">
-                <p className="text-xs font-semibold text-[#5B3FD0] mb-2 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Client Viewed Quote</p>
-                <p className="text-sm font-bold text-[#3F2A99]">{fmtDateTime(q.lastViewedAt ?? q.viewedAt)}</p>
-                <p className="text-xs text-[#7D5CEF] mt-0.5">{q.viewCount} total view{q.viewCount !== 1 ? "s" : ""}</p>
-                {q.viewLogs && q.viewLogs.filter(l => l.action === "viewed").slice(0, 3).map(log => (
-                  <div key={log.id} className="flex items-center gap-2 mt-2 text-xs text-[#7D5CEF]">
-                    {log.deviceType === "mobile" ? <Smartphone className="w-3 h-3" /> : log.deviceType === "tablet" ? <Tablet className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
-                    {fmtDateTime(log.viewedAt)} · {log.browser ?? "—"} · {log.ipAddress ?? "—"}
-                  </div>
-                ))}
+          {/* Status notes */}
+          {q.status === "accepted" && (
+            <div className="rounded-[18px] bg-[#E9F5EF] px-4 py-3.5 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#1F8A5B] flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[14px] font-bold text-[#14613F]">The client accepted</p>
+                <p className="text-[12.5px] text-[#1F8A5B] mt-0.5">{fmtDateTime(q.acceptedAt)}</p>
+                <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? "It's now a program." : "Tap Confirm booking once the advance is paid."}</p>
               </div>
-            )}
+            </div>
+          )}
+          {q.status === "rejected" && (
+            <div className="rounded-[18px] bg-[#FDECEF] px-4 py-3.5 flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-[#C2304F] flex-shrink-0 mt-0.5" />
+              <div><p className="text-[14px] font-bold text-[#9C2340]">The client declined</p><p className="text-[12.5px] text-[#C2304F] mt-0.5">{fmtDateTime(q.rejectedAt)}</p></div>
+            </div>
+          )}
 
-            {/* Accepted banner */}
-            {q.status === "accepted" && (
-              <div className="bg-[#F0FAF4] border border-[#CDEBDB] rounded-2xl p-4">
-                <p className="text-sm font-bold text-[#14613F] flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#1F8A5B]" />Client Accepted!</p>
-                <p className="text-xs text-[#1F8A5B] mt-0.5">Accepted on {fmtDateTime(q.acceptedAt)}</p>
-                {!q.convertedBookingId && (
-                  <p className="text-xs text-[#1F8A5B] mt-2 font-medium">⚠️ Click "Confirm Booking" above after receiving advance payment.</p>
-                )}
-                {q.convertedBookingId && (
-                  <p className="text-xs text-[#126B66] mt-2 font-medium">✅ Converted to Booking</p>
-                )}
+          {/* Client link */}
+          {q.status !== "draft" && (
+            <DocCard title="Client link" flush>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Link2 className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+                <p className="text-[13px] text-[#4A4658] truncate flex-1 min-w-0">{publicUrl}</p>
+                <button type="button" onClick={copyLink} className="h-8 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1 flex-shrink-0">
+                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copiedLink ? "Copied" : "Copy"}
+                </button>
               </div>
-            )}
+            </DocCard>
+          )}
 
-            {/* Rejected banner */}
-            {q.status === "rejected" && (
-              <div className="bg-[#FEF5F7] border border-[#F6CFD8] rounded-2xl p-4">
-                <p className="text-sm font-bold text-[#C2304F] flex items-center gap-2"><XCircle className="w-5 h-5" />Client Rejected</p>
-                <p className="text-xs text-[#C2304F] mt-0.5">{fmtDateTime(q.rejectedAt)}</p>
-              </div>
-            )}
-
-            {/* Share */}
-            {!["draft","converted"].includes(q.status) && (
-              <div className="bg-[#F7F5FB] border border-[#E4E0EC] rounded-2xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wide">Share Quote</p>
-                <div className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E4E0EC] rounded-xl">
-                  <Link2 className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-                  <span className="flex-1 text-xs text-[#6B6680] truncate">{publicUrl}</span>
-                  <button onClick={copyLink} className="flex-shrink-0 text-[#8A8599] hover:text-[#7D5CEF]">
-                    {copiedLink ? <Check className="w-3.5 h-3.5 text-[#1F8A5B]" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                  <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-[#8A8599] hover:text-[#7D5CEF]">
-                    <Eye className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={shareWA} className="flex-1 h-9 rounded-xl bg-[#E7F5EE] hover:bg-green-200 text-[#1F8A5B] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                    <MessageCircle className="w-3.5 h-3.5" />WhatsApp
-                  </button>
-                  <button onClick={copyLink} className="flex-1 h-9 rounded-xl bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[#33303F] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                    <Copy className="w-3.5 h-3.5" />{copiedLink ? "Copied!" : "Copy Link"}
-                  </button>
+          {/* Seen by the client */}
+          {q.viewedAt && (
+            <DocCard title="Seen by the client" flush>
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Eye className="w-4 h-4" /></span>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-semibold text-[#17151F]">Last opened {fmtDateTime(q.lastViewedAt ?? q.viewedAt)}</p>
+                  <p className="text-[12.5px] text-[#6B6680]">{q.viewCount} view{q.viewCount === 1 ? "" : "s"} in total</p>
                 </div>
               </div>
-            )}
-
-            {/* Client */}
-            <div className="bg-[#F7F5FB] rounded-xl p-4">
-              <p className="text-xs font-semibold text-[#8A8599] mb-2 uppercase tracking-wider">Client</p>
-              <p className="font-bold text-[#17151F]">{q.client.firstName} {q.client.lastName ?? ""}</p>
-              {q.client.phone && <p className="text-sm text-[#6B6680]">{q.client.phone}</p>}
-            </div>
-
-            {/* Event */}
-            {(q.eventType || q.eventDate || q.venue) && (
-              <div className="grid grid-cols-2 gap-3">
-                {q.eventType && <div className="bg-[#F7F5FB] rounded-xl p-3"><p className="text-xs text-[#8A8599]">Event</p><p className="font-semibold text-[#17151F] text-sm">{q.eventType}</p></div>}
-                {q.eventDate && <div className="bg-[#F7F5FB] rounded-xl p-3"><p className="text-xs text-[#8A8599]">Date</p><p className="font-semibold text-[#17151F] text-sm">{fmtDate(q.eventDate)}</p></div>}
-                {q.venue && <div className="bg-[#F7F5FB] rounded-xl p-3 col-span-2"><p className="text-xs text-[#8A8599]">Venue</p><p className="font-semibold text-[#17151F] text-sm">{q.venue}</p></div>}
-              </div>
-            )}
-
-            {/* Items */}
-            <div>
-              <p className="text-xs font-semibold text-[#8A8599] mb-2 uppercase tracking-wider">Quote Items</p>
-              <div className="border border-[#E4E0EC] rounded-xl overflow-hidden">
-                {q.items.map((item, i) => (
-                  <div key={item.id} className={cn("flex items-center justify-between px-4 py-3 text-sm", i > 0 && "border-t border-[#F1EFF6]")}>
-                    <div>
-                      <span className="font-medium text-[#17151F]">{item.name}</span>
-                      {item.description && <p className="text-xs text-[#8A8599]">{item.description}</p>}
-                      <span className="text-xs text-[#8A8599] ml-1">× {item.qty}</span>
-                    </div>
-                    <span className="font-semibold text-[#33303F]">{sym}{item.total.toLocaleString()}</span>
+              {views.map(log => {
+                const D = DeviceIcon(log.deviceType);
+                return (
+                  <div key={log.id} className="px-4 py-2.5 flex items-center gap-3 text-[12.5px] text-[#6B6680]">
+                    <D className="w-4 h-4 flex-shrink-0 text-[#8A8599]" />
+                    <span className="truncate">{fmtDateTime(log.viewedAt)} · {log.browser ?? "Browser"}</span>
                   </div>
+                );
+              })}
+            </DocCard>
+          )}
+
+          {/* Event */}
+          {event.length > 0 && (
+            <DocCard title="Event" flush>
+              {event.map(e => (
+                <div key={e.label} className="px-4 py-3 flex items-baseline justify-between gap-3 text-[14px]">
+                  <span className="text-[#6B6680]">{e.label}</span>
+                  <span className="font-semibold text-[#17151F] text-right min-w-0">{e.value}</span>
+                </div>
+              ))}
+            </DocCard>
+          )}
+
+          {/* Items */}
+          <DocCard title="Items" flush>
+            {q.items.map(item => (
+              <div key={item.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-semibold text-[#17151F]">{item.name}</p>
+                  {item.description && <p className="text-[12.5px] text-[#6B6680] mt-0.5">{item.description}</p>}
+                  <p className="text-[12.5px] text-[#8A8599] mt-0.5 tabular-nums">{item.qty} × {money(item.unitPrice)}</p>
+                </div>
+                <p className="text-[14px] font-bold text-[#17151F] tabular-nums flex-shrink-0">{money(item.total)}</p>
+              </div>
+            ))}
+            <div className="px-4 py-3.5 space-y-1.5 bg-[#FAF9FC]">
+              <DocLine label="Subtotal" value={money(q.subtotal)} />
+              {Number(q.discountAmount) > 0 && <DocLine label="Discount" value={`−${money(q.discountAmount)}`} tone="green" />}
+              {Number(q.taxAmount) > 0 && <DocLine label="Tax" value={`+${money(q.taxAmount)}`} />}
+              <DocLine label="Total" value={money(q.grandTotal)} strong className="pt-1.5 border-t border-[#EEEBF4]" />
+              {Number(q.advanceRequired) > 0 && <DocLine label="Advance to book" value={money(q.advanceRequired)} tone="amber" className="font-semibold" />}
+            </div>
+          </DocCard>
+
+          {/* Timeline */}
+          {timeline.length > 0 && (
+            <DocCard title="Timeline">
+              <ol className="space-y-2.5">
+                {timeline.map(t => (
+                  <li key={t.label} className="flex items-center gap-3 text-[13.5px]">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
+                    <span className="text-[#6B6680] w-[72px] flex-shrink-0">{t.label}</span>
+                    <span className="font-semibold text-[#17151F] tabular-nums">{fmtDateTime(t.at)}</span>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ol>
+            </DocCard>
+          )}
 
-            {/* Totals */}
-            <div className="border border-[#E4E0EC] rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span>{sym}{Number(q.subtotal).toLocaleString()}</span></div>
-              {Number(q.discountAmount) > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{sym}{Number(q.discountAmount).toLocaleString()}</span></div>}
-              {Number(q.taxAmount) > 0 && <div className="flex justify-between text-[#6B6680]"><span>Tax</span><span>+{sym}{Number(q.taxAmount).toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold text-[#17151F] text-base border-t border-[#E4E0EC] pt-2"><span>Grand Total</span><span>{sym}{Number(q.grandTotal).toLocaleString()}</span></div>
-              <div className="flex justify-between text-[#B36B00] font-semibold"><span>Advance Required</span><span>{sym}{Number(q.advanceRequired).toLocaleString()}</span></div>
-            </div>
-
-            {/* Timeline */}
-            <div>
-              <p className="text-xs font-semibold text-[#8A8599] mb-2 uppercase tracking-wider">Timeline</p>
-              <div className="space-y-1.5">
-                {[
-                  { label: "Created", time: q.viewLogs?.[0] ? undefined : undefined, at: (detail as any)?.createdAt, color: "text-[#6B6680]" },
-                  { label: "Sent",     at: q.sentAt,      color: "text-[#1F5C99]" },
-                  { label: "Viewed",   at: q.viewedAt,    color: "text-[#7D5CEF]" },
-                  { label: "Accepted", at: q.acceptedAt,  color: "text-[#1F8A5B]" },
-                  { label: "Rejected", at: q.rejectedAt,  color: "text-[#C2304F]" },
-                  { label: "Converted",at: q.convertedAt, color: "text-[#126B66]" },
-                ].filter(t => t.at).map(t => (
-                  <div key={t.label} className={cn("flex items-center gap-2 text-xs", t.color)}>
-                    <span className="w-16 font-medium">{t.label}</span>
-                    <ArrowRight className="w-3 h-3" />
-                    <span>{fmtDateTime(t.at)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {q.validUntil && (
-              <div className="flex items-center gap-2 text-xs text-[#9A5B00] bg-[#FFF9EF] border border-[#FFF3E0] rounded-xl px-3 py-2">
-                <AlertTriangle className="w-3.5 h-3.5" />Valid until {fmtDate(q.validUntil)}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
+          {q.notes && <DocCard title="Notes"><p className="text-[13.5px] text-[#4A4658] leading-relaxed whitespace-pre-line">{q.notes}</p></DocCard>}
+        </>
+      )}
+    </DocDrawer>
   );
 }
 

@@ -53,6 +53,23 @@ export function NextUp({ days, title, sub, href }: { days: number; title: string
   return href ? <a href={href} className={cn(cls, "transition-transform hover:-translate-y-0.5")}>{body}</a> : <div className={cls}>{body}</div>;
 }
 
+/** Fired after the member changes their name or photo, so the sidebar shows it at once. */
+export const PROFILE_EVENT = "sp-member-profile";
+
+/** The member's photo, or the first letter of their name on violet. */
+export function MemberPhoto({ url, name, size = 32, round = false, className }: { url?: string | null; name?: string | null; size?: number; round?: boolean; className?: string }) {
+  const radius = round ? size / 2 : Math.round(size * 0.28);
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt="" width={size} height={size} className={cn("object-cover flex-shrink-0 bg-[#EEE8FD]", className)} style={{ width: size, height: size, borderRadius: radius }} />
+  ) : (
+    <span aria-hidden="true" className={cn("bg-[#7D5CEF] text-white font-bold flex items-center justify-center flex-shrink-0", className)}
+      style={{ width: size, height: size, borderRadius: radius, fontSize: Math.round(size * 0.42) }}>
+      {(name?.trim()?.[0] ?? "M").toUpperCase()}
+    </span>
+  );
+}
+
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn("bg-white rounded-[20px]", CARD_SHADOW, className)}>{children}</div>;
 }

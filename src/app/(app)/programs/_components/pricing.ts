@@ -104,23 +104,35 @@ export function buildBill(opts: {
         for (const w of ws) for (const g of w.a.gear ?? []) {
           if (!g.ownerId || g.ownerId === "studio") continue;
           const owner = team.find(t => t.id === g.ownerId);
-          const item = (owner?.setup as GearItem[] | undefined)?.find(i => i.id === g.itemId);
-          if (!owner || !item) continue;
-          names.set(owner.id, `${owner.firstName} ${owner.lastName ?? ""}`.trim());
-          const key = `rent|${owner.id}|${item.id}`;
-          const list = lines.get(owner.id) ?? [];
+          const key = `rent|${g.ownerId}|${g.itemId}`;
+          const keptOwner = keep.find(e => e.memberId === g.ownerId);
+          const before = keptOwner?.lines?.find(l => l.key === key);
+          // The owner may have taken the item off their list (or left the team) after it was used.
+          // The program still used it, so the rent stays: the price this bill had before, else none.
+          const listed = (owner?.setup as GearItem[] | undefined)?.find(i => i.id === g.itemId);
+          if (!listed && !owner && !before) continue; // unknown owner, never billed — nothing to keep
+          const rent = listed ? gearRent(listed, unitOrder)
+            : before?.unitPrice ? { unit: before.unit ?? "per_shift", price: before.unitPrice } : { unit: "per_shift", price: 0 };
+          const ownerName = owner ? `${owner.firstName} ${owner.lastName ?? ""}`.trim() : keptOwner?.memberName ?? "Gear owner";
+          names.set(g.ownerId, ownerName);
+          const list = lines.get(g.ownerId) ?? [];
           const existing = list.find(l => l.key === key);
           const dayIds = new Set<string>(existing?.days ?? []);
           dayIds.add(w.day.id);
           const shiftsUsed = (existing?.shifts ?? 0) + 1;
-          const rent = gearRent(item, unitOrder);
+          const users = new Set<string>(existing?.users ?? []);
+          users.add(names.get(memberId) ?? "");
           const q = rent.unit === "per_shift" ? shiftsUsed : rent.unit === "per_day" ? dayIds.size : 1;
           const line: BillLine = {
-            id: existing?.id ?? lid(), key, kind: "gear_rent", auto: true, label: `Rent · ${item.name}`,
+            id: existing?.id ?? before?.id ?? lid(), key, kind: "gear_rent", auto: true, label: `Rent · ${listed?.name ?? g.name}`,
             qty: q, unit: rent.unit, unitPrice: rent.price, amount: Math.round(rent.price * q),
-            note: `used by ${names.get(memberId)}`, days: [...dayIds], shifts: shiftsUsed,
+            note: [
+              `used by ${[...users].filter(Boolean).join(", ")}`,
+              !listed ? "no longer on their gear list" : rent.price > 0 ? "" : "no rent set — type the amount",
+            ].filter(Boolean).join(" · "),
+            days: [...dayIds], shifts: shiftsUsed, users: [...users],
           };
-          if (existing) Object.assign(existing, line); else add(owner.id, line);
+          if (existing) Object.assign(existing, line); else add(g.ownerId, line);
         }
       }
       // Rented from outside

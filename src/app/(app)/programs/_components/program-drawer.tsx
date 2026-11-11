@@ -336,13 +336,30 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                           <button key={g.id} type="button" role="checkbox" aria-checked={on}
                             onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === owner.id && x.itemId === g.id)) : [...gear, { ownerId: owner.id, itemId: g.id, name: g.name }])}
                             className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
-                            {on && <Check className="w-3 h-3" />}{g.name}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : ""; })()}
+                            {on && <Check className="w-3 h-3" />}{g.name}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : " · no rent set"; })()}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+                {(() => {
+                  // Picked before, but the owner has since taken it off their list — still billed until removed here.
+                  const gone = gear.filter(x => !team.find(t => t.id === x.ownerId)?.setup?.some(g => g.id === x.itemId));
+                  return gone.length > 0 && (
+                    <div>
+                      <p className="text-[12px] font-bold text-[#7A4800] mb-1.5">No longer on the owner&apos;s gear list <span className="font-medium text-[#6B6680]">— rent stays at the price it had</span></p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {gone.map(x => (
+                          <button key={`${x.ownerId}-${x.itemId}`} type="button" role="checkbox" aria-checked onClick={() => setGear(gear.filter(y => y !== x))}
+                            className="h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 bg-[#FFF3E0] text-[#7A4800]">
+                            <Check className="w-3 h-3" />{x.name}{(() => { const o = team.find(t => t.id === x.ownerId); return o ? ` · ${fullName(o)}` : ""; })()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div>
                   <p className="text-[12px] font-bold text-[#4A4658] mb-1.5">Studio gear <span className="font-medium text-[#6B6680]">— no rent</span></p>
                   <input value={studioGear} onChange={e => setStudioGear(e.target.value)} placeholder="e.g. Studio Sony A7 III + gimbal" aria-label="Studio gear" className={inputCls} />

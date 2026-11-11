@@ -136,8 +136,12 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const router = useRouter();
   const sp = useSearchParams();
-  const tab = (["overview", "programs", "money", "documents", "about"].includes(sp.get("tab") ?? "") ? sp.get("tab") : "overview") as Tab;
-  const setTab = (t: Tab) => router.replace(t === "overview" ? `/clients/${id}` : `/clients/${id}?tab=${t}`, { scroll: false });
+  // The tab lives in local state so switching is instant; the address bar is updated without asking the server.
+  const [tab, setTabState] = useState<Tab>(() => (["overview", "programs", "money", "documents", "about"].includes(sp.get("tab") ?? "") ? sp.get("tab") : "overview") as Tab);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    window.history.replaceState(null, "", t === "overview" ? `/clients/${id}` : `/clients/${id}?tab=${t}`);
+  };
 
   const [c, setC] = useState<Profile | null>(null);
   const [missing, setMissing] = useState(false);

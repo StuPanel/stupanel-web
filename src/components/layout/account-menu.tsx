@@ -29,13 +29,18 @@ function Avatar({ url, name, size }: { url?: string | null; name: string; size: 
 }
 
 /** Plan words shared by the trigger and the card. */
-function planInfo(access: BillingAccess | null, planName: string | null) {
+function planInfo(access: BillingAccess | null, planName: string | null, interval: string | null) {
   const mode = access?.mode ?? "trial";
   const days = access?.daysLeft ?? null;
   if (mode === "trial") return { mode, short: "Free trial", badge: "Trial", line: days !== null ? `${Math.max(0, days)} day${days === 1 ? "" : "s"} left` : "Explore everything", tone: "violet" as const,
     pct: days !== null ? Math.max(4, Math.min(100, (days / TRIAL_DAYS) * 100)) : 100, ends: access?.periodEndsAt ? `Trial ends ${fmtDay(access.periodEndsAt)}` : "", cta: "Choose a plan" };
-  if (mode === "full") return { mode, short: planName ? `${planName} plan` : "Plan active", badge: planName ?? "Active", line: access?.periodEndsAt ? `Renews ${fmtDay(access.periodEndsAt)}` : "Thanks for being with us", tone: "green" as const,
-    pct: null, ends: "", cta: "Manage plan" };
+  if (mode === "full") {
+    const period = interval === "yearly" ? 365 : interval === "monthly" ? 30 : null;
+    return { mode, short: planName ? `${planName} plan` : "Plan active", badge: interval === "yearly" ? "Yearly" : interval === "monthly" ? "Monthly" : "Active",
+      line: days !== null ? `${Math.max(0, days)} day${days === 1 ? "" : "s"} left` : "No end date", tone: "green" as const,
+      pct: days !== null && period ? Math.max(4, Math.min(100, (days / period) * 100)) : null,
+      ends: access?.periodEndsAt ? `Renews ${fmtDay(access.periodEndsAt)}` : "", cta: "Manage plan" };
+  }
   if (mode === "grace") return { mode, short: "Plan ended", badge: "Ended", line: "Pay now to keep working", tone: "red" as const, pct: null, ends: access?.graceEndsAt ? `View-only from ${fmtDay(access.graceEndsAt)}` : "", cta: "Renew plan" };
   return { mode, short: "View-only", badge: "View-only", line: "Renew to make changes", tone: "red" as const, pct: null, ends: "", cta: "Renew plan" };
 }
@@ -51,15 +56,20 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
   const [open, setOpen] = useState(false);
   const [access, setAccess] = useState<BillingAccess | null>(null);
   const [planName, setPlanName] = useState<string | null>(null);
+  const [interval, setInterval_] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBillingStatus().then(d => { if (d) { setAccess(d.access); setPlanName((d as { plan?: { name?: string } | null }).plan?.name ?? null); } });
+    loadBillingStatus().then(d => {
+      if (!d) return;
+      const x = d as { plan?: { name?: string } | null; interval?: string | null };
+      setAccess(d.access); setPlanName(x.plan?.name ?? null); setInterval_(x.interval ?? null);
+    });
   }, []);
 
   const name = user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "";
   const isOwner = user?.role === "owner";
   const role = user?.role === "owner" ? "Owner" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
-  const plan = planInfo(access, planName);
+  const plan = planInfo(access, planName, interval);
   const toneCls = { violet: "bg-[#EEE8FD] text-[#5B3FD0]", green: "bg-[#E7F5EE] text-[#1F8A5B]", red: "bg-[#FDECEF] text-[#C2304F]" }[plan.tone];
 
   function go(href: string) { setOpen(false); onNavigate?.(); router.push(href); }
@@ -87,7 +97,7 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
       <Avatar url={user?.avatarUrl} name={name} size={36} />
       <span className="flex-1 min-w-0">
         <span className="block text-[13.5px] font-semibold text-[#17151F] truncate leading-tight">{name || "…"}</span>
-        <span className="block text-[12px] text-[#6B6680] truncate leading-tight mt-0.5">{isOwner ? plan.short + (plan.mode === "trial" && access?.daysLeft != null ? ` · ${Math.max(0, access.daysLeft)}d left` : "") : role}</span>
+        <span className="block text-[12px] text-[#6B6680] truncate leading-tight mt-0.5">{isOwner ? plan.short + ((plan.mode === "trial" || plan.mode === "full") && access?.daysLeft != null ? ` · ${Math.max(0, access.daysLeft)}d left` : "") : role}</span>
       </span>
       <ChevronsUpDown className="w-4 h-4 text-[#9893A8] flex-shrink-0" />
     </button>
@@ -127,7 +137,7 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
               </div>
               <p className="text-[12.5px] text-[#6B6680] mt-1">{plan.line}</p>
               {plan.pct !== null && (
-                <div className="mt-2.5 h-1.5 rounded-full bg-white overflow-hidden" role="progressbar" aria-label="Trial days left" aria-valuenow={Math.round(plan.pct)} aria-valuemin={0} aria-valuemax={100}>
+                <div className="mt-2.5 h-1.5 rounded-full bg-white overflow-hidden" role="progressbar" aria-label={plan.mode === "trial" ? "Trial days left" : "Days left in this plan"} aria-valuenow={Math.round(plan.pct)} aria-valuemin={0} aria-valuemax={100}>
                   <div className="h-full rounded-full bg-gradient-to-r from-[#8E72F2] to-[#5B3FD0]" style={{ width: `${plan.pct}%` }} />
                 </div>
               )}

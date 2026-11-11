@@ -26,6 +26,7 @@ import { ContractCard } from "./contract-card";
 import type { Booking, ShiftAssignment } from "./types";
 import { ProfileShell, IdentityCard, ActionButton, MiniStat } from "@/components/ui/profile-kit";
 import { CARD_SHADOW, Group, Tile } from "@/components/ui/apple";
+import { inputCls } from "@/components/ui/form-kit";
 
 function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -585,10 +586,68 @@ function Row({ l, v, strong, tone, sub }: { l: React.ReactNode; v: React.ReactNo
   );
 }
 
+/** Team-only notes on a program. Saves a second after you stop typing (and when you leave the box). */
+function PrivateNotes({ booking, onSaved }: { booking: Booking; onSaved: (notes: string) => void }) {
+  const [value, setValue] = useState(booking.internalNotes ?? "");
+  const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
+  const saved = useRef(booking.internalNotes ?? "");
+  const pending = useRef<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Notes changed somewhere else (the edit form) while nothing is waiting to be saved here.
+  useEffect(() => {
+    const incoming = booking.internalNotes ?? "";
+    if (pending.current === null && incoming !== saved.current) { saved.current = incoming; setValue(incoming); }
+  }, [booking.internalNotes]);
+
+  const id = booking.id;
+  const onSavedRef = useRef(onSaved);
+  useEffect(() => { onSavedRef.current = onSaved; });
+
+  const save = useCallback(async (v: string) => {
+    clearTimeout(timer.current);
+    pending.current = null;
+    if (v === saved.current) return;
+    setState("saving");
+    try {
+      const r = await apiFetch(`${API}/bookings/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ internalNotes: v }),
+      });
+      if (!r.ok) throw new Error();
+      saved.current = v; onSavedRef.current(v); setState("saved");
+    } catch { pending.current = v; setState("error"); }
+  }, [id]);
+
+  // Closing the drawer right after typing still saves.
+  useEffect(() => () => { if (pending.current !== null) void save(pending.current); }, [save]);
+
+  function change(v: string) {
+    setValue(v); setState(""); pending.current = v;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => save(v), 1000);
+  }
+
+  return (
+    <Group title="Private notes" note="Only your team sees these — never the client."
+      action={state === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6B6680]" aria-label="Saving" />
+        : state === "saved" ? <span className="text-xs font-semibold text-[#1F8A5B]">Saved</span>
+        : state === "error" ? <button type="button" onClick={() => save(value)} className="text-xs font-semibold text-[#C2304F]">Not saved — try again</button>
+        : undefined}>
+      <div className="p-3">
+        <textarea value={value} onChange={e => change(e.target.value)} onBlur={() => { if (pending.current !== null) void save(pending.current); }}
+          rows={3} maxLength={5000} aria-label="Private notes"
+          placeholder="Anything the team should remember — gate pass, parking, special requests…"
+          className={cn(inputCls, "h-auto py-2.5 resize-y min-h-[84px] leading-relaxed")} />
+      </div>
+    </Group>
+  );
+}
+
 export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, teamMembers }: {
   booking: Booking | null;
   onClose: () => void;
-  onEdit: () => void;
+  /** Opens the edit form with the latest copy of the program (notes or payments may have changed here). */
+  onEdit: (latest: Booking) => void;
   onRefresh: () => void;
   r2Enabled: boolean;
   teamMembers?: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[];
@@ -668,7 +727,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
             <ActionButton icon={DollarSign} label="Payment" tone="green" onClick={() => setPaymentOpen(true)} disabled={due <= 0} />
             <ActionButton icon={MessageCircle} label="WhatsApp" tone="green" onClick={() => setWaOpen(true)} disabled={!b.client?.phone} />
             <ActionButton icon={genInvoicing ? Loader2 : FileText} label="Invoice" tone="blue" onClick={makeInvoice} disabled={genInvoicing} />
-            <ActionButton icon={Edit3} label="Edit" tone="violet" onClick={onEdit} />
+            <ActionButton icon={Edit3} label="Edit" tone="violet" onClick={() => onEdit(b)} />
           </>}
         />
 
@@ -686,7 +745,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           </div>
         </section>
 
-        <Group title="Days & team" action={<button type="button" onClick={onEdit} className="text-[13px] font-semibold text-[#5B3FD0]">Change</button>}>
+        <Group title="Days & team" action={<button type="button" onClick={() => onEdit(b)} className="text-[13px] font-semibold text-[#5B3FD0]">Change</button>}>
           {days.length === 0 && <p className="px-4 py-4 text-sm text-[#A29DB3]">No days added yet.</p>}
           {days.map((day, i) => {
             const people = day.shifts.flatMap(s => (s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? []).map(a => ({ a, shift: s.label })));
@@ -752,11 +811,7 @@ export function ViewDrawer({ booking, onClose, onEdit, onRefresh, r2Enabled, tea
           </div>
         </section>
 
-        {b.internalNotes && (
-          <Group title="Private notes">
-            <p className="px-4 py-3.5 text-sm text-[#17151F] whitespace-pre-wrap">{b.internalNotes}</p>
-          </Group>
-        )}
+        <PrivateNotes key={b.id} booking={b} onSaved={notes => { setLocalBooking(cur => cur && cur.id === b.id ? { ...cur, internalNotes: notes } : cur); onRefresh(); }} />
       </ProfileShell>
 
       <PaymentModal

@@ -179,7 +179,7 @@ export default function ProgramsPage() {
       <ViewDrawer
         booking={viewTarget}
         onClose={() => setViewTarget(null)}
-        onEdit={() => { setEditTarget(viewTarget); setBackToView(viewTarget?.id ?? null); setViewTarget(null); }}
+        onEdit={latest => { setEditTarget(viewTarget ? { ...viewTarget, ...latest } : latest); setBackToView(latest.id); setViewTarget(null); }}
         onRefresh={fetchAll}
         r2Enabled={r2Enabled}
         teamMembers={teamMembers}

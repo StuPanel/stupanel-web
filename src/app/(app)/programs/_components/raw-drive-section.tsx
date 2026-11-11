@@ -23,6 +23,7 @@ import { Empty, Section, card, linkBtn } from "@/components/ui/profile-page";
 import { RawBrowser } from "@/components/raw-browser";
 import { FileActivity } from "@/components/file-activity";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
+import { pickDriveFolder } from "@/lib/drive-picker";
 import type { Booking } from "./types";
 
 type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; conn: string; viewUrl: string; thumb: string | null };
@@ -194,6 +195,9 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     load();
   }
 
+  // Temporary check (open with ?picktest=1): what can StuPanel read in a folder picked in Google's window?
+  const pickTest = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("picktest") === "1";
+
   const loadingCard = (text: React.ReactNode, right?: React.ReactNode) => (
     <div className={cn(card, "p-4 flex items-center gap-3")}>
       <span className="w-10 h-10 rounded-full bg-[#E7F5EE] text-[#1F8A5B] flex items-center justify-center flex-shrink-0"><HardDrive className="w-[18px] h-[18px]" /></span>
@@ -297,6 +301,8 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           )}
         </div>
       </div>
+
+      {pickTest && <PickerTest />}
 
       {/* ── 1. Three numbers ── */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
@@ -737,4 +743,30 @@ function patchFiles(files: RawFile[], body: Record<string, unknown>, res: { name
     ...(res.name ? { name: res.name } : {}),
     ...(typeof res.to === "string" ? { path: res.to } : {}),
   });
+}
+
+/** Temporary: pick a Drive folder in Google's window and show what the server can read in it. */
+function PickerTest() {
+  const [out, setOut] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    setBusy(true); setOut("");
+    try {
+      const { folder, email } = await pickDriveFolder();
+      if (!folder) { setOut("Closed without choosing a folder."); return; }
+      const r = await apiFetch(`${API}/google-drive/raw-picker/probe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderId: folder.id }) });
+      setOut(JSON.stringify({ picked: folder.name, account: email, status: r.status, result: await r.json().catch(() => null) }, null, 2));
+    } catch (e) { setOut(`Error: ${e instanceof Error ? e.message : String(e)}`); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div className={cn(card, "p-4 mb-6")} data-picker-test>
+      <p className="text-[14px] font-bold text-[#17151F]">Test — choose a Drive folder</p>
+      <p className="text-[12.5px] text-[#6B6680] mt-0.5">Pick any folder that has files in it. Nothing is changed — this only checks what StuPanel can read.</p>
+      <button type="button" onClick={run} disabled={busy} className="mt-3 h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}Choose a folder
+      </button>
+      {out && <pre className="mt-3 p-3 rounded-xl bg-[#F7F5FB] text-[12px] text-[#17151F] whitespace-pre-wrap break-words max-h-80 overflow-auto" data-picker-out>{out}</pre>}
+    </div>
+  );
 }

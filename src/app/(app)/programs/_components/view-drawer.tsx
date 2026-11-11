@@ -145,7 +145,7 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
             { key: "videoStyle", label: "Video Style", placeholder: "Cinematic, emotional storytelling..." },
             { key: "photoStyle", label: "Photo Style", placeholder: "Light & airy, natural tones..." },
             { key: "colorStyle", label: "Color Grade", placeholder: "Warm tones, filmic look..." },
-            { key: "musicInfo", label: "Music", placeholder: "Bengali folk + soft instrumental" },
+            { key: "musicInfo", label: "Music", placeholder: "e.g. Soft instrumental, upbeat for the reel" },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
               <p className="text-xs text-slate-500 mb-1">{label}</p>

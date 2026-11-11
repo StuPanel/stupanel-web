@@ -42,7 +42,7 @@ export const navigation = [
       { name: "Packages", href: "/packages", icon: Package, color: "violet" as TileColor },
       { name: "Delivery", href: "/delivery", icon: ImageIcon, color: "teal" as TileColor },
       { name: "Photo Selection", href: "/photo-selection", icon: Images, color: "red" as TileColor },
-      { name: "Music", href: "/music", icon: Music2, color: "orchid" as TileColor },
+      { name: "Music Library", href: "/music", icon: Music2, color: "orchid" as TileColor },
     ],
   },
   {

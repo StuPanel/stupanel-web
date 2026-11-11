@@ -114,7 +114,7 @@ export function Row({ id, label, hint, children, stack, disabled, badge }: {
         </p>
         {hint && <p className="text-xs text-[#6B6680] mt-0.5 leading-relaxed">{hint}</p>}
       </div>
-      {children !== undefined && (stack ? <div>{children}</div> : <div className="flex-shrink-0 max-w-[60%]">{children}</div>)}
+      {children !== undefined && (stack ? <div>{children}</div> : <div className="flex-shrink-0 max-w-[60%] flex justify-end">{children}</div>)}
     </div>
   );
 }
@@ -184,7 +184,7 @@ export function TextField({ value, onCommit, label, placeholder, type = "text", 
     <input aria-label={label} type={type} value={v} placeholder={placeholder} maxLength={maxLength}
       onChange={e => setV(e.target.value)} onBlur={commit}
       onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setV(value); }}
-      className={cn(fieldBase, "px-4", wide ? "w-full" : "w-[220px] max-w-full", mono && "font-mono tracking-wide",
+      className={cn(fieldBase, "px-4", wide ? "w-full" : "w-[220px] sm:w-[280px] xl:w-[340px] max-w-full", mono && "tracking-wide",
         align === "right" && "text-right")} />
   );
 }
@@ -221,7 +221,7 @@ export function TextArea({ value, onCommit, label, placeholder, rows = 4, maxLen
         onChange={e => setV(e.target.value)}
         onBlur={() => { if (v !== value) onCommit(v); }}
         className={cn("w-full px-4 py-3 rounded-[16px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#9893A8] leading-relaxed",
-          "focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 resize-y", mono && "font-mono text-[13px]")} />
+          "focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 resize-y")} />
       {maxLength && <p className="text-xs text-[#6B6680] text-right mt-1 tabular-nums">{v.length}/{maxLength}</p>}
     </div>
   );

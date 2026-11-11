@@ -36,7 +36,7 @@ function Features() {
   const set = (k: keyof typeof f, v: boolean) => patchStudio("features", { ...f, [k]: v });
   return (
     <>
-      <Group title="Client features" note="These features are being built. Your choice is saved now and used as soon as each one is ready. Each program will be able to change it too.">
+      <Group title="Client features" note="Turn off what your studio doesn't use — it disappears from programs and the client portal. You can turn it back on any time.">
         <Row id="f-photoSelection" label="Photo selection" hint="Clients pick the photos for their albums in their portal — from the program's Drive files or your upload">
           <Switch label="Photo selection" on={f.photoSelection} onChange={v => set("photoSelection", v)} />
         </Row>
@@ -270,7 +270,7 @@ function DeliveryRules() {
   const { studio, patchStudio } = useSettings();
   const d = studio!.delivery;
   return (
-    <Group title="Payment" note="This will take effect with the new delivery screen. Your choice is saved now.">
+    <Group title="Payment" note="When locked, the client sees what is ready but opens it only after paying in full.">
       <Row id="d-lockWhenDue" label="Lock delivery while money is due" hint="Clients can't download their photos and videos until the program is fully paid">
         <Switch label="Lock delivery while money is due" on={d.lockWhenDue} onChange={v => patchStudio("delivery", { ...d, lockWhenDue: v })} />
       </Row>

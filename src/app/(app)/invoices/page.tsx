@@ -5,9 +5,9 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, X, Loader2, Search, Eye, Trash2, Send, CheckCircle2,
-  FileText, Link2, Copy, MoreVertical, AlertCircle, Zap,
-  DollarSign, Clock, TrendingUp, ChevronRight, CreditCard,
-  BookOpen, ChevronDown, Bell, Receipt,
+  FileText, Link2, Copy, AlertCircle,
+  DollarSign, Clock, TrendingUp, ChevronRight,
+  BookOpen, Bell, Receipt, Wallet, CalendarDays,
 } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
+import { currencyPad, currencySymbol, fmtDate, formatCurrency, localDateStr } from "@/lib/format";
+import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 import { askConfirm } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
@@ -119,60 +121,52 @@ function CatalogModal({ onSelect, onClose, currency }: {
     const p = new URLSearchParams({ limit: "100", ...(search && { search }), ...(cat && { category: cat }) });
     apiFetch(`${API}/service-catalog?${p}`).then(r => r.json()).then(d => {
       setItems(d.data ?? []);
-    }).finally(() => setLoading(false));
+    }).catch(() => setItems([])).finally(() => setLoading(false));
   }, [search, cat]);
 
-  const s = sym(currency);
   return (
     <>
-      <div className="sp-backdrop z-60" onClick={onClose} />
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-        <div className="w-full max-w-lg sp-modal flex flex-col max-h-[80vh]">
-          <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-[#17151F]">Service Catalog</h3>
-              <p className="text-xs text-[#8A8599] mt-0.5">Select to auto-fill</p>
+      <div className="sp-backdrop z-[60]" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+        <div role="dialog" aria-modal="true" aria-label="Service catalog"
+          className="pointer-events-auto w-full sm:max-w-lg sp-modal !bg-[#F5F3FA] rounded-b-none sm:rounded-[24px] flex flex-col max-h-[85dvh]">
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+            <Tile icon={BookOpen} color="orchid" size={40} />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Service catalog</h3>
+              <p className="text-[13px] text-[#6B6680] mt-0.5">Tap a service to add it</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]"><X className="w-4 h-4 text-[#6B6680]" /></button>
+            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
           </div>
-          <div className="p-4 border-b border-[#F1EFF6] flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8A8599]" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search services…"
-                className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-            </div>
-            <select value={cat} onChange={e => setCat(e.target.value)}
-              className="h-9 px-2.5 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
-              <option value="">All</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+          <div className="px-4 sm:px-5 pb-3 space-y-3">
+            <SearchField value={search} onChange={setSearch} placeholder="Search services" />
+            <Chips label="Category" value={cat || "all"} onChange={v => setCat(v === "all" ? "" : v)}
+              options={[{ value: "all", label: "All" }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-5">
             {loading ? (
-              <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
+              <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" aria-label="Loading" /></div>
             ) : items.length === 0 ? (
-              <div className="text-center py-10">
-                <BookOpen className="w-8 h-8 text-[#E4E0EC] mx-auto mb-2" />
-                <p className="text-sm text-[#8A8599]">No catalog items yet</p>
-                <p className="text-xs text-[#B5B0C4] mt-1">Add services in Settings → Service Catalog</p>
+              <div className="bg-white rounded-[20px] text-center py-10 px-6">
+                <span className="w-12 h-12 rounded-full bg-[#EEE8FD] flex items-center justify-center mx-auto"><BookOpen className="w-5 h-5 text-[#5B3FD0]" /></span>
+                <p className="mt-3 text-[15px] font-bold text-[#17151F]">{search || cat ? "Nothing matches" : "No services yet"}</p>
+                <p className="text-[13px] text-[#6B6680] mt-1">{search || cat ? "Try another word or category." : "Add them in Settings → Money → Service catalog."}</p>
               </div>
-            ) : items.map(item => (
-              <button key={item.id} onClick={() => onSelect(item)}
-                className="w-full flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-[#F7F4FE] text-left transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-[#EEE8FD] flex items-center justify-center text-[#7D5CEF] flex-shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-[#17151F] truncate">{item.name}</p>
-                  {item.description && <p className="text-xs text-[#8A8599] truncate">{item.description}</p>}
-                  <p className="text-xs text-[#8A8599] mt-0.5">
-                    {item.category && <span className="text-[#7D5CEF] font-medium">{item.category} · </span>}
-                    {item.unit}
-                  </p>
-                </div>
-                <p className="font-bold text-sm text-[#17151F] flex-shrink-0">{s}{Number(item.defaultPrice).toLocaleString()}</p>
-              </button>
-            ))}
+            ) : (
+              <div className="bg-white rounded-[20px] divide-y divide-[#EEEBF4] overflow-hidden">
+                {items.map(item => (
+                  <button key={item.id} type="button" onClick={() => onSelect(item)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FB] transition-colors">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{item.name}</span>
+                      <span className="block text-[12.5px] text-[#6B6680] truncate mt-0.5">{[item.category, item.unit, item.description].filter(Boolean).join(" · ")}</span>
+                    </span>
+                    <span className="text-[14px] font-bold text-[#17151F] tabular-nums flex-shrink-0">{formatCurrency(Number(item.defaultPrice), currency)}</span>
+                    <Plus className="w-4 h-4 text-[#7D5CEF] flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -273,93 +267,82 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
   );
 }
 
-// ─── Record Payment Form ──────────────────────────────────────────────────────
+// ─── Record Payment ───────────────────────────────────────────────────────────
 function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () => void; onClose: () => void }) {
-  const [amount, setAmount] = useState<number | "">("");
+  const balance = Number(inv.balanceDue);
+  const [amount, setAmount] = useState(balance > 0 ? String(balance) : "");
   const [method, setMethod] = useState("cash");
   const [payDate, setPayDate] = useState(localDateStr());
   const [ref, setRef] = useState("");
-  const [txn, setTxn] = useState("");
   const [notes, setNotes] = useState("");
   const [walletId, setWalletId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const balance = Number(inv.balanceDue);
-  const c = sym(inv.currency);
 
   async function save() {
-    if (!amount || Number(amount) <= 0) { setError("Amount must be > 0"); return; }
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
+    if (amt > balance) { setError(`That's more than what's still due (${formatCurrency(balance, inv.currency)}).`); return; }
     if (!walletId) { setError("Pick the account the money went into."); return; }
-    if (Number(amount) > balance) { setError(`Cannot exceed balance (${c}${balance.toLocaleString()})`); return; }
     setSaving(true); setError("");
     try {
       const r = await apiFetch(`${API}/studio-invoices/${inv.id}/payments`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: Number(amount), paymentMethod: method,
+          amount: amt, paymentMethod: method,
           paymentDate: payDate,
           referenceNumber: ref || undefined,
-          transactionId: txn || undefined,
           notes: notes || undefined,
           walletId,
         }),
       });
       const d = await r.json();
-      if (!r.ok) { setError((Array.isArray(d.message) ? d.message[0] : d.message) || "Failed."); return; }
+      if (!r.ok) { setError((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't record the payment."); return; }
       onDone();
     } catch { setError("Something went wrong."); }
     finally { setSaving(false); }
   }
 
   return (
-    <div className="bg-white border border-[#E4E0EC] rounded-2xl p-4 space-y-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[#17151F] uppercase tracking-wide">Record Payment</p>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded hover:bg-[#F1EFF6]"><X className="w-3.5 h-3.5 text-[#8A8599]" /></button>
+    <FormDrawer open onClose={onClose} onTop icon={Wallet} color="green" title="Record payment" sub={`${inv.invoiceNumber} · ${inv.client.firstName} ${inv.client.lastName ?? ""}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={save} disabled={saving} className="flex-1 h-11 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}Record payment
+          </button>
+        </>
+      }>
+      <div className="mb-4 flex items-center justify-between rounded-[16px] bg-[#FDECEF] px-4 py-3">
+        <span className="text-[13px] font-semibold text-[#9C2340]">Still to pay</span>
+        <span className="text-[17px] font-extrabold text-[#C2304F] tabular-nums">{formatCurrency(balance, inv.currency)}</span>
       </div>
-      {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-2 py-1.5 rounded-lg">{error}</p>}
-      <div className="bg-[#FFF9EF] border border-[#F6E3B8] rounded-xl p-2.5 flex items-center justify-between">
-        <span className="text-xs text-[#9A5B00] font-medium">Balance Due</span>
-        <span className="font-bold text-[#8A5600]">{c}{balance.toLocaleString()}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs text-[#6B6680]">Amount *</Label>
-          <input type="number" min="0" max={balance} value={amount} onChange={e => setAmount(Number(e.target.value))}
-            placeholder={`Max ${c}${balance.toLocaleString()}`}
-            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
+      {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
+
+      <FormGroup>
+        <Field label="Amount" required>{id => (
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{currencySymbol(inv.currency).trim()}</span>
+            <input id={id} type="number" inputMode="decimal" min="0" max={balance} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus
+              className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(inv.currency) }} />
+          </div>
+        )}</Field>
+        <div className="grid grid-cols-2">
+          <Field label="Method">{id => (
+            <select id={id} value={method} onChange={e => setMethod(e.target.value)} className={inputCls}>
+              {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          )}</Field>
+          <Field label="Date" className="pl-0">{id => <input id={id} type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className={inputCls} />}</Field>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-[#6B6680]">Method *</Label>
-          <select value={method} onChange={e => setMethod(e.target.value)}
-            className="w-full h-9 px-2 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
-            {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-[#6B6680]">Date</Label>
-          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-        </div>
-        <AccountPicker className="col-span-full" value={walletId} onChange={setWalletId} method={method} />
-        <div className="space-y-1">
-          <Label className="text-xs text-[#6B6680]">Reference</Label>
-          <input value={ref} onChange={e => setRef(e.target.value)} placeholder="Ref / TXN ID"
-            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs text-[#6B6680]">Notes</Label>
-        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes"
-          className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-      </div>
-      <div className="flex gap-2 pt-1">
-        <Button variant="outline" onClick={onClose} className="flex-1 h-9 border-[#E4E0EC] text-[#4A4658] text-xs">Cancel</Button>
-        <Button disabled={saving} onClick={save} className="flex-1 h-9 bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white text-xs gap-1.5">
-          {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</> : <><CreditCard className="w-3.5 h-3.5" />Record Payment</>}
-        </Button>
-      </div>
-    </div>
+        <div className="px-4 py-3.5"><AccountPicker value={walletId} onChange={setWalletId} method={method} /></div>
+      </FormGroup>
+
+      <FormGroup>
+        <Field label="Reference / transaction ID">{id => <input id={id} value={ref} onChange={e => setRef(e.target.value)} placeholder="Optional" className={inputCls} />}</Field>
+        <Field label="Note">{id => <input id={id} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className={inputCls} />}</Field>
+      </FormGroup>
+    </FormDrawer>
   );
 }
 
@@ -669,7 +652,6 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
   const [payments, setPayments] = useState<InvoicePayment[]>(initialInv.payments ?? []);
   const [payLoading, setPayLoading] = useState(false);
   const s = STATUS[inv.status] ?? STATUS.draft;
-  const c = sym(inv.currency);
   const url = `${SITE}/inv/${inv.publicToken}`;
 
   async function loadPayments() {
@@ -720,189 +702,167 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
   }
 
   const balance = Number(inv.balanceDue);
+  const grand = Number(inv.grandTotal);
+  const paid = Number(inv.paidAmount);
+  const isQuote = inv.docType === "quotation";
+  const money = (n: number | string) => formatCurrency(Number(n), inv.currency);
+  const chip = isQuote ? { label: "Quotation", bg: "#EEE8FD", text: "#5B3FD0" }
+    : STATE[inv.state ?? ""] ?? { label: s.label, ...(STATUS_HEX[inv.status] ?? STATUS_HEX.draft) };
+  const pct = grand > 0 ? Math.min(100, Math.round((paid / grand) * 100)) : 0;
+  const canPay = balance > 0 && inv.status !== "void" && !isQuote && (inv.booking || ["sent","viewed","partially_paid","overdue"].includes(inv.status));
+  const copy = (msg: string) => { navigator.clipboard.writeText(url); setToast({ msg, type: "success" }); };
+  const timeline = [
+    { label: "Issued", date: inv.issueDate, dot: "#8A8599" },
+    { label: "Pay by", date: inv.dueDate, dot: "#D88A12" },
+    { label: "Sent", date: inv.sentAt, dot: "#2F6FB3" },
+    { label: "Viewed", date: inv.viewedAt, dot: "#7D5CEF" },
+    { label: "Paid", date: inv.paidAt, dot: "#1F8A5B" },
+  ].filter(x => x.date);
 
   return (
     <>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer sp-form z-50 sm:max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-[#17151F]">{inv.invoiceNumber}</h2>
-              {inv.docType === "quotation"
-                ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-[#EEE8FD] text-[#5B3FD0]">Quotation</span>
-                : STATE[inv.state ?? ""]
-                  ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: STATE[inv.state!].bg, color: STATE[inv.state!].text }}>{STATE[inv.state!].label}</span>
-                  : <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", s.badge)}>{s.label}</span>}
-            </div>
-            <p className="text-xs text-[#8A8599] mt-0.5">{inv.client.firstName} {inv.client.lastName ?? ""} · {inv.client.phone ?? ""}</p>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F1EFF6]"><X className="w-5 h-5 text-[#6B6680]" /></button>
-        </div>
+      <DocDrawer onClose={onClose} icon={Receipt} color="orchid" title={inv.invoiceNumber} label={`Invoice ${inv.invoiceNumber}`}
+        badge={<StatusChip {...chip} />}
+        sub={[`${inv.client.firstName} ${inv.client.lastName ?? ""}`.trim(), inv.client.phone].filter(Boolean).join(" · ")}>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-2">
-            {inv.status === "draft" && (
-              <Button size="sm" onClick={() => doAction("send", "Invoice marked as sent!")} disabled={acting}
-                className="bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-1.5">
-                <Send className="w-3.5 h-3.5" />Mark as Sent
-              </Button>
-            )}
-            {balance > 0 && inv.status !== "void" && inv.docType !== "quotation" && (inv.booking || ["sent","viewed","partially_paid","overdue"].includes(inv.status)) && (
-              <Button size="sm" onClick={() => setRecordingPayment(r => !r)} disabled={acting}
-                className="bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white gap-1.5">
-                <CreditCard className="w-3.5 h-3.5" />Record Payment
-              </Button>
-            )}
-            {!inv.booking && ["sent","viewed","partially_paid"].includes(inv.status) && (
-              <Button size="sm" onClick={() => doAction("paid", "Invoice marked as paid!")} disabled={acting}
-                variant="outline" className="border-[#9AD5B6] text-[#1F8A5B] hover:bg-[#F0FAF4] gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />Mark Paid
-              </Button>
-            )}
-            {["sent","viewed","partially_paid","overdue"].includes(inv.status) && inv.client.email && (
-              <Button size="sm" onClick={() => doAction("reminder", "Reminder sent!", "POST")} disabled={acting}
-                variant="outline" className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
-                <Bell className="w-3.5 h-3.5" />Remind
-              </Button>
-            )}
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline" className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
-                <Eye className="w-3.5 h-3.5" />Preview
-              </Button>
-            </a>
-            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Link copied!", type: "success" }); }}
-              className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
-              <Copy className="w-3.5 h-3.5" />Copy Link
-            </Button>
-            {!inv.booking && ["draft","void"].includes(inv.status) && (
-              <Button size="sm" variant="outline" onClick={doDelete} disabled={acting}
-                className="border-[#F6CFD8] text-[#C2304F] hover:bg-[#FEF5F7] gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />Delete
-              </Button>
-            )}
-          </div>
-
-          {/* Record Payment Form (inline) */}
-          {recordingPayment && (
-            <RecordPaymentForm inv={inv} onDone={onPaymentDone} onClose={() => setRecordingPayment(false)} />
-          )}
-
-          {/* Share link */}
-          <div className="p-3 bg-[#F7F5FB] rounded-[16px] flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
-            <p className="text-xs text-[#4A4658] truncate flex-1">{url}</p>
-            <button onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Copied!", type: "success" }); }}
-              className="text-xs text-[#7D5CEF] font-semibold flex-shrink-0 hover:text-[#5B3FD0]">Copy</button>
-          </div>
-
-          {inv.booking && (
-            <p className="text-xs text-[#6B6680] bg-[#F7F5FB] rounded-xl px-3 py-2">This invoice follows its program — the price, payments and due date change there. Record payments from the program.</p>
-          )}
-
-          {/* Booking link */}
-          {inv.booking && (
-            <div className="flex items-center gap-2 p-3 bg-[#F7F4FE] border border-[#EEE8FD] rounded-xl">
-              <FileText className="w-4 h-4 text-[#7D5CEF]" />
-              <p className="text-xs text-[#5B3FD0] font-medium">{inv.booking.bookingNumber} — {inv.booking.eventName || "Untitled"}</p>
-            </div>
-          )}
-
-          {/* Items */}
-          <div className="space-y-2">
-            <p className="text-[13px] font-semibold text-[#4A4658]">Line Items</p>
-            <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
-              {inv.items.map((item, i) => (
-                <div key={item.id} className={cn("px-4 py-3 flex items-start justify-between gap-2", i > 0 && "border-t border-[#F1EFF6]")}>
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      {(item as any).category && (
-                        <span className="text-xs px-1.5 py-0.5 bg-[#EEE8FD] text-[#7D5CEF] rounded font-medium">{(item as any).category}</span>
-                      )}
-                      <p className="text-sm font-semibold text-[#17151F]">{item.name}</p>
-                    </div>
-                    {item.description && <p className="text-xs text-[#8A8599]">{item.description}</p>}
-                    <p className="text-xs text-[#8A8599] mt-0.5">
-                      {item.quantity} {(item as any).unit || "service"} × {c}{Number(item.unitPrice).toLocaleString()}
-                      {(item as any).discountType && (item as any).discountType !== "none" && (item as any).discountValue && (
-                        <span className="text-[#D88A12] ml-1">
-                          − {(item as any).discountType === "percent" ? `${(item as any).discountValue}%` : `${c}${(item as any).discountValue.toLocaleString()}`}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <p className="font-bold text-sm text-[#17151F] flex-shrink-0">{c}{Number(item.total).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Totals */}
-          <div className="bg-[#F7F5FB] rounded-[16px] p-4 space-y-1.5 text-sm">
-            <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span>{c}{Number(inv.subtotal).toLocaleString()}</span></div>
-            {Number(inv.discountAmount) > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{c}{Number(inv.discountAmount).toLocaleString()}</span></div>}
-            {Number(inv.taxAmount) > 0 && <div className="flex justify-between text-[#6B6680]"><span>{inv.taxLabel} ({inv.taxPercent}%)</span><span>+{c}{Number(inv.taxAmount).toLocaleString()}</span></div>}
-            <div className="flex justify-between font-bold text-[#17151F] text-base border-t border-[#E4E0EC] pt-2"><span>Grand Total</span><span>{c}{Number(inv.grandTotal).toLocaleString()}</span></div>
-            {Number(inv.paidAmount) > 0 && <div className="flex justify-between text-[#1F8A5B] font-semibold"><span>Paid</span><span>−{c}{Number(inv.paidAmount).toLocaleString()}</span></div>}
-            <div className={cn("flex justify-between font-bold text-base", Number(inv.balanceDue) > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>
-              <span>Balance Due</span><span>{c}{Number(inv.balanceDue).toLocaleString()}</span>
-            </div>
-          </div>
-
-          {/* Payment History */}
-          {(payments.length > 0 || payLoading) && (
-            <div className="space-y-2">
-              <p className="text-[13px] font-semibold text-[#4A4658]">Payment History</p>
-              {payLoading ? (
-                <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
-              ) : (
-                <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
-                  {payments.map((pay, i) => (
-                    <div key={pay.id} className={cn("px-4 py-3 flex items-center justify-between gap-2", i > 0 && "border-t border-[#F1EFF6]")}>
-                      <div>
-                        <p className="text-sm font-semibold text-[#17151F] capitalize">{METHOD_LABEL[pay.paymentMethod] ?? pay.paymentMethod.replace("_", " ")}</p>
-                        <p className="text-xs text-[#8A8599]">{fmtDate(pay.paymentDate)}{pay.referenceNumber ? ` · ${pay.referenceNumber}` : ""}</p>
-                      </div>
-                      <p className="font-bold text-sm text-[#1F8A5B]">+{c}{Number(pay.amount).toLocaleString()}</p>
-                    </div>
-                  ))}
-                  <div className="px-4 py-2.5 bg-[#F7F5FB] border-t border-[#E4E0EC] flex justify-between items-center">
-                    <span className="text-xs text-[#6B6680] font-medium">Total Paid</span>
-                    <span className="font-bold text-sm text-[#1F8A5B]">{c}{payments.reduce((a, p) => a + Number(p.amount), 0).toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Timeline */}
-          <div className="space-y-2">
-            <p className="text-[13px] font-semibold text-[#4A4658]">Timeline</p>
-            {[
-              { label: "Issued", date: inv.issueDate, dot: "bg-[#8A8599]" },
-              { label: "Due", date: inv.dueDate, dot: "bg-[#E9A63A]" },
-              { label: "Sent", date: inv.sentAt, dot: "bg-[#6C9BD0]" },
-              { label: "Viewed", date: inv.viewedAt, dot: "bg-[#A28BF5]" },
-              { label: "Paid", date: inv.paidAt, dot: "bg-[#1F8A5B]" },
-            ].filter(x => x.date).map(x => (
-              <div key={x.label} className="flex items-center gap-3">
-                <span className={cn("w-2 h-2 rounded-full flex-shrink-0", x.dot)} />
-                <span className="text-xs text-[#6B6680] w-12">{x.label}</span>
-                <span className="text-xs font-medium text-[#33303F]">{fmtDate(x.date!)}</span>
+        {/* Money at a glance */}
+        <DocCard>
+          <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{isQuote ? "Quoted total" : "Total"}</p>
+          <p className="text-[30px] font-extrabold tracking-[-0.02em] text-[#17151F] tabular-nums leading-tight mt-0.5">{money(grand)}</p>
+          {!isQuote && (
+            <>
+              <div className="mt-3 h-2 rounded-full bg-[#F1EFF6] overflow-hidden" role="progressbar" aria-label="Paid so far" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-full rounded-full bg-[#1F8A5B] transition-all duration-500" style={{ width: `${pct}%` }} />
               </div>
-            ))}
-          </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-[14px] bg-[#E9F5EF] px-3 py-2.5">
+                  <p className="text-[12px] font-semibold text-[#14613F]">Received</p>
+                  <p className="text-[16px] font-extrabold text-[#1F8A5B] tabular-nums">{money(paid)}</p>
+                </div>
+                <div className={cn("rounded-[14px] px-3 py-2.5", balance > 0 ? "bg-[#FDECEF]" : "bg-[#F5F3FA]")}>
+                  <p className={cn("text-[12px] font-semibold", balance > 0 ? "text-[#9C2340]" : "text-[#6B6680]")}>{balance > 0 ? "Still due" : "Nothing due"}</p>
+                  <p className={cn("text-[16px] font-extrabold tabular-nums", balance > 0 ? "text-[#C2304F]" : "text-[#4A4658]")}>{money(balance)}</p>
+                </div>
+              </div>
+              {inv.dueDate && balance > 0 && <p className="mt-2.5 text-[12.5px] text-[#6B6680] inline-flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Pay by {fmtDate(inv.dueDate)}</p>}
+            </>
+          )}
+        </DocCard>
 
-          {inv.notes && (
-            <div className="p-3 bg-[#F7F5FB] rounded-[16px]">
-              <p className="text-xs font-semibold text-[#6B6680] mb-1">Notes</p>
-              <p className="text-xs text-[#4A4658]">{inv.notes}</p>
-            </div>
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          {canPay && <PillButton tone="green" icon={Wallet} onClick={() => setRecordingPayment(true)} disabled={acting}>Record payment</PillButton>}
+          {inv.status === "draft" && <PillButton tone="primary" icon={Send} onClick={() => doAction("send", "Marked as sent")} disabled={acting}>Mark as sent</PillButton>}
+          {!inv.booking && ["sent","viewed","partially_paid"].includes(inv.status) && (
+            <PillButton icon={CheckCircle2} onClick={() => doAction("paid", "Marked as paid")} disabled={acting}>Mark paid</PillButton>
+          )}
+          {["sent","viewed","partially_paid","overdue"].includes(inv.status) && inv.client.email && (
+            <PillButton icon={Bell} onClick={() => doAction("reminder", "Reminder sent", "POST")} disabled={acting}>Send reminder</PillButton>
+          )}
+          <PillButton icon={Eye} href={url} external>Preview</PillButton>
+          {!inv.booking && ["draft","void"].includes(inv.status) && (
+            <PillButton tone="danger" icon={Trash2} onClick={doDelete} disabled={acting}>Delete</PillButton>
           )}
         </div>
-      </div>
+
+        {/* Client link */}
+        <DocCard title="Client link" flush>
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Link2 className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+            <p className="text-[13px] text-[#4A4658] truncate flex-1 min-w-0">{url}</p>
+            <button type="button" onClick={() => copy("Link copied")} className="h-8 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1 flex-shrink-0">
+              <Copy className="w-3.5 h-3.5" />Copy
+            </button>
+          </div>
+        </DocCard>
+
+        {inv.booking && (
+          <DocCard>
+            <div className="flex items-start gap-3">
+              <Tile icon={CalendarDays} color="violet" size={36} />
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-[#17151F] truncate">{inv.booking.eventName || "Untitled program"}</p>
+                <p className="text-[12.5px] text-[#6B6680] font-mono">{inv.booking.bookingNumber}</p>
+                <p className="text-[12.5px] text-[#6B6680] mt-1.5 leading-relaxed">This invoice follows its program. Change the price, payments and pay-by date from the program.</p>
+              </div>
+            </div>
+          </DocCard>
+        )}
+
+        {/* Items */}
+        <DocCard title="Items" flush>
+          {inv.items.map(item => {
+            const disc = item.discountType && item.discountType !== "none" && item.discountValue
+              ? (item.discountType === "percent" ? `${item.discountValue}% off` : `${money(item.discountValue)} off`) : null;
+            return (
+              <div key={item.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-semibold text-[#17151F]">{item.name}</p>
+                  {item.description && <p className="text-[12.5px] text-[#6B6680] mt-0.5">{item.description}</p>}
+                  <p className="text-[12.5px] text-[#8A8599] mt-0.5 tabular-nums">
+                    {[item.category, `${item.quantity} ${item.unit || "service"} × ${money(item.unitPrice)}`].filter(Boolean).join(" · ")}
+                    {disc && <span className="text-[#9A5B00]"> · {disc}</span>}
+                  </p>
+                </div>
+                <p className="text-[14px] font-bold text-[#17151F] tabular-nums flex-shrink-0">{money(item.total)}</p>
+              </div>
+            );
+          })}
+          <div className="px-4 py-3.5 space-y-1.5 bg-[#FAF9FC]">
+            <DocLine label="Subtotal" value={money(inv.subtotal)} />
+            {Number(inv.discountAmount) > 0 && <DocLine label="Discount" value={`−${money(inv.discountAmount)}`} tone="green" />}
+            {Number(inv.taxAmount) > 0 && <DocLine label={`${inv.taxLabel || "Tax"} (${inv.taxPercent}%)`} value={`+${money(inv.taxAmount)}`} />}
+            <DocLine label="Total" value={money(grand)} strong className="pt-1.5 border-t border-[#EEEBF4]" />
+          </div>
+        </DocCard>
+
+        {/* Payments */}
+        {!isQuote && (payments.length > 0 || payLoading) && (
+          <DocCard title="Payments" flush>
+            {payLoading ? (
+              <div className="flex items-center justify-center py-5"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" aria-label="Loading" /></div>
+            ) : (
+              <>
+                {payments.map(pay => (
+                  <div key={pay.id} className="px-4 py-3 flex items-center gap-3">
+                    <span className="w-9 h-9 rounded-full bg-[#E9F5EF] text-[#1F8A5B] flex items-center justify-center flex-shrink-0"><Wallet className="w-4 h-4" /></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-[#17151F]">{METHOD_LABEL[pay.paymentMethod] ?? pay.paymentMethod.replace("_", " ")}</p>
+                      <p className="text-[12.5px] text-[#6B6680] truncate">{fmtDate(pay.paymentDate)}{pay.referenceNumber ? ` · ${pay.referenceNumber}` : ""}</p>
+                    </div>
+                    <p className="text-[14px] font-bold text-[#1F8A5B] tabular-nums flex-shrink-0">+{money(pay.amount)}</p>
+                  </div>
+                ))}
+                <div className="px-4 py-3 bg-[#FAF9FC]">
+                  <DocLine label="Received in total" value={money(payments.reduce((a, p) => a + Number(p.amount), 0))} tone="green" className="font-bold" />
+                </div>
+              </>
+            )}
+          </DocCard>
+        )}
+
+        {/* Timeline */}
+        {timeline.length > 0 && (
+          <DocCard title="Timeline">
+            <ol className="space-y-2.5">
+              {timeline.map(x => (
+                <li key={x.label} className="flex items-center gap-3 text-[13.5px]">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: x.dot }} />
+                  <span className="text-[#6B6680] w-14">{x.label}</span>
+                  <span className="font-semibold text-[#17151F] tabular-nums">{fmtDate(x.date!)}</span>
+                </li>
+              ))}
+            </ol>
+          </DocCard>
+        )}
+
+        {inv.notes && (
+          <DocCard title="Notes"><p className="text-[13.5px] text-[#4A4658] leading-relaxed whitespace-pre-line">{inv.notes}</p></DocCard>
+        )}
+      </DocDrawer>
+
+      {recordingPayment && <RecordPaymentForm inv={inv} onDone={onPaymentDone} onClose={() => setRecordingPayment(false)} />}
     </>
   );
 }

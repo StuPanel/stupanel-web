@@ -118,6 +118,6 @@ export function localDateStr(d: Date = new Date()): string {
 }
 
 /** Left padding for a money box with the currency sign inside it (wider for codes like "AED"). */
-export function currencyPad(): string | undefined {
-  return currencySymbol().trim().length > 1 ? "3.25rem" : undefined;
+export function currencyPad(currency = studioCurrency): string | undefined {
+  return currencySymbol(currency).trim().length > 1 ? "3.25rem" : undefined;
 }

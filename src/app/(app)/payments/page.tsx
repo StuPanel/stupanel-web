@@ -4,14 +4,11 @@ import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Plus, Search, CreditCard, Loader2, X, AlertTriangle, MoreHorizontal,
+  Plus, Search, CreditCard, Loader2, AlertTriangle, MoreHorizontal,
   Edit3, Trash2, Banknote, Smartphone, Receipt as ReceiptIcon,
-  Building2, CheckCircle2, TrendingUp, Calendar, FileText,
+  Building2, CheckCircle2, TrendingUp, Calendar, FileText, Wallet,
 } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -83,7 +80,8 @@ const PAYMENT_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-import { formatCurrency, localDateStr, fmtDate } from "@/lib/format";
+import { CURRENCY_OPTIONS, currencyPad, currencySymbol, formatCurrency, getStudioCurrency, localDateStr, fmtDate } from "@/lib/format";
+import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 function fmt(n: number, cur?: string) { return formatCurrency(n, cur); }
 function clientName(c: Client) { return [c.firstName, c.lastName].filter(Boolean).join(" "); }
 function today() { return localDateStr(); }
@@ -102,7 +100,7 @@ function PaymentDrawer({
   const isEdit = !!editing;
 
   const blank = {
-    bookingId: "", amount: "", currency: "BDT",
+    bookingId: "", amount: "", currency: getStudioCurrency(),
     paymentMethod: "cash" as PaymentMethod,
     paymentStatus: "completed" as PaymentStatus,
     paymentDate: today(),
@@ -150,7 +148,7 @@ function PaymentDrawer({
     setForm(prev => ({
       ...prev,
       bookingId,
-      currency: booking?.currency ?? "BDT",
+      currency: booking?.currency ?? getStudioCurrency(),
     }));
   }
 
@@ -200,161 +198,106 @@ function PaymentDrawer({
   }
 
   if (!open) return null;
+  const sym = currencySymbol(form.currency).trim();
 
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E0EC]">
-          <div>
-            <h2 className="font-bold text-[#17151F] text-lg">{isEdit ? "Edit Payment" : "Record Payment"}</h2>
-            <p className="text-xs text-[#8A8599] mt-0.5">{isEdit ? "Update payment details" : "Record a new payment"}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
-            <X className="w-4 h-4 text-[#6B6680]" />
+    <FormDrawer open onClose={onClose} icon={Wallet} color="green"
+      title={isEdit ? "Edit payment" : "Record payment"}
+      sub={isEdit ? (editing?.receiptNumber ? `Receipt ${editing.receiptNumber}` : "Change the details") : "Money received for a program"}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+          <button type="submit" form="payment-form" disabled={loading} className="flex-1 h-11 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}{isEdit ? "Save changes" : "Record payment"}
           </button>
-        </div>
+        </>
+      }>
+      <form id="payment-form" onSubmit={handleSubmit} noValidate>
+        {error && <p role="alert" className="mb-4 text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{error}</p>}
 
-        <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-5 space-y-5">
-            {error && (
-              <div className="px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">{error}</div>
-            )}
+        <FormGroup>
+          <Field label="Program" required>{id => (
+            <select id={id} value={form.bookingId} onChange={handleBookingChange} className={inputCls}>
+              <option value="">Choose a program…</option>
+              {bookings.map(b => (
+                <option key={b.id} value={b.id}>{b.bookingNumber} — {b.eventName || "Untitled"} ({formatCurrency(b.grandTotal, b.currency)})</option>
+              ))}
+            </select>
+          )}</Field>
+        </FormGroup>
 
-            {/* Booking */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-[#33303F]">Booking / Program *</Label>
-              <select value={form.bookingId} onChange={handleBookingChange}
-                className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer"
-                required>
-                <option value="">Select a booking...</option>
-                {bookings.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.bookingNumber} — {b.eventName || "Untitled"} ({formatCurrency(b.grandTotal, b.currency)})
-                  </option>
-                ))}
+        {remaining !== null && remaining > 0 && (
+          <div className="-mt-2 mb-5 flex items-center justify-between gap-3 rounded-[16px] bg-[#FDECEF] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-[#9C2340]">Still to pay</p>
+              <p className="text-[17px] font-extrabold text-[#C2304F] tabular-nums">{fmt(remaining, selectedBooking!.currency)}</p>
+            </div>
+            <button type="button" onClick={() => setForm(prev => ({ ...prev, amount: String(remaining) }))}
+              className="h-9 px-3.5 rounded-full bg-white text-[#C2304F] text-[13px] font-semibold flex-shrink-0 hover:bg-[#FFF5F7]">Use this amount</button>
+          </div>
+        )}
+        {remaining === 0 && selectedBooking && (
+          <p className="-mt-2 mb-5 rounded-[16px] bg-[#E9F5EF] px-4 py-3 text-[13px] font-semibold text-[#14613F] inline-flex items-center gap-2 w-full">
+            <CheckCircle2 className="w-4 h-4 text-[#1F8A5B]" />This program is fully paid.
+          </p>
+        )}
+
+        <FormGroup>
+          <div className="grid grid-cols-[1fr_auto]">
+            <Field label="Amount" required className="min-w-0">{id => (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{sym}</span>
+                <input id={id} type="number" inputMode="decimal" min="0" step="0.01" placeholder="0" value={form.amount} onChange={set("amount")}
+                  className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(form.currency) }} />
+              </div>
+            )}</Field>
+            <Field label="Currency" className="pl-0 w-[112px]">{id => (
+              <select id={id} value={form.currency} onChange={set("currency")} className={inputCls}>
+                {CURRENCY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
               </select>
-              {remaining !== null && remaining > 0 && (
-                <p className="text-xs text-[#D88A12] flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Outstanding: {fmt(remaining, selectedBooking!.currency)}
-                  <button type="button" onClick={() => setForm(prev => ({ ...prev, amount: String(remaining) }))}
-                    className="ml-1 text-[#7D5CEF] hover:underline font-medium">
-                    Use this amount
-                  </button>
-                </p>
-              )}
-              {remaining === 0 && selectedBooking && (
-                <p className="text-xs text-[#1F8A5B] flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> This booking is fully paid.
-                </p>
-              )}
-            </div>
-
-            {/* Amount + Currency */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Amount *</Label>
-                <Input type="number" min="0.01" step="0.01" placeholder="0.00"
-                  value={form.amount} onChange={set("amount")}
-                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Currency</Label>
-                <select value={form.currency} onChange={set("currency")}
-                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  <option value="BDT">৳ BDT</option>
-                  <option value="USD">$ USD</option>
-                  <option value="INR">₹ INR</option>
-                  <option value="GBP">£ GBP</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Method + Type */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Payment Method *</Label>
-                <select value={form.paymentMethod} onChange={set("paymentMethod")}
-                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  {Object.entries(METHOD_CONFIG).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Payment Type</Label>
-                <select value={form.paymentType} onChange={set("paymentType")}
-                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  {PAYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-            </div>
-
+            )}</Field>
+          </div>
+          <div className="grid grid-cols-2">
+            <Field label="Method" className="min-w-0">{id => (
+              <select id={id} value={form.paymentMethod} onChange={set("paymentMethod")} className={inputCls}>
+                {Object.entries(METHOD_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            )}</Field>
+            <Field label="Type" className="pl-0 min-w-0">{id => (
+              <select id={id} value={form.paymentType} onChange={set("paymentType")} className={inputCls}>
+                {PAYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            )}</Field>
+          </div>
+          <div className="px-4 py-3.5">
             <AccountPicker key={editing?.id ?? "new"} value={form.walletId} method={form.paymentMethod}
               onChange={id => setForm(prev => ({ ...prev, walletId: id }))} />
-            {isEdit && editing?.receiptNumber && (
-              <p className="text-[11px] text-[#6B6680] -mt-2">Receipt {editing.receiptNumber}. If you change the amount, date, method, account or TrxID, this receipt is cancelled and a new number is given.</p>
-            )}
-
-            {/* Date + Status */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Payment Date *</Label>
-                <Input type="date" value={form.paymentDate} onChange={set("paymentDate")}
-                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Status</Label>
-                <select value={form.paymentStatus} onChange={set("paymentStatus")}
-                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
-                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Reference */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Reference No. <span className="text-[#8A8599] font-normal">(optional)</span></Label>
-                <Input placeholder="TXN-12345" value={form.referenceNumber} onChange={set("referenceNumber")}
-                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-[#33303F]">Transaction ID <span className="text-[#8A8599] font-normal">(optional)</span></Label>
-                <Input placeholder="Transaction ID" value={form.transactionId} onChange={set("transactionId")}
-                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" />
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-[#33303F]">Notes <span className="text-[#8A8599] font-normal">(optional)</span></Label>
-              <textarea value={form.notes} onChange={set("notes")} rows={2}
-                placeholder="Any notes about this payment..."
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E4E0EC] text-sm placeholder:text-[#8A8599] focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
           </div>
-        </form>
+          <div className="grid grid-cols-2">
+            <Field label="Date" required className="min-w-0">{id => <input id={id} type="date" value={form.paymentDate} onChange={set("paymentDate")} className={inputCls} />}</Field>
+            <Field label="Status" className="pl-0 min-w-0">{id => (
+              <select id={id} value={form.paymentStatus} onChange={set("paymentStatus")} className={inputCls}>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            )}</Field>
+          </div>
+        </FormGroup>
+        {isEdit && editing?.receiptNumber && (
+          <p className="-mt-3 mb-5 px-1 text-xs text-[#6B6680] leading-relaxed">If you change the amount, date, method, account or transaction ID, receipt {editing.receiptNumber} is cancelled and a new number is given.</p>
+        )}
 
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-[#E4E0EC] flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC] text-[#4A4658]">
-            Cancel
-          </Button>
-          <Button type="submit" form="payment-form" disabled={loading}
-            className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold gap-2">
-            {loading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? "Saving..." : "Recording..."}</>
-              : isEdit ? "Save Changes" : "Record Payment"
-            }
-          </Button>
-        </div>
-      </div>
-    </>
+        <FormGroup title="Optional">
+          <div className="grid grid-cols-1 sm:grid-cols-2">
+            <Field label="Reference no." className="min-w-0">{id => <input id={id} placeholder="Optional" value={form.referenceNumber} onChange={set("referenceNumber")} className={inputCls} />}</Field>
+            <Field label="Transaction ID" className="min-w-0 sm:pl-0">{id => <input id={id} placeholder="Optional" value={form.transactionId} onChange={set("transactionId")} className={inputCls} />}</Field>
+          </div>
+          <Field label="Note">{id => (
+            <textarea id={id} value={form.notes} onChange={set("notes")} rows={2} placeholder="Anything to remember about this payment"
+              className={cn(inputCls, "h-auto py-3 resize-none leading-relaxed")} />
+          )}</Field>
+        </FormGroup>
+      </form>
+    </FormDrawer>
   );
 }
 
@@ -384,18 +327,18 @@ function DeleteDialog({
           <div className="w-14 h-14 rounded-full bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
-          <h3 className="font-bold text-[#17151F] text-lg">Delete Payment?</h3>
+          <h3 className="font-extrabold text-[#17151F] text-lg">Delete this payment?</h3>
           <p className="text-[#6B6680] text-sm mt-2">
             {fmt(payment.amount, payment.currency)} payment for{" "}
             <span className="font-semibold text-[#33303F]">{payment.booking.bookingNumber}</span> will be removed.
           </p>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
-            <Button onClick={doDelete} disabled={loading}
-              className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">
+            <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+            <button type="button" onClick={doDelete} disabled={loading}
+              className="flex-1 h-11 rounded-full bg-[#C2304F] hover:bg-[#A82642] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               Delete
-            </Button>
+            </button>
           </div>
         </div>
       </div>

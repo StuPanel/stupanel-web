@@ -66,9 +66,13 @@ export function MusicSection({ booking }: { booking: Booking }) {
   }
 
   async function saveSetup() {
-    if (!parts.length) { notify("Add at least one part", { error: true }); return; }
+    // A part still in the box counts too — no need to press Add first
+    const typed = newPart.trim();
+    const all = typed && !parts.some(p => p.label.toLowerCase() === typed.toLowerCase())
+      ? [...parts, { key: `custom-${Date.now()}`, label: typed, kind: "custom" as const }] : parts;
+    if (!all.length) { notify("Add at least one part", { error: true }); return; }
     setBusy("setup");
-    if (await put({ parts, perPart }, sel ? "Saved" : "Music is on — the client can choose in their portal")) setSetup(false);
+    if (await put({ parts: all, perPart }, sel ? "Saved" : "Music is on — the client can choose in their portal")) { setNewPart(""); setSetup(false); }
     setBusy("");
   }
 

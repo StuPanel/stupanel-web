@@ -133,6 +133,12 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
       const v = f[k] as string;
       if (v.trim() && (isNaN(Number(v)) || Number(v) < 0)) { setError(`${label} should be a number.`); return; }
     }
+    // A day / extra still in its box counts too — no need to press Add first
+    const withTyped = (list: string[], typed: string) => {
+      const t = typed.trim();
+      return t && !list.some(x => x.toLowerCase() === t.toLowerCase()) ? [...list, t] : list;
+    };
+    const days = withTyped(f.days, newDay), extras = withTyped(f.extras, newExtra);
     setSaving(true); setError("");
     // Send every field (null / [] clears it) so an edit can remove things too
     const body = {
@@ -142,11 +148,11 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
       durationHours: f.durationUnit === "hours" ? num(f.durationHours) : null,
       durationDays: f.durationUnit === "days" && num(f.durationDays) != null ? Math.round(num(f.durationDays)!) : null,
       deliveryDays: num(f.deliveryDays) == null ? null : Math.round(num(f.deliveryDays)!),
-      eventTypesIncluded: f.days, staffing: f.staffing.map(s => ({ role: s.role, count: s.count, ...(s.level ? { level: s.level } : {}) })),
+      eventTypesIncluded: days, staffing: f.staffing.map(s => ({ role: s.role, count: s.count, ...(s.level ? { level: s.level } : {}) })),
       photoEditCount: num(f.photoEditCount) == null ? null : Math.round(num(f.photoEditCount)!),
       trailerCount: num(f.trailerCount) == null ? null : Math.round(num(f.trailerCount)!),
       fullVideoCount: num(f.fullVideoCount) == null ? null : Math.round(num(f.fullVideoCount)!),
-      ritualsIncluded: f.extras, deliveryMethod: f.deliveryMethod || null,
+      ritualsIncluded: extras, deliveryMethod: f.deliveryMethod || null,
       deliverablesDescription: f.note.trim() || null,
       isActive: f.isActive, isVisibleInPortal: f.isVisibleInPortal,
     };

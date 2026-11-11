@@ -61,12 +61,15 @@ export default function MusicLibraryPage() {
     setDraft(d => [...d, t]); setNewTag("");
   }
   async function saveTags() {
+    // A tag still in the box counts too — no need to press Add first
+    const typed = newTag.trim().replace(/\s+/g, " ");
+    const list = typed && ![...dayTags, ...draft].some(x => x.toLowerCase() === typed.toLowerCase()) ? [...draft, typed] : draft;
     setSavingTags(true);
     try {
-      const r = await apiFetch(`${API}/companies/settings`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ musicTags: draft }) });
+      const r = await apiFetch(`${API}/companies/settings`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ musicTags: list }) });
       if (!r.ok) { notify(await err(r), { error: true }); return; }
       const d = await r.json();
-      setOwnTags(Array.isArray(d.musicTags) ? d.musicTags : draft); setEditTags(false); notify("Tags saved");
+      setOwnTags(Array.isArray(d.musicTags) ? d.musicTags : list); setNewTag(""); setEditTags(false); notify("Tags saved");
     } finally { setSavingTags(false); }
   }
   const shown = useMemo(() => {

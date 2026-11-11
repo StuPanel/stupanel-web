@@ -35,6 +35,7 @@ export function GeneralPane() {
     if (k === "name" && !v) { notify("Studio name can't be empty", { error: true }); return; }
     const ok = await patch({ [k]: v });
     if (ok && k === "name") window.dispatchEvent(new CustomEvent("branding-updated", { detail: { companyName: v } }));
+    if (ok && k === "country") window.dispatchEvent(new CustomEvent("branding-updated", { detail: { country: v } }));
     if (ok && k === "currency") window.dispatchEvent(new CustomEvent("branding-updated", { detail: { currency: v } }));
   };
   return (
@@ -49,7 +50,7 @@ export function GeneralPane() {
         <Row id="address" label="Address" stack><TextArea label="Address" rows={2} value={data.address ?? ""} onCommit={save("address")} placeholder="House, road, area…" /></Row>
         <Row id="city" label="City"><TextField label="City" value={data.city ?? ""} onCommit={save("city")} placeholder="City" /></Row>
         <Row id="state" label="State / Division" hint="Optional"><TextField label="State or division" value={data.state ?? ""} onCommit={save("state")} placeholder="State or region" /></Row>
-        <Row id="country" label="Country"><TextField label="Country" value={data.country ?? ""} onCommit={save("country")} placeholder="Bangladesh" /></Row>
+        <Row id="country" label="Country" hint="Also used to turn local phone numbers into WhatsApp links"><TextField label="Country" value={data.country ?? ""} onCommit={save("country")} placeholder="Country" /></Row>
       </Group>
 
       <Group title="Region" note="Currency is used on new quotes, invoices and reports. Old documents keep their currency.">
@@ -153,7 +154,7 @@ export function BrandingPane() {
                 <StudioLogo url={logoUrl} name={data.name} size={44} />
                 <div className="min-w-0">
                   <p className="font-extrabold text-[#17151F] text-sm truncate">{name}</p>
-                  <p className="text-xs text-[#6B6680]">{data.city || "Dhaka"} · {data.country || "Bangladesh"}</p>
+                  <p className="text-xs text-[#6B6680]">{[data.city, data.country].filter(Boolean).join(" · ") || "City · Country"}</p>
                 </div>
               </div>
               <p className="font-extrabold text-sm" style={{ color: BRAND }}>INVOICE</p>

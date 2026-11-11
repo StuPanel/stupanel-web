@@ -25,6 +25,7 @@ import { RateEditor, SetupEditor, firstLine, linesToRates, ratesToLines, uid, un
 import { formatCurrency, currencySymbol, currencyPad } from "@/lib/format";
 import { useAuth } from "@/context/auth-context";
 import { AREAS } from "@/lib/access";
+import { waNumber } from "@/lib/phone";
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -648,7 +649,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
 }) {
   const main = roleConfig(m.memberRoles[0] ?? "assistant", customRoles);
   const rates = rateLine(m, customRoles);
-  const wa = m.phone ? `https://wa.me/${(d => d.startsWith("0") ? "88" + d : d)(m.phone.replace(/\D/g, ""))}` : null;
+  const wa = m.phone ? `https://wa.me/${waNumber(m.phone)}` : null;
   return (
     <div role="button" tabIndex={0} onClick={onView} onKeyDown={e => { if (e.key === "Enter") onView(); }}
       className={cn("flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]", !m.isActive && "opacity-60")}>

@@ -8,6 +8,7 @@
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CARD_SHADOW, Tile, type TileColor } from "./apple";
+import { waNumber } from "@/lib/phone";
 
 export function ProfileShell({ open, onClose, label, children }: {
   open: boolean; onClose: () => void; label: string; children: React.ReactNode;
@@ -117,7 +118,7 @@ export function InfoRow({ left, sub, right, onClick }: {
 }
 
 export function waLink(phone?: string | null) {
-  const d = (phone ?? "").replace(/\D/g, "");
+  const d = waNumber(phone);
   if (!d) return undefined;
-  return `https://wa.me/${d.startsWith("0") ? "88" + d : d}`;
+  return `https://wa.me/${d}`;
 }

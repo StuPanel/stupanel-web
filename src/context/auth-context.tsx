@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { setStudioCurrency } from "@/lib/format";
+import { setStudioCountry } from "@/lib/phone";
 
 export interface UserProfile {
   id?: string;
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCompanyLogo(comp.logoUrl ?? "");
         if (comp.name)   setCompanyName(comp.name);
         setStudioCurrency(comp.currency);
+        setStudioCountry(comp.country);
         setCurrency(comp.currency || "BDT");
       }
     } catch {
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (d && "logoUrl" in d) setCompanyLogo(d.logoUrl ?? ""); // null/"" = logo removed
       if (d?.companyName) setCompanyName(d.companyName);
       if (d?.currency) { setStudioCurrency(d.currency); setCurrency(d.currency); }
+      if (d && "country" in d) setStudioCountry(d.country);
     }
     window.addEventListener("branding-updated", onBranding);
     return () => window.removeEventListener("branding-updated", onBranding);

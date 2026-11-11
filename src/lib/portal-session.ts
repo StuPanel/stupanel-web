@@ -1,3 +1,5 @@
+import { waNumber } from "@/lib/phone";
+
 /**
  * Client-portal device pass. After the client enters the access code once,
  * the API returns a signed session that we keep on this device so they are
@@ -31,10 +33,9 @@ export function withPortalSession(token: string, url: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}s=${encodeURIComponent(s)}`;
 }
 
-/** wa.me link: keeps digits; local BD numbers (01XXXXXXXXX) get the 880 prefix. */
+/** wa.me link; a locally written number gets the studio's country code (see lib/phone). */
 export function waLink(phone: string | null | undefined, text: string): string | null {
-  let d = (phone ?? "").replace(/\D/g, "");
+  const d = waNumber(phone);
   if (!d) return null;
-  if (d.length === 11 && d.startsWith("01")) d = "88" + d;
   return `https://wa.me/${d}?text=${encodeURIComponent(text)}`;
 }

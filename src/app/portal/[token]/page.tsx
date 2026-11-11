@@ -20,6 +20,7 @@ import type { ClientMusic } from "@/lib/music";
 import { portalHeaders, withPortalSession, clearPortalSession, waLink } from "@/lib/portal-session";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 import { PortalFiles, type PortalDriveFile } from "./_components/portal-files";
+import { setStudioCountry } from "@/lib/phone";
 
 function sym(cur = "BDT") { const S: Record<string,string> = { BDT:"৳", USD:"$", EUR:"€", GBP:"£", INR:"₹" }; return S[cur] ?? cur; }
 function num(n: number | string | null | undefined) { return Number(n || 0).toLocaleString(); }
@@ -542,11 +543,14 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
       if (r.status === 401 || r.status === 410) {
         if (r.status === 401) clearPortalSession(token);
         const meta = await fetch(`${API}/public/portal/${token}/meta`).then(m => (m.ok ? m.json() : null)).catch(() => null);
+        setStudioCountry(meta?.studio?.country);
         setGate({ kind: r.status === 410 ? "retired" : "locked", meta });
         return;
       }
       if (!r.ok) throw new Error();
-      setData(await r.json());
+      const d = await r.json();
+      setStudioCountry(d?.company?.country);
+      setData(d);
       setGate(null);
     } catch {
       setError("This portal link is invalid or has been deactivated.");

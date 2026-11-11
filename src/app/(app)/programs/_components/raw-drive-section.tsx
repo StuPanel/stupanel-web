@@ -5,15 +5,21 @@
  * Files go to a private "StuPanel Raw / <year> / <program> / <part> / <who · camera>" folder,
  * made automatically on the first upload. Never shared by link — clients can't see them.
  * Upload goes straight from the browser to Google (resumable; progress bottom-right).
+ *
+ * Shown as the "Raw files" tab of a program, top to bottom:
+ *   1. three numbers (on Drive, copies, free space)
+ *   2. a checklist — one row per day + person who shot it: uploaded or not, with an Upload button
+ *   3. every file on Drive (browse, rename, move, delete)
+ *   4. Safety (other copies), Links, Who can open, Activity
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
-import { RefreshCw, ChevronRight, Cloud, ExternalLink, FileUp, FolderUp, HardDrive, Link2, Loader2, Monitor, Plus, Server, ShieldAlert, ShieldCheck, Trash2, X } from "lucide-react";
+import { Camera, CheckCircle2, CircleDashed, Cloud, ExternalLink, FileUp, FolderOpen, FolderUp, HardDrive, Link2, Loader2, Lock, Monitor, Plus, RefreshCw, Server, ShieldAlert, ShieldCheck, Trash2, Users } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, askDriveDelete, notify } from "@/components/feedback";
-import { Tile } from "@/components/ui/apple";
+import { FormDrawer } from "@/components/ui/form-kit";
+import { Empty, Section, card, linkBtn } from "@/components/ui/profile-page";
 import { RawBrowser } from "@/components/raw-browser";
 import { FileActivity } from "@/components/file-activity";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
@@ -58,7 +64,9 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const [data, setData] = useState<Overview | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [show, setShow] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const browserRef = useRef<HTMLDivElement>(null);
   const [browse, setBrowse] = useState<{ conn: string | null; path: string }>({ conn: null, path: "" });
   const uploadInto = useRef<string | null>(null);
   const filesRef = useRef<HTMLInputElement>(null);
@@ -75,12 +83,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       .finally(() => setRefreshing(false));
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    if (!show) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); setShow(false); } };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [show]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const refreshSoon = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -88,7 +90,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   }, [load]);
 
   // Parts (days) of the program, and who worked each one.
-  const days = useMemo(() => [...(booking.eventDays ?? [])].sort((a, b) => (a.date || "").localeCompare(b.date || "")), [booking.eventDays]);
+  const days = useMemo(() => [...(booking.eventDays ?? [])].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999")), [booking.eventDays]);
   const partNames = useMemo(() => {
     const names = days.map(d => clean(d.eventType || "")).filter(Boolean);
     return [...new Set(names)];
@@ -108,7 +110,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const [who, setWho] = useState("");
   const [otherWho, setOtherWho] = useState("");
   const [camera, setCamera] = useState("");
-  const whoName = clean(who === "__other" ? otherWho : who);
+  const whoName = clean(who === "__other" ? otherWho : who === "__mixed" ? "" : who);
   const base = [activePart, [whoName, clean(camera)].filter(Boolean).join(" · ")].filter(Boolean);
 
   async function startUpload(list: FileList | null, fromFolder: boolean) {
@@ -192,243 +194,329 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     load();
   }
 
-  const header = (
-    <div className="flex items-center gap-3">
-      <p className="flex-1 text-[12px] text-[#6B6680]">Private — only your studio and the editors you allow can open these.</p>
-      <button type="button" onClick={() => load(true)} disabled={refreshing} title="Check Drive again (files added outside StuPanel)"
-        className="w-9 h-9 rounded-full bg-[#F5F3FA] text-[#4A4658] inline-flex items-center justify-center hover:bg-[#EEE8FD] flex-shrink-0 disabled:opacity-60">
-        <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
-      </button>
-      {data?.folderUrl && (
-        <a href={data.folderUrl} target="_blank" rel="noopener noreferrer"
-          className="h-9 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#E4DCFB] flex-shrink-0">
-          <ExternalLink className="w-3.5 h-3.5" />Open in Drive
-        </a>
-      )}
-    </div>
-  );
-
-  const small = (sub: React.ReactNode, right?: React.ReactNode) => (
-    <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3">
-      <Tile icon={HardDrive} color="green" size={36} />
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-bold text-[#17151F]">Raw files</p>
-        <div className="text-[12px] text-[#6B6680] truncate">{sub}</div>
-      </div>
+  const loadingCard = (text: React.ReactNode, right?: React.ReactNode) => (
+    <div className={cn(card, "p-4 flex items-center gap-3")}>
+      <span className="w-10 h-10 rounded-full bg-[#E7F5EE] text-[#1F8A5B] flex items-center justify-center flex-shrink-0"><HardDrive className="w-[18px] h-[18px]" /></span>
+      <div className="min-w-0 flex-1 text-[14px] text-[#4A4658]">{text}</div>
       {right}
     </div>
   );
-  if (failed) return small("Couldn't load", <button type="button" onClick={() => load()} className="h-9 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD]">Try again</button>);
-  if (!data) return small(<span className="inline-block h-3 w-28 rounded bg-[#EEEBF4] animate-pulse align-middle" />);
+  if (failed) return loadingCard("Couldn't load the raw files.", <button type="button" onClick={() => load()} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#E2D9FC]">Try again</button>);
+  if (!data) return loadingCard(<span className="inline-block h-3 w-40 rounded bg-[#EEEBF4] animate-pulse align-middle" />);
 
   const acc = data.account;
   const usedPct = acc && acc.totalBytes ? Math.min(100, Math.round((acc.usedBytes / acc.totalBytes) * 100)) : 0;
   // A program can have files on more than one Google account (the raw account was changed later).
   const locations = (data.locations ?? []).filter(l => l.count > 0 || l.current || !l.reachable);
   const several = locations.length > 1;
-
   const nLinks = data.links?.length ?? 0;
-  const summary = [
-    data.totals.count ? `${data.totals.count} files · ${fmtSize(data.totals.bytes)}` : "",
-    nLinks ? `${nLinks} link${nLinks > 1 ? "s" : ""}` : "",
-    data.shares?.length ? `${data.shares.length} editor${data.shares.length > 1 ? "s" : ""}` : "",
-  ].filter(Boolean).join(" · ") || (data.connected ? "Nothing uploaded yet" : "Add a link, or connect Google Drive to upload");
 
-  // Backup 1/2 — red once the shoot is over and the raw files aren't in 2 places yet.
+  // Copies — a warning only once the shoot is over and the raw files aren't in 2 places yet.
   const bk = data.backup;
   const shotOver = (() => {
     const ds = days.map(d => (d.date || "").slice(0, 10)).filter(Boolean).sort();
     const last = ds[ds.length - 1] || (booking.eventDate ? String(booking.eventDate).slice(0, 10) : "");
     return !!last && new Date(`${last}T23:59:59`) < new Date();
   })();
-  const bkChip = bk && (bk.copies > 0 || shotOver) ? (
-    <span className={cn("h-7 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 flex-shrink-0",
-      bk.safe ? "bg-[#E6F4EC] text-[#1F8A5B]" : shotOver ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#F2EFF8] text-[#4A4658]")}
-      title={bk.safe ? "Raw files are in 2 or more places" : "Keep raw files in at least 2 places"}>
-      {bk.safe ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}Backup {Math.min(bk.copies, 9)}/{bk.needed}
-    </span>
-  ) : null;
 
-  // In the program: one small row. Everything else opens in a side panel.
-  const row = (
-    <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3 hover:border-[#CFC8DD] transition-colors cursor-pointer"
-      role="button" tabIndex={0} onClick={() => setShow(true)} onKeyDown={e => { if (e.key === "Enter") setShow(true); }}>
-      <Tile icon={HardDrive} color="green" size={36} />
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-bold text-[#17151F]">Raw files</p>
-        <p className="text-[12px] text-[#6B6680] truncate">{summary}</p>
-      </div>
-      {bkChip}
-      <span className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5">
-        {data.connected ? <><FolderUp className="w-3.5 h-3.5" />Upload</> : <><Link2 className="w-3.5 h-3.5" />Add link</>}
-      </span>
-      <ChevronRight className="w-4 h-4 text-[#A29DB3] hidden sm:block" />
-    </div>
-  );
+  // ── Checklist: one row per day + person on that day. Their folder is "<day>/<name>" or "<day>/<name> · <camera>".
+  type Slot = { key: string; part: string; date: string; who: string; roles: string[]; count: number; bytes: number; folders: string[] };
+  const slots: Slot[] = [];
+  for (const d of days) {
+    const partName = clean(d.eventType || "");
+    for (const sh of d.shifts) for (const a of sh.assignments) {
+      const name = clean(nameOf(a.id, a.name));
+      if (!name) continue;
+      const key = `${partName}|${name}`;
+      let slot = slots.find(x => x.key === key);
+      if (!slot) { slot = { key, part: partName, date: d.date || "", who: name, roles: [], count: 0, bytes: 0, folders: [] }; slots.push(slot); }
+      const roleName = String(a.role || "").replace(/_/g, " ");
+      if (roleName && !slot.roles.includes(roleName)) slot.roles.push(roleName);
+    }
+  }
+  for (const f of data.files) {
+    const seg = f.path.split("/").filter(Boolean);
+    for (const slot of slots) {
+      const at = slot.part ? 1 : 0;
+      if (slot.part && seg[0] !== slot.part) continue;
+      const folder = seg[at];
+      if (!folder || !(folder === slot.who || folder.startsWith(`${slot.who} · `))) continue;
+      slot.count++; slot.bytes += f.size;
+      const full = seg.slice(0, at + 1).join("/");
+      if (!slot.folders.includes(full)) slot.folders.push(full);
+      break;
+    }
+  }
+  const doneSlots = slots.filter(x => x.count > 0).length;
+  const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+  const dayLabel = (iso: string) => { const d = iso ? new Date(`${iso.slice(0, 10)}T00:00:00`) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""; };
 
-  const panel = (
-    <div className="p-4 sm:p-5 space-y-4">
-      {header}
+  function openUpload(slot?: Slot) {
+    setUploadError("");
+    setPart(slot?.part ?? "");
+    setWho(slot ? slot.who : "");
+    setOtherWho(""); setCamera("");
+    uploadInto.current = null;
+    setUploadOpen(true);
+  }
+  function pick(fromFolder: boolean) {
+    if (!who) { setUploadError("Pick who shot these files first."); return; }
+    if (who === "__other" && !clean(otherWho)) { setUploadError("Write the name of the person who shot these files."); return; }
+    setUploadError("");
+    uploadInto.current = null;
+    (fromFolder ? folderRef : filesRef).current?.click();
+  }
+  function openFolder(slot: Slot) {
+    const conn = locations.find(l => l.current)?.conn ?? locations[0]?.conn ?? null;
+    setBrowse({ conn, path: slot.folders.length === 1 ? slot.folders[0] : slot.part });
+    requestAnimationFrame(() => browserRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+  // The person list in the upload box always includes the picked name (a row's person may not be on the picked day).
+  const peopleChips = who && !["__other", "__mixed"].includes(who) && !people.includes(who) ? [who, ...people] : people;
 
-      {bk && (
-        <RawBackups bookingId={booking.id} state={bk} driveCount={data.totals.count} nLinks={nLinks} shotOver={shotOver}
-          onSaved={b => setData(d => d ? { ...d, backup: b } : d)} />
-      )}
-
-      {acc && (
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[12px] text-[#6B6680]">
-            <span className="truncate">{acc.email}</span>
-            {acc.freeBytes != null && <span className={cn("font-semibold", usedPct > 90 ? "text-[#C2304F]" : "text-[#4A4658]")}>{fmtSize(acc.freeBytes)} free</span>}
-          </div>
-          {acc.totalBytes > 0 && (
-            <div className="h-1.5 rounded-full bg-[#EEEBF4] overflow-hidden">
-              <div className={cn("h-full rounded-full", usedPct > 90 ? "bg-[#C2304F]" : "bg-[#1F8A5B]")} style={{ width: `${usedPct}%` }} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Where the next files go */}
-      {!data.connected ? (
-        <div className="rounded-2xl bg-[#F7F5FB] p-3 flex items-center gap-3">
-          <p className="flex-1 text-[13px] text-[#4A4658]">Connect Google Drive to upload raw files from here.</p>
-          <Link href="/settings?pane=integrations" className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center flex-shrink-0">Connect</Link>
-        </div>
-      ) : (
-      <div className="rounded-2xl bg-[#F7F5FB] p-3 space-y-3">
-        {partNames.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-[12px] font-semibold text-[#4A4658]">Part</p>
-            <div className="flex flex-wrap gap-1.5">
-              {partNames.map(p => <button key={p} type="button" className={chip(activePart === p)} onClick={() => { setPart(p); setWho(""); }}>{p}</button>)}
-            </div>
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <p className="text-[12px] font-semibold text-[#4A4658]">Who shot it</p>
-          <div className="flex flex-wrap gap-1.5">
-            {people.map(p => <button key={p} type="button" className={chip(who === p)} onClick={() => setWho(who === p ? "" : p)}>{p}</button>)}
-            <button type="button" className={chip(who === "__other")} onClick={() => setWho(who === "__other" ? "" : "__other")}>Someone else</button>
-          </div>
-          {who === "__other" && (
-            <input value={otherWho} onChange={e => setOtherWho(e.target.value)} placeholder="Name"
-              className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
-          )}
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[12px] font-semibold text-[#4A4658]">Camera <span className="font-normal text-[#8A8599]">(optional)</span></p>
-          <input value={camera} onChange={e => setCamera(e.target.value)} placeholder="e.g. Camera A, Drone, Video"
-            className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
-        </div>
-        <p className="text-[12px] text-[#6B6680] break-words">Goes to: <span className="font-semibold text-[#17151F]">{base.length ? base.join(" / ") : "the program folder"}</span></p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={busy} onClick={() => folderRef.current?.click()}
-            className="h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderUp className="w-4 h-4" />}Card / folder
-          </button>
-          <button type="button" disabled={busy} onClick={() => filesRef.current?.click()}
-            className="h-11 rounded-full bg-white border border-[#E6E2EE] text-[#17151F] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
-            <FileUp className="w-4 h-4" />Files
-          </button>
-        </div>
-      </div>
-
-      )}
-
-      {/* What is on Drive — browse folders, open them, add more files into any folder */}
-      <div>
-        <div className="flex items-center justify-between px-1 mb-2">
-          <p className="text-[13px] font-bold text-[#4A4658]">On Drive</p>
-          <p className="text-[12px] text-[#6B6680]">{data.totals.count} files · {fmtSize(data.totals.bytes)}</p>
-        </div>
-        {data.files.length === 0 ? (
-          <p className="text-sm text-[#8A8599] px-1">Nothing uploaded yet.</p>
-        ) : (() => {
-          const conn = browse.conn && locations.some(l => l.conn === browse.conn) ? browse.conn : (locations.find(l => l.current)?.conn ?? locations[0]?.conn ?? null);
-          const loc = locations.find(l => l.conn === conn);
-          return (
-            <div className="space-y-2">
-              {several && (
-                <div className="flex flex-wrap gap-1.5">
-                  {locations.map(l => (
-                    <button key={l.conn} type="button" onClick={() => setBrowse({ conn: l.conn, path: "" })}
-                      className={cn("h-8 px-3 rounded-full text-[12px] font-semibold border", l.conn === conn ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E6E2EE]")}>
-                      {l.email}{l.current ? " · new uploads" : ""}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {loc && !loc.reachable ? (
-                <p className="text-[12px] text-[#6B6680] px-1">Account disconnected — reconnect it to see these files.</p>
-              ) : (
-                <RawBrowser
-                  files={data.files.filter(f => !conn || f.conn === conn)}
-                  path={browse.path} onPath={p => setBrowse({ conn, path: p })}
-                  rootLabel={several && loc ? loc.email : "All raw files"}
-                  canDelete busy={busy}
-                  canUploadHere={data.connected && (!loc || loc.current)}
-                  onUploadHere={(p, fromFolder) => { uploadInto.current = p; (fromFolder ? folderRef : filesRef).current?.click(); }}
-                  onDeleteFile={f => removeFile(f as RawFile)}
-                  onDeleteFolder={p => removeFolder(p, conn ?? "")}
-                  onRename={(t, name) => t.file
-                    ? renameOrMove({ conn: t.file.conn ?? conn, fileId: t.file.id, name, oldName: t.file.name }, "Renamed")
-                    : renameOrMove({ conn, folder: t.folder, name }, "Folder renamed")}
-                  onMove={(f, toPath) => renameOrMove({ conn: f.conn ?? conn, fileId: f.id, toPath }, `Moved to ${toPath || "the main folder"}`)}
-                />
-              )}
-            </div>
-          );
-        })()}
-        <RawLinks bookingId={booking.id} links={data.links ?? []} onSaved={links => setData(d => d ? { ...d, links } : d)} />
-        {!!data.shares?.length && (
-          <div className="mt-3 space-y-1.5">
-            <p className="text-[13px] font-bold text-[#4A4658] px-1">Editors who can open it</p>
-            {data.shares.map(x => (
-              <div key={x.userId} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold text-[#17151F] truncate">{x.name}</span>
-                  <span className="block text-[11px] text-[#6B6680] truncate">{x.email} · view & download</span>
-                </span>
-                <button type="button" onClick={() => revoke(x)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#C2304F] hover:bg-[#FDECEF]">Remove</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {data.truncated && <p className="text-[11px] text-[#8A8599] mt-2 px-1">Very large folder — some files are only shown in Drive.</p>}
-        <div className="mt-3"><FileActivity bookingId={booking.id} area="raw" /></div>
-      </div>
-    </div>
-  );
+  const stat = "px-3 sm:px-4 py-3 min-w-0";
+  // Red only when there is something to protect: the shoot is over and files (or one copy) exist but not in 2 places.
+  const warn = !!bk && !bk.safe && shotOver && (data.totals.count > 0 || bk.copies > 0);
+  const copyTone = bk?.safe ? "text-[#1F8A5B]" : bk && warn ? "text-[#C2304F]" : "text-[#17151F]";
 
   return (
-    <>
-      {row}
-      {/* Inputs live outside the panel so a running pick isn't lost if it closes */}
-      <input ref={filesRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, false)} />
-      <input ref={folderRef} type="file" multiple hidden onChange={e => startUpload(e.target.files, true)}
-        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-      {show && typeof document !== "undefined" && createPortal(
-        <>
-          <div className="sp-backdrop z-[60]" onClick={() => setShow(false)} />
-          <div className="fixed inset-0 z-[60] pointer-events-none">
-            <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col">
-              <div className="px-5 py-4 border-b border-[#EEEBF4] flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-[#17151F]">Raw files</h3>
-                  <p className="text-xs text-[#6B6680] truncate">{booking.bookingNumber}{booking.eventName ? ` · ${booking.eventName}` : ""}</p>
-                </div>
-                <button type="button" onClick={() => setShow(false)} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F2EFF8]">
-                  <X className="w-4 h-4 text-[#6B6680]" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">{panel}</div>
-            </div>
+    <div>
+      {/* ── What this is + Drive shortcuts ── */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-1 mb-3">
+        <p className="flex-1 min-w-[200px] text-[12.5px] text-[#6B6680] inline-flex items-center gap-1.5"><Lock className="w-3.5 h-3.5 flex-shrink-0" />Private — only your studio and the editors you allow can open these. Clients never see them.</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => load(true)} disabled={refreshing} aria-label="Check Drive again" title="Check Drive again (for files added outside StuPanel)"
+            className="h-9 px-3 rounded-full bg-white text-[#4A4658] text-[12.5px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)] disabled:opacity-60">
+            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />Refresh
+          </button>
+          {data.folderUrl && (
+            <a href={data.folderUrl} target="_blank" rel="noopener noreferrer"
+              className="h-9 px-3 rounded-full bg-white text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+              <ExternalLink className="w-3.5 h-3.5" />Open in Drive
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* ── 1. Three numbers ── */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+        <div className={cn(card, "!rounded-[18px]", stat)}>
+          <p className="text-[12px] font-semibold text-[#6B6680]">On Drive</p>
+          <p className="text-[15px] sm:text-[18px] font-extrabold text-[#17151F] tabular-nums truncate">{data.totals.count ? fmtSize(data.totals.bytes) : "—"}</p>
+          <p className="text-[11.5px] text-[#8A8599] truncate">{data.totals.count ? `${data.totals.count} file${data.totals.count === 1 ? "" : "s"}` : "Nothing yet"}</p>
+        </div>
+        <div className={cn(card, "!rounded-[18px]", stat)}>
+          <p className="text-[12px] font-semibold text-[#6B6680]">Copies</p>
+          <p className={cn("text-[15px] sm:text-[18px] font-extrabold tabular-nums truncate inline-flex items-center gap-1", copyTone)}>
+            {bk?.safe && <ShieldCheck className="w-4 h-4" />}{bk ? `${Math.min(bk.copies, 9)} of ${bk.needed}` : "—"}
+          </p>
+          <p className="text-[11.5px] text-[#8A8599] truncate">{!bk ? "" : bk.safe ? "Safe" : bk.copies === 0 ? "Keep 2 copies" : "Add one more"}</p>
+        </div>
+        <div className={cn(card, "!rounded-[18px]", stat)}>
+          <p className="text-[12px] font-semibold text-[#6B6680]">Drive space</p>
+          <p className={cn("text-[15px] sm:text-[18px] font-extrabold tabular-nums truncate", usedPct > 90 ? "text-[#C2304F]" : "text-[#17151F]")}>{acc?.freeBytes != null ? fmtSize(acc.freeBytes) : "—"}</p>
+          <p className="text-[11.5px] text-[#8A8599] truncate">{acc ? (acc.freeBytes != null ? "free" : acc.email) : "Not connected"}</p>
+        </div>
+      </div>
+
+      {!data.connected && (
+        <div className={cn(card, "p-4 mb-6 flex flex-wrap items-center gap-3")}>
+          <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Cloud className="w-[18px] h-[18px]" /></span>
+          <div className="flex-1 min-w-[180px]">
+            <p className="text-[14.5px] font-semibold text-[#17151F]">Connect Google Drive to upload from here</p>
+            <p className="text-[12.5px] text-[#6B6680]">Until then you can still add links and note where the copies are kept.</p>
           </div>
-        </>,
-        document.body,
+          <Link href="/settings?pane=integrations" className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center flex-shrink-0">Connect Drive</Link>
+        </div>
       )}
-    </>
+
+      {/* ── 2. Checklist ── */}
+      {data.connected && (
+        <Section
+          title={slots.length ? `Cards to upload · ${doneSlots} of ${slots.length} done` : "Upload"}
+          action={<button type="button" onClick={() => openUpload()} className={linkBtn}><Plus className="w-3.5 h-3.5" />{slots.length ? "Other files" : "Upload files"}</button>}>
+          {slots.length === 0 ? (
+            <Empty icon={Camera} title="Nobody is on a shift yet" text="Put your team on the program's days and each person's card shows here. You can still upload now.">
+              <button type="button" onClick={() => openUpload()} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><FolderUp className="w-4 h-4" />Upload files</button>
+            </Empty>
+          ) : (
+            <div className={cn(card, "overflow-hidden divide-y divide-[#EEEBF4]")}>
+              {slots.map(slot => {
+                const done = slot.count > 0;
+                return (
+                  <div key={slot.key} className="flex items-center gap-3 px-4 py-3">
+                    <span className={cn("w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0", done ? "bg-[#E7F5EE] text-[#1F8A5B]" : "bg-[#F1EFF6] text-[#8A8599]")}>
+                      {done ? <CheckCircle2 className="w-[18px] h-[18px]" /> : <CircleDashed className="w-[18px] h-[18px]" />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{slot.who}</span>
+                      <span className="block text-[12.5px] text-[#6B6680] truncate">{[slot.part || "Program", dayLabel(slot.date), slot.roles.map(cap).join(", ")].filter(Boolean).join(" · ")}</span>
+                      <span className={cn("block text-[12.5px] font-semibold mt-0.5", done ? "text-[#1F8A5B]" : "text-[#8A8599]")}>{done ? `${slot.count} file${slot.count === 1 ? "" : "s"} · ${fmtSize(slot.bytes)}` : "Not uploaded yet"}</span>
+                    </span>
+                    {done ? (
+                      <span className="flex items-center gap-1.5 flex-shrink-0">
+                        <button type="button" onClick={() => openFolder(slot)} aria-label={`Open ${slot.who}'s files`} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /><span className="hidden sm:inline">Open</span></button>
+                        <button type="button" onClick={() => openUpload(slot)} aria-label={`Add more files for ${slot.who}`} className="h-9 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add</button>
+                      </span>
+                    ) : (
+                      <button type="button" onClick={() => openUpload(slot)} className="h-9 px-3.5 rounded-full bg-[#17151F] hover:bg-[#2A2735] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0"><FolderUp className="w-3.5 h-3.5" />Upload</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── 3. Everything on Drive ── */}
+      <div ref={browserRef} className="scroll-mt-32">
+        <Section title="Files on Drive" action={data.totals.count ? <span className="text-[12.5px] text-[#6B6680] tabular-nums">{data.totals.count} files · {fmtSize(data.totals.bytes)}</span> : undefined}>
+          {data.files.length === 0 ? (
+            <div className={cn(card, "px-4 py-4 text-[13.5px] text-[#8A8599]")}>Nothing uploaded yet. Files show here after the first upload — sorted by day, then by who shot them.</div>
+          ) : (() => {
+            const conn = browse.conn && locations.some(l => l.conn === browse.conn) ? browse.conn : (locations.find(l => l.current)?.conn ?? locations[0]?.conn ?? null);
+            const loc = locations.find(l => l.conn === conn);
+            return (
+              <div className={cn(card, "p-3 space-y-2")}>
+                {several && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {locations.map(l => (
+                      <button key={l.conn} type="button" onClick={() => setBrowse({ conn: l.conn, path: "" })}
+                        className={cn("h-8 px-3 rounded-full text-[12px] font-semibold border", l.conn === conn ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E6E2EE]")}>
+                        {l.email}{l.current ? " · new uploads" : ""}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {loc && !loc.reachable ? (
+                  <p className="text-[12.5px] text-[#6B6680] px-1 py-2">Account disconnected — reconnect it to see these files.</p>
+                ) : (
+                  <RawBrowser
+                    files={data.files.filter(f => !conn || f.conn === conn)}
+                    path={browse.path} onPath={p => setBrowse({ conn, path: p })}
+                    rootLabel={several && loc ? loc.email : "All raw files"}
+                    canDelete busy={busy}
+                    canUploadHere={data.connected && (!loc || loc.current)}
+                    onUploadHere={(p, fromFolder) => { uploadInto.current = p; (fromFolder ? folderRef : filesRef).current?.click(); }}
+                    onDeleteFile={f => removeFile(f as RawFile)}
+                    onDeleteFolder={p => removeFolder(p, conn ?? "")}
+                    onRename={(t, name) => t.file
+                      ? renameOrMove({ conn: t.file.conn ?? conn, fileId: t.file.id, name, oldName: t.file.name }, "Renamed")
+                      : renameOrMove({ conn, folder: t.folder, name }, "Folder renamed")}
+                    onMove={(f, toPath) => renameOrMove({ conn: f.conn ?? conn, fileId: f.id, toPath }, `Moved to ${toPath || "the main folder"}`)}
+                  />
+                )}
+                {data.truncated && <p className="text-[11.5px] text-[#8A8599] px-1">Very large folder — some files are only shown in Drive.</p>}
+              </div>
+            );
+          })()}
+        </Section>
+      </div>
+
+      {/* ── 4. Safety, links, access ── */}
+      <div className="grid gap-x-5 lg:grid-cols-2 lg:items-start">
+        <Section title="Safety — where the copies are">
+          <div className={cn(card, "p-4")}>
+            {bk ? (
+              <RawBackups bookingId={booking.id} state={bk} driveCount={data.totals.count} nLinks={nLinks} shotOver={warn}
+                onSaved={b => setData(d => d ? { ...d, backup: b } : d)} />
+            ) : <p className="text-[13.5px] text-[#8A8599]">Nothing to show yet.</p>}
+          </div>
+        </Section>
+        <div>
+          <Section title="Links to raw files kept elsewhere">
+            <div className={cn(card, "p-4")}>
+              <RawLinks bookingId={booking.id} links={data.links ?? []} onSaved={links => setData(d => d ? { ...d, links } : d)} />
+            </div>
+          </Section>
+          <Section title="Who can open the raw folder">
+            <div className={cn(card, "p-4 space-y-1.5")}>
+              <div className="flex items-center gap-2.5 rounded-xl bg-[#F7F5FB] px-3 py-2">
+                <Users className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
+                <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#17151F]">Your studio (owner and managers)</span>
+                <span className="text-[11.5px] text-[#6B6680] flex-shrink-0">always</span>
+              </div>
+              {(data.shares ?? []).map(x => (
+                <div key={x.userId} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-[#17151F] truncate">{x.name}</span>
+                    <span className="block text-[11.5px] text-[#6B6680] truncate">{x.email} · view and download</span>
+                  </span>
+                  <button type="button" onClick={() => revoke(x)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#C2304F] hover:bg-[#FDECEF] flex-shrink-0">Remove</button>
+                </div>
+              ))}
+              {!data.shares?.length && <p className="text-[12.5px] text-[#8A8599] px-1 pt-1">No editor has access yet. Editors get it when you assign them in the Editing tab.</p>}
+            </div>
+          </Section>
+        </div>
+      </div>
+
+      <FileActivity bookingId={booking.id} area="raw" />
+
+      {/* Inputs live outside the upload box so a running pick isn't lost if it closes */}
+      <input ref={filesRef} type="file" multiple hidden onChange={e => { setUploadOpen(false); startUpload(e.target.files, false); }} />
+      <input ref={folderRef} type="file" multiple hidden onChange={e => { setUploadOpen(false); startUpload(e.target.files, true); }}
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+
+      {/* ── Upload box: where it goes, then choose the card ── */}
+      <FormDrawer open={uploadOpen} onClose={() => setUploadOpen(false)} icon={FolderUp} color="green" title="Upload raw files"
+        sub={`${booking.bookingNumber}${booking.eventName ? ` · ${booking.eventName}` : ""}`}
+        footer={<button type="button" onClick={() => setUploadOpen(false)} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>}>
+        <div className="space-y-4">
+          {uploadError && <div role="alert" className="px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#8A2340] text-sm font-medium">{uploadError}</div>}
+
+          {partNames.length > 0 && (
+            <div className={cn(card, "p-4")}>
+              <p className="text-[13px] font-bold text-[#17151F] mb-2"><span className="text-[#8A8599]">1 ·</span> Which day?</p>
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Which day">
+                {partNames.map(p => <button key={p} type="button" role="radio" aria-checked={activePart === p} className={chip(activePart === p)} onClick={() => setPart(p)}>{p}</button>)}
+              </div>
+            </div>
+          )}
+
+          <div className={cn(card, "p-4")}>
+            <p className="text-[13px] font-bold text-[#17151F] mb-2"><span className="text-[#8A8599]">{partNames.length > 0 ? 2 : 1} ·</span> Who shot it?</p>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Who shot it">
+              {peopleChips.map(p => <button key={p} type="button" role="radio" aria-checked={who === p} className={chip(who === p)} onClick={() => { setWho(p); setUploadError(""); }}>{p}</button>)}
+              <button type="button" role="radio" aria-checked={who === "__other"} className={chip(who === "__other")} onClick={() => { setWho("__other"); setUploadError(""); }}>Someone else</button>
+              <button type="button" role="radio" aria-checked={who === "__mixed"} className={chip(who === "__mixed")} onClick={() => { setWho("__mixed"); setUploadError(""); }}>Mixed / not sure</button>
+            </div>
+            {who === "__other" && (
+              <input autoFocus value={otherWho} onChange={e => { setOtherWho(e.target.value); setUploadError(""); }} placeholder="Their name" aria-label="Name of the person"
+                className="mt-2 w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+            )}
+          </div>
+
+          <div className={cn(card, "p-4")}>
+            <p className="text-[13px] font-bold text-[#17151F] mb-2"><span className="text-[#8A8599]">{partNames.length > 0 ? 3 : 2} ·</span> Which camera? <span className="font-normal text-[#8A8599]">(optional)</span></p>
+            <input value={camera} onChange={e => setCamera(e.target.value)} placeholder="e.g. Camera A, Drone, Video" aria-label="Camera"
+              className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
+            <p className="mt-1.5 text-[11.5px] text-[#8A8599]">Use it when one person has more than one card.</p>
+          </div>
+
+          <div className={cn(card, "p-4")}>
+            <p className="text-[12px] font-semibold text-[#6B6680]">Saved in this folder</p>
+            <p className="mt-0.5 text-[14px] font-semibold text-[#17151F] break-words">{base.length ? base.join("  ›  ") : "The program's main folder"}</p>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button type="button" disabled={busy} onClick={() => pick(true)}
+                className="h-12 rounded-full bg-[#17151F] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderUp className="w-4 h-4" />}Whole card / folder
+              </button>
+              <button type="button" disabled={busy} onClick={() => pick(false)}
+                className="h-12 rounded-full bg-white border border-[#E6E2EE] text-[#17151F] text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
+                <FileUp className="w-4 h-4" />Pick files
+              </button>
+            </div>
+            <ul className="mt-3 space-y-1 text-[12px] text-[#6B6680] list-disc pl-4">
+              <li>Files go straight to your Google Drive. Progress shows at the bottom-right — you can keep working.</li>
+              <li>Files that are already there are skipped, so it is safe to upload the same card again.</li>
+              {acc?.freeBytes != null && <li>{fmtSize(acc.freeBytes)} free on {acc.email}.</li>}
+            </ul>
+          </div>
+        </div>
+      </FormDrawer>
+    </div>
   );
 }
 
@@ -468,18 +556,15 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
   const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
   return (
-    <div className="mt-3 space-y-1.5">
-      <div className="flex items-center justify-between px-1">
-        <p className="text-[13px] font-bold text-[#4A4658]">Links to raw files</p>
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12.5px] text-[#6B6680]">Already on a Drive or synced from a PC? Add the folder link — editors get it too.</p>
         {!adding && (
-          <button type="button" onClick={() => setAdding(true)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD] inline-flex items-center gap-1">
+          <button type="button" onClick={() => setAdding(true)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] bg-[#EEE8FD] hover:bg-[#E2D9FC] inline-flex items-center gap-1 whitespace-nowrap flex-shrink-0">
             <Plus className="w-3.5 h-3.5" />Add link
           </button>
         )}
       </div>
-      {links.length === 0 && !adding && (
-        <p className="text-[12px] text-[#8A8599] px-1">Already on a Drive or synced from your PC? Add the folder link — editors get it too.</p>
-      )}
       {links.map(l => (
         <div key={l.id} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
           <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
@@ -567,10 +652,10 @@ function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }:
   const KindIcon = ({ k }: { k: BackupKind }) => { const I = KINDS.find(x => x.value === k)?.icon ?? HardDrive; return <I className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />; };
 
   return (
-    <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2.5">
+    <div className="space-y-2.5">
       <div className="flex items-center gap-2">
         {state.safe ? <ShieldCheck className="w-4 h-4" style={{ color: tone }} /> : <ShieldAlert className="w-4 h-4" style={{ color: tone }} />}
-        <p className="flex-1 text-[13px] font-bold text-[#17151F]">Backup {state.copies}/{state.needed}</p>
+        <p className="flex-1 text-[13px] font-bold text-[#17151F]">{state.copies} of {state.needed} copies</p>
         <span className="text-[12px] font-semibold" style={{ color: tone }}>
           {state.safe ? "Safe" : state.copies === 0 ? "No copy yet" : "Add one more copy"}
         </span>
@@ -610,7 +695,7 @@ function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }:
           </div>
         ))}
         {state.copies === 0 && !adding && (
-          <p className="text-[12px] text-[#8A8599] px-1">Upload to Drive here, add a link, or note where else the card was copied (HDD, PC…).</p>
+          <p className="text-[12px] text-[#8A8599] px-1">Raw files are safe once they are in 2 places. Uploading here counts as one; add where else the card was copied (HDD, PC…).</p>
         )}
       </div>
 

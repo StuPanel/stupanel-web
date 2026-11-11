@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/apple";
 import { Field, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { IdentityCard } from "@/components/ui/profile-kit";
 import { askConfirm, notify } from "@/components/feedback";
+import { ImageCropModal } from "@/components/ui/image-crop";
 import { MemberPhoto, PROFILE_EVENT, Spinner } from "../_components/kit";
 import { apiFetch, API_URL as API } from "@/lib/api";
 
@@ -21,36 +22,32 @@ interface Profile {
   avatarUrl?: string;
 }
 
-/** Centre-crop to a square and shrink, so any phone photo becomes a small JPG. */
-async function squareJpeg(file: File, size = 512): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("That file isn't a picture we can read")); i.src = url; });
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    if (!side) throw new Error("That file isn't a picture we can read");
-    const out = Math.min(size, side);
-    const c = document.createElement("canvas");
-    c.width = out; c.height = out;
-    c.getContext("2d")!.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
-    return await new Promise<Blob>((ok, bad) => c.toBlob(b => (b ? ok(b) : bad(new Error("Couldn't prepare the photo"))), "image/jpeg", 0.88));
-  } finally { URL.revokeObjectURL(url); }
-}
-
 export default function MemberProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  // Choose a picture → position it in the crop window → it is saved small (about 400 px, under 100 KB).
+  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (photoRef.current) photoRef.current.value = "";
     if (!file || photoBusy) return;
     if (!file.type.startsWith("image/")) { notify("Please choose a photo", { error: true }); return; }
+    setCropSrc(URL.createObjectURL(file));
+  }
+  function closeCrop() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }
+
+  async function savePhoto(blob: Blob) {
+    closeCrop();
     setPhotoBusy(true);
     try {
       const form = new FormData();
-      form.append("file", await squareJpeg(file), "photo.jpg");
+      form.append("file", blob, "photo.jpg");
       const r = await apiFetch(`${API}/member/profile/photo`, { method: "POST", body: form });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.message || "Couldn't save the photo");
@@ -148,6 +145,7 @@ export default function MemberProfilePage() {
   return (
     <div>
       <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details and password" />
+      {cropSrc && <ImageCropModal title="Position your photo" saveLabel="Save photo" src={cropSrc} size={400} maxBytes={100 * 1024} quality={0.85} onSave={savePhoto} onClose={closeCrop} />}
 
       <IdentityCard
         avatar={

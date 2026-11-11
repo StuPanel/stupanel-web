@@ -43,6 +43,8 @@ export interface Member {
   email: string; memberType?: string;
   firstName: string; lastName?: string; phone?: string;
   bio?: string; memberRoles: string[]; isActive: boolean;
+  /** The member's own photo (they add it in their panel). */
+  avatarUrl?: string | null;
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: SavedGear[];

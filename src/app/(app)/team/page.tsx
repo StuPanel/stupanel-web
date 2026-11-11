@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Trash2, Edit3, MoreHorizontal, MessageCircle, KeyRound, UserCheck, UserX, Shield, Tag, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { Avatar } from "@/components/ui/profile-kit";
 import { DEFAULT_ROLES, DeleteDialog, MemberDrawer, ResetPassDialog, roleConfig, type Member } from "./_components/member-drawer";
 import { useRouter } from "next/navigation";
 import { unitLabel } from "./_components/rate-card";
@@ -112,7 +113,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
   return (
     <div role="button" tabIndex={0} onClick={onView} onKeyDown={e => { if (e.key === "Enter") onView(); }}
       className={cn("flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]", !m.isActive && "opacity-60")}>
-      <Tile icon={main.icon} color={main.tile} size={40} />
+      {m.avatarUrl ? <Avatar name={m.firstName} src={m.avatarUrl} size={40} /> : <Tile icon={main.icon} color={main.tile} size={40} />}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#17151F] truncate flex items-center gap-2">
           {m.firstName} {m.lastName ?? ""}

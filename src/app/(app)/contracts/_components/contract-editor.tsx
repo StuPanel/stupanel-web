@@ -217,7 +217,7 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
   const pill = "h-10 px-4 rounded-full text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-45 flex-shrink-0";
 
   return (
-    <div className="max-w-[1240px]">
+    <div>
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <button type="button" onClick={back} aria-label="Back to contracts" className="w-10 h-10 rounded-full bg-white shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] flex items-center justify-center text-[#17151F] flex-shrink-0"><ArrowLeft className="w-4 h-4" /></button>
@@ -252,7 +252,7 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,540px)_minmax(0,1fr)] gap-6 items-start">
         {/* ── Left: write ── */}
         <div className={cn("min-w-0", pane === "preview" && "hidden lg:block")}>
           {saved && (
@@ -434,9 +434,9 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
 
         {/* ── Right: what the client sees ── */}
         <div className={cn("min-w-0 lg:sticky lg:top-4", pane === "edit" && "hidden lg:block")}>
-          <p className="hidden lg:flex items-center gap-1.5 px-1 mb-2 text-[12.5px] font-semibold text-[#6B6680]"><Eye className="w-3.5 h-3.5" />Client&apos;s page{signed ? "" : " — live preview"}</p>
+          <p className="hidden lg:flex items-center gap-1.5 px-1 mb-2 text-[12.5px] font-semibold text-[#6B6680] max-w-[940px] mx-auto w-full"><Eye className="w-3.5 h-3.5" />Client&apos;s page{signed ? "" : " — live preview"}</p>
           <div className="lg:max-h-[calc(100dvh-150px)] lg:overflow-y-auto lg:rounded-[20px] lg:pb-1">
-            <ContractPaper studio={studio} clientName={clientFull(client)} title={title} number={saved?.contractNumber} details={details} sections={sections}
+            <ContractPaper className="max-w-[940px] mx-auto" studio={studio} clientName={clientFull(client)} title={title} number={saved?.contractNumber} details={details} sections={sections}
               madeOn={saved?.sentAt ?? saved?.createdAt}
               signature={signed && saved ? { name: saved.signerName, kind: saved.signatureKind, image: saved.signatureData, signedAt: saved.signedAt, device: saved.signerDevice } : null} />
           </div>

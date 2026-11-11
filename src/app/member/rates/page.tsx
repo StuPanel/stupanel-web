@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
 import { EmptyState, PageHeader, type TileColor } from "@/components/ui/apple";
 import { FormDrawer } from "@/components/ui/form-kit";
-import { Empty, List, Row, Section, card, linkBtn, softBtn } from "@/components/ui/profile-page";
+import { Empty, List, Row, Section, linkBtn, softBtn } from "@/components/ui/profile-page";
 import { SetupEditor, gearRents, setupToItems, type SetupItem } from "@/app/(app)/team/_components/rate-card";
 import { Spinner } from "../_components/kit";
 import { GearRow, RatePrice, rateSub, roleInfo, type MyRates } from "../_components/rates";

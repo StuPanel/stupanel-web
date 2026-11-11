@@ -145,7 +145,7 @@ export default function SupportPage() {
   // ── NEW TICKET VIEW ────────────────────────────────────────────────────────
   if (view === "new") {
     return (
-      <div className="max-w-2xl space-y-5">
+      <div className="space-y-5">
         <button onClick={() => setView("list")}
           className="flex items-center gap-2 text-[#6B6680] hover:text-[#17151F] text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
@@ -213,7 +213,7 @@ export default function SupportPage() {
     const isClosed = selected.status === "closed";
 
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="space-y-4">
         <button onClick={() => { setView("list"); setSelected(null); loadTickets(); }}
           className="flex items-center gap-2 text-[#6B6680] hover:text-[#17151F] text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
@@ -323,7 +323,7 @@ export default function SupportPage() {
       )}
 
       {/* Status filter tabs */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div role="tablist" aria-label="Filter by status" className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none]">
         {[
           { v: "",            l: "All" },
           { v: "open",        l: "Open" },
@@ -333,11 +333,12 @@ export default function SupportPage() {
         ].map(f => (
           <button key={f.v}
             onClick={() => { setStatusFilter(f.v); loadTickets(1, f.v); }}
+            role="tab" aria-selected={statusFilter === f.v}
             className={cn(
-              "text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors",
+              "h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors flex-shrink-0",
               statusFilter === f.v
-                ? "bg-[#7D5CEF] border-[#7D5CEF] text-white"
-                : "bg-white border-[#E4E0EC] text-[#4A4658] hover:bg-[#F7F5FB]"
+                ? "bg-[#16141D] text-white"
+                : "bg-white text-[#4A4658] hover:text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]"
             )}>
             {f.l}
           </button>

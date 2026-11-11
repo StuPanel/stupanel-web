@@ -7,14 +7,9 @@ import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
-import {
-  Bell, Search, Settings, User, LogOut, ShieldAlert,
-  Camera, Users, FileText, X, Loader2, LifeBuoy,
-} from "lucide-react";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Search, ShieldAlert, Camera, Users, FileText, X, Loader2 } from "lucide-react";
+import { NotificationBell } from "@/components/layout/notification-bell";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 interface UserProfile {
   firstName: string;
@@ -40,7 +35,6 @@ interface AppHeaderProps {
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [hasUnread, setHasUnread] = useState(false);
 
   // Search state
   const [query, setQuery] = useState("");
@@ -52,45 +46,6 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const checkUnread = useCallback(() => {
-    apiFetch(`${API}/dashboard/notifications`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.items) { setHasUnread(false); return; }
-        let dismissed: string[] = [];
-        let seen: string[] = [];
-        try { dismissed = JSON.parse(localStorage.getItem("notif_dismissed") ?? "[]"); } catch {}
-        try { seen = JSON.parse(localStorage.getItem("notif_seen") ?? "[]"); } catch {}
-        const unseen = data.items.filter((n: { id: string }) => !dismissed.includes(n.id) && !seen.includes(n.id));
-        setHasUnread(unseen.length > 0);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
-
-    // Initial notification check
-    checkUnread();
-
-    // Poll only when tab is visible, every 2 minutes
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") checkUnread();
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("notif-seen-updated", checkUnread);
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") checkUnread();
-    }, 120000);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("notif-seen-updated", checkUnread);
-      clearInterval(interval);
-    };
-  }, [checkUnread]);
 
   // Close on outside click
   useEffect(() => {
@@ -198,34 +153,6 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     return "Invoice";
   };
 
-  async function handleLogout() {
-    try {
-      await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" });
-    } catch {}
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user_role");
-    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
-    router.push("/login");
-  }
-
-  const initials = user
-    ? `${user.firstName[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
-    : "?";
-  const displayName = user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Loading...";
-  const roleLabel = user?.role === "owner" ? "Owner" : user?.role === "manager" ? "Manager" : user?.role === "staff" ? "Staff" : (user?.role ?? "");
-  const isOwner = user?.role === "owner";
-
-  // Account menu opens on hover (and on click / tap); closes shortly after the pointer leaves.
-  const [menuOpen, setMenuOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openMenu = () => { if (closeTimer.current) clearTimeout(closeTimer.current); setMenuOpen(true); };
-  // Only real mouse hover — on phones a tap must not open and close it at once.
-  const hoveredAt = useRef(0);
-  const hoverOpen = () => { if (window.matchMedia("(hover: hover)").matches) { hoveredAt.current = Date.now(); openMenu(); } };
-  // A click right after hovering open should not close it again.
-  const onMenuChange = (o: boolean) => { if (!o && Date.now() - hoveredAt.current < 600) return; setMenuOpen(o); };
-  const closeMenuSoon = () => { if (closeTimer.current) clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => setMenuOpen(false), 180); };
-
   return (
     <>
       {user?.impersonatedBy && (
@@ -319,56 +246,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               {mobileSearch ? <X className="w-[18px] h-[18px]" /> : <Search className="w-[18px] h-[18px]" />}
             </button>
 
-            <button
-              onClick={() => router.push("/notifications")}
-              className="relative w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-violet-700 hover:border-violet-200 transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 bg-violet-600 rounded-full ring-2 ring-white" />}
-            </button>
-
-            <DropdownMenu open={menuOpen} onOpenChange={onMenuChange} modal={false}>
-              <DropdownMenuTrigger asChild onMouseEnter={hoverOpen} onMouseLeave={closeMenuSoon}>
-                <button aria-label="Account menu" title={displayName}
-                  className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[13px] font-bold text-violet-700 hover:border-violet-200 transition-colors">
-                  {initials}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={8} onMouseEnter={openMenu} onMouseLeave={closeMenuSoon}
-                className="w-60 p-0 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 shadow-[0_12px_40px_-12px_rgba(22,18,40,.28)] duration-150 data-open:zoom-in-100 data-closed:zoom-out-100">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                  <p className="text-xs text-slate-500 truncate mt-0.5">{roleLabel}{user?.company?.name ? ` · ${user.company.name}` : ""}</p>
-                </div>
-                <div className="p-1.5">
-                  {isOwner ? (<>
-                    <DropdownMenuItem onClick={() => router.push("/settings?pane=profile")} className="cursor-pointer gap-2 rounded-lg">
-                      <User className="w-4 h-4 text-violet-600" /> My profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/settings")} className="cursor-pointer gap-2 rounded-lg">
-                      <Settings className="w-4 h-4 text-slate-500" /> Settings
-                    </DropdownMenuItem>
-                  </>) : (
-                    <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2 rounded-lg">
-                      <User className="w-4 h-4 text-violet-600" /> My profile
-                    </DropdownMenuItem>
-                  )}
-                  {user?.role === "manager" && (
-                    <DropdownMenuItem onClick={() => router.push("/member/dashboard")} className="cursor-pointer gap-2 rounded-lg">
-                      <Camera className="w-4 h-4 text-violet-600" /> My work &amp; pay
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => router.push("/support")} className="cursor-pointer gap-2 rounded-lg">
-                    <LifeBuoy className="w-4 h-4 text-slate-500" /> Help &amp; Support
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1" />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 rounded-lg text-[#C2304F] focus:text-[#C2304F] focus:bg-rose-50">
-                    <LogOut className="w-4 h-4" /> Log out
-                  </DropdownMenuItem>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <NotificationBell />
+            {/* On phones the sidebar is hidden, so the account menu sits here too */}
+            <div className="lg:hidden"><AccountMenu variant="icon" side="bottom" /></div>
           </div>
         </div>
       </header>

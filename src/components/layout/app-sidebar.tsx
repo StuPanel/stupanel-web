@@ -8,16 +8,16 @@ import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
   CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
-  MessageSquareText, Sparkles, Target, Music2, Images,
+  MessageSquareText, Target, Music2, Images,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
 import { API_URL as API } from "@/lib/api";
 import { canOpen } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
-import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
 import { StudioLogo } from "@/components/studio-logo";
 import { Tile, type TileColor } from "@/components/ui/apple";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 export const navigation = [
   {
@@ -95,12 +95,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   const groups = navigation
     .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href) && !(("managersOnly" in i) && i.managersOnly && user?.role === "owner")) }))
     .filter(g => g.items.length > 0);
-  const [access, setAccess] = useState<BillingAccess | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
-
-  useEffect(() => {
-    loadBillingStatus().then((d) => { if (d) setAccess(d.access); });
-  }, []);
 
   // Chat unread — poll only when tab is visible, and right after something is read
   useEffect(() => {
@@ -203,51 +198,10 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         ))}
       </nav>
 
-      {/* Plan card */}
-      <div className={cn("flex-shrink-0 border-t border-slate-100", wide ? "p-3" : "p-2 flex justify-center")}>
-        <PlanCard access={access} collapsed={!!collapsed} onNavigate={isMobile ? onClose : undefined} />
+      {/* You: profile, plan, settings, log out */}
+      <div className={cn("flex-shrink-0 border-t border-slate-100", wide ? "p-2" : "p-2 flex justify-center")}>
+        <AccountMenu variant={wide ? "sidebar" : "collapsed"} side={isMobile ? "top" : "right"} onNavigate={isMobile ? onClose : undefined} />
       </div>
     </aside>
-  );
-}
-
-function PlanCard({ access, collapsed, onNavigate }: { access: BillingAccess | null; collapsed: boolean; onNavigate?: () => void }) {
-  const mode = access?.mode ?? "trial";
-  const days = access?.daysLeft ?? null;
-  const ended = mode === "grace" || mode === "read_only";
-
-  const title = mode === "full" ? "Plan active" : mode === "trial" ? "Free trial" : mode === "grace" ? "Plan ended" : "View-only";
-  const sub = mode === "full"
-    ? (access?.periodEndsAt ? `Renews ${new Date(access.periodEndsAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Thanks for being with us")
-    : mode === "trial"
-      ? (days !== null ? `${Math.max(0, days)} day${days === 1 ? "" : "s"} left` : "Explore everything")
-      : mode === "grace" ? "Pay now to keep working" : "Renew to make changes";
-
-  if (collapsed) {
-    return (
-      <Link href="/billing" onClick={onNavigate} title={`${title} · ${sub}`}
-        className={cn("w-10 h-10 rounded-xl flex items-center justify-center",
-          ended ? "bg-rose-50 text-[#C2304F]" : "bg-violet-50 text-violet-700")}>
-        <Crown className="w-4 h-4" />
-      </Link>
-    );
-  }
-
-  return (
-    <Link href="/billing" onClick={onNavigate}
-      className={cn("block rounded-xl p-3 text-white relative overflow-hidden transition-transform hover:-translate-y-0.5",
-        ended ? "bg-gradient-to-br from-[#C2304F] to-[#8A1F37]" : "bg-gradient-to-br from-violet-600 to-[#4E35B4]")}>
-      <Sparkles className="absolute -right-2 -top-2 w-14 h-14 text-white/10" />
-      <div className="flex items-center gap-1.5">
-        <Crown className="w-3.5 h-3.5" />
-        <span className="text-xs font-semibold">{title}</span>
-      </div>
-      <p className="text-xs text-white/80 mt-0.5">{sub}</p>
-      {mode !== "full" && (
-        <span className="mt-2 block text-center w-full bg-white/20 hover:bg-white/25 text-white text-xs font-semibold py-1.5 rounded-lg">
-          {ended ? "Renew plan" : "Choose a plan"}
-        </span>
-      )}
-    </Link>
   );
 }

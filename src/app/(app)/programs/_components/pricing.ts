@@ -10,7 +10,18 @@
 import type { ShiftAssignment, EventDay, CostEntry, BillLine, TeamMember } from "./types";
 
 export type Rate = { roleId: string; rateType: string; rate: number; withSetup?: number; workType?: string; label?: string };
-export type GearItem = { id: string; category: string; name: string; rent: number; rentUnit: string };
+export type GearItem = { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> };
+
+/**
+ * Which rent to use for a piece of gear on this program: the studio's "pay team by" unit first,
+ * then per shift → full day → whole program — the first one that has a price.
+ * Gear saved before per-unit rents has one rent + unit.
+ */
+export function gearRent(item: GearItem, unitOrder: string[]): { unit: string; price: number } {
+  const rents = item.rents && Object.keys(item.rents).length ? item.rents : { [item.rentUnit]: item.rent };
+  for (const u of unitOrder) if (Number(rents[u]) > 0) return { unit: u, price: Number(rents[u]) };
+  return { unit: item.rentUnit, price: Number(item.rent) || 0 };
+}
 
 const SHOOT_UNITS = ["per_shift", "per_day", "per_program"] as const;
 const UNIT_WORD: Record<string, [string, string]> = {
@@ -102,10 +113,11 @@ export function buildBill(opts: {
           const dayIds = new Set<string>(existing?.days ?? []);
           dayIds.add(w.day.id);
           const shiftsUsed = (existing?.shifts ?? 0) + 1;
-          const q = item.rentUnit === "per_shift" ? shiftsUsed : item.rentUnit === "per_day" ? dayIds.size : 1;
+          const rent = gearRent(item, unitOrder);
+          const q = rent.unit === "per_shift" ? shiftsUsed : rent.unit === "per_day" ? dayIds.size : 1;
           const line: BillLine = {
             id: existing?.id ?? lid(), key, kind: "gear_rent", auto: true, label: `Rent · ${item.name}`,
-            qty: q, unit: item.rentUnit, unitPrice: item.rent, amount: Math.round(item.rent * q),
+            qty: q, unit: rent.unit, unitPrice: rent.price, amount: Math.round(rent.price * q),
             note: `used by ${names.get(memberId)}`, days: [...dayIds], shifts: shiftsUsed,
           };
           if (existing) Object.assign(existing, line); else add(owner.id, line);

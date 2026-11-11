@@ -4,7 +4,7 @@
  * Member panel: one program, laid out like the studio's program page —
  * what it is and my pay on the left, tabs for the rest on the right.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -18,6 +18,7 @@ import { DateBox, Initial, Tile } from "@/components/ui/apple";
 import { CHIP, Chip, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, revealPanel, useTab } from "@/components/ui/profile-page";
 import { StatusBadge } from "../../_components/kit";
 import { EditorRawAccess, MemberRawUpload } from "../../_components/raw-upload";
+import { MyCosts } from "../../_components/costs";
 
 type Person = { id: string; isMe: boolean; role: string; name: string; phone?: string | null; setup?: string | null; gear: string[] };
 type ProgramHub = {
@@ -86,12 +87,13 @@ export default function ProgramHubPage() {
   const [uploadShown, setUploadShown] = useState<boolean | null>(null);
   const [editorShown, setEditorShown] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    apiFetch(`${API}/member/programs/${id}/hub`)
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then(setHub)
-      .catch(() => setMissing(true));
-  }, [id]);
+  const loadHub = useCallback(() => apiFetch(`${API}/member/programs/${id}/hub`)
+    .then(r => (r.ok ? r.json() : Promise.reject()))
+    .then(setHub)
+    .catch(() => setMissing(true)), [id]);
+  useEffect(() => { loadHub(); }, [loadHub]);
+  // My pay changes only when the studio approves a cost, but refresh anyway after I add one.
+  const reloadHub = () => { loadHub(); };
 
   const days = useMemo(() => [...(hub?.eventDays ?? [])].sort((x, y) => (x.date || "9999").localeCompare(y.date || "9999")), [hub]);
 
@@ -120,7 +122,7 @@ export default function ProgramHubPage() {
   const tabs = ([
     { id: "overview", label: "Overview" },
     { id: "raw", label: "Raw files" },
-    pay && { id: "pay", label: "My pay" },
+    { id: "pay", label: pay ? "Pay & costs" : "My costs" },
     hasEditing && { id: "editing", label: "Editing & delivery" },
   ].filter(Boolean)) as { id: Tab; label: string }[];
   const openTab: Tab = tabs.some(t => t.id === tab) ? tab : "overview";
@@ -270,8 +272,8 @@ export default function ProgramHubPage() {
             )}
           </div>
 
-          {pay && (
-            <div role="tabpanel" hidden={openTab !== "pay"}>
+          <div role="tabpanel" hidden={openTab !== "pay"}>
+            {pay && (<>
               <Section title="My bill for this program">
                 <div className={cn(card, "overflow-hidden divide-y divide-[#EEEBF4]")}>
                   {pay.lines.map((l, i) => (
@@ -302,8 +304,9 @@ export default function ProgramHubPage() {
                   </List>
                 )}
               </Section>
-            </div>
-          )}
+            </>)}
+            <MyCosts bookingId={hub.id} title="Costs I paid for this program" canAdd={!["cancelled", "refunded"].includes(hub.status)} onChanged={reloadHub} />
+          </div>
 
           {hasEditing && (
             <div role="tabpanel" hidden={openTab !== "editing"}>

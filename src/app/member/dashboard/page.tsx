@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   AlertTriangle, ArrowRight, BadgeDollarSign, Camera, CalendarDays, CheckCircle2, Clock, HardDrive, Hourglass,
-  LayoutDashboard, MapPin, MessageCircle, Package, Play, TrendingUp, Video, Wallet,
+  LayoutDashboard, MapPin, MessageCircle, Package, Play, ReceiptText, TrendingUp, Video, Wallet,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate } from "@/lib/format";
@@ -34,6 +34,7 @@ interface Home {
   messages: { unread: number; last: { content: string; createdAt: string; unread: boolean } | null };
 }
 type RawTodo = { id: string; program: string; date: string };
+type CostTodo = { id: string; bookingId: string; status: string; amount: number; category: string; reviewNote: string | null; program?: { id: string; eventName: string | null; bookingNumber: string } };
 
 const ACTIVE = ["confirmed", "advance_received", "in_progress", "editing", "ready_for_delivery"];
 const editKind = (role: string) => (role === "photo_editor" ? "Photo editing" : "Video editing");
@@ -57,6 +58,7 @@ export default function MemberDashboardPage() {
   const [home, setHome] = useState<Home | null>(null);
   const [rates, setRates] = useState<MyRates | null>(null);
   const [rawTodos, setRawTodos] = useState<RawTodo[]>([]);
+  const [costTodos, setCostTodos] = useState<CostTodo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -70,6 +72,8 @@ export default function MemberDashboardPage() {
       }).finally(() => setLoading(false));
     // Asks Google Drive, so it comes on its own and never holds the page back.
     get("/member/home/raw").then(d => { if (Array.isArray(d?.todos)) setRawTodos(d.todos); });
+    // A cost the studio declined — fix it and send again.
+    get("/member/claims").then(d => { if (Array.isArray(d)) setCostTodos(d.filter((c: CostTodo) => c.status === "rejected")); });
   }, []);
 
   if (loading) return <Spinner />;
@@ -79,7 +83,7 @@ export default function MemberDashboardPage() {
   const next = data.recentUpcoming[0] ?? null;
   const nextDays = next ? daysUntil(next.eventDate) : null;
   const todos = home?.todos ?? [];
-  const todoCount = todos.length + rawTodos.length;
+  const todoCount = todos.length + rawTodos.length + costTodos.length;
   const ed = home?.editing;
   const msg = home?.messages;
   const prices = rates?.rates ?? [];
@@ -98,6 +102,11 @@ export default function MemberDashboardPage() {
         <Section title={`To do now · ${todoCount}`}>
           <List>
             {todos.map(t => { const x = todoText(t); return <Row key={t.assignmentId} href={`/member/editing/${t.assignmentId}`} icon={x.icon} color={x.color as TileColor} title={x.title} sub={x.sub} />; })}
+            {costTodos.map(c => (
+              <Row key={`cost-${c.id}`} href={`/member/programs/${c.bookingId}?tab=pay`} icon={ReceiptText} color="red"
+                title={`Cost declined — ${c.program?.eventName || c.program?.bookingNumber || "program"}`}
+                sub={`${formatCurrency(c.amount)}${c.reviewNote ? ` · Studio: ${c.reviewNote}` : ""} · fix it and send again`} />
+            ))}
             {rawTodos.map(t => (
               <Row key={`raw-${t.id}`} href={`/member/programs/${t.id}?tab=raw`} icon={HardDrive} color="blue" title={`Upload your raw files — ${t.program}`} sub={`You worked on ${fmtDate(t.date)} · nothing uploaded yet`} />
             ))}

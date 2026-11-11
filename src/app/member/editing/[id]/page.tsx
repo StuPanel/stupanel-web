@@ -20,6 +20,7 @@ import { CHIP, Chip, Empty, List, ProfileSkeleton, QuickAction, Row, Section, Ta
 import { daysUntil } from "../../_components/kit";
 import { EditorRawAccess } from "../../_components/raw-upload";
 import { EditorMusic } from "./editor-music";
+import { MyCosts } from "../../_components/costs";
 import { SubmitWorkDrawer } from "./submit-drawer";
 
 type Workspace = {
@@ -377,6 +378,7 @@ export default function EditorWorkspacePage() {
                 </div>
               )}
             </Section>
+            <MyCosts bookingId={booking.id} title="Costs I paid for this program" />
           </div>
 
           <div role="tabpanel" hidden={tab !== "brief"}>

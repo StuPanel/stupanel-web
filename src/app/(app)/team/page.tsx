@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit3, MoreHorizontal, MessageCircle, KeyRound, UserCheck
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { Avatar } from "@/components/ui/profile-kit";
+import { WaitingCostsLink, useWaitingCosts } from "@/components/team-costs";
 import { offOn, todayStr } from "@/lib/member-prefs";
 import { DEFAULT_ROLES, DeleteDialog, MemberDrawer, ResetPassDialog, roleConfig, type Member } from "./_components/member-drawer";
 import { useRouter } from "next/navigation";
@@ -146,6 +147,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeamPage() {
+  const waitingCosts = useWaitingCosts();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState(false);
@@ -205,6 +207,7 @@ export default function TeamPage() {
         {members.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search name, username, phone" />}
         <MainButton icon={Plus} onClick={openAdd}>Add member</MainButton>
       </PageHeader>
+      <WaitingCostsLink n={waitingCosts} />
 
       {members.length > 0 && (
         <Chips label="Filter by role" value={roleFilter} onChange={setRoleFilter}

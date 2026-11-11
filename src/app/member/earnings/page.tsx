@@ -7,6 +7,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency, formatCurrencyCompact } from "@/lib/format";
 import { Chips, EmptyState, Group, PageHeader, StatCard } from "@/components/ui/apple";
 import { Spinner, StatusBadge } from "../_components/kit";
+import { MyCosts } from "../_components/costs";
 import Link from "next/link";
 
 const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", other: "Other" };
@@ -94,6 +95,8 @@ export default function EarningsPage() {
           </ul>
         )}
       </Group>
+
+      <MyCosts title="Costs I paid for programs" canAdd={false} />
 
       <Chips label="Show" value={tab} onChange={setTab}
         options={[{ value: "programs", label: "By program", count: programs.length }, { value: "payments", label: "Payments", count: payments.length }]} />

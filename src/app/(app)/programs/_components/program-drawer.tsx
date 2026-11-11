@@ -912,7 +912,16 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                           </button>
                           {isOpen && e.memberId && !billLocked && (
                             <div className="px-4 pb-4 space-y-2">
-                              {(e.lines ?? []).map(l => (
+                              {(e.lines ?? []).map(l => l.key?.startsWith("claim|") ? (
+                                // Approved expense claim: changed or removed only from "Costs paid by the team" (undo).
+                                <div key={l.id} className="flex items-center gap-2 rounded-[12px] bg-[#E7F5EE] px-3 py-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] font-semibold text-[#17151F] truncate">{l.label}</p>
+                                    <p className="text-[11px] text-[#14613F] truncate">{["Approved cost", l.note].filter(Boolean).join(" · ")} — change it under Money → Costs paid by the team</p>
+                                  </div>
+                                  <span className="text-[13.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(l.amount)}</span>
+                                </div>
+                              ) : (
                                 <div key={l.id} className="flex items-center gap-2 rounded-[12px] bg-[#FAF9FC] border border-[#EEEBF4] px-3 py-2">
                                   <div className="flex-1 min-w-0">
                                     {l.auto ? <p className="text-[13px] font-semibold text-[#17151F] truncate">{l.label}</p>

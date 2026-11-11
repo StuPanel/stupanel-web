@@ -110,7 +110,7 @@ export function BrandingPane() {
 
   return (
     <>
-      {cropSrc && <ImageCropModal title="Position your logo" src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
+      {cropSrc && <ImageCropModal title="Position your logo" start="fit" src={cropSrc} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
       <Group title="Logo" note="JPG, PNG or WebP. A square logo looks best. It saves as soon as you upload it.">
         <div id="set-logo" className="sp-set-row px-4 sm:px-5 py-5 flex flex-col sm:flex-row sm:items-center gap-4 scroll-mt-28">
           <div className="relative w-fit">

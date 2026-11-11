@@ -7,6 +7,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtDate, currencySymbol, currencyPad } from "@/lib/format";
 import { type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { payoutLine, type Payout } from "@/lib/member-prefs";
 import { askConfirm, notify } from "@/components/feedback";
 import { AccountPicker } from "@/components/account-picker";
 
@@ -42,6 +43,8 @@ export interface SalarySlip {
 
 export interface ProfileData {
   member: Member;
+  /** What the member set for themselves (older API: missing). */
+  prefs?: import("@/lib/member-prefs").MemberPrefs;
   upcoming?: UpcomingDay[];
   stats: { totalPrograms: number; thisMonthPrograms: number; lifetimeEarned: number; totalPaid: number; pendingAmount: number };
   programs: ProgramEntry[];
@@ -72,12 +75,13 @@ function autoSplit(progs: Due[], amount: number): Record<string, number> {
   return out;
 }
 
-export function PayDrawer({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member; onClose: () => void; onSaved: () => void; /** How the member asked to be paid. */ payout?: Payout | null }) {
   const [dues, setDues] = useState<Due[] | null>(null);
   const [amount, setAmount] = useState("");
   const [split, setSplit] = useState<Record<string, number>>({});
   const [custom, setCustom] = useState(false);
-  const [method, setMethod] = useState("cash");
+  // Start on the way the member asked to be paid.
+  const [method, setMethod] = useState(() => !payout ? "cash" : payout.method === "bank" ? "bank_transfer" : payout.method === "cash" ? "cash" : payout.method === "other" ? "other" : "mobile_banking");
   const [walletId, setWalletId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
@@ -159,6 +163,11 @@ export function PayDrawer({ member, onClose, onSaved }: { member: Member; onClos
             <div className="flex flex-wrap gap-1.5">
               {PAY_METHODS.map(o => <button key={o.v} type="button" onClick={() => setMethod(o.v)}
                 className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
+              {payout && (
+                <p className="w-full mt-1 text-[12.5px] text-[#4A4658] rounded-[12px] bg-[#E7F5EE] px-3 py-2">
+                  {member.firstName} asked to be paid by <b>{payoutLine(payout)}</b>
+                </p>
+              )}
             </div>
           )}</Field>
           <div className="px-4 py-3"><AccountPicker label="Paid from" value={walletId} method={method} payOut={amt} onChange={setWalletId} /></div>

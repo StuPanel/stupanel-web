@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, ArrowRight, Lock, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
-  Search, Store, Trash2, UserPlus, Users, Wallet, X, Zap,
+  Search, Store, Trash2, UserPlus, Users, Wallet, X, Zap, CalendarOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -24,6 +24,7 @@ import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/u
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
 import { TEAM_ROLES } from "../../team/_components/rate-card";
 import { EVENT_TYPES, fmtDate, uid } from "./constants";
+import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
@@ -197,6 +198,9 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
   const type = days[0]?.programType ?? "";
   const rate = member && roleId ? (["per_shift", "per_day", "per_program"].map(u => findRate(member.roleRates as Rate[], studio.studioRates, roleId, u, type)).find(Boolean)) : undefined;
   const otherGear = team.filter(m => m.id !== memberId && (m.setup?.length ?? 0) > 0);
+  // The days this shift form is for (picked slots, else the slot it was opened on) → who said they're off then.
+  const slotDates = [...new Set((slots.length ? slots : start ? [`${start.dayId}|${start.shiftId}`] : []).map(k => days.find(d => d.id === k.split("|")[0])?.date).filter(Boolean) as string[])];
+  const offFor = (m: TeamMember) => offOn(m.daysOff, slotDates);
   const shown = team.filter(m => m.isActive !== false && (!q.trim() || fullName(m).toLowerCase().includes(q.toLowerCase()) || (m.phone ?? "").includes(q)))
     .sort((a, b) => Number(busyIds.has(a.id)) - Number(busyIds.has(b.id)));
 
@@ -246,6 +250,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
             <div className="max-h-[46vh] overflow-y-auto">
               {shown.map(m => {
                 const busy = busyIds.has(m.id);
+                const off = offFor(m)[0];
                 const r0 = role(m.memberRoles[0] ?? "");
                 return (
                   <button key={m.id} type="button" onClick={() => { setMemberId(m.id); setRoleId(""); }}
@@ -255,6 +260,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                       <span className="block text-sm font-semibold text-[#17151F] truncate">{fullName(m)}{m.memberType === "freelancer" && <span className="ml-1.5 text-[11px] font-bold text-[#9E3A8C]">Freelancer</span>}</span>
                       <span className="block text-xs text-[#6B6680] truncate">{m.memberRoles.map(r => role(r).label).join(", ") || "No work set"}</span>
                     </span>
+                    {off && <span title={off.note ? `Day off: ${off.note}` : "Said they can't work this day"} className="text-[11px] font-bold text-[#7A4800] bg-[#FFF3E0] px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap"><CalendarOff className="w-3 h-3" />Day off</span>}
                     {busy && <span className="text-[11px] font-bold text-[#C2304F] bg-[#FDECEF] px-2 py-0.5 rounded-full inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Busy</span>}
                   </button>
                 );
@@ -291,6 +297,12 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
             </div>
             {!editing && <button type="button" onClick={() => setMemberId("")} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0]">Change</button>}
           </Card>
+          {offFor(member).length > 0 && (
+            <p role="status" className="-mt-3 mb-5 rounded-[14px] bg-[#FFF3E0] text-[#7A4800] text-[13px] px-4 py-3 flex gap-2">
+              <CalendarOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{member.firstName} said they can&apos;t work {offFor(member).map(d => `${dayRange(d)}${d.note ? ` (${d.note})` : ""}`).join(", ")}. You can still add them — ask them first.</span>
+            </p>
+          )}
 
           <FormGroup title="Work">
             <div className="p-3 flex flex-wrap gap-2">

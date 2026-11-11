@@ -31,6 +31,8 @@ export interface TeamMember {
   memberRoles: string[];
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> }[];
+  /** Days the member said they can't work (set in their panel). */
+  daysOff?: { id: string; from: string; to: string; note?: string }[];
 }
 
 /** Whose gear a person uses on a shift. */

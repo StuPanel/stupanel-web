@@ -45,6 +45,9 @@ export interface Member {
   bio?: string; memberRoles: string[]; isActive: boolean;
   /** The member's own photo (they add it in their panel). */
   avatarUrl?: string | null;
+  /** Set by the member in their panel (team list only). */
+  daysOff?: { id: string; from: string; to: string; note?: string }[];
+  rateRequestWaiting?: boolean;
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: SavedGear[];

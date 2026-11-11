@@ -33,6 +33,8 @@ export type StudioSettings = {
   paymentReminders: { enabled: boolean; daysBefore: number; afterEveryDays: number; maxAfter: number };
   eventReminders: { team: boolean; client: boolean };
   studioRates: { roleId: string; rateType: string; rate: number; withSetup?: number; workType?: string; label?: string }[];
+  /** The backdrop for the whole studio (null = not chosen yet). */
+  appearance?: { backdrop: "violet" | "golden" | "mehendi" | "lagoon" | "plain" | null };
 };
 type PatchStudio = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => Promise<boolean>;
 

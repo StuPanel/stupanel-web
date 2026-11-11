@@ -62,7 +62,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     title: "Account",
     panes: [
       { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone" },
-      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — saved on this device", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look" },
+      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — the same for your whole studio", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look team member panel" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password" },
       { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw" },
     ],

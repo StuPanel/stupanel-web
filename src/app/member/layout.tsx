@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
+import { StudioBackdrop } from "@/components/studio-backdrop";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -173,6 +174,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-full sp-shell">
       <div className="sp-scene" aria-hidden="true" />
+      <StudioBackdrop />
       {/* Desktop floating sidebar */}
       <div className="hidden lg:block fixed top-3 bottom-3 left-3 w-[248px] z-30">
         <MemberSidebar profile={profile} chatUnread={chatUnread} pathname={pathname} onLogout={logout} />

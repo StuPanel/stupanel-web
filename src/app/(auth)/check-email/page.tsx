@@ -42,35 +42,35 @@ function CheckEmailContent() {
 
   return (
     <div className="text-center space-y-5">
-      <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto">
-        <Mail className="w-8 h-8 text-indigo-600" />
+      <div className="w-16 h-16 rounded-2xl bg-[#EEE8FD] flex items-center justify-center mx-auto">
+        <Mail className="w-8 h-8 text-[#7D5CEF]" />
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Check your email</h2>
-        <p className="text-slate-500 mt-2 text-sm leading-relaxed">
+        <h2 className="text-2xl font-bold text-[#17151F]">Check your email</h2>
+        <p className="text-[#6B6680] mt-2 text-sm leading-relaxed">
           We sent a verification link to<br />
-          <span className="font-semibold text-slate-800">{email}</span>
+          <span className="font-semibold text-[#17151F]">{email}</span>
         </p>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-left">
-        <p className="text-sm text-amber-800 font-medium">Before you can login:</p>
-        <p className="text-xs text-amber-700 mt-1">Please verify your email address by clicking the link we sent you. Check your spam folder if you don&apos;t see it.</p>
+      <div className="bg-[#FFF9EF] border border-[#F6E3B8] rounded-xl px-4 py-3 text-left">
+        <p className="text-sm text-[#8A5600] font-medium">Before you can login:</p>
+        <p className="text-xs text-[#9A5B00] mt-1">Please verify your email address by clicking the link we sent you. Check your spam folder if you don&apos;t see it.</p>
       </div>
 
       {resent && (
-        <div className="flex items-center gap-2 justify-center text-emerald-600 text-sm font-medium">
+        <div className="flex items-center gap-2 justify-center text-[#1F8A5B] text-sm font-medium">
           <CheckCircle className="w-4 h-4" /> New verification email sent!
         </div>
       )}
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && <p className="text-[#C2304F] text-sm">{error}</p>}
 
       <Button
         onClick={handleResend}
         disabled={resending || cooldown > 0}
         variant="outline"
-        className="w-full h-11 border-slate-200 text-slate-700 hover:bg-slate-50"
+        className="w-full h-11 border-[#E4E0EC] text-[#33303F] hover:bg-[#F7F5FB]"
       >
         {resending ? (
           <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Sending...</span>
@@ -81,7 +81,7 @@ function CheckEmailContent() {
         )}
       </Button>
 
-      <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+      <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm text-[#7D5CEF] hover:text-[#5B3FD0] font-medium">
         <ArrowLeft className="w-4 h-4" /> Back to login
       </Link>
     </div>

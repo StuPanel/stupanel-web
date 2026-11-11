@@ -34,17 +34,17 @@ function fmtShort(d: string) {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  open:        { label: "Open",        color: "bg-amber-500/15 text-amber-600 border-amber-400/30",   icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-blue-500/15 text-blue-600 border-blue-400/30",     icon: MessageCircle },
-  resolved:    { label: "Resolved",    color: "bg-emerald-500/15 text-emerald-600 border-emerald-400/30", icon: CheckCircle },
-  closed:      { label: "Closed",      color: "bg-slate-200 text-[#6B6680] border-slate-300",         icon: X },
+  open:        { label: "Open",        color: "bg-[#D88A12]/15 text-[#B36B00] border-[#E9A63A]/30",   icon: Clock },
+  in_progress: { label: "In Progress", color: "bg-[#2F6FB3]/15 text-[#1F5C99] border-[#6C9BD0]/30",     icon: MessageCircle },
+  resolved:    { label: "Resolved",    color: "bg-[#1F8A5B]/15 text-[#1F8A5B] border-[#4FB884]/30", icon: CheckCircle },
+  closed:      { label: "Closed",      color: "bg-[#E4E0EC] text-[#6B6680] border-[#B5B0C4]",         icon: X },
 };
 
 const priorityColor: Record<string, string> = {
   low:    "text-[#6B6680]",
-  medium: "text-amber-500",
-  high:   "text-orange-500",
-  urgent: "text-red-500",
+  medium: "text-[#D88A12]",
+  high:   "text-[#D88A12]",
+  urgent: "text-[#C2304F]",
 };
 
 const CATEGORIES = [
@@ -147,7 +147,7 @@ export default function SupportPage() {
     return (
       <div className="max-w-2xl space-y-5">
         <button onClick={() => setView("list")}
-          className="flex items-center gap-2 text-[#6B6680] hover:text-slate-800 text-sm transition-colors">
+          className="flex items-center gap-2 text-[#6B6680] hover:text-[#17151F] text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
         </button>
 
@@ -155,7 +155,7 @@ export default function SupportPage() {
 
         <form onSubmit={createTicket} className="bg-white rounded-[20px] p-6 shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Subject *</label>
+            <label className="text-sm font-medium text-[#33303F]">Subject *</label>
             <Input value={subject} onChange={e => setSubject(e.target.value)}
               placeholder="e.g. Invoice not generating correctly" required
               className="h-10 text-sm" />
@@ -163,14 +163,14 @@ export default function SupportPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Category</label>
+              <label className="text-sm font-medium text-[#33303F]">Category</label>
               <select value={category} onChange={e => setCategory(e.target.value)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring">
                 {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Priority</label>
+              <label className="text-sm font-medium text-[#33303F]">Priority</label>
               <select value={priority} onChange={e => setPriority(e.target.value)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring">
                 <option value="low">Low</option>
@@ -182,7 +182,7 @@ export default function SupportPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Message *</label>
+            <label className="text-sm font-medium text-[#33303F]">Message *</label>
             <textarea value={content} onChange={e => setContent(e.target.value)}
               placeholder="Describe your issue in detail..."
               rows={5} required
@@ -190,12 +190,12 @@ export default function SupportPage() {
           </div>
 
           {createErr && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{createErr}</p>
+            <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{createErr}</p>
           )}
 
           <div className="flex gap-3">
             <Button type="submit" disabled={creating || !subject.trim() || !content.trim()}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+              className="gap-2 bg-[#7D5CEF] hover:bg-[#5B3FD0]">
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Submit Ticket
             </Button>
@@ -215,7 +215,7 @@ export default function SupportPage() {
     return (
       <div className="max-w-2xl space-y-4">
         <button onClick={() => { setView("list"); setSelected(null); loadTickets(); }}
-          className="flex items-center gap-2 text-[#6B6680] hover:text-slate-800 text-sm transition-colors">
+          className="flex items-center gap-2 text-[#6B6680] hover:text-[#17151F] text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to tickets
         </button>
 
@@ -252,11 +252,11 @@ export default function SupportPage() {
                   <div className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-3 space-y-1",
                     isStudio
-                      ? "bg-indigo-600 text-white rounded-br-sm"
-                      : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+                      ? "bg-[#7D5CEF] text-white rounded-br-sm"
+                      : "bg-white border border-[#E4E0EC] text-[#17151F] rounded-bl-sm"
                   )}>
                     <div className="flex items-center gap-2">
-                      <span className={cn("text-xs font-semibold", isStudio ? "text-indigo-200" : "text-indigo-600")}>
+                      <span className={cn("text-xs font-semibold", isStudio ? "text-indigo-200" : "text-[#7D5CEF]")}>
                         {isStudio ? "You" : "StuPanel Support"}
                       </span>
                       <span className={cn("text-xs", isStudio ? "text-indigo-300" : "text-[#6B6680]")}>
@@ -271,11 +271,11 @@ export default function SupportPage() {
 
             {isClosed && (
               <div className="flex items-center gap-3 py-3">
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-[#E4E0EC]" />
                 <span className="text-xs text-[#6B6680] flex items-center gap-1">
                   <X className="w-3 h-3" />Ticket closed
                 </span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-[#E4E0EC]" />
               </div>
             )}
           </div>
@@ -288,11 +288,11 @@ export default function SupportPage() {
               onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendReply(); }}
               placeholder="Write your reply... (Ctrl+Enter to send)"
               rows={3}
-              className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm placeholder:text-[#6B6680] focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+              className="w-full rounded-md border border-[#E4E0EC] bg-[#F7F5FB] px-3 py-2 text-sm placeholder:text-[#6B6680] focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
             <div className="flex justify-between items-center">
               <span className="text-xs text-[#6B6680]">Ctrl+Enter to send</span>
               <Button onClick={sendReply} disabled={replying || !reply.trim()}
-                size="sm" className="bg-indigo-600 hover:bg-indigo-700 gap-2">
+                size="sm" className="bg-[#7D5CEF] hover:bg-[#5B3FD0] gap-2">
                 {replying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Send Reply
               </Button>
@@ -307,7 +307,7 @@ export default function SupportPage() {
   return (
     <div className="space-y-5">
       <PageHeader icon={HeaderIcon} color="teal" title="Support" sub="Get help from the StuPanel team">
-        <Button onClick={() => setView("new")} className="bg-indigo-600 hover:bg-indigo-700 gap-2">
+        <Button onClick={() => setView("new")} className="bg-[#7D5CEF] hover:bg-[#5B3FD0] gap-2">
           <Plus className="w-4 h-4" />New Ticket
         </Button>
       </PageHeader>
@@ -336,8 +336,8 @@ export default function SupportPage() {
             className={cn(
               "text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors",
               statusFilter === f.v
-                ? "bg-indigo-600 border-indigo-600 text-white"
-                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                ? "bg-[#7D5CEF] border-[#7D5CEF] text-white"
+                : "bg-white border-[#E4E0EC] text-[#4A4658] hover:bg-[#F7F5FB]"
             )}>
             {f.l}
           </button>
@@ -351,15 +351,15 @@ export default function SupportPage() {
         <ListSkeleton />
       ) : tickets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
-          <Inbox className="w-10 h-10 text-slate-300 mb-3" />
-          <p className="font-semibold text-slate-600">No tickets yet</p>
+          <Inbox className="w-10 h-10 text-[#B5B0C4] mb-3" />
+          <p className="font-semibold text-[#4A4658]">No tickets yet</p>
           <p className="text-sm text-[#6B6680] mt-1 mb-4">Submit a ticket and our team will help you</p>
-          <Button onClick={() => setView("new")} size="sm" className="bg-indigo-600 hover:bg-indigo-700 gap-2">
+          <Button onClick={() => setView("new")} size="sm" className="bg-[#7D5CEF] hover:bg-[#5B3FD0] gap-2">
             <Plus className="w-3.5 h-3.5" />Create First Ticket
           </Button>
         </div>
       ) : (
-        <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] divide-y divide-slate-100">
+        <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] divide-y divide-[#F1EFF6]">
           {tickets.filter(t => matches(q, t.subject, t.ticketNumber, t.category)).length === 0 && (
             <p className="text-center text-sm text-[#6B6680] py-10">No tickets match &ldquo;{q}&rdquo;</p>
           )}
@@ -371,25 +371,25 @@ export default function SupportPage() {
 
             return (
               <button key={ticket.id} onClick={() => openTicket(ticket)}
-                className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors group">
+                className="w-full text-left px-5 py-4 hover:bg-[#F7F5FB] transition-colors group">
                 <div className="flex items-start gap-4">
                   {/* Status dot */}
                   <div className={cn("mt-1 w-2 h-2 rounded-full flex-shrink-0",
-                    hasUnread ? "bg-indigo-500" :
-                    ticket.status === "open" ? "bg-amber-400" :
-                    ticket.status === "in_progress" ? "bg-blue-400" :
-                    ticket.status === "resolved" ? "bg-emerald-400" : "bg-slate-300"
+                    hasUnread ? "bg-[#7D5CEF]" :
+                    ticket.status === "open" ? "bg-[#E9A63A]" :
+                    ticket.status === "in_progress" ? "bg-[#6C9BD0]" :
+                    ticket.status === "resolved" ? "bg-[#4FB884]" : "bg-[#B5B0C4]"
                   )} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={cn("font-semibold text-sm truncate",
-                          hasUnread ? "text-[#17151F]" : "text-slate-700")}>
+                          hasUnread ? "text-[#17151F]" : "text-[#33303F]")}>
                           {ticket.subject}
                         </span>
                         {hasUnread && (
-                          <span className="flex-shrink-0 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                          <span className="flex-shrink-0 text-xs bg-[#EEE8FD] text-[#7D5CEF] px-1.5 py-0.5 rounded-full font-bold">
                             NEW REPLY
                           </span>
                         )}
@@ -414,7 +414,7 @@ export default function SupportPage() {
 
                     {lastMsg && (
                       <p className="text-xs text-[#6B6680] mt-1.5 truncate">
-                        <span className={cn("font-medium", lastMsg.senderType === "admin" ? "text-indigo-500" : "text-[#6B6680]")}>
+                        <span className={cn("font-medium", lastMsg.senderType === "admin" ? "text-[#7D5CEF]" : "text-[#6B6680]")}>
                           {lastMsg.senderType === "admin" ? "Support: " : "You: "}
                         </span>
                         {lastMsg.content}
@@ -422,7 +422,7 @@ export default function SupportPage() {
                     )}
                   </div>
 
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#6B6680] flex-shrink-0 mt-1 transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-[#B5B0C4] group-hover:text-[#6B6680] flex-shrink-0 mt-1 transition-colors" />
                 </div>
               </button>
             );

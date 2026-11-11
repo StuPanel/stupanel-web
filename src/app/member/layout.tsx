@@ -44,34 +44,34 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
   useEffect(() => { try { setIsManager(localStorage.getItem("user_role") === "manager"); } catch { /* ignore */ } }, []);
   return (
     <aside className={cn("flex flex-col w-full h-full bg-white overflow-hidden",
-      !isMobile && "sp-glass rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]")}>
+      !isMobile && "sp-glass rounded-2xl border border-[#E4E0EC]/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]")}>
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <Link href="/member/dashboard" onClick={onClose} className="flex items-center gap-2.5">
           <BrandMark size={34} />
           <div>
-            <p className="font-extrabold text-[17px] tracking-tight text-slate-900 leading-none">StuPanel</p>
-            <p className="text-xs text-slate-500 mt-1 leading-none">Team member</p>
+            <p className="font-extrabold text-[17px] tracking-tight text-[#17151F] leading-none">StuPanel</p>
+            <p className="text-xs text-[#6B6680] mt-1 leading-none">Team member</p>
           </div>
         </Link>
         {isMobile && (
-          <button className="p-2 -mr-1 rounded-lg hover:bg-slate-100" onClick={onClose} aria-label="Close menu">
-            <X className="w-5 h-5 text-slate-500" />
+          <button className="p-2 -mr-1 rounded-lg hover:bg-[#F1EFF6]" onClick={onClose} aria-label="Close menu">
+            <X className="w-5 h-5 text-[#6B6680]" />
           </button>
         )}
       </div>
 
       {profile && (
         <div className="px-3 pb-3">
-          <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-100 p-2">
+          <div className="flex items-center gap-2.5 rounded-xl bg-[#F7F5FB] border border-[#F1EFF6] p-2">
             <div className="w-8 h-8 rounded-lg bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
               {(profile.firstName?.[0] ?? "M").toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">
+              <p className="text-[13px] font-semibold text-[#17151F] truncate leading-tight">
                 {profile.firstName} {profile.lastName ?? ""}
               </p>
               {!!profile.memberRoles?.length && (
-                <p className="text-xs text-slate-500 capitalize leading-tight mt-0.5 truncate" title={profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}>
+                <p className="text-xs text-[#6B6680] capitalize leading-tight mt-0.5 truncate" title={profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}>
                   {profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}
                 </p>
               )}
@@ -108,7 +108,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
         ))}
       </nav>
 
-      <div className="p-3 border-t border-slate-100">
+      <div className="p-3 border-t border-[#F1EFF6]">
         {isManager && (
           <Link href="/programs" onClick={onClose}
             className="w-full flex items-center gap-3 px-2 h-10 mb-1 rounded-[12px] text-sm font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD] transition-colors">
@@ -193,7 +193,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         <div className="lg:hidden sticky top-0 z-20 bg-[#F5F3FA]/85 backdrop-blur-md flex items-center justify-between px-4 h-16">
           <Link href="/member/dashboard" className="flex items-center gap-2">
             <BrandMark size={30} />
-            <span className="font-extrabold text-[16px] tracking-tight text-slate-900">StuPanel</span>
+            <span className="font-extrabold text-[16px] tracking-tight text-[#17151F]">StuPanel</span>
           </Link>
           <Link href="/member/profile" className="w-10 h-10 rounded-full bg-[#7D5CEF] flex items-center justify-center font-bold text-sm text-white">
             {(profile?.firstName?.[0] ?? "M").toUpperCase()}
@@ -207,13 +207,13 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
-          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
+          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-[#E4E0EC] shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
             {mobileTabs.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href}
                   className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
-                    active ? "bg-violet-50 text-violet-700" : "text-slate-500")}>
+                    active ? "bg-[#F7F4FE] text-[#5B3FD0]" : "text-[#6B6680]")}>
                   <item.icon className="w-5 h-5" strokeWidth={active ? 2.4 : 2} />
                   <span className={cn("text-xs leading-none", active ? "font-semibold" : "font-medium")}>{item.label}</span>
                 </Link>
@@ -221,10 +221,10 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
             })}
             <button onClick={() => setMenuOpen(true)}
               className={cn("relative flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
-                moreActive ? "bg-violet-50 text-violet-700" : "text-slate-500")}>
+                moreActive ? "bg-[#F7F4FE] text-[#5B3FD0]" : "text-[#6B6680]")}>
               <LayoutGrid className="w-5 h-5" strokeWidth={moreActive ? 2.4 : 2} />
               <span className={cn("text-xs leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
-              {chatUnread > 0 && <span className="absolute top-1 right-[30%] w-2 h-2 rounded-full bg-violet-600 ring-2 ring-white" />}
+              {chatUnread > 0 && <span className="absolute top-1 right-[30%] w-2 h-2 rounded-full bg-[#7D5CEF] ring-2 ring-white" />}
             </button>
           </div>
         </nav>

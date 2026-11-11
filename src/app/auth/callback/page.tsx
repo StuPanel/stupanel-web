@@ -46,10 +46,10 @@ function CallbackHandler() {
   }, [params]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB]">
       <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
-        <p className="text-slate-600 text-sm">Signing you in...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-[#7D5CEF] mx-auto mb-3" />
+        <p className="text-[#4A4658] text-sm">Signing you in...</p>
       </div>
     </div>
   );
@@ -58,8 +58,8 @@ function CallbackHandler() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#7D5CEF]" />
       </div>
     }>
       <CallbackHandler />

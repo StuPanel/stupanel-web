@@ -206,27 +206,27 @@ function PaymentDrawer({
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="sp-drawer z-50 max-w-lg flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E0EC]">
           <div>
-            <h2 className="font-bold text-slate-900 text-lg">{isEdit ? "Edit Payment" : "Record Payment"}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{isEdit ? "Update payment details" : "Record a new payment"}</p>
+            <h2 className="font-bold text-[#17151F] text-lg">{isEdit ? "Edit Payment" : "Record Payment"}</h2>
+            <p className="text-xs text-[#8A8599] mt-0.5">{isEdit ? "Update payment details" : "Record a new payment"}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-            <X className="w-4 h-4 text-slate-500" />
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
+            <X className="w-4 h-4 text-[#6B6680]" />
           </button>
         </div>
 
         <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-5 space-y-5">
             {error && (
-              <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+              <div className="px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">{error}</div>
             )}
 
             {/* Booking */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Booking / Program *</Label>
+              <Label className="text-sm font-medium text-[#33303F]">Booking / Program *</Label>
               <select value={form.bookingId} onChange={handleBookingChange}
-                className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer"
                 required>
                 <option value="">Select a booking...</option>
                 {bookings.map(b => (
@@ -236,17 +236,17 @@ function PaymentDrawer({
                 ))}
               </select>
               {remaining !== null && remaining > 0 && (
-                <p className="text-xs text-orange-500 flex items-center gap-1">
+                <p className="text-xs text-[#D88A12] flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />
                   Outstanding: {fmt(remaining, selectedBooking!.currency)}
                   <button type="button" onClick={() => setForm(prev => ({ ...prev, amount: String(remaining) }))}
-                    className="ml-1 text-indigo-600 hover:underline font-medium">
+                    className="ml-1 text-[#7D5CEF] hover:underline font-medium">
                     Use this amount
                   </button>
                 </p>
               )}
               {remaining === 0 && selectedBooking && (
-                <p className="text-xs text-emerald-600 flex items-center gap-1">
+                <p className="text-xs text-[#1F8A5B] flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> This booking is fully paid.
                 </p>
               )}
@@ -255,15 +255,15 @@ function PaymentDrawer({
             {/* Amount + Currency */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Amount *</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Amount *</Label>
                 <Input type="number" min="0.01" step="0.01" placeholder="0.00"
                   value={form.amount} onChange={set("amount")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" required />
+                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" required />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Currency</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Currency</Label>
                 <select value={form.currency} onChange={set("currency")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
                   <option value="BDT">৳ BDT</option>
                   <option value="USD">$ USD</option>
                   <option value="INR">₹ INR</option>
@@ -275,18 +275,18 @@ function PaymentDrawer({
             {/* Method + Type */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Payment Method *</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Payment Method *</Label>
                 <select value={form.paymentMethod} onChange={set("paymentMethod")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
                   {Object.entries(METHOD_CONFIG).map(([k, v]) => (
                     <option key={k} value={k}>{v.label}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Payment Type</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Payment Type</Label>
                 <select value={form.paymentType} onChange={set("paymentType")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
                   {PAYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
@@ -295,20 +295,20 @@ function PaymentDrawer({
             <AccountPicker key={editing?.id ?? "new"} value={form.walletId} method={form.paymentMethod}
               onChange={id => setForm(prev => ({ ...prev, walletId: id }))} />
             {isEdit && editing?.receiptNumber && (
-              <p className="text-[11px] text-slate-500 -mt-2">Receipt {editing.receiptNumber}. If you change the amount, date, method, account or TrxID, this receipt is cancelled and a new number is given.</p>
+              <p className="text-[11px] text-[#6B6680] -mt-2">Receipt {editing.receiptNumber}. If you change the amount, date, method, account or TrxID, this receipt is cancelled and a new number is given.</p>
             )}
 
             {/* Date + Status */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Payment Date *</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Payment Date *</Label>
                 <Input type="date" value={form.paymentDate} onChange={set("paymentDate")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" required />
+                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" required />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Status</Label>
+                <Label className="text-sm font-medium text-[#33303F]">Status</Label>
                 <select value={form.paymentStatus} onChange={set("paymentStatus")}
-                  className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  className="w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 cursor-pointer">
                   {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                     <option key={k} value={k}>{v.label}</option>
                   ))}
@@ -319,34 +319,34 @@ function PaymentDrawer({
             {/* Reference */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Reference No. <span className="text-slate-400 font-normal">(optional)</span></Label>
+                <Label className="text-sm font-medium text-[#33303F]">Reference No. <span className="text-[#8A8599] font-normal">(optional)</span></Label>
                 <Input placeholder="TXN-12345" value={form.referenceNumber} onChange={set("referenceNumber")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
+                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Transaction ID <span className="text-slate-400 font-normal">(optional)</span></Label>
+                <Label className="text-sm font-medium text-[#33303F]">Transaction ID <span className="text-[#8A8599] font-normal">(optional)</span></Label>
                 <Input placeholder="Transaction ID" value={form.transactionId} onChange={set("transactionId")}
-                  className="h-11 border-slate-200 focus:border-indigo-400" />
+                  className="h-11 border-[#E4E0EC] focus:border-indigo-400" />
               </div>
             </div>
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium text-[#33303F]">Notes <span className="text-[#8A8599] font-normal">(optional)</span></Label>
               <textarea value={form.notes} onChange={set("notes")} rows={2}
                 placeholder="Any notes about this payment..."
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
+                className="w-full px-3 py-2.5 rounded-lg border border-[#E4E0EC] text-sm placeholder:text-[#8A8599] focus:outline-none focus:border-indigo-400 resize-none" />
             </div>
           </div>
         </form>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-200 flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200 text-slate-600">
+        <div className="px-5 py-4 border-t border-[#E4E0EC] flex gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC] text-[#4A4658]">
             Cancel
           </Button>
           <Button type="submit" form="payment-form" disabled={loading}
-            className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-2">
+            className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold gap-2">
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? "Saving..." : "Recording..."}</>
               : isEdit ? "Save Changes" : "Record Payment"
@@ -381,18 +381,18 @@ function DeleteDialog({
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="sp-modal w-full max-w-sm p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-500" />
+          <div className="w-14 h-14 rounded-full bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
-          <h3 className="font-bold text-slate-900 text-lg">Delete Payment?</h3>
-          <p className="text-slate-500 text-sm mt-2">
+          <h3 className="font-bold text-[#17151F] text-lg">Delete Payment?</h3>
+          <p className="text-[#6B6680] text-sm mt-2">
             {fmt(payment.amount, payment.currency)} payment for{" "}
-            <span className="font-semibold text-slate-700">{payment.booking.bookingNumber}</span> will be removed.
+            <span className="font-semibold text-[#33303F]">{payment.booking.bookingNumber}</span> will be removed.
           </p>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
             <Button onClick={doDelete} disabled={loading}
-              className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white gap-2">
+              className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               Delete
             </Button>

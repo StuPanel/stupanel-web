@@ -68,14 +68,14 @@ function initials(c: Client) {
 }
 
 const AVATAR_COLORS = [
-  "bg-indigo-100 text-indigo-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-blue-100 text-blue-700",
-  "bg-purple-100 text-purple-700",
-  "bg-orange-100 text-orange-700",
-  "bg-pink-100 text-pink-700",
-  "bg-cyan-100 text-cyan-700",
-  "bg-yellow-100 text-yellow-700",
+  "bg-[#EEE8FD] text-[#5B3FD0]",
+  "bg-[#E7F5EE] text-[#1F8A5B]",
+  "bg-[#E8F0FA] text-[#1F5C99]",
+  "bg-[#EEE8FD] text-[#5B3FD0]",
+  "bg-[#FFF3E0] text-[#9A5B00]",
+  "bg-[#F7E9F4] text-[#9E3A8C]",
+  "bg-[#E3F2F1] text-[#126B66]",
+  "bg-[#FFF3E0] text-[#9A5B00]",
 ];
 
 function avatarColor(id: string) {
@@ -423,17 +423,17 @@ function DeleteDialog({
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="sp-modal w-full max-w-sm p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-500" />
+          <div className="w-14 h-14 rounded-full bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
-          <h3 className="font-bold text-slate-900 text-lg">Delete Client?</h3>
-          <p className="text-slate-500 text-sm mt-2">
-            <span className="font-semibold text-slate-700">{fullName(client)}</span> and all related data will be deleted.
+          <h3 className="font-bold text-[#17151F] text-lg">Delete Client?</h3>
+          <p className="text-[#6B6680] text-sm mt-2">
+            <span className="font-semibold text-[#33303F]">{fullName(client)}</span> and all related data will be deleted.
           </p>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
             <Button onClick={doDelete} disabled={loading}
-              className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white gap-2">
+              className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               Delete
             </Button>

@@ -39,13 +39,13 @@ type Workspace = {
 
 const STATUS_CFG: Record<string, { label: string; color: string; icon: React.ReactNode; next?: string; nextLabel?: string }> = {
   assigned:           { label: "Assigned",        color: "bg-[#EEEDF2] text-[#4A4658]",      icon: <Clock className="w-4 h-4" />,         next: "in_progress",        nextLabel: "Start Editing" },
-  in_progress:        { label: "In Progress",     color: "bg-blue-100 text-blue-700",        icon: <Play className="w-4 h-4" />,          next: undefined,            nextLabel: undefined },
-  submitted:          { label: "Submitted",       color: "bg-amber-100 text-amber-700",      icon: <Upload className="w-4 h-4" />,        next: undefined,            nextLabel: undefined },
-  under_review:       { label: "Under Review",    color: "bg-yellow-100 text-yellow-700",    icon: <Clock className="w-4 h-4" />,         next: undefined,            nextLabel: undefined },
-  revision_requested: { label: "Revision Needed", color: "bg-red-100 text-red-700",          icon: <AlertTriangle className="w-4 h-4" />, next: "in_progress",        nextLabel: "Start Revision" },
-  resubmitted:        { label: "Resubmitted",     color: "bg-orange-100 text-orange-700",    icon: <RotateCcw className="w-4 h-4" />,     next: undefined,            nextLabel: undefined },
-  approved:           { label: "Approved",        color: "bg-emerald-100 text-emerald-700",  icon: <CheckCircle2 className="w-4 h-4" />,  next: "delivered",          nextLabel: "Mark as Delivered" },
-  delivered:          { label: "Delivered",       color: "bg-green-100 text-green-700",      icon: <CheckCircle2 className="w-4 h-4" />,  next: undefined,            nextLabel: undefined },
+  in_progress:        { label: "In Progress",     color: "bg-[#E8F0FA] text-[#1F5C99]",        icon: <Play className="w-4 h-4" />,          next: undefined,            nextLabel: undefined },
+  submitted:          { label: "Submitted",       color: "bg-[#FFF3E0] text-[#9A5B00]",      icon: <Upload className="w-4 h-4" />,        next: undefined,            nextLabel: undefined },
+  under_review:       { label: "Under Review",    color: "bg-[#FFF3E0] text-[#9A5B00]",    icon: <Clock className="w-4 h-4" />,         next: undefined,            nextLabel: undefined },
+  revision_requested: { label: "Revision Needed", color: "bg-[#FDECEF] text-[#C2304F]",          icon: <AlertTriangle className="w-4 h-4" />, next: "in_progress",        nextLabel: "Start Revision" },
+  resubmitted:        { label: "Resubmitted",     color: "bg-[#FFF3E0] text-[#9A5B00]",    icon: <RotateCcw className="w-4 h-4" />,     next: undefined,            nextLabel: undefined },
+  approved:           { label: "Approved",        color: "bg-[#E7F5EE] text-[#1F8A5B]",  icon: <CheckCircle2 className="w-4 h-4" />,  next: "delivered",          nextLabel: "Mark as Delivered" },
+  delivered:          { label: "Delivered",       color: "bg-[#E7F5EE] text-[#1F8A5B]",      icon: <CheckCircle2 className="w-4 h-4" />,  next: undefined,            nextLabel: undefined },
 };
 
 const SUB_STATUS: Record<string, { label: string; cls: string }> = {
@@ -311,11 +311,11 @@ export default function EditorWorkspacePage() {
         {hasRawFiles && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-amber-500" />
+              <HardDrive className="w-4 h-4 text-[#D88A12]" />
               <span className="font-bold text-[13px] text-[#4A4658]">Raw Files</span>
             </div>
             <div className="px-4 py-4 space-y-2">
-              {rawFiles.folderName && <p className="font-semibold text-[#17151F]"><FolderOpen className="w-3.5 h-3.5 text-amber-500 inline mr-1" />{rawFiles.folderName}</p>}
+              {rawFiles.folderName && <p className="font-semibold text-[#17151F]"><FolderOpen className="w-3.5 h-3.5 text-[#D88A12] inline mr-1" />{rawFiles.folderName}</p>}
               {rawFiles.folderPath && <p className="text-sm text-[#6B6680] font-mono break-all">{rawFiles.folderPath}</p>}
               {(rawFiles.fileCount || rawFiles.fileSizeGb) && (
                 <p className="text-xs text-[#6B6680]">
@@ -327,7 +327,7 @@ export default function EditorWorkspacePage() {
               {rawFiles.driveLink && !rawFiles.drive && <a href={rawFiles.driveLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline"><Link2 className="w-3.5 h-3.5" />Open Drive <ExternalLink className="w-3 h-3" /></a>}
               {rawFiles.dropboxLink && <a href={rawFiles.dropboxLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[#5B3FD0] hover:underline"><Link2 className="w-3.5 h-3.5" />Open Dropbox <ExternalLink className="w-3 h-3" /></a>}
               {rawFiles.nasLocation && <p className="text-sm text-[#6B6680] font-mono">{rawFiles.nasLocation}</p>}
-              {rawFiles.notes && <p className="text-xs text-[#6B6680] bg-amber-50 rounded-lg px-3 py-2">{rawFiles.notes}</p>}
+              {rawFiles.notes && <p className="text-xs text-[#6B6680] bg-[#FFF9EF] rounded-lg px-3 py-2">{rawFiles.notes}</p>}
             </div>
           </div>
         )}

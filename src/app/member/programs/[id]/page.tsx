@@ -46,10 +46,10 @@ type ProgramHub = {
 
 const STATUS_CFG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   inquiry:    { label: "Inquiry",    color: "text-[#4A4658] bg-[#EEEDF2]",    icon: <AlertCircle className="w-4 h-4" /> },
-  confirmed:  { label: "Confirmed",  color: "text-blue-700 bg-blue-100",      icon: <CheckCircle2 className="w-4 h-4" /> },
-  in_progress:{ label: "In Progress",color: "text-amber-700 bg-amber-100",    icon: <Clock className="w-4 h-4" /> },
-  completed:  { label: "Completed",  color: "text-emerald-700 bg-emerald-100",icon: <CheckCircle2 className="w-4 h-4" /> },
-  cancelled:  { label: "Cancelled",  color: "text-red-700 bg-red-100",        icon: <AlertCircle className="w-4 h-4" /> },
+  confirmed:  { label: "Confirmed",  color: "text-[#1F5C99] bg-[#E8F0FA]",      icon: <CheckCircle2 className="w-4 h-4" /> },
+  in_progress:{ label: "In Progress",color: "text-[#9A5B00] bg-[#FFF3E0]",    icon: <Clock className="w-4 h-4" /> },
+  completed:  { label: "Completed",  color: "text-[#1F8A5B] bg-[#E7F5EE]",icon: <CheckCircle2 className="w-4 h-4" /> },
+  cancelled:  { label: "Cancelled",  color: "text-[#C2304F] bg-[#FDECEF]",        icon: <AlertCircle className="w-4 h-4" /> },
 };
 
 const SETUP_LABEL: Record<string, string> = { own: "own setup", other: "others' gear", rented: "rented gear" };
@@ -62,12 +62,12 @@ const ROLE_CFG: Record<string, string> = {
 
 const ASSIGNMENT_STATUS: Record<string, { label: string; cls: string }> = {
   assigned:           { label: "Assigned",       cls: "bg-[#EEEDF2] text-[#4A4658]" },
-  in_progress:        { label: "In Progress",    cls: "bg-blue-100 text-blue-700" },
-  submitted:          { label: "Submitted",      cls: "bg-amber-100 text-amber-700" },
-  under_review:       { label: "Under Review",   cls: "bg-yellow-100 text-yellow-700" },
-  revision_requested: { label: "Revision",       cls: "bg-red-100 text-red-700" },
-  approved:           { label: "Approved",       cls: "bg-emerald-100 text-emerald-700" },
-  delivered:          { label: "Delivered",      cls: "bg-green-100 text-green-700" },
+  in_progress:        { label: "In Progress",    cls: "bg-[#E8F0FA] text-[#1F5C99]" },
+  submitted:          { label: "Submitted",      cls: "bg-[#FFF3E0] text-[#9A5B00]" },
+  under_review:       { label: "Under Review",   cls: "bg-[#FFF3E0] text-[#9A5B00]" },
+  revision_requested: { label: "Revision",       cls: "bg-[#FDECEF] text-[#C2304F]" },
+  approved:           { label: "Approved",       cls: "bg-[#E7F5EE] text-[#1F8A5B]" },
+  delivered:          { label: "Delivered",      cls: "bg-[#E7F5EE] text-[#1F8A5B]" },
 };
 
 
@@ -145,10 +145,10 @@ export default function ProgramHubPage() {
                         {(day.shifts ?? []).length > 1 && <p className="text-[11px] font-semibold text-[#6B6680] mb-1">{sh.label}</p>}
                         <div className="flex flex-wrap gap-1.5">
                           {sh.people.map((pp, k) => (
-                            <span key={`${pp.id}-${k}`} className={cn("inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12px]", pp.isMe ? "bg-violet-600 text-white" : "bg-[#EEEDF2] text-[#4A4658]")}>
+                            <span key={`${pp.id}-${k}`} className={cn("inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12px]", pp.isMe ? "bg-[#7D5CEF] text-white" : "bg-[#EEEDF2] text-[#4A4658]")}>
                               <span className="font-semibold">{pp.isMe ? "You" : pp.name}</span>
-                              <span className={pp.isMe ? "text-violet-100" : "text-[#6B6680]"}>· {ROLE_CFG[pp.role] ?? pp.role.replace(/_/g, " ")}{pp.setup ? ` · ${SETUP_LABEL[pp.setup] ?? pp.setup}` : ""}{pp.gear.length ? ` (${pp.gear.join(", ")})` : ""}</span>
-                              {!pp.isMe && pp.phone && <a href={wa(pp.phone)} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${pp.name}`} className="ml-0.5 text-emerald-600"><Phone className="w-3 h-3" /></a>}
+                              <span className={pp.isMe ? "text-[#EEE8FD]" : "text-[#6B6680]"}>· {ROLE_CFG[pp.role] ?? pp.role.replace(/_/g, " ")}{pp.setup ? ` · ${SETUP_LABEL[pp.setup] ?? pp.setup}` : ""}{pp.gear.length ? ` (${pp.gear.join(", ")})` : ""}</span>
+                              {!pp.isMe && pp.phone && <a href={wa(pp.phone)} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${pp.name}`} className="ml-0.5 text-[#1F8A5B]"><Phone className="w-3 h-3" /></a>}
                             </span>
                           ))}
                         </div>
@@ -165,9 +165,9 @@ export default function ProgramHubPage() {
         {hub.myPay && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-emerald-500" />
+              <Wallet className="w-4 h-4 text-[#1F8A5B]" />
               <span className="font-bold text-[13px] text-[#4A4658]">My pay</span>
-              <span className={cn("ml-auto text-xs font-semibold px-2 py-0.5 rounded-full", hub.myPay.due > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+              <span className={cn("ml-auto text-xs font-semibold px-2 py-0.5 rounded-full", hub.myPay.due > 0 ? "bg-[#FFF3E0] text-[#9A5B00]" : "bg-[#E7F5EE] text-[#1F8A5B]")}>
                 {hub.myPay.due > 0 ? `Due ${formatCurrency(hub.myPay.due)}` : "Paid in full"}
               </span>
             </div>
@@ -175,14 +175,14 @@ export default function ProgramHubPage() {
               {hub.myPay.lines.map((l, i) => (
                 <div key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
                   <span className="text-[#4A4658]">{l.label}{l.note ? <span className="text-xs text-[#6B6680]"> · {l.note}</span> : null}</span>
-                  <span className={cn("font-semibold tabular-nums", l.kind === "deduction" ? "text-red-600" : "text-[#17151F]")}>{l.kind === "deduction" ? "− " : ""}{formatCurrency(l.amount)}</span>
+                  <span className={cn("font-semibold tabular-nums", l.kind === "deduction" ? "text-[#C2304F]" : "text-[#17151F]")}>{l.kind === "deduction" ? "− " : ""}{formatCurrency(l.amount)}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between px-4 py-2.5 text-sm font-bold"><span>Total</span><span className="tabular-nums">{formatCurrency(hub.myPay.bill)}</span></div>
               {hub.myPay.payments.map(p => (
                 <div key={p.id} className="flex items-center justify-between px-4 py-2 text-xs text-[#6B6680]">
                   <span>Paid {fmtDate(p.date)} · {METHOD_LABEL[p.method] ?? p.method}</span>
-                  <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(p.amount)}</span>
+                  <span className="font-semibold text-[#1F8A5B] tabular-nums">{formatCurrency(p.amount)}</span>
                 </div>
               ))}
             </div>
@@ -192,16 +192,16 @@ export default function ProgramHubPage() {
         {/* Client */}
         <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
           <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
-            <User className="w-4 h-4 text-emerald-500" />
+            <User className="w-4 h-4 text-[#1F8A5B]" />
             <span className="font-bold text-[13px] text-[#4A4658]">Client</span>
           </div>
           <div className="px-4 py-4 space-y-2">
             <p className="font-bold text-[#17151F] text-lg">{hub.client.firstName} {hub.client.lastName ?? ""}</p>
             {hub.client.phone && (
               <a href={wa(hub.client.phone)} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-emerald-600 hover:underline">
+                className="flex items-center gap-2 text-sm text-[#1F8A5B] hover:underline">
                 <Phone className="w-3.5 h-3.5" />{hub.client.phone}
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">WhatsApp</span>
+                <span className="text-xs bg-[#E7F5EE] text-[#1F8A5B] px-1.5 py-0.5 rounded-full">WhatsApp</span>
               </a>
             )}
             {hub.client.email && (
@@ -234,8 +234,8 @@ export default function ProgramHubPage() {
                   </div>
                   {m.user.phone && (
                     <a href={wa(m.user.phone)} target="_blank" rel="noopener noreferrer"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#F0FAF4] hover:bg-[#E7F5EE]">
+                      <Phone className="w-3.5 h-3.5 text-[#1F8A5B]" />
                     </a>
                   )}
                 </div>
@@ -288,15 +288,15 @@ export default function ProgramHubPage() {
         {deliveryLinks.length > 0 && (
           <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#EEEBF4] flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-emerald-500" />
+              <Link2 className="w-4 h-4 text-[#1F8A5B]" />
               <span className="font-bold text-[13px] text-[#4A4658]">Delivery</span>
             </div>
             <div className="px-4 py-3 space-y-2">
               {deliveryLinks.map((l: any) => (
                 <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-[14px] bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                  <span className="text-sm font-medium text-emerald-800">{l.title || "Delivery Link"}</span>
-                  <ExternalLink className="w-4 h-4 text-emerald-600" />
+                  className="flex items-center justify-between p-3 rounded-[14px] bg-[#F0FAF4] hover:bg-[#E7F5EE] transition-colors">
+                  <span className="text-sm font-medium text-[#14613F]">{l.title || "Delivery Link"}</span>
+                  <ExternalLink className="w-4 h-4 text-[#1F8A5B]" />
                 </a>
               ))}
             </div>

@@ -78,77 +78,77 @@ function LoginForm() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-        <p className="text-slate-500 mt-1 text-sm">Sign in to your StuPanel account</p>
+        <h2 className="text-2xl font-bold text-[#17151F]">Welcome back</h2>
+        <p className="text-[#6B6680] mt-1 text-sm">Sign in to your StuPanel account</p>
       </div>
 
       {error && (
-        <div className="mb-5 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="mb-5 px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <Label htmlFor="identifier" className="text-slate-700 text-sm font-medium">
+          <Label htmlFor="identifier" className="text-[#33303F] text-sm font-medium">
             Email or Username
           </Label>
           <div className="relative">
-            <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               id="identifier"
               type="text"
               placeholder="Enter your email or username"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
-              className="pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
+              className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400"
               required
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
+          <Label htmlFor="password" className="text-[#33303F] text-sm font-medium">Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="pl-10 pr-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
+              className="pl-10 pr-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400"
               autoComplete="current-password"
               required
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
           <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+            <Link href="/forgot-password" className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium">
               Forgot password?
             </Link>
           </div>
         </div>
 
         <Button type="submit" disabled={loading}
-          className={cn("w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm mt-2", loading && "opacity-80")}>
+          className={cn("w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm mt-2", loading && "opacity-80")}>
           {loading ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Signing in...</span> : "Sign In"}
         </Button>
       </form>
 
       <div className="flex items-center gap-3 my-5">
-        <div className="flex-1 h-px bg-slate-100" />
-        <span className="text-xs text-slate-400 font-medium">or continue with</span>
-        <div className="flex-1 h-px bg-slate-100" />
+        <div className="flex-1 h-px bg-[#F1EFF6]" />
+        <span className="text-xs text-[#8A8599] font-medium">or continue with</span>
+        <div className="flex-1 h-px bg-[#F1EFF6]" />
       </div>
 
       <button
         type="button"
         onClick={() => { window.location.href = `${process.env.NEXT_PUBLIC_API_URL?.replace('/v1', '') || 'http://localhost:3001'}/v1/auth/google`; }}
-        className="w-full h-11 flex items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors text-slate-700 text-sm font-medium shadow-sm">
+        className="w-full h-11 flex items-center justify-center gap-3 rounded-lg border border-[#E4E0EC] bg-white hover:bg-[#F7F5FB] transition-colors text-[#33303F] text-sm font-medium shadow-sm">
         <svg className="w-4 h-4" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -158,9 +158,9 @@ function LoginForm() {
         Continue with Google
       </button>
 
-      <p className="text-center text-sm text-slate-500 mt-6">
+      <p className="text-center text-sm text-[#6B6680] mt-6">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-semibold">Start for free</Link>
+        <Link href="/register" className="text-[#7D5CEF] hover:text-[#5B3FD0] font-semibold">Start for free</Link>
       </p>
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, MessageCircle, Send } from "lucide-react";
+import { Check, Loader2, MessageCircle, Send } from "lucide-react";
+import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
@@ -59,96 +60,71 @@ export function WhatsAppModal({ booking, onClose, preferCategory }: {
 
   if (!booking) return null;
 
+  const name = `${booking.client?.firstName ?? ""} ${booking.client?.lastName ?? ""}`.trim();
+  const canSend = ((mode === "template" && !!preview.trim()) || (mode === "custom" && !!customMsg.trim())) && !!phone.trim();
+
   return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-              <MessageCircle className="w-4 h-4 text-green-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-slate-900 text-sm">Send WhatsApp</p>
-              <p className="text-xs text-slate-400 truncate">{booking.client?.firstName} {booking.client?.lastName ?? ""} · {booking.bookingNumber}</p>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
+    <FormDrawer open onClose={onClose} onTop icon={MessageCircle} color="green" title="Send WhatsApp" sub={[name, booking.bookingNumber].filter(Boolean).join(" · ")}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={sendWA} disabled={!canSend}
+            className="flex-1 h-11 rounded-full bg-[#1F8A5B] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-45">
+            <Send className="w-4 h-4" />Open WhatsApp
+          </button>
+        </>
+      }>
+      <FormGroup>
+        <Field label="Phone number">{id => <input id={id} value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Phone number" className={inputCls} />}</Field>
+      </FormGroup>
 
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Phone Number</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="Phone number"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
-            </div>
-
-            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-              <button onClick={() => setMode("template")}
-                className={cn("flex-1 py-2 text-xs font-semibold transition-all",
-                  mode === "template" ? "bg-green-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
-                Use Template
-              </button>
-              <button onClick={() => setMode("custom")}
-                className={cn("flex-1 py-2 text-xs font-semibold transition-all",
-                  mode === "custom" ? "bg-green-600 text-white" : "text-slate-500 hover:bg-slate-50")}>
-                Custom Message
-              </button>
-            </div>
-
-            {mode === "template" ? (
-              <>
-                {loadingTpl ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-green-500" /></div>
-                ) : templates.length === 0 ? (
-                  <div className="text-center py-6 bg-slate-50 rounded-xl">
-                    <p className="text-sm text-slate-500">No templates yet</p>
-                    <a href="/whatsapp" target="_blank" className="text-xs text-green-600 hover:underline mt-1 inline-block">Create templates →</a>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {templates.map(t => (
-                      <button key={t.id} onClick={() => fillTemplate(t.id)}
-                        className={cn("w-full text-left px-3.5 py-3 rounded-xl border transition-all text-sm",
-                          selectedId === t.id ? "border-green-400 bg-green-50" : "border-slate-200 hover:border-green-300 bg-white")}>
-                        <span className="font-semibold text-slate-800 block">{t.name}</span>
-                        <span className="text-xs text-slate-400 line-clamp-1 mt-0.5">{t.body.slice(0, 60)}…</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {filling && <div className="flex justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-green-500" /></div>}
-
-                {preview && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500">Preview</p>
-                    <pre className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">{preview}</pre>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-slate-600">Your Message</p>
-                <textarea value={customMsg} onChange={e => setCustomMsg(e.target.value)} rows={8}
-                  placeholder="Type your WhatsApp message here..."
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400 resize-y" />
-              </div>
-            )}
-          </div>
-
-          <div className="px-5 pb-5 pt-3 border-t border-slate-100 flex gap-3">
-            <button onClick={onClose} className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button onClick={sendWA}
-              disabled={(mode === "template" && !preview) || (mode === "custom" && !customMsg.trim()) || !phone.trim()}
-              className="flex-1 h-11 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all">
-              <Send className="w-4 h-4" />Open WhatsApp
-            </button>
-          </div>
-        </div>
+      <div role="radiogroup" aria-label="Message" className="grid grid-cols-2 p-1 rounded-full bg-white shadow-[0_1px_2px_rgba(22,18,40,.06)] mb-4">
+        {([["template", "Use a template"], ["custom", "Write my own"]] as const).map(([k, l]) => (
+          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)}
+            className={cn("h-9 rounded-full text-[13px] font-semibold transition-colors", mode === k ? "bg-[#16141D] text-white" : "text-[#4A4658]")}>{l}</button>
+        ))}
       </div>
-    </>
+
+      {mode === "template" ? (
+        <>
+          {loadingTpl ? (
+            <div className="space-y-2">{[0, 1, 2].map(i => <div key={i} className="sp-skel h-[60px] rounded-[16px]" />)}</div>
+          ) : templates.length === 0 ? (
+            <div className="bg-white rounded-[20px] p-5 text-center shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+              <p className="text-[14px] font-semibold text-[#17151F]">No templates yet</p>
+              <a href="/settings?pane=whatsapp" target="_blank" className="text-[13px] font-semibold text-[#5B3FD0] hover:underline mt-1 inline-block">Make templates in Settings</a>
+            </div>
+          ) : (
+            <div className="space-y-2 mb-4" role="radiogroup" aria-label="Template">
+              {templates.map(t => {
+                const on = selectedId === t.id;
+                return (
+                  <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => fillTemplate(t.id)}
+                    className={cn("w-full text-left px-4 py-3 rounded-[16px] bg-white transition-shadow flex items-center gap-3",
+                      on ? "ring-2 ring-[#1F8A5B]" : "shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:shadow-[0_4px_14px_rgba(22,18,40,.08)]")}>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[14px] font-semibold text-[#17151F]">{t.name}</span>
+                      <span className="block text-[12.5px] text-[#6B6680] truncate mt-0.5">{t.body.replace(/\s+/g, " ").slice(0, 90)}</span>
+                    </span>
+                    {on && <span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center flex-shrink-0">{filling ? <Loader2 className="w-3 h-3 text-white animate-spin" /> : <Check className="w-3 h-3 text-white" strokeWidth={3} />}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {preview && (
+            <div>
+              <p className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">Message <span className="font-normal text-[#6B6680]">— you can change it before sending</span></p>
+              <textarea value={preview} onChange={e => setPreview(e.target.value)} rows={8} aria-label="Message"
+                className="w-full rounded-[18px] rounded-tl-[6px] bg-[#F0FAF4] px-4 py-3 text-[14px] text-[#17151F] leading-relaxed border border-transparent outline-none focus:border-[#1F8A5B] resize-y" />
+            </div>
+          )}
+        </>
+      ) : (
+        <textarea value={customMsg} onChange={e => setCustomMsg(e.target.value)} rows={9} aria-label="Your message" placeholder="Type your message"
+          className="w-full rounded-[18px] rounded-tl-[6px] bg-white px-4 py-3 text-[14px] text-[#17151F] leading-relaxed border border-transparent outline-none focus:border-[#1F8A5B] resize-y shadow-[0_1px_2px_rgba(22,18,40,.06)]" />
+      )}
+    </FormDrawer>
   );
 }

@@ -5,12 +5,12 @@ import {
   X, Loader2, Link2, Check, ExternalLink, Copy,
   CheckCircle2, UploadCloud, Trash2, Download, FileArchive,
   Plus, HardDrive, Globe, FolderOpen,
-  ChevronDown, ChevronUp, AlertTriangle,
+  ChevronDown, ChevronUp, AlertTriangle, PackageCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tile } from "@/components/ui/apple";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
@@ -465,35 +465,30 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 pointer-events-none">
-        <div className="sp-drawer pointer-events-auto sm:max-w-lg flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-            <div>
-              <h3 className="font-bold text-slate-900">Delivery Details</h3>
-              <p className="text-xs text-slate-400 mt-0.5">{booking.eventName ?? booking.bookingNumber} · {booking.client.firstName} {booking.client.lastName ?? ""}</p>
+        <div className="sp-drawer pointer-events-auto sm:max-w-[560px] flex flex-col bg-[#F5F3FA]">
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3 flex-shrink-0">
+            <Tile icon={PackageCheck} color="teal" size={40} />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Delivery</h2>
+              <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{booking.eventName ?? booking.bookingNumber} · {booking.client.firstName} {booking.client.lastName ?? ""}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
+            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex border-b border-slate-200 flex-shrink-0">
+          <div role="tablist" aria-label="How to deliver" className="mx-5 mb-2 grid grid-cols-3 p-1 rounded-full bg-white shadow-[0_1px_2px_rgba(22,18,40,.06)] flex-shrink-0">
             {([
-              ["drive", "Drive Auto"],
-              ["link", "Manual Links"],
-              ["files", "Upload Files"],
+              ["drive", "Google Drive"],
+              ["link", "Links"],
+              ["files", "Upload"],
             ] as const).map(([key, label]) => (
-              <button key={key} onClick={() => setTab(key)}
-                className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",
-                  tab === key ? "border-b-2 border-indigo-600 text-indigo-600" : "text-slate-400 hover:text-slate-600")}>
+              <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+                className={cn("h-9 rounded-full text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-1.5",
+                  tab === key ? "bg-[#16141D] text-white" : "text-[#4A4658] hover:text-[#17151F]")}>
                 {label}
-                {key === "link" && links.filter(l => l.url).length > 0 && (
-                  <span className="ml-1 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
-                    {links.filter(l => l.url).length}
-                  </span>
-                )}
-                {key === "drive" && driveFolderUrl && (
-                  <span className="ml-1 text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">✓</span>
-                )}
+                {key === "link" && links.filter(l => l.url).length > 0 && <span className={cn("text-[11.5px] tabular-nums", tab === key ? "text-white/70" : "text-[#6B6680]")}>{links.filter(l => l.url).length}</span>}
+                {key === "drive" && driveFolderUrl && <Check className={cn("w-3.5 h-3.5", tab === key ? "text-white/80" : "text-[#1F8A5B]")} strokeWidth={3} />}
               </button>
             ))}
           </div>
@@ -503,11 +498,11 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
             {/* ── FILES TAB ── */}
             {tab === "files" && (
               <div className="p-5 space-y-4">
-                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-                  <HardDrive className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F2F7FC] border border-[#E8F0FA] rounded-xl">
+                  <HardDrive className="w-3.5 h-3.5 text-[#2F6FB3] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-blue-700">StuPanel Cloud Storage</p>
-                    <p className="text-xs text-blue-500 mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
+                    <p className="text-xs font-semibold text-[#1F5C99]">StuPanel Cloud Storage</p>
+                    <p className="text-xs text-[#2F6FB3] mt-0.5">Files are stored securely. Client can download after full payment is made.</p>
                   </div>
                 </div>
 
@@ -515,14 +510,14 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   const existingFolders = [...new Set(r2Files.map(f => f.folderName).filter(Boolean))] as string[];
                   return (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Upload to folder</p>
+                      <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wide">Upload to folder</p>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => { setTargetFolder(""); setShowNewFolder(false); }}
                           className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
                             targetFolder === "" && !showNewFolder
-                              ? "bg-indigo-600 border-indigo-500 text-white"
-                              : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600")}>
+                              ? "bg-[#7D5CEF] border-[#7D5CEF] text-white"
+                              : "border-[#E4E0EC] text-[#6B6680] hover:border-indigo-300 hover:text-[#7D5CEF]")}>
                           <FolderOpen className="w-3 h-3" />Other Files
                         </button>
                         {existingFolders.map(f => (
@@ -530,8 +525,8 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             onClick={() => { setTargetFolder(f); setShowNewFolder(false); }}
                             className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
                               targetFolder === f && !showNewFolder
-                                ? "bg-amber-500 border-amber-400 text-white"
-                                : "border-amber-200 text-amber-700 bg-amber-50 hover:border-amber-400")}>
+                                ? "bg-[#D88A12] border-[#E9A63A] text-white"
+                                : "border-[#F6E3B8] text-[#9A5B00] bg-[#FFF9EF] hover:border-[#E9A63A]")}>
                             <FolderOpen className="w-3 h-3" />{f}
                           </button>
                         ))}
@@ -539,8 +534,8 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                           onClick={() => { setShowNewFolder(true); setTargetFolder(""); }}
                           className={cn("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
                             showNewFolder
-                              ? "bg-indigo-600 border-indigo-500 text-white"
-                              : "border-dashed border-slate-300 text-slate-400 hover:border-indigo-300 hover:text-indigo-500")}>
+                              ? "bg-[#7D5CEF] border-[#7D5CEF] text-white"
+                              : "border-dashed border-[#B5B0C4] text-[#8A8599] hover:border-indigo-300 hover:text-[#7D5CEF]")}>
                           + New Folder
                         </button>
                       </div>
@@ -557,21 +552,21 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             }}
                             placeholder="Folder name (e.g. Ceremony Photos)"
                             autoFocus
-                            className="flex-1 h-8 text-xs px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-slate-700 outline-none focus:border-indigo-500" />
+                            className="flex-1 h-8 text-xs px-3 rounded-lg border border-indigo-300 bg-[#F7F4FE] text-[#33303F] outline-none focus:border-[#7D5CEF]" />
                           <button
                             onClick={() => {
                               if (newFolderInput.trim()) {
                                 setTargetFolder(newFolderInput.trim()); setShowNewFolder(false); setNewFolderInput("");
                               }
                             }}
-                            className="h-8 px-3 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">
+                            className="h-8 px-3 rounded-lg bg-[#7D5CEF] text-white text-xs font-medium hover:bg-[#5B3FD0]">
                             Create
                           </button>
                         </div>
                       )}
                       {(targetFolder || !showNewFolder) && (
-                        <p className="text-xs text-slate-400">
-                          Files will upload to: <span className="font-semibold text-indigo-600">{targetFolder || "Other Files"}</span>
+                        <p className="text-xs text-[#8A8599]">
+                          Files will upload to: <span className="font-semibold text-[#7D5CEF]">{targetFolder || "Other Files"}</span>
                         </p>
                       )}
                     </div>
@@ -586,13 +581,13 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
                     "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-colors",
-                    dragOver ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                    dragOver ? "border-indigo-400 bg-[#F7F4FE]" : "border-[#E4E0EC] hover:border-indigo-300 hover:bg-[#F7F5FB]"
                   )}>
-                  <UploadCloud className={cn("w-8 h-8", dragOver ? "text-indigo-500" : "text-slate-300")} />
+                  <UploadCloud className={cn("w-8 h-8", dragOver ? "text-[#7D5CEF]" : "text-[#B5B0C4]")} />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-slate-600">Drop files or click to select</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Upload to: <span className="font-semibold text-indigo-500">{targetFolder || "Other Files"}</span>
+                    <p className="text-sm font-medium text-[#4A4658]">Drop files or click to select</p>
+                    <p className="text-xs text-[#8A8599] mt-0.5">
+                      Upload to: <span className="font-semibold text-[#7D5CEF]">{targetFolder || "Other Files"}</span>
                     </p>
                   </div>
                   <input
@@ -604,7 +599,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
                 <button
                   onClick={() => folderInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-full bg-white text-[13px] font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] hover:bg-[#F7F4FE] transition-colors">
                   <FolderOpen className="w-4 h-4" />
                   Upload Entire Folder (auto-detect folder name)
                 </button>
@@ -618,17 +613,17 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                 {uploads.filter(u => !u.done).length > 0 && (
                   <div className="space-y-2">
                     {uploads.filter(u => !u.done).map((u, i) => (
-                      <div key={i} className="bg-slate-50 rounded-xl px-3 py-2.5">
+                      <div key={i} className="bg-[#F7F5FB] rounded-xl px-3 py-2.5">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-xs font-medium text-slate-700 truncate flex-1">{u.file.name}</span>
+                          <span className="text-xs font-medium text-[#33303F] truncate flex-1">{u.file.name}</span>
                           {u.error
-                            ? <span className="text-xs text-red-500 flex-shrink-0">{u.error}</span>
-                            : <span className="text-xs text-slate-400 flex-shrink-0">{u.progress}%</span>
+                            ? <span className="text-xs text-[#C2304F] flex-shrink-0">{u.error}</span>
+                            : <span className="text-xs text-[#8A8599] flex-shrink-0">{u.progress}%</span>
                           }
                         </div>
                         {!u.error && (
-                          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${u.progress}%` }} />
+                          <div className="h-1 bg-[#E4E0EC] rounded-full overflow-hidden">
+                            <div className="h-full bg-[#7D5CEF] rounded-full transition-all" style={{ width: `${u.progress}%` }} />
                           </div>
                         )}
                       </div>
@@ -637,15 +632,15 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                 )}
 
                 {deletingFolder && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                  <div className="bg-[#FEF5F7] border border-[#F6CFD8] rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                      <p className="text-sm font-semibold text-red-700">Delete folder "{deletingFolder}"?</p>
+                      <AlertTriangle className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
+                      <p className="text-sm font-semibold text-[#C2304F]">Delete folder "{deletingFolder}"?</p>
                     </div>
-                    <p className="text-xs text-red-600">All files in this folder will be permanently deleted. This cannot be undone.</p>
+                    <p className="text-xs text-[#C2304F]">All files in this folder will be permanently deleted. This cannot be undone.</p>
                     <div className="flex gap-2">
-                      <button onClick={() => setDeletingFolder(null)} className="flex-1 h-8 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
-                      <button onClick={() => confirmDeleteFolder(deletingFolder)} className="flex-1 h-8 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700">Delete All Files</button>
+                      <button onClick={() => setDeletingFolder(null)} className="flex-1 h-8 rounded-lg border border-[#E4E0EC] text-xs font-medium text-[#4A4658] bg-white hover:bg-[#F7F5FB]">Cancel</button>
+                      <button onClick={() => confirmDeleteFolder(deletingFolder)} className="flex-1 h-8 rounded-lg bg-[#C2304F] text-xs font-semibold text-white hover:bg-[#C2304F]">Delete All Files</button>
                     </div>
                   </div>
                 )}
@@ -663,13 +658,13 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   return (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wide">
                           Files ({r2Files.length}) · {groupEntries.length} folder{groupEntries.length > 1 ? "s" : ""}
                         </p>
                         <button
                           onClick={() => downloadZip()}
                           disabled={zipDownloading === "all"}
-                          className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors">
+                          className="flex items-center gap-1 text-xs font-semibold text-[#7D5CEF] hover:text-[#5B3FD0] disabled:opacity-50 bg-[#F7F4FE] hover:bg-[#EEE8FD] px-2 py-1 rounded-lg transition-colors">
                           {zipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                           Download All
                         </button>
@@ -677,22 +672,22 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       {groupEntries.map(([folderKey, files]) => {
                         const expanded = isFolderExpanded(folderKey);
                         return (
-                          <div key={folderKey} className="bg-amber-50/50 border border-amber-100 rounded-xl overflow-hidden">
+                          <div key={folderKey} className="bg-[#FFF9EF]/50 border border-[#FFF3E0] rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-3 py-2">
                               <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                                <FolderOpen className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                                <span className="text-xs font-semibold text-slate-700 truncate">{folderKey}</span>
-                                <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
+                                <FolderOpen className="w-3.5 h-3.5 text-[#D88A12] flex-shrink-0" />
+                                <span className="text-xs font-semibold text-[#33303F] truncate">{folderKey}</span>
+                                <span className="text-xs text-[#8A8599] flex-shrink-0">({files.length})</span>
                               </button>
                               <button onClick={() => downloadZip(folderKey)} disabled={zipDownloading === folderKey} title="Download folder as ZIP"
-                                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-600 disabled:opacity-50 transition-colors flex-shrink-0">
+                                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[#F6E3B8] text-[#B36B00] disabled:opacity-50 transition-colors flex-shrink-0">
                                 {zipDownloading === folderKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                               </button>
                               <button onClick={() => setDeletingFolder(folderKey)} title="Delete entire folder"
-                                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0">
+                                className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[#FDECEF] text-[#8A8599] hover:text-[#C2304F] transition-colors flex-shrink-0">
                                 <Trash2 className="w-3 h-3" />
                               </button>
-                              <button onClick={() => toggleFolder(folderKey)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-500 flex-shrink-0">
+                              <button onClick={() => toggleFolder(folderKey)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[#F6E3B8] text-[#D88A12] flex-shrink-0">
                                 {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                               </button>
                             </div>
@@ -703,21 +698,21 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                                 {files.map(f => {
                                   const Icon = fileIcon(f.mimeType);
                                   return (
-                                    <div key={f.id} className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-slate-100">
+                                    <div key={f.id} className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-[#F1EFF6]">
                                       <a href={f.viewUrl || f.downloadUrl} target="_blank" rel="noopener noreferrer"
-                                        className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 hover:border-indigo-300 transition-colors" title="View">
-                                        <Icon className="w-4 h-4 text-slate-400" />
+                                        className="w-8 h-8 rounded-lg bg-[#F7F5FB] border border-[#E4E0EC] flex items-center justify-center flex-shrink-0 hover:border-indigo-300 transition-colors" title="View">
+                                        <Icon className="w-4 h-4 text-[#8A8599]" />
                                       </a>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                        <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
+                                        <p className="text-xs font-medium text-[#17151F] truncate">{f.fileName}</p>
+                                        <p className="text-xs text-[#8A8599]">{fmtBytes(f.fileSize)} · {fmtDate(f.uploadedAt)}</p>
                                       </div>
                                       <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
-                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 transition-colors flex-shrink-0" title="Download">
+                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F7F4FE] text-[#8A8599] hover:text-[#7D5CEF] transition-colors flex-shrink-0" title="Download">
                                         <Download className="w-3.5 h-3.5" />
                                       </a>
                                       <button onClick={() => deleteFile(f.id)}
-                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0" title="Delete">
+                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#FEF5F7] text-[#8A8599] hover:text-[#C2304F] transition-colors flex-shrink-0" title="Delete">
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
@@ -731,7 +726,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                     </div>
                   );
                 })() : (
-                  <p className="text-center text-xs text-slate-400 py-4">No files uploaded yet</p>
+                  <p className="text-center text-xs text-[#8A8599] py-4">No files uploaded yet</p>
                 )}
               </div>
             )}
@@ -739,43 +734,43 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
             {/* ── DRIVE AUTO TAB ── */}
             {tab === "drive" && (
               <div className="p-5 space-y-4">
-                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-green-50 border border-green-100 rounded-xl">
-                  <HardDrive className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] rounded-[16px]">
+                  <HardDrive className="w-3.5 h-3.5 text-[#1F8A5B] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-green-700">Google Drive Auto-Upload</p>
-                    <p className="text-xs text-green-600 mt-0.5">Upload files directly to Google Drive. Client can access after full payment.</p>
+                    <p className="text-xs font-semibold text-[#1F8A5B]">Google Drive Auto-Upload</p>
+                    <p className="text-xs text-[#1F8A5B] mt-0.5">Upload files directly to Google Drive. Client can access after full payment.</p>
                   </div>
                 </div>
 
-                {driveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">{driveError}</p>}
+                {driveError && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg border border-[#FDECEF]">{driveError}</p>}
 
                 {!driveFolderUrl ? (
                   <button
                     onClick={createDriveFolder}
                     disabled={driveLoading}
-                    className="w-full flex flex-col items-center gap-3 py-8 rounded-2xl border-2 border-dashed border-slate-200 hover:border-green-300 hover:bg-green-50 transition-all">
-                    {driveLoading ? <Loader2 className="w-8 h-8 animate-spin text-green-500" /> : <HardDrive className="w-8 h-8 text-slate-300" />}
+                    className="w-full flex flex-col items-center gap-3 py-8 rounded-2xl border-2 border-dashed border-[#E4E0EC] hover:border-green-300 hover:bg-[#F0FAF4] transition-all">
+                    {driveLoading ? <Loader2 className="w-8 h-8 animate-spin text-[#1F8A5B]" /> : <HardDrive className="w-8 h-8 text-[#B5B0C4]" />}
                     <div className="text-center">
-                      <p className="text-sm font-semibold text-slate-600">{driveLoading ? "Creating folder…" : "Create Drive Folder"}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Creates a shared folder in your Google Drive for this booking</p>
+                      <p className="text-sm font-semibold text-[#4A4658]">{driveLoading ? "Creating folder…" : "Create Drive Folder"}</p>
+                      <p className="text-xs text-[#8A8599] mt-0.5">Creates a shared folder in your Google Drive for this booking</p>
                     </div>
                   </button>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                    <div className="flex items-center justify-between bg-[#F0FAF4] rounded-[14px] px-3 py-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#1F8A5B] flex-shrink-0" />
                         <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-xs font-semibold text-emerald-700 hover:underline truncate">Drive Folder Active</a>
+                          className="text-xs font-semibold text-[#1F8A5B] hover:underline truncate">Drive Folder Active</a>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium">
+                          className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:underline font-medium">
                           <ExternalLink className="w-3 h-3" />Open
                         </a>
-                        <span className="text-slate-300">·</span>
+                        <span className="text-[#B5B0C4]">·</span>
                         <button onClick={createDriveFolder} disabled={driveLoading}
-                          className="text-xs text-slate-400 hover:text-indigo-600 font-medium disabled:opacity-50">
+                          className="text-xs text-[#8A8599] hover:text-[#7D5CEF] font-medium disabled:opacity-50">
                           {driveLoading ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "New"}
                         </button>
                       </div>
@@ -842,13 +837,13 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       onClick={() => driveFileInputRef.current?.click()}
                       className={cn(
                         "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-colors",
-                        driveDragOver ? "border-green-400 bg-green-50" : "border-slate-200 hover:border-green-300 hover:bg-slate-50"
+                        driveDragOver ? "border-green-400 bg-[#F0FAF4]" : "border-[#E4E0EC] hover:border-green-300 hover:bg-[#F7F5FB]"
                       )}>
-                      <UploadCloud className={cn("w-8 h-8", driveDragOver ? "text-green-500" : "text-slate-300")} />
+                      <UploadCloud className={cn("w-8 h-8", driveDragOver ? "text-[#1F8A5B]" : "text-[#B5B0C4]")} />
                       <div className="text-center">
-                        <p className="text-sm font-medium text-slate-600">{driveChecking ? "Checking the folder…" : "Drop files or click to select"}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Upload to: <span className="font-semibold text-green-500">{driveTargetFolder ? driveTargetFolder.split("/").join(" › ") : "Main folder"}</span>
+                        <p className="text-sm font-medium text-[#4A4658]">{driveChecking ? "Checking the folder…" : "Drop files or click to select"}</p>
+                        <p className="text-xs text-[#8A8599] mt-0.5">
+                          Upload to: <span className="font-semibold text-[#1F8A5B]">{driveTargetFolder ? driveTargetFolder.split("/").join(" › ") : "Main folder"}</span>
                         </p>
                       </div>
                       <input
@@ -860,7 +855,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
                     <button
                       onClick={() => driveFolderInputRef.current?.click()}
-                      className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-green-300 hover:text-green-600 hover:bg-green-50 transition-colors">
+                      className="w-full flex items-center justify-center gap-2 h-10 rounded-full bg-white text-[13px] font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] hover:bg-[#F0FAF4] transition-colors">
                       <FolderOpen className="w-4 h-4" />
                       Upload Entire Folder (auto-detect folder name)
                     </button>
@@ -883,7 +878,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Files on Drive</p>
+                            <p className="text-xs font-semibold text-[#6B6680] uppercase tracking-wide">Files on Drive</p>
                             <div className="flex items-center gap-1.5">
                             {driveDuplicateCount > 0 && (
                               <button onClick={removeDriveDuplicates} disabled={driveDeduping}
@@ -902,7 +897,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                             <button
                               onClick={() => downloadDriveZip()}
                               disabled={driveZipDownloading === "all"}
-                              className="flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 disabled:opacity-50 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors">
+                              className="flex items-center gap-1 text-xs font-semibold text-[#1F8A5B] hover:text-[#1F8A5B] disabled:opacity-50 bg-[#F0FAF4] hover:bg-[#E7F5EE] px-2 py-1 rounded-lg transition-colors">
                               {driveZipDownloading === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                               Download All
                             </button>
@@ -924,7 +919,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                         </div>
                       );
                     })() : (
-                      <p className="text-center text-xs text-slate-400 py-4">No files uploaded yet</p>
+                      <p className="text-center text-xs text-[#8A8599] py-4">No files uploaded yet</p>
                     )}
                   </>
                 )}
@@ -934,70 +929,70 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
             {/* ── MANUAL LINKS TAB ── */}
             {tab === "link" && (
               <div className="p-5 space-y-4">
-                {linkError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">{linkError}</p>}
+                {linkError && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg border border-[#FDECEF]">{linkError}</p>}
 
-                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-                  <Globe className="w-3.5 h-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] rounded-[16px]">
+                  <Globe className="w-3.5 h-3.5 text-[#1F8A5B] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-emerald-700">External Link Delivery</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">Add Google Drive, Dropbox, WeTransfer or any URL. Client can access these from their portal after full payment.</p>
+                    <p className="text-xs font-semibold text-[#1F8A5B]">External Link Delivery</p>
+                    <p className="text-xs text-[#1F8A5B] mt-0.5">Add Google Drive, Dropbox, WeTransfer or any URL. Client can access these from their portal after full payment.</p>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Delivery Status</Label>
+                  <Label className="text-xs font-medium text-[#4A4658]">Delivery Status</Label>
                   <select value={status} onChange={e => setStatus(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400 text-slate-700">
+                    className="w-full h-10 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400 text-[#33303F]">
                     {DELIVERY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-slate-600">Delivery Links</Label>
+                    <Label className="text-xs font-medium text-[#4A4658]">Delivery Links</Label>
                     <button onClick={addLink}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold">
+                      className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-semibold">
                       <Plus className="w-3.5 h-3.5" />Add Link
                     </button>
                   </div>
 
                   {links.length === 0 ? (
                     <button onClick={addLink}
-                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
+                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-[#E4E0EC] text-xs text-[#8A8599] hover:border-indigo-300 hover:text-[#7D5CEF] transition-colors">
                       <Plus className="w-4 h-4" />Add your first link
                     </button>
                   ) : (
                     <div className="space-y-3">
                       {links.map((l) => (
-                        <div key={l.id} className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
+                        <div key={l.id} className="bg-[#F7F5FB] rounded-xl p-3 space-y-2 border border-[#F1EFF6]">
                           <div className="flex items-center gap-2">
                             <input
                               value={l.title}
                               onChange={e => updateLink(l.id, "title", e.target.value)}
                               placeholder="Title (e.g. Wedding Photos, Highlight Video)"
-                              className="flex-1 h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400"
+                              className="flex-1 h-8 px-2.5 rounded-lg border border-[#E4E0EC] bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-[#8A8599]"
                             />
                             <button onClick={() => removeLink(l.id)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#FEF5F7] text-[#B5B0C4] hover:text-[#C2304F] transition-colors flex-shrink-0">
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                           <div className="relative">
-                            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8A8599]" />
                             <input
                               value={l.url}
                               onChange={e => updateLink(l.id, "url", e.target.value)}
                               placeholder="https://drive.google.com/..."
-                              className="w-full h-9 pl-8 pr-16 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-slate-400"
+                              className="w-full h-9 pl-8 pr-16 rounded-lg border border-[#E4E0EC] bg-white text-xs focus:outline-none focus:border-indigo-400 placeholder:text-[#8A8599]"
                             />
                             {l.url && (
                               <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-0.5">
                                 <button onClick={() => { navigator.clipboard.writeText(l.url); }}
-                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-400">
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[#E4E0EC] text-[#8A8599]">
                                   <Copy className="w-3 h-3" />
                                 </button>
                                 <a href={l.url} target="_blank" rel="noopener noreferrer"
-                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-400">
+                                  className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[#E4E0EC] text-[#8A8599]">
                                   <ExternalLink className="w-3 h-3" />
                                 </a>
                               </div>
@@ -1010,31 +1005,31 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Delivered On</Label>
-                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-slate-200 text-sm" />
+                  <Label className="text-xs font-medium text-[#4A4658]">Delivered On</Label>
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">Note for Client</Label>
+                  <Label className="text-xs font-medium text-[#4A4658]">Note for Client</Label>
                   <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                     placeholder="e.g. 500 photos + highlight video, password: abc123..."
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 resize-none" />
+                    className="w-full px-3 py-2.5 rounded-[12px] bg-white border border-transparent text-sm placeholder:text-[#A29DB3] outline-none focus:border-[#7D5CEF] shadow-[0_1px_2px_rgba(22,18,40,.05)] resize-none" />
                 </div>
 
                 <div className="flex gap-3 pt-1">
-                  <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-                  <Button onClick={saveLinks} disabled={linkSaving} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                  <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+                  <button type="button" onClick={saveLinks} disabled={linkSaving} className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
                     {linkSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Save Links
-                  </Button>
+                    Save links
+                  </button>
                 </div>
               </div>
             )}
           </div>
 
           {tab === "files" && (
-            <div className="px-5 pb-5 flex-shrink-0 border-t border-slate-100 pt-4">
-              <Button variant="outline" onClick={onClose} className="w-full h-10 border-slate-200">Close</Button>
+            <div className="px-5 pb-5 flex-shrink-0 border-t border-[#EEEBF4] pt-4 bg-white/70">
+              <button type="button" onClick={onClose} className="w-full h-11 rounded-full bg-white hover:bg-[#F7F5FB] text-sm font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]">Close</button>
             </div>
           )}
         </div>

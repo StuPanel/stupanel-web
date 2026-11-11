@@ -113,7 +113,7 @@ export function InvoiceCard({ bookingId, version }: { bookingId: string; version
             <span className="text-[#6B6680]">Pay by</span>
             {editDue ? (
               <>
-                <input type="date" value={due} onChange={e => setDue(e.target.value)} className="h-8 px-2 rounded-lg border border-slate-200 text-sm" />
+                <input type="date" value={due} onChange={e => setDue(e.target.value)} className="h-8 px-2 rounded-lg border border-[#E4E0EC] text-sm" />
                 <button type="button" disabled={!due || busy} onClick={() => saveDue(false)} className="text-[13px] font-semibold text-[#5B3FD0]">Save</button>
                 {inv.dueDateManual && <button type="button" disabled={busy} onClick={() => saveDue(true)} className="text-[13px] font-semibold text-[#6B6680]">Use automatic</button>}
                 <button type="button" onClick={() => setEditDue(false)} className="text-[13px] text-[#6B6680]">Cancel</button>

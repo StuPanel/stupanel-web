@@ -41,7 +41,7 @@ export function NotificationBell() {
         <Popover.Trigger asChild>
           <button aria-label={count ? `Notifications, ${count} unread` : "Notifications"}
             className={cn("relative w-10 h-10 rounded-xl bg-white border flex items-center justify-center transition-colors",
-              open ? "border-violet-300 text-violet-700" : "border-slate-200 text-slate-600 hover:text-violet-700 hover:border-violet-200")}>
+              open ? "border-[#CFC2F8] text-[#5B3FD0]" : "border-[#E4E0EC] text-[#4A4658] hover:text-[#5B3FD0] hover:border-[#E4DCFB]")}>
             <Bell className="w-[18px] h-[18px]" />
             {count > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#C2304F] text-white text-[10.5px] font-bold flex items-center justify-center ring-2 ring-white tabular-nums">

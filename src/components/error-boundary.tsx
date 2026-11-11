@@ -30,18 +30,18 @@ export class ErrorBoundary extends React.Component<
       if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-8 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
+          <div className="w-12 h-12 rounded-2xl bg-[#FDECEF] flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-[#C2304F]" />
           </div>
           <div>
-            <p className="font-semibold text-slate-900">Something went wrong</p>
-            <p className="text-sm text-slate-500 mt-1 max-w-sm">
+            <p className="font-semibold text-[#17151F]">Something went wrong</p>
+            <p className="text-sm text-[#6B6680] mt-1 max-w-sm">
               An unexpected error occurred. Please refresh the page.
             </p>
           </div>
           <button
             onClick={() => { this.setState({ hasError: false, message: "" }); window.location.reload(); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#7D5CEF] text-white text-sm font-medium hover:bg-[#5B3FD0] transition-colors"
           >
             <RefreshCw className="w-4 h-4" /> Refresh Page
           </button>

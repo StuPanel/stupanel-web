@@ -499,29 +499,29 @@ function ResetPassDialog({ member, onClose, onDone }: { member: Member | null; o
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="sp-modal w-full max-w-sm p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-              <KeyRound className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-full bg-[#FFF3E0] flex items-center justify-center">
+              <KeyRound className="w-5 h-5 text-[#B36B00]" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900">Reset Password</h3>
-              <p className="text-xs text-slate-400">{member.firstName} · @{member.username}</p>
+              <h3 className="font-bold text-[#17151F]">Reset Password</h3>
+              <p className="text-xs text-[#8A8599]">{member.firstName} · @{member.username}</p>
             </div>
           </div>
-          {error && <div className="mb-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="mb-3 text-sm text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg">{error}</div>}
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">New Password</Label>
+              <Label className="text-xs font-medium text-[#4A4658]">New Password</Label>
               <div className="relative">
                 <Input type={showPass ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)}
-                  placeholder="Min. 6 characters" className="pr-10 h-11 border-slate-200" autoFocus />
-                <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  placeholder="Min. 6 characters" className="pr-10 h-11 border-[#E4E0EC]" autoFocus />
+                <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599]">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" type="button" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-              <Button type="submit" disabled={loading} className="flex-1 h-11 bg-amber-500 hover:bg-amber-600 text-white gap-2">
+              <Button variant="outline" type="button" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
+              <Button type="submit" disabled={loading} className="flex-1 h-11 bg-[#D88A12] hover:bg-[#B36B00] text-white gap-2">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}Reset
               </Button>
             </div>
@@ -546,14 +546,14 @@ function DeleteDialog({ member, onClose, onDeleted }: { member: Member | null; o
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="sp-modal w-full max-w-sm p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-500" />
+          <div className="w-14 h-14 rounded-full bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
-          <h3 className="font-bold text-slate-900 text-lg">Remove Member?</h3>
-          <p className="text-slate-500 text-sm mt-2"><span className="font-semibold text-slate-700">{member.firstName}</span> (@{member.username}) will be removed.</p>
+          <h3 className="font-bold text-[#17151F] text-lg">Remove Member?</h3>
+          <p className="text-[#6B6680] text-sm mt-2"><span className="font-semibold text-[#33303F]">{member.firstName}</span> (@{member.username}) will be removed.</p>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-            <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
+            <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}Remove
             </Button>
           </div>
@@ -718,7 +718,7 @@ export default function TeamPage() {
 
   const allRoles = [
     ...DEFAULT_ROLES,
-    ...customRoles.map(cr => ({ id: cr, label: cr, icon: Tag, color: "bg-indigo-100 text-indigo-700" })),
+    ...customRoles.map(cr => ({ id: cr, label: cr, icon: Tag, color: "bg-[#EEE8FD] text-[#5B3FD0]" })),
   ];
   const roleStats = allRoles.map(r => ({
     ...r,

@@ -182,73 +182,73 @@ export default function EquipmentPage() {
       {modal && (
         <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="sp-drawer pointer-events-auto sm:max-w-lg flex flex-col overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="font-bold text-slate-900">{modal === "edit" ? "Edit Equipment" : "Add Equipment"}</h2>
-              <button onClick={() => setModal(null)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1EFF6]">
+              <h2 className="font-bold text-[#17151F]">{modal === "edit" ? "Edit Equipment" : "Add Equipment"}</h2>
+              <button onClick={() => setModal(null)} className="w-8 h-8 rounded-lg hover:bg-[#F1EFF6] flex items-center justify-center">
+                <X className="w-4 h-4 text-[#6B6680]" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Name *</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Name *</label>
                 <input value={form.name} onChange={set("name")} placeholder="e.g. Canon EOS R5"
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Category</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Category</label>
                   <EditableSelect value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))}
                     options={CATEGORIES.map(c => ({ value: c, label: c }))} className="rounded-xl capitalize" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Status</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Status</label>
                   <select value={form.status} onChange={set("status")}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                    className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                     {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Brand</label>
-                  <input value={form.brand} onChange={set("brand")} placeholder="Canon" className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Brand</label>
+                  <input value={form.brand} onChange={set("brand")} placeholder="Canon" className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Model</label>
-                  <input value={form.model} onChange={set("model")} placeholder="EOS R5" className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Model</label>
+                  <input value={form.model} onChange={set("model")} placeholder="EOS R5" className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Serial Number</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Serial Number</label>
                 <input value={form.serialNumber} onChange={set("serialNumber")} placeholder="SN-XXXXXXXXX"
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm font-mono focus:outline-none focus:border-indigo-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Purchase Price</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Purchase Price</label>
                   <input type="number" value={form.purchasePrice} onChange={set("purchasePrice")} placeholder="0"
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                    className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Current Value</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Current Value</label>
                   <input type="number" value={form.currentValue} onChange={set("currentValue")} placeholder="0"
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                    className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Purchase Date</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Purchase Date</label>
                 <input type="date" value={form.purchaseDate} onChange={set("purchaseDate")}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Notes</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Notes</label>
                 <textarea value={form.notes} onChange={set("notes")} rows={2} placeholder="Any notes…"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-indigo-400" />
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm resize-none focus:outline-none focus:border-indigo-400" />
               </div>
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => setModal(null)} className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={save} disabled={saving} className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => setModal(null)} className="flex-1 h-11 rounded-xl border border-[#E4E0EC] text-sm font-medium text-[#4A4658] hover:bg-[#F7F5FB] transition-colors">Cancel</button>
+              <button onClick={save} disabled={saving} className="flex-1 h-11 rounded-xl bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2">
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : modal === "edit" ? "Update" : "Add Equipment"}
               </button>
             </div>

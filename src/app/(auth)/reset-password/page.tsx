@@ -47,13 +47,13 @@ function ResetForm() {
   if (done) {
     return (
       <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-5">
-          <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+        <div className="w-16 h-16 rounded-full bg-[#E7F5EE] flex items-center justify-center mx-auto mb-5">
+          <CheckCircle2 className="w-8 h-8 text-[#1F8A5B]" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Password reset!</h2>
-        <p className="text-slate-500 mt-2 text-sm">Your password has been updated successfully.</p>
+        <h2 className="text-2xl font-bold text-[#17151F]">Password reset!</h2>
+        <p className="text-[#6B6680] mt-2 text-sm">Your password has been updated successfully.</p>
         <Link href="/login">
-          <Button className="mt-8 w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm">
+          <Button className="mt-8 w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm">
             Sign In Now
           </Button>
         </Link>
@@ -64,10 +64,10 @@ function ResetForm() {
   if (!token) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-900">Invalid link</h2>
-        <p className="text-slate-500 mt-2 text-sm">This reset link is invalid or has expired.</p>
+        <h2 className="text-2xl font-bold text-[#17151F]">Invalid link</h2>
+        <p className="text-[#6B6680] mt-2 text-sm">This reset link is invalid or has expired.</p>
         <Link href="/forgot-password"
-          className="mt-6 flex items-center justify-center gap-2 text-sm text-indigo-600 hover:text-indigo-700">
+          className="mt-6 flex items-center justify-center gap-2 text-sm text-[#7D5CEF] hover:text-[#5B3FD0]">
           Request a new link
         </Link>
       </div>
@@ -77,49 +77,49 @@ function ResetForm() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Set new password</h2>
-        <p className="text-slate-500 mt-1 text-sm">Choose a strong password for your account.</p>
+        <h2 className="text-2xl font-bold text-[#17151F]">Set new password</h2>
+        <p className="text-[#6B6680] mt-1 text-sm">Choose a strong password for your account.</p>
       </div>
 
       {error && (
-        <div className="mb-5 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+        <div className="mb-5 px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">{error}</div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="password" className="text-slate-700 text-sm font-medium">New Password</Label>
+          <Label htmlFor="password" className="text-[#33303F] text-sm font-medium">New Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input id="password" type={showPassword ? "text" : "password"}
               placeholder="Min. 8 characters"
               value={password} onChange={e => setPassword(e.target.value)}
-              className="pl-10 pr-10 h-11 bg-white border-slate-200 focus:border-indigo-400"
+              className="pl-10 pr-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400"
               minLength={8} required />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirm" className="text-slate-700 text-sm font-medium">Confirm Password</Label>
+          <Label htmlFor="confirm" className="text-[#33303F] text-sm font-medium">Confirm Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input id="confirm" type={showPassword ? "text" : "password"}
               placeholder="Repeat your password"
               value={confirm} onChange={e => setConfirm(e.target.value)}
-              className={cn("pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400",
-                confirm && password !== confirm && "border-red-300 focus:border-red-400"
+              className={cn("pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400",
+                confirm && password !== confirm && "border-[#EDA6B5] focus:border-[#DA6A82]"
               )} required />
           </div>
           {confirm && password !== confirm && (
-            <p className="text-xs text-red-500">Passwords do not match</p>
+            <p className="text-xs text-[#C2304F]">Passwords do not match</p>
           )}
         </div>
 
         <Button type="submit" disabled={loading || (!!confirm && password !== confirm)}
-          className={cn("w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm mt-2", loading && "opacity-80")}>
+          className={cn("w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm mt-2", loading && "opacity-80")}>
           {loading
             ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Updating...</span>
             : "Reset Password"
@@ -128,7 +128,7 @@ function ResetForm() {
       </form>
 
       <Link href="/login"
-        className="mt-6 flex items-center justify-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+        className="mt-6 flex items-center justify-center gap-2 text-sm text-[#6B6680] hover:text-[#33303F] transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to Sign In
       </Link>
     </div>

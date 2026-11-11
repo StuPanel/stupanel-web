@@ -72,9 +72,9 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <p className="text-xs font-medium text-slate-600 flex items-center gap-1"><Landmark className="w-3.5 h-3.5" />{label} *</p>
+      <p className="text-xs font-medium text-[#4A4658] flex items-center gap-1"><Landmark className="w-3.5 h-3.5" />{label} *</p>
       {list.length === 0 ? (
-        <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+        <div className="h-10 rounded-lg bg-[#F1EFF6] animate-pulse" />
       ) : (
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={label}>
           {list.map(a => {
@@ -84,11 +84,11 @@ export function AccountPicker({ value, onChange, method, label = "Money went int
               <button key={a.id} type="button" role="radio" aria-checked={on}
                 onClick={() => { touched.current = true; onChange(a.id); }}
                 className={cn("h-9 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 border transition-colors",
-                  on ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-slate-200 hover:border-slate-300")}>
+                  on ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E4E0EC] hover:border-[#B5B0C4]")}>
                 <Icon className="w-3.5 h-3.5" />{a.name}
-                {a.accountNumber && <span className={cn("font-normal", on ? "text-white/70" : "text-slate-400")}>··{a.accountNumber.slice(-4)}</span>}
+                {a.accountNumber && <span className={cn("font-normal", on ? "text-white/70" : "text-[#8A8599]")}>··{a.accountNumber.slice(-4)}</span>}
                 {balances && balances[a.id] !== undefined && (
-                  <span className={cn("font-semibold tabular-nums", balances[a.id] < 0 ? (on ? "text-rose-200" : "text-rose-600") : (on ? "text-white/75" : "text-slate-500"))}>
+                  <span className={cn("font-semibold tabular-nums", balances[a.id] < 0 ? (on ? "text-rose-200" : "text-[#C2304F]") : (on ? "text-white/75" : "text-[#6B6680]"))}>
                     {fmtMoney(balances[a.id])}
                   </span>
                 )}

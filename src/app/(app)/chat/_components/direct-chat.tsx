@@ -126,23 +126,23 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
     <div className="flex-1 flex min-h-0">
       {/* Left sidebar — contact list */}
       <div className={cn(
-        "w-full md:w-80 flex-shrink-0 border-r border-slate-100 flex flex-col",
+        "w-full md:w-80 flex-shrink-0 border-r border-[#F1EFF6] flex flex-col",
         mobileShowChat ? "hidden md:flex" : "flex"
       )}>
-        <div className="px-4 py-4 border-b border-slate-100">
+        <div className="px-4 py-4 border-b border-[#F1EFF6]">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="font-bold text-slate-900 capitalize">{kind}</h2>
+            <h2 className="font-bold text-[#17151F] capitalize">{kind}</h2>
             {totalUnread > 0 && (
-              <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+              <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#C2304F] text-white text-xs font-bold flex items-center justify-center">
                 {totalUnread}
               </span>
             )}
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder={kind === "team" ? "Search team member…" : "Search any client to message…"}
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-slate-50" />
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-[#F7F5FB]" />
           </div>
         </div>
 
@@ -151,8 +151,8 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
             <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
           ) : contacts.filter(c => kind === "team" ? c.name.toLowerCase().includes(search.toLowerCase()) : true).length === 0 ? (
             <div className="text-center py-10 px-4">
-              <MessageCircle className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-sm text-slate-400">
+              <MessageCircle className="w-8 h-8 text-[#E4E0EC] mx-auto mb-2" />
+              <p className="text-sm text-[#8A8599]">
                 {kind === "clients" && search.trim() ? "No matching client" : `No ${emptyLabel}s yet`}
               </p>
             </div>
@@ -162,28 +162,28 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
               const isActive = selected?.key === c.key;
               return (
                 <button key={c.key} onClick={() => selectContact(c)}
-                  className={cn("w-full flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors text-left",
-                    isActive && "bg-indigo-50 border-indigo-100")}>
+                  className={cn("w-full flex items-start gap-3 px-4 py-3 border-b border-[#F7F5FB] hover:bg-[#F7F5FB] transition-colors text-left",
+                    isActive && "bg-[#F7F4FE] border-[#EEE8FD]")}>
                   <div className="relative flex-shrink-0 mt-0.5">
                     <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold",
-                      kind === "team" ? "bg-violet-500" : "bg-emerald-500")}>
+                      kind === "team" ? "bg-[#7D5CEF]" : "bg-[#1F8A5B]")}>
                       {c.avatarUrl ? <img src={c.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" /> : (c.name[0]?.toUpperCase() ?? "?")}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className={cn("text-sm font-semibold truncate", isActive ? "text-indigo-700" : "text-slate-900")}>{c.name || "Unnamed"}</p>
-                      {c.lastMessageAt && <span className="text-xs text-slate-400 flex-shrink-0">{fmtTime(c.lastMessageAt)}</span>}
+                      <p className={cn("text-sm font-semibold truncate", isActive ? "text-[#5B3FD0]" : "text-[#17151F]")}>{c.name || "Unnamed"}</p>
+                      {c.lastMessageAt && <span className="text-xs text-[#8A8599] flex-shrink-0">{fmtTime(c.lastMessageAt)}</span>}
                     </div>
-                    {c.sub && <p className="text-xs text-slate-400 truncate mt-0.5 capitalize">{c.sub}</p>}
+                    {c.sub && <p className="text-xs text-[#8A8599] truncate mt-0.5 capitalize">{c.sub}</p>}
                     {c.lastMessage ? (
-                      <p className="text-xs text-slate-400 truncate mt-0.5">{c.lastMessage}</p>
+                      <p className="text-xs text-[#8A8599] truncate mt-0.5">{c.lastMessage}</p>
                     ) : (
-                      <p className="text-xs text-slate-300 mt-0.5 italic">No messages yet — say hi!</p>
+                      <p className="text-xs text-[#B5B0C4] mt-0.5 italic">No messages yet — say hi!</p>
                     )}
                   </div>
                   {c.unreadCount > 0 && (
-                    <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center mt-1">
+                    <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-[#C2304F] text-white text-xs font-bold flex items-center justify-center mt-1">
                       {c.unreadCount}
                     </span>
                   )}
@@ -198,45 +198,45 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
         {!selected ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center px-4">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#F7F4FE] flex items-center justify-center mx-auto mb-4">
                 <UserCircle2 className="w-8 h-8 text-indigo-400" />
               </div>
-              <p className="font-semibold text-slate-700">Select a {emptyLabel}</p>
-              <p className="text-sm text-slate-400 mt-1">to start a direct conversation</p>
+              <p className="font-semibold text-[#33303F]">Select a {emptyLabel}</p>
+              <p className="text-sm text-[#8A8599] mt-1">to start a direct conversation</p>
             </div>
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 bg-white flex-shrink-0">
-              <button onClick={() => setMobileShowChat(false)} className="md:hidden w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
-                <ChevronLeft className="w-4 h-4 text-slate-500" />
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#F1EFF6] bg-white flex-shrink-0">
+              <button onClick={() => setMobileShowChat(false)} className="md:hidden w-8 h-8 rounded-lg hover:bg-[#F1EFF6] flex items-center justify-center">
+                <ChevronLeft className="w-4 h-4 text-[#6B6680]" />
               </button>
               <div className={cn("w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold",
-                kind === "team" ? "bg-violet-500" : "bg-emerald-500")}>
+                kind === "team" ? "bg-[#7D5CEF]" : "bg-[#1F8A5B]")}>
                 {selected.avatarUrl ? <img src={selected.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" /> : (selected.name[0]?.toUpperCase() ?? "?")}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm truncate">{selected.name || "Unnamed"}</p>
-                {selected.sub && <p className="text-xs text-slate-400 capitalize">{selected.sub}</p>}
+                <p className="font-semibold text-[#17151F] text-sm truncate">{selected.name || "Unnamed"}</p>
+                {selected.sub && <p className="text-xs text-[#8A8599] capitalize">{selected.sub}</p>}
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 bg-[#F7F5FB]/50">
               {msgLoading ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
               ) : messages.length === 0 ? (
                 <div className="text-center py-16">
                   <MessageCircle className="sp-empty-icon" />
-                  <p className="text-sm text-slate-400">No messages yet</p>
-                  <p className="text-xs text-slate-300 mt-1">Send the first message to {selected.name}</p>
+                  <p className="text-sm text-[#8A8599]">No messages yet</p>
+                  <p className="text-xs text-[#B5B0C4] mt-1">Send the first message to {selected.name}</p>
                 </div>
               ) : (
                 groupedMessages.map(({ date, msgs }) => (
                   <div key={date} className="space-y-2">
                     <div className="flex items-center gap-3 my-2">
-                      <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-xs font-medium text-slate-400 px-2">{date}</span>
-                      <div className="flex-1 h-px bg-slate-200" />
+                      <div className="flex-1 h-px bg-[#E4E0EC]" />
+                      <span className="text-xs font-medium text-[#8A8599] px-2">{date}</span>
+                      <div className="flex-1 h-px bg-[#E4E0EC]" />
                     </div>
 
                     {msgs.map(msg => {
@@ -245,15 +245,15 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                         <div key={msg.id} className={cn("flex animate-in fade-in slide-in-from-bottom-1 duration-200", isMe ? "justify-end" : "justify-start")}>
                           <div className={cn("max-w-xs sm:max-w-sm lg:max-w-md flex flex-col", isMe ? "items-end" : "items-start")}>
                             <div className={cn("px-3 py-2 rounded-2xl text-sm leading-relaxed break-words",
-                              isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm shadow-sm")}>
+                              isMe ? "bg-[#7D5CEF] text-white rounded-br-sm" : "bg-white text-[#17151F] border border-[#E4E0EC] rounded-bl-sm shadow-sm")}>
                               {msg.content}
                             </div>
                             <div className={cn("flex items-center gap-1 mt-1 text-xs", isMe ? "flex-row-reverse" : "flex-row")}>
-                              <span className="text-slate-400">{fmtTime(msg.createdAt)}</span>
+                              <span className="text-[#8A8599]">{fmtTime(msg.createdAt)}</span>
                               {isMe && (
                                 msg.readAt
-                                  ? <CheckCheck className="w-3 h-3 text-indigo-500" />
-                                  : <Check className="w-3 h-3 text-slate-300" />
+                                  ? <CheckCheck className="w-3 h-3 text-[#7D5CEF]" />
+                                  : <Check className="w-3 h-3 text-[#B5B0C4]" />
                               )}
                             </div>
                           </div>
@@ -266,7 +266,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="px-4 py-3 border-t border-slate-100 bg-white flex-shrink-0">
+            <div className="px-4 py-3 border-t border-[#F1EFF6] bg-white flex-shrink-0">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
                   <textarea
@@ -276,18 +276,18 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
                     rows={1}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-indigo-400 max-h-28 overflow-y-auto leading-relaxed"
+                    className="w-full px-4 py-2.5 rounded-2xl border border-[#E4E0EC] text-sm resize-none focus:outline-none focus:border-indigo-400 max-h-28 overflow-y-auto leading-relaxed"
                     style={{ minHeight: "42px" }}
                   />
                 </div>
                 <button
                   onClick={sendMessage}
                   disabled={!text.trim() || sending}
-                  className="w-10 h-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 transition-all shadow-sm hover:shadow">
+                  className="w-10 h-10 rounded-2xl bg-[#7D5CEF] hover:bg-[#5B3FD0] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 transition-all shadow-sm hover:shadow">
                   {sending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </div>
-              <p className="text-xs text-slate-300 mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
+              <p className="text-xs text-[#B5B0C4] mt-1.5 ml-1">Enter to send · Shift+Enter for new line</p>
             </div>
           </>
         )}

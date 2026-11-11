@@ -12,6 +12,7 @@ import { BillingBanner } from "@/components/billing/billing-banner";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { StudioBackdrop } from "@/components/studio-backdrop";
 import { canOpen, homeFor } from "@/lib/access";
 
 // Mobile bottom tab bar — labels always visible; "More" opens the full menu.
@@ -143,6 +144,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full sp-shell">
       <div className="sp-scene" aria-hidden="true" />
+      <StudioBackdrop adopt={user?.role === "owner"} />
       {/* Desktop floating sidebar */}
       <div className={cn(
         "hidden lg:block fixed top-3 bottom-3 left-3 z-30 transition-[width] duration-300",

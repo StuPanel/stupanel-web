@@ -1,6 +1,8 @@
 /**
  * Backdrop = the scene behind the workspace (soft colour glow + frosted cards).
- * A per-person choice kept on this device. `plain` turns the glass off.
+ * One choice for the whole studio (studio settings → appearance.backdrop), so the team's panel
+ * looks like the studio app. It is also kept on the device so the first paint is already right.
+ * `plain` turns the glass off.
  */
 export type BackdropKey = "violet" | "golden" | "mehendi" | "lagoon" | "plain";
 
@@ -14,12 +16,30 @@ export const BACKDROPS: { key: BackdropKey; name: string; sub: string; base: str
 
 export const BACKDROP_KEY = "sp_backdrop";
 
-export function getBackdrop(): BackdropKey {
+const isKey = (v: unknown): v is BackdropKey => BACKDROPS.some(b => b.key === v);
+
+/** What is saved on this device, if anything. */
+export function getLocalBackdrop(): BackdropKey | null {
   try {
-    const v = localStorage.getItem(BACKDROP_KEY) as BackdropKey | null;
-    if (v && BACKDROPS.some(b => b.key === v)) return v;
+    const v = localStorage.getItem(BACKDROP_KEY);
+    if (isKey(v)) return v;
   } catch { /* storage blocked */ }
-  return "violet";
+  return null;
+}
+
+export function getBackdrop(): BackdropKey {
+  return getLocalBackdrop() ?? "violet";
+}
+
+/**
+ * Put this device on the studio's backdrop. Give it the studio settings (GET /companies/settings).
+ * Returns the studio's choice, or null when the studio has not chosen one.
+ */
+export function applyStudioBackdrop(settings: { appearance?: { backdrop?: unknown } } | null | undefined): BackdropKey | null {
+  const k = settings?.appearance?.backdrop;
+  if (!isKey(k)) return null;
+  if (getLocalBackdrop() !== k || document.documentElement.dataset.backdrop !== k) setBackdrop(k);
+  return k;
 }
 
 export function setBackdrop(key: BackdropKey) {

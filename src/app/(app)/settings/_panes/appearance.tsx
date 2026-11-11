@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BACKDROPS, getBackdrop, setBackdrop, type BackdropKey } from "@/lib/backdrop";
-import { Group } from "../_ui";
+import { useAuth } from "@/context/auth-context";
+import { Group, useSettings } from "../_ui";
 
 /** A tiny picture of the workspace in that backdrop: sidebar + two cards on the glow. */
 function Preview({ base, a, b, plain }: { base: string; a: string; b: string; plain: boolean }) {
@@ -21,22 +22,37 @@ function Preview({ base, a, b, plain }: { base: string; a: string; b: string; pl
 }
 
 export function AppearancePane() {
+  const { studio, patchStudio } = useSettings();
+  const { user } = useAuth();
+  const owner = user?.role === "owner";
   const [current, setCurrent] = useState<BackdropKey>("violet");
-  useEffect(() => { setCurrent(getBackdrop()); }, []);
+  const [saving, setSaving] = useState(false);
+  const saved = studio?.appearance?.backdrop ?? null;
+  // The studio's choice once it is known; until then what this device shows.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (!saving) setCurrent(saved ?? getBackdrop()); }, [saved, saving]);
 
-  function pick(k: BackdropKey) {
+  async function pick(k: BackdropKey) {
+    if (!owner || saving || (k === current && k === saved)) return; // same as the studio already has
+    const before = current;
     setCurrent(k);
-    setBackdrop(k);
+    setBackdrop(k); // show it at once
+    setSaving(true);
+    const ok = await patchStudio("appearance", { backdrop: k });
+    if (!ok) { setCurrent(before); setBackdrop(before); }
+    setSaving(false);
   }
 
   return (
-    <Group title="Backdrop" note="The scene behind your workspace. Saved on this device only — your team can pick their own.">
+    <Group title="Backdrop" note={owner
+      ? "The scene behind your workspace. Everyone in your studio sees the same one — in the studio app and in the team member panel."
+      : "The scene behind your workspace, the same for the whole studio. Only the studio owner can change it."}>
       <div className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Backdrop">
         {BACKDROPS.map(bd => {
           const on = bd.key === current;
           return (
-            <button key={bd.key} type="button" role="radio" aria-checked={on} onClick={() => pick(bd.key)}
-              className={cn("relative text-left rounded-[18px] p-2 bg-white transition-all",
+            <button key={bd.key} type="button" role="radio" aria-checked={on} disabled={!owner || saving} onClick={() => pick(bd.key)}
+              className={cn("relative text-left rounded-[18px] p-2 bg-white transition-all disabled:cursor-default", !owner && !on && "opacity-60",
                 on ? "ring-2 ring-[#7D5CEF] shadow-[0_8px_24px_-10px_rgba(125,92,239,.5)]" : "ring-1 ring-[#EEEBF4] hover:ring-[#D9D3EA]")}>
               <Preview base={bd.base} a={bd.a} b={bd.b} plain={bd.key === "plain"} />
               <p className="mt-2 px-1 text-[14px] font-bold text-[#17151F]">{bd.name}</p>

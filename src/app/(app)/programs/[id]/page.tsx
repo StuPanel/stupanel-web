@@ -16,6 +16,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatCurrency, fmtDate } from "@/lib/format";
 import { DateBox, Tile } from "@/components/ui/apple";
+import { ProgramTeamCosts } from "@/components/team-costs";
 import { Chip, Empty, List, MENU_CLS, MENU_ITEM, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
 import { askConfirm, notify } from "@/components/feedback";
 import { STATUS_CFG, STATUS_PIPELINE } from "../_components/constants";
@@ -390,6 +391,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   <MoneyLine l={net > 0 ? `Profit · ${Math.round((profit / net) * 100)}%` : "Profit"} v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
                 </div>
               </Section>
+              <ProgramTeamCosts bookingId={b.id} onChanged={load} />
             </>
           )}
 

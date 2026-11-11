@@ -25,6 +25,7 @@ import {
 } from "@/lib/contracts";
 import { SectionsEditor } from "./sections-editor";
 import { ShareDialog } from "./share-dialog";
+import { RemindBox } from "./remind-box";
 
 type ClientLite = { id: string; firstName: string; lastName: string | null; phone: string | null; email: string | null };
 type ProgramLite = { id: string; bookingNumber: string; eventName: string | null; eventDate: string | null; status?: string; client?: { firstName: string; lastName: string | null } | null };
@@ -32,10 +33,11 @@ type Activity = { at: string; type: string; note?: string };
 type Saved = {
   id: string; contractNumber: string; status: ContractStatus; publicToken: string; activity: Activity[]; viewCount: number;
   signedAt: string | null; signerName: string | null; signatureKind: "drawn" | "typed" | null; signatureData: string | null; signerDevice: string | null;
-  sentAt: string | null; createdAt: string; company?: ContractStudio;
+  sentAt: string | null; viewedAt?: string | null; createdAt: string; company?: ContractStudio;
+  lastRemindedAt?: string | null; needsReminder?: boolean;
 };
 
-const ACT_LABEL: Record<string, string> = { created: "Created", edited: "Changed", sent: "Sent to the client", viewed: "Opened by the client", signed: "Signed by the client" };
+const ACT_LABEL: Record<string, string> = { created: "Created", edited: "Changed", sent: "Sent to the client", viewed: "Opened by the client", signed: "Signed by the client", reminded: "Reminded" };
 const errText = (d: { message?: string | string[] }, fallback: string) => (Array.isArray(d.message) ? d.message[0] : d.message) || fallback;
 
 function Step({ n, title, sub, done, children }: { n: number; title: string; sub?: string; done?: boolean; children: React.ReactNode }) {
@@ -282,6 +284,11 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
                   })}
                 </ol>
               )}
+              {!signed && client && (saved.status === "sent" || saved.status === "viewed") && (
+                <RemindBox className="mt-4" studioName={studio.name}
+                  contract={{ id: saved.id, title, publicToken: saved.publicToken, status: saved.status, sentAt: saved.sentAt, viewedAt: saved.viewedAt, lastRemindedAt: saved.lastRemindedAt, needsReminder: saved.needsReminder, client }}
+                  onReminded={at => setSaved(cur => cur ? { ...cur, lastRemindedAt: at, needsReminder: false, activity: [...(cur.activity ?? []), { at, type: "reminded" }] } : cur)} />
+              )}
               <div className="mt-4 pt-3 border-t border-[#EEEBF4] flex flex-wrap gap-2">
                 {saved.status !== "draft" && <button type="button" onClick={() => setShare(true)} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5"><Copy className="w-3.5 h-3.5" />Link &amp; share</button>}
                 <button type="button" onClick={onDuplicate} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] text-[13px] font-semibold inline-flex items-center gap-1.5"><Copy className="w-3.5 h-3.5" />Make a copy</button>
@@ -294,7 +301,7 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
                   <ul className="mt-2 space-y-1.5">
                     {[...saved.activity].reverse().slice(0, 20).map((a, i) => (
                       <li key={i} className="flex items-baseline gap-2 text-[13px]">
-                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 translate-y-[-1px]", a.type === "signed" ? "bg-[#1F8A5B]" : a.type === "viewed" ? "bg-[#9E3A8C]" : a.type === "sent" ? "bg-[#1F5C99]" : "bg-[#B5B0C4]")} />
+                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 translate-y-[-1px]", a.type === "signed" ? "bg-[#1F8A5B]" : a.type === "viewed" ? "bg-[#9E3A8C]" : a.type === "sent" ? "bg-[#1F5C99]" : a.type === "reminded" ? "bg-[#D88A12]" : "bg-[#B5B0C4]")} />
                         <span className="text-[#17151F] font-medium">{ACT_LABEL[a.type] ?? a.type}{a.note ? ` — ${a.note}` : ""}</span>
                         <span className="text-[#9893A8] ml-auto flex-shrink-0">{fmtDayTime(a.at)}</span>
                       </li>

@@ -89,7 +89,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           id: c.id, type: "client" as const,
           label: `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim(),
           sub: c.phone ?? c.email ?? "",
-          href: `/clients?view=${c.id}`,
+          href: `/clients/${c.id}`,
         })),
         ...(invoicesData.data ?? []).map((inv: any) => ({
           id: inv.id, type: "invoice" as const,

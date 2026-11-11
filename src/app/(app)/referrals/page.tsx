@@ -89,7 +89,7 @@ export default function ReferralsPage() {
                 {isOpen && (
                   <div className="bg-[#FBFAFE] border-t border-[#EEEBF4] divide-y divide-[#EEEBF4]">
                     {g.clients.map(c => (
-                      <a key={c.id} href={`/clients?view=${c.id}`} className="flex items-center justify-between gap-3 pl-[4.25rem] pr-5 py-2.5 hover:bg-[#F5F3FA]">
+                      <a key={c.id} href={`/clients/${c.id}`} className="flex items-center justify-between gap-3 pl-[4.25rem] pr-5 py-2.5 hover:bg-[#F5F3FA]">
                         <span className="text-sm text-[#17151F] truncate">{c.name}</span>
                         <span className="text-xs text-[#6B6680] flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" />Added {fmtDate(c.createdAt)}</span>
                       </a>

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency, fmtDate } from "@/lib/format";
 import { DateBox, TILE } from "@/components/ui/apple";
 import { Avatar, waLink } from "@/components/ui/profile-kit";
-import { Chip, Empty, List, MENU_CLS, MENU_ITEM, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useTab } from "@/components/ui/profile-page";
+import { Chip, Empty, List, MENU_CLS, MENU_ITEM, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
 import { inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { useAuth } from "@/context/auth-context";
@@ -43,6 +43,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const [more, setMore] = useState(false);
+  const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [payOpen, setPayOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -171,7 +172,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
       <div className="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5 lg:items-start">
         {/* ── Left: who + money ─────────────────────────────────────────── */}
         <aside className="lg:sticky lg:top-20 space-y-4 mb-4 lg:mb-0">
-          <div className={cn(card, "p-5", !m.isActive && "opacity-90")}>
+          <div className={cn(card, "p-5", !m.isActive && "opacity-90", more && "relative z-30")}>
             <div className="flex items-center gap-4 lg:flex-col lg:text-center lg:gap-3">
               <Avatar name={name} color={TILE[main.tile]} size={68} />
               <div className="flex-1 min-w-0 lg:flex-none lg:w-full">
@@ -184,14 +185,13 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-1 mt-5 relative">
+            <div ref={moreRef} className="grid grid-cols-4 gap-1 mt-5 relative">
               <QuickAction icon={MessageCircle} label="WhatsApp" tone="bg-[#E7F5EE] text-[#1F8A5B]" href={waLink(m.phone)} disabled={!m.phone} />
               <QuickAction icon={Phone} label="Call" tone="bg-[#E8F0FA] text-[#1F5C99]" href={m.phone ? `tel:${m.phone}` : undefined} disabled={!m.phone} />
               <QuickAction icon={HandCoins} label="Pay" tone="bg-[#EEE8FD] text-[#5B3FD0]" onClick={() => setPayOpen(true)} />
               <QuickAction icon={MoreHorizontal} label="Options" tone="bg-[#F1EFF6] text-[#17151F]" onClick={() => setMore(v => !v)} />
               {more && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setMore(false)} />
                   <div role="menu" className={cn("absolute right-0 top-[76px] w-56", MENU_CLS)}>
                     <button role="menuitem" type="button" onClick={() => { setMore(false); setEditing(true); }} className={MENU_ITEM}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
                     {isOwner && !freelancer && <button role="menuitem" type="button" onClick={() => { setMore(false); setResetting(true); }} className={MENU_ITEM}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}

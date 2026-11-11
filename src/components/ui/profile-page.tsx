@@ -4,7 +4,7 @@
  * Pieces for full-page profiles (client, team member): cards, rows, chips,
  * quick actions and the tab bar. Keep both profiles looking the same.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -127,3 +127,25 @@ export function TabBar<T extends string>({ tabs, value, onChange, label }: {
 
 export const MENU_CLS = "bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1";
 export const MENU_ITEM = "w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]";
+
+/**
+ * Close a small menu when the person clicks anywhere else or presses Escape.
+ * Put the returned ref on the element that holds both the button and the menu.
+ * (A full-screen backdrop inside a card does not work: cards blur what is behind them,
+ * which keeps "fixed" children inside the card.)
+ */
+export function useDismiss<T extends HTMLElement>(open: boolean, close: () => void) {
+  const ref = useRef<T>(null);
+  const closeRef = useRef(close);
+  useEffect(() => { closeRef.current = close; });
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent | TouchEvent) => { if (!ref.current?.contains(e.target as Node)) closeRef.current(); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") closeRef.current(); };
+    document.addEventListener("mousedown", down);
+    document.addEventListener("touchstart", down);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", down); document.removeEventListener("touchstart", down); document.removeEventListener("keydown", key); };
+  }, [open]);
+  return ref;
+}

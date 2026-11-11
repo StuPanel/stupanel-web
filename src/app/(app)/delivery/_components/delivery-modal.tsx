@@ -5,12 +5,12 @@ import {
   X, Loader2, Link2, Check, ExternalLink, Copy,
   CheckCircle2, UploadCloud, Trash2, Download, FileArchive,
   Plus, HardDrive, Globe, FolderOpen,
-  ChevronDown, ChevronUp, AlertTriangle,
+  ChevronDown, ChevronUp, AlertTriangle, PackageCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tile } from "@/components/ui/apple";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
@@ -465,35 +465,30 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
     <>
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 pointer-events-none">
-        <div className="sp-drawer pointer-events-auto sm:max-w-lg flex flex-col">
-          <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
-            <div>
-              <h3 className="font-bold text-[#17151F]">Delivery Details</h3>
-              <p className="text-xs text-[#8A8599] mt-0.5">{booking.eventName ?? booking.bookingNumber} · {booking.client.firstName} {booking.client.lastName ?? ""}</p>
+        <div className="sp-drawer pointer-events-auto sm:max-w-[560px] flex flex-col bg-[#F5F3FA]">
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3 flex-shrink-0">
+            <Tile icon={PackageCheck} color="teal" size={40} />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Delivery</h2>
+              <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{booking.eventName ?? booking.bookingNumber} · {booking.client.firstName} {booking.client.lastName ?? ""}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
-              <X className="w-4 h-4 text-[#6B6680]" />
+            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex border-b border-[#E4E0EC] flex-shrink-0">
+          <div role="tablist" aria-label="How to deliver" className="mx-5 mb-2 grid grid-cols-3 p-1 rounded-full bg-white shadow-[0_1px_2px_rgba(22,18,40,.06)] flex-shrink-0">
             {([
-              ["drive", "Drive Auto"],
-              ["link", "Manual Links"],
-              ["files", "Upload Files"],
+              ["drive", "Google Drive"],
+              ["link", "Links"],
+              ["files", "Upload"],
             ] as const).map(([key, label]) => (
-              <button key={key} onClick={() => setTab(key)}
-                className={cn("flex-1 py-2.5 text-xs font-medium transition-colors",
-                  tab === key ? "border-b-2 border-[#7D5CEF] text-[#7D5CEF]" : "text-[#8A8599] hover:text-[#4A4658]")}>
+              <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+                className={cn("h-9 rounded-full text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-1.5",
+                  tab === key ? "bg-[#16141D] text-white" : "text-[#4A4658] hover:text-[#17151F]")}>
                 {label}
-                {key === "link" && links.filter(l => l.url).length > 0 && (
-                  <span className="ml-1 text-xs bg-[#EEE8FD] text-[#7D5CEF] px-1.5 py-0.5 rounded-full font-bold">
-                    {links.filter(l => l.url).length}
-                  </span>
-                )}
-                {key === "drive" && driveFolderUrl && (
-                  <span className="ml-1 text-xs bg-[#E7F5EE] text-[#1F8A5B] px-1.5 py-0.5 rounded-full font-bold">✓</span>
-                )}
+                {key === "link" && links.filter(l => l.url).length > 0 && <span className={cn("text-[11.5px] tabular-nums", tab === key ? "text-white/70" : "text-[#6B6680]")}>{links.filter(l => l.url).length}</span>}
+                {key === "drive" && driveFolderUrl && <Check className={cn("w-3.5 h-3.5", tab === key ? "text-white/80" : "text-[#1F8A5B]")} strokeWidth={3} />}
               </button>
             ))}
           </div>
@@ -604,7 +599,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
                 <button
                   onClick={() => folderInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-[#E4E0EC] text-xs font-medium text-[#4A4658] hover:border-indigo-300 hover:text-[#7D5CEF] hover:bg-[#F7F4FE] transition-colors">
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-full bg-white text-[13px] font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] hover:bg-[#F7F4FE] transition-colors">
                   <FolderOpen className="w-4 h-4" />
                   Upload Entire Folder (auto-detect folder name)
                 </button>
@@ -739,7 +734,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
             {/* ── DRIVE AUTO TAB ── */}
             {tab === "drive" && (
               <div className="p-5 space-y-4">
-                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] border border-[#E7F5EE] rounded-xl">
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] rounded-[16px]">
                   <HardDrive className="w-3.5 h-3.5 text-[#1F8A5B] mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-[#1F8A5B]">Google Drive Auto-Upload</p>
@@ -762,7 +757,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   </button>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between bg-[#F0FAF4] border border-[#CDEBDB] rounded-xl px-3 py-2">
+                    <div className="flex items-center justify-between bg-[#F0FAF4] rounded-[14px] px-3 py-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#1F8A5B] flex-shrink-0" />
                         <a href={driveFolderUrl} target="_blank" rel="noopener noreferrer"
@@ -860,7 +855,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
 
                     <button
                       onClick={() => driveFolderInputRef.current?.click()}
-                      className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-[#E4E0EC] text-xs font-medium text-[#4A4658] hover:border-green-300 hover:text-[#1F8A5B] hover:bg-[#F0FAF4] transition-colors">
+                      className="w-full flex items-center justify-center gap-2 h-10 rounded-full bg-white text-[13px] font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)] hover:bg-[#F7F5FB] hover:bg-[#F0FAF4] transition-colors">
                       <FolderOpen className="w-4 h-4" />
                       Upload Entire Folder (auto-detect folder name)
                     </button>
@@ -936,7 +931,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
               <div className="p-5 space-y-4">
                 {linkError && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg border border-[#FDECEF]">{linkError}</p>}
 
-                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] border border-[#E7F5EE] rounded-xl">
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[#F0FAF4] rounded-[16px]">
                   <Globe className="w-3.5 h-3.5 text-[#1F8A5B] mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-[#1F8A5B]">External Link Delivery</p>
@@ -1018,23 +1013,23 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                   <Label className="text-xs font-medium text-[#4A4658]">Note for Client</Label>
                   <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                     placeholder="e.g. 500 photos + highlight video, password: abc123..."
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E4E0EC] text-sm placeholder:text-[#8A8599] focus:outline-none focus:border-indigo-400 resize-none" />
+                    className="w-full px-3 py-2.5 rounded-[12px] bg-white border border-transparent text-sm placeholder:text-[#A29DB3] outline-none focus:border-[#7D5CEF] shadow-[0_1px_2px_rgba(22,18,40,.05)] resize-none" />
                 </div>
 
                 <div className="flex gap-3 pt-1">
-                  <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
-                  <Button onClick={saveLinks} disabled={linkSaving} className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-2">
+                  <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>
+                  <button type="button" onClick={saveLinks} disabled={linkSaving} className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
                     {linkSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Save Links
-                  </Button>
+                    Save links
+                  </button>
                 </div>
               </div>
             )}
           </div>
 
           {tab === "files" && (
-            <div className="px-5 pb-5 flex-shrink-0 border-t border-[#F1EFF6] pt-4">
-              <Button variant="outline" onClick={onClose} className="w-full h-10 border-[#E4E0EC]">Close</Button>
+            <div className="px-5 pb-5 flex-shrink-0 border-t border-[#EEEBF4] pt-4 bg-white/70">
+              <button type="button" onClick={onClose} className="w-full h-11 rounded-full bg-white hover:bg-[#F7F5FB] text-sm font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]">Close</button>
             </div>
           )}
         </div>

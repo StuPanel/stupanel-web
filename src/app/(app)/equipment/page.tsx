@@ -60,11 +60,15 @@ export default function EquipmentPage() {
     setLoading(true);
     try {
       const [eq, st] = await Promise.all([
-        apiFetch(`${API}/equipment?search=${search}&status=${statusFilter}`).then(r => r.ok ? r.json() : []),
+        apiFetch(`${API}/equipment?${new URLSearchParams({ search, status: statusFilter })}`).then(r => r.ok ? r.json() : []),
         apiFetch(`${API}/equipment/stats`).then(r => r.ok ? r.json() : null),
       ]);
       setItems(Array.isArray(eq) ? eq : []);
-      setStats(st);
+      // Only show the cards when the numbers really came back.
+      setStats(st && typeof st === "object" && !Array.isArray(st) ? {
+        total: Number(st.total) || 0, available: Number(st.available) || 0, inUse: Number(st.inUse) || 0,
+        maintenance: Number(st.maintenance) || 0, totalValue: Number(st.totalValue) || 0,
+      } : null);
     } catch {
       setToast({ msg: "Failed to load equipment data", ok: false });
     } finally {

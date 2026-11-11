@@ -20,7 +20,7 @@ import { CARD_SHADOW } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { ContractPaper } from "@/components/contracts/contract-paper";
 import {
-  BALANCE_OPTIONS, EMPTY_DETAILS, STATUS_META, clientFull, fmtDay, fmtDayTime,
+  BALANCE_OPTIONS, EMPTY_DETAILS, FIELDS, STATUS_META, clientFull, fieldValues, fmtDay, fmtDayTime,
   type ContractDetails, type ContractSection, type ContractStatus, type ContractStudio, type ContractTemplate,
 } from "@/lib/contracts";
 import { SectionsEditor } from "./sections-editor";
@@ -146,6 +146,12 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
     applyTemplate(t); setDirty(true);
   }
 
+  // Fields used in the text that have no value yet — the client would see "[Package]"
+  const unfilled = useMemo(() => {
+    const v = fieldValues(details, "x", clientFull(client) || "", null);
+    const used = new Set(sections.flatMap(x => [...x.text.matchAll(/\{(\w+)\}/g)].map(m => m[1])));
+    return FIELDS.filter(f => used.has(f.key) && f.key !== "client" && !v[f.key]).map(f => f.label);
+  }, [details, sections, client]);
   const missing = !client ? "Choose the program or client" : !title.trim() ? "Give the contract a title" : !sections.some(s => s.text.trim()) ? "Add the contract text" : "";
 
   async function save(): Promise<Saved | null> {
@@ -419,6 +425,9 @@ export function ContractEditor({ id, programId, templateId, openShare }: { id?: 
               </Step>
 
               <p className={cn("px-1 text-[13px]", missing ? "text-[#6B6680]" : "text-[#1F8A5B] font-semibold")}>{missing || "Ready to send"}</p>
+              {unfilled.length > 0 && (
+                <p className="px-1 mt-1.5 text-[13px] text-[#9E3A8C]" role="status">Not filled in yet: <strong>{unfilled.join(", ")}</strong>. Fill {unfilled.length === 1 ? "it" : "them"} in under Details, or remove {unfilled.length === 1 ? "it" : "them"} from the text.</p>
+              )}
             </>
           )}
         </div>

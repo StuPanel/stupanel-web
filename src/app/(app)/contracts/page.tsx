@@ -81,7 +81,7 @@ export default function ContractsPage() {
   const waiting = (counts.sent ?? 0) + (counts.viewed ?? 0);
 
   return (
-    <div className="max-w-5xl">
+    <div>
       <PageHeader icon={FileSignature} color="ink" title="Contracts"
         sub={total ? <>{counts.signed ?? 0} signed{waiting ? <> · <span className="font-semibold text-[#9E3A8C]">{waiting} waiting for the client</span></> : ""}{counts.draft ? ` · ${counts.draft} draft${counts.draft === 1 ? "" : "s"}` : ""}</> : "Agreements your clients read and sign online"}>
         {tab === "contracts" && <SearchField value={search} onChange={setSearch} placeholder="Search contracts" className="flex-1 sm:w-56" />}

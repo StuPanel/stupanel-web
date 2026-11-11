@@ -8,7 +8,7 @@
  *
  * Shown as the "Raw files" tab of a program, top to bottom:
  *   1. three numbers (on Drive, copies, free space)
- *   2. a checklist — one row per day + person who shot it: uploaded or not, with an Upload button
+ *   2. a checklist — one row per day + person who shot it: uploaded, linked to a Drive folder, or not yet
  *   3. every file on Drive (browse, rename, move, delete)
  *   4. Safety (other copies), Links, Who can open, Activity
  */
@@ -27,7 +27,8 @@ import { pickDriveFolder } from "@/lib/drive-picker";
 import type { Booking } from "./types";
 
 type RawFile = { id: string; name: string; size: number; mimeType: string; path: string; conn: string; viewUrl: string; thumb: string | null };
-type RawLink = { id: string; url: string; label: string };
+/** A pasted link, or (folder: true) a folder on the studio's Drive chosen in Google's window. */
+type RawLink = { id: string; url: string; label: string; folder?: boolean; email?: string; part?: string; who?: string };
 type RawLocation = { conn: string; email: string; url: string; current: boolean; reachable: boolean; count: number; bytes: number };
 type BackupKind = "hdd" | "pc" | "nas" | "cloud" | "other";
 type RawBackup = { id: string; kind: BackupKind; label: string; at: string; by?: string };
@@ -67,6 +68,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   const [busy, setBusy] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [linking, setLinking] = useState<string | null>(null);
   const browserRef = useRef<HTMLDivElement>(null);
   const [browse, setBrowse] = useState<{ conn: string | null; path: string }>({ conn: null, path: "" });
   const uploadInto = useRef<string | null>(null);
@@ -195,9 +197,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     load();
   }
 
-  // Temporary check (open with ?picktest=1): what can StuPanel read in a folder picked in Google's window?
-  const pickTest = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("picktest") === "1";
-
   const loadingCard = (text: React.ReactNode, right?: React.ReactNode) => (
     <div className={cn(card, "p-4 flex items-center gap-3")}>
       <span className="w-10 h-10 rounded-full bg-[#E7F5EE] text-[#1F8A5B] flex items-center justify-center flex-shrink-0"><HardDrive className="w-[18px] h-[18px]" /></span>
@@ -224,7 +223,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
   })();
 
   // ── Checklist: one row per day + person on that day. Their folder is "<day>/<name>" or "<day>/<name> · <camera>".
-  type Slot = { key: string; part: string; date: string; who: string; roles: string[]; count: number; bytes: number; folders: string[] };
+  type Slot = { key: string; part: string; date: string; who: string; roles: string[]; count: number; bytes: number; folders: string[]; linked: RawLink[] };
   const slots: Slot[] = [];
   for (const d of days) {
     const partName = clean(d.eventType || "");
@@ -233,7 +232,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       if (!name) continue;
       const key = `${partName}|${name}`;
       let slot = slots.find(x => x.key === key);
-      if (!slot) { slot = { key, part: partName, date: d.date || "", who: name, roles: [], count: 0, bytes: 0, folders: [] }; slots.push(slot); }
+      if (!slot) { slot = { key, part: partName, date: d.date || "", who: name, roles: [], count: 0, bytes: 0, folders: [], linked: [] }; slots.push(slot); }
       const roleName = String(a.role || "").replace(/_/g, " ");
       if (roleName && !slot.roles.includes(roleName)) slot.roles.push(roleName);
     }
@@ -251,7 +250,13 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       break;
     }
   }
-  const doneSlots = slots.filter(x => x.count > 0).length;
+  // Folders already on the studio's Drive, linked to a row (nothing uploaded — they stay where they are).
+  const folderLinks = (data.links ?? []).filter(l => l.folder);
+  for (const l of folderLinks) {
+    const slot = slots.find(x => x.part === (l.part ?? "") && x.who === (l.who ?? ""));
+    if (slot && l.who) slot.linked.push(l);
+  }
+  const doneSlots = slots.filter(x => x.count > 0 || x.linked.length > 0).length;
   const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
   const dayLabel = (iso: string) => { const d = iso ? new Date(`${iso.slice(0, 10)}T00:00:00`) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""; };
 
@@ -269,6 +274,25 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
     setUploadError("");
     uploadInto.current = null;
     (fromFolder ? folderRef : filesRef).current?.click();
+  }
+  /** Choose a folder in Google's own window and link it — to one row of the checklist, or to the whole program. */
+  async function linkFolder(slot?: Slot) {
+    if (linking) return;
+    setLinking(slot?.key ?? "program");
+    try {
+      const { folder, email } = await pickDriveFolder(slot ? `Folder with ${slot.who}'s files${slot.part ? ` — ${slot.part}` : ""}` : "Folder with this program's raw files");
+      if (!folder) return;
+      const r = await apiFetch(`${API}/google-drive/raw/${booking.id}/link-folder`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: folder.id, part: slot?.part ?? "", who: slot?.who ?? "" }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify(d?.message || `Couldn't link the folder (${email})`, { error: true }); return; }
+      setData(cur => cur ? { ...cur, links: d.links ?? cur.links, backup: d.backup ?? cur.backup } : cur);
+      notify(`Linked "${d.link?.label ?? folder.name}"${d.sharedWith ? ` · shared with ${d.sharedWith} editor${d.sharedWith === 1 ? "" : "s"}` : ""}`);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Couldn't open Google Drive", { error: true });
+    } finally { setLinking(null); }
   }
   function openFolder(slot: Slot) {
     const conn = locations.find(l => l.current)?.conn ?? locations[0]?.conn ?? null;
@@ -301,8 +325,6 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           )}
         </div>
       </div>
-
-      {pickTest && <PickerTest />}
 
       {/* ── 1. Three numbers ── */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
@@ -348,29 +370,49 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           ) : (
             <div className={cn(card, "overflow-hidden divide-y divide-[#EEEBF4]")}>
               {slots.map(slot => {
-                const done = slot.count > 0;
+                const uploaded = slot.count > 0;
+                const linked = slot.linked.length > 0;
+                const done = uploaded || linked;
+                const status = [
+                  uploaded ? `${slot.count} file${slot.count === 1 ? "" : "s"} · ${fmtSize(slot.bytes)}` : "",
+                  linked ? `Linked: ${slot.linked.map(l => l.label).join(", ")}` : "",
+                ].filter(Boolean).join(" · ") || "Not uploaded yet";
                 return (
-                  <div key={slot.key} className="flex items-center gap-3 px-4 py-3">
+                  <div key={slot.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                     <span className={cn("w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0", done ? "bg-[#E7F5EE] text-[#1F8A5B]" : "bg-[#F1EFF6] text-[#8A8599]")}>
                       {done ? <CheckCircle2 className="w-[18px] h-[18px]" /> : <CircleDashed className="w-[18px] h-[18px]" />}
                     </span>
-                    <span className="flex-1 min-w-0">
+                    <span className="flex-1 min-w-[150px]">
                       <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{slot.who}</span>
                       <span className="block text-[12.5px] text-[#6B6680] truncate">{[slot.part || "Program", dayLabel(slot.date), slot.roles.map(cap).join(", ")].filter(Boolean).join(" · ")}</span>
-                      <span className={cn("block text-[12.5px] font-semibold mt-0.5", done ? "text-[#1F8A5B]" : "text-[#8A8599]")}>{done ? `${slot.count} file${slot.count === 1 ? "" : "s"} · ${fmtSize(slot.bytes)}` : "Not uploaded yet"}</span>
+                      <span className={cn("block text-[12.5px] font-semibold mt-0.5 truncate", done ? "text-[#1F8A5B]" : "text-[#8A8599]")}>{status}</span>
                     </span>
-                    {done ? (
-                      <span className="flex items-center gap-1.5 flex-shrink-0">
-                        <button type="button" onClick={() => openFolder(slot)} aria-label={`Open ${slot.who}'s files`} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /><span className="hidden sm:inline">Open</span></button>
-                        <button type="button" onClick={() => openUpload(slot)} aria-label={`Add more files for ${slot.who}`} className="h-9 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add</button>
-                      </span>
-                    ) : (
-                      <button type="button" onClick={() => openUpload(slot)} className="h-9 px-3.5 rounded-full bg-[#17151F] hover:bg-[#2A2735] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0"><FolderUp className="w-3.5 h-3.5" />Upload</button>
-                    )}
+                    <span className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                      {uploaded && (
+                        <button type="button" onClick={() => openFolder(slot)} aria-label={`Open ${slot.who}'s files`} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" />Open</button>
+                      )}
+                      {linked && !uploaded && (
+                        <a href={slot.linked[0].url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${slot.linked[0].label} in Drive`} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" />Open in Drive</a>
+                      )}
+                      {!linked && !uploaded && (
+                        <button type="button" onClick={() => linkFolder(slot)} disabled={!!linking} aria-label={`Link a Drive folder for ${slot.who}`} title="The files are already on Google Drive — choose the folder"
+                          className="h-9 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+                          {linking === slot.key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />}Link Drive folder
+                        </button>
+                      )}
+                      {done ? (
+                        <button type="button" onClick={() => openUpload(slot)} aria-label={`Upload more files for ${slot.who}`} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Upload</button>
+                      ) : (
+                        <button type="button" onClick={() => openUpload(slot)} className="h-9 px-3.5 rounded-full bg-[#17151F] hover:bg-[#2A2735] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5"><FolderUp className="w-3.5 h-3.5" />Upload</button>
+                      )}
+                    </span>
                   </div>
                 );
               })}
             </div>
+          )}
+          {slots.length > 0 && (
+            <p className="px-1 mt-2 text-[12px] text-[#8A8599]"><b className="font-semibold text-[#6B6680]">Upload</b> sends the card to your Drive. <b className="font-semibold text-[#6B6680]">Link Drive folder</b> is for files that are already on your Drive — nothing is uploaded or moved.</p>
           )}
         </Section>
       )}
@@ -421,7 +463,7 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
       </div>
 
       {/* ── 4. Safety, links, access ── */}
-      <div className="grid gap-x-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-x-5 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
         <Section title="Safety — where the copies are">
           <div className={cn(card, "p-4")}>
             {bk ? (
@@ -431,9 +473,10 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
           </div>
         </Section>
         <div>
-          <Section title="Links to raw files kept elsewhere">
+          <Section title="Raw files already on a Drive">
             <div className={cn(card, "p-4")}>
-              <RawLinks bookingId={booking.id} links={data.links ?? []} onSaved={links => setData(d => d ? { ...d, links } : d)} />
+              <RawLinks bookingId={booking.id} links={data.links ?? []} canPick={data.connected} picking={linking === "program"} onPick={() => linkFolder()}
+                onSaved={(links, backup) => setData(d => d ? { ...d, links, backup: backup ?? d.backup } : d)} />
             </div>
           </Section>
           <Section title="Who can open the raw folder">
@@ -530,7 +573,11 @@ export function RawDriveSection({ booking, teamMembers }: { booking: Booking; te
  * Raw files that are already on a Drive (uploaded by hand, or synced from a PC).
  * The studio pastes the folder link here; editors of the program see it in their panel.
  */
-function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: RawLink[]; onSaved: (l: RawLink[]) => void }) {
+function RawLinks({ bookingId, links, onSaved, canPick, picking, onPick }: {
+  bookingId: string; links: RawLink[]; onSaved: (l: RawLink[], backup?: BackupState) => void;
+  /** Google Drive is connected: offer Google's folder window. */
+  canPick: boolean; picking: boolean; onPick: () => void;
+}) {
   const [adding, setAdding] = useState(false);
   const [url, setUrl] = useState("");
   const [label, setLabel] = useState("");
@@ -544,7 +591,7 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(d?.message || "Couldn't save", { error: true }); return false; }
-      onSaved(d.links ?? []);
+      onSaved(d.links ?? [], d.backup);
       return true;
     } finally { setBusy(false); }
   }
@@ -556,42 +603,39 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
     }
   }
   async function remove(l: RawLink) {
-    const ok = await askConfirm({ title: "Remove this link?", message: "Only the link is removed from StuPanel — the files on Drive are not touched.", confirmLabel: "Remove", danger: true });
-    if (ok && await save(links.filter(x => x.id !== l.id))) notify("Link removed");
+    const ok = await askConfirm(l.folder
+      ? { title: `Unlink "${l.label}"?`, message: "Only the connection is removed. The folder and its files stay on your Drive. Editors lose the access StuPanel gave them to it.", confirmLabel: "Unlink", danger: true }
+      : { title: "Remove this link?", message: "Only the link is removed from StuPanel — the files on Drive are not touched.", confirmLabel: "Remove", danger: true });
+    if (ok && await save(links.filter(x => x.id !== l.id))) notify(l.folder ? "Folder unlinked" : "Link removed");
   }
   const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12.5px] text-[#6B6680]">Already on a Drive or synced from a PC? Add the folder link — editors get it too.</p>
-        {!adding && (
-          <button type="button" onClick={() => setAdding(true)} className="h-8 px-3 rounded-full text-[12px] font-semibold text-[#5B3FD0] bg-[#EEE8FD] hover:bg-[#E2D9FC] inline-flex items-center gap-1 whitespace-nowrap flex-shrink-0">
-            <Plus className="w-3.5 h-3.5" />Add link
-          </button>
-        )}
-      </div>
+    <div className="space-y-2">
+      <p className="text-[12.5px] text-[#6B6680]">Files that are already on Google Drive (for example synced from your PC) don&apos;t need uploading — point StuPanel at the folder. Editors of this program get it too.</p>
       {links.map(l => (
         <div key={l.id} className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
-          <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
+          {l.folder ? <Cloud className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" /> : <Link2 className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />}
           <a href={l.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1">
             <span className="block text-[13px] font-semibold text-[#17151F] truncate">{l.label || host(l.url)}</span>
-            <span className="block text-[11px] text-[#6B6680] truncate">{l.url}</span>
+            <span className="block text-[11px] text-[#6B6680] truncate">
+              {l.folder ? ["Linked Drive folder", [l.part, l.who].filter(Boolean).join(" · ") || "whole program", l.email].filter(Boolean).join(" · ") : l.url}
+            </span>
           </a>
-          <button type="button" onClick={() => remove(l)} disabled={busy} title="Remove link"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F]">
+          <button type="button" onClick={() => remove(l)} disabled={busy} title={l.folder ? "Unlink folder" : "Remove link"} aria-label={l.folder ? `Unlink ${l.label}` : "Remove link"}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#FDECEF] hover:text-[#C2304F] flex-shrink-0">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       ))}
-      {adding && (
+      {adding ? (
         <div className="rounded-2xl border border-[#E6E2EE] p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-          <input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/…"
+          <input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" aria-label="Link"
             className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
-          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name (optional) — e.g. Ceremony · Camera A"
+          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name (optional) — e.g. Ceremony · Camera A" aria-label="Name"
             onKeyDown={e => { if (e.key === "Enter") add(); }}
             className="w-full h-10 px-3 rounded-xl bg-white border border-[#E6E2EE] text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30" />
-          <p className="text-[11px] text-[#8A8599]">Make sure the editor can open it on Drive (share the folder with them, or &quot;Anyone with the link&quot;).</p>
+          <p className="text-[11px] text-[#8A8599]">For a pasted link, make sure the editor can open it on Drive (share the folder with them, or &quot;Anyone with the link&quot;).</p>
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => { setAdding(false); setUrl(""); setLabel(""); }} className="h-9 px-4 rounded-full text-[13px] font-semibold text-[#4A4658] hover:bg-[#F2EFF8]">Cancel</button>
             <button type="button" onClick={add} disabled={busy || !url.trim()} className="h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
@@ -599,7 +643,21 @@ function RawLinks({ bookingId, links, onSaved }: { bookingId: string; links: Raw
             </button>
           </div>
         </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 pt-0.5">
+          {canPick && (
+            <button type="button" onClick={onPick} disabled={picking}
+              className="h-10 px-4 rounded-full bg-[#17151F] hover:bg-[#2A2735] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+              {picking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}Choose a folder from Drive
+            </button>
+          )}
+          <button type="button" onClick={() => setAdding(true)}
+            className="h-10 px-4 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5">
+            <Link2 className="w-4 h-4" />Paste a link
+          </button>
+        </div>
       )}
+      {canPick && !adding && <p className="text-[11px] text-[#8A8599]">The Google window shows the Drive connected to StuPanel. Folders in another Google account: paste their link.</p>}
     </div>
   );
 }
@@ -681,7 +739,7 @@ function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }:
         {state.linked && (
           <div className="flex items-center gap-2 rounded-xl bg-[#F7F5FB] px-3 py-2">
             <Link2 className="w-4 h-4 text-[#1F8A5B] flex-shrink-0" />
-            <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#17151F] truncate">Drive link{nLinks > 1 ? "s" : ""}</span>
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#17151F] truncate">Linked Drive folder{nLinks > 1 ? "s" : ""}</span>
             <span className="text-[11px] text-[#6B6680]">{nLinks} · auto</span>
           </div>
         )}
@@ -743,30 +801,4 @@ function patchFiles(files: RawFile[], body: Record<string, unknown>, res: { name
     ...(res.name ? { name: res.name } : {}),
     ...(typeof res.to === "string" ? { path: res.to } : {}),
   });
-}
-
-/** Temporary: pick a Drive folder in Google's window and show what the server can read in it. */
-function PickerTest() {
-  const [out, setOut] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function run() {
-    setBusy(true); setOut("");
-    try {
-      const { folder, email } = await pickDriveFolder();
-      if (!folder) { setOut("Closed without choosing a folder."); return; }
-      const r = await apiFetch(`${API}/google-drive/raw-picker/probe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderId: folder.id }) });
-      setOut(JSON.stringify({ picked: folder.name, account: email, status: r.status, result: await r.json().catch(() => null) }, null, 2));
-    } catch (e) { setOut(`Error: ${e instanceof Error ? e.message : String(e)}`); }
-    finally { setBusy(false); }
-  }
-  return (
-    <div className={cn(card, "p-4 mb-6")} data-picker-test>
-      <p className="text-[14px] font-bold text-[#17151F]">Test — choose a Drive folder</p>
-      <p className="text-[12.5px] text-[#6B6680] mt-0.5">Pick any folder that has files in it. Nothing is changed — this only checks what StuPanel can read.</p>
-      <button type="button" onClick={run} disabled={busy} className="mt-3 h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}Choose a folder
-      </button>
-      {out && <pre className="mt-3 p-3 rounded-xl bg-[#F7F5FB] text-[12px] text-[#17151F] whitespace-pre-wrap break-words max-h-80 overflow-auto" data-picker-out>{out}</pre>}
-    </div>
-  );
 }

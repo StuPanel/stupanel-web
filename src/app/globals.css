@@ -475,10 +475,14 @@ body { text-rendering: optimizeLegibility; font-kerning: normal; }
 
 /* Every white card inside a page joins the glass look, not only the ones built with the shared pieces.
    (Big-radius white boxes = cards. Menus and pop-overs — absolute/fixed — and anything inside a drawer stay solid.) */
-html:not([data-backdrop="plain"]) .sp-shell main :where([class~="bg-white"]):where([class~="rounded-2xl"], [class~="rounded-3xl"], [class~="rounded-[20px]"], [class~="rounded-[22px]"], [class~="rounded-[24px]"]):not(.sp-card, [class~="absolute"], [class~="fixed"], [class~="sticky"], .sp-drawer, .sp-drawer *, .sp-modal, .sp-modal *, [role="dialog"], [role="dialog"] *, [role="menu"], [role="listbox"], [class*="max-w-["]) {
+html:not([data-backdrop="plain"]) .sp-shell main :where([class~="bg-white"]):where([class~="rounded-2xl"], [class~="rounded-3xl"], [class~="rounded-[20px]"], [class~="rounded-[22px]"], [class~="rounded-[24px]"]):not(.sp-card, .sp-paper, [class~="absolute"], [class~="fixed"], [class~="sticky"], .sp-drawer, .sp-drawer *, .sp-modal, .sp-modal *, [role="dialog"], [role="dialog"] *, [role="menu"], [role="listbox"], [class*="max-w-["]) {
   background-color: rgba(255, 255, 255, .74);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(22, 18, 40, .04), 0 12px 30px -14px rgba(40, 28, 96, .16);
 }
 
 /* Nothing smaller than 12px anywhere (design system §3) — old 10/11px labels are lifted here in one place. */
 .text-\[10px\], .text-\[11px\], .text-\[11\.5px\] { font-size: 12px; }
+
+/* Documents a client reads (quote, contract) stay solid white paper on the glass backdrop */
+.sp-paper { background-color: #fff; box-shadow: 0 1px 2px rgba(22, 18, 40, .05), 0 24px 60px -24px rgba(40, 28, 96, .32); }
+@media print { .sp-paper { box-shadow: none; } }

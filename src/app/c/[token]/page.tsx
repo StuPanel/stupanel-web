@@ -8,7 +8,7 @@ import { use, useEffect, useState } from "react";
 import { CheckCircle2, FileSignature, Loader2, Printer, ShieldCheck } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { StudioLogo } from "@/components/studio-logo";
+import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 import { ContractPaper } from "@/components/contracts/contract-paper";
 import { SignaturePad } from "@/components/contracts/signature-pad";
 import { fmtDayTime, type ContractDetails, type ContractSection, type ContractSignature, type ContractStudio } from "@/lib/contracts";
@@ -55,37 +55,26 @@ export default function ContractSignPage({ params }: { params: Promise<{ token: 
     finally { setBusy(false); }
   }
 
-  if (error) return (
-    <main className="min-h-dvh bg-[#F5F3FA] flex items-center justify-center p-6">
-      <div className="bg-white rounded-[24px] p-8 max-w-sm text-center shadow-[0_18px_50px_-20px_rgba(22,18,40,.25)]">
-        <span className="w-14 h-14 rounded-full bg-[#EEE8FD] flex items-center justify-center mx-auto"><FileSignature className="w-6 h-6 text-[#5B3FD0]" /></span>
-        <h1 className="mt-4 text-lg font-bold text-[#17151F]">Agreement not found</h1>
-        <p className="mt-1.5 text-sm text-[#6B6680]">{error}</p>
-      </div>
-    </main>
-  );
-  if (!c) return <main className="min-h-dvh bg-[#F5F3FA] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" aria-label="Loading" /></main>;
+  if (error) return <PublicMessage icon={FileSignature} title="Agreement not found" text={error} />;
+  if (!c) return <PublicLoading />;
 
   const signed = c.status === "signed";
   return (
-    <main className="min-h-dvh bg-[#F5F3FA] print:bg-white">
-      <div className="sticky top-0 z-20 bg-white/85 backdrop-blur-xl border-b border-[#EEEBF4] print:hidden">
-        <div className="max-w-[820px] mx-auto px-4 h-14 flex items-center gap-3">
-          <StudioLogo url={c.studio.logoUrl} name={c.studio.name} size={32} />
-          <p className="flex-1 min-w-0 text-[14px] font-bold text-[#17151F] truncate">{c.studio.name}</p>
-          <span className={cn("h-7 px-2.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0",
+    <PublicShell studio={c.studio} sub={signed ? "Signed agreement" : "Agreement to sign"} width="max-w-[860px]" className="print:p-0 print:max-w-none"
+      footer={<span className="block px-6"><ShieldCheck className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Signed online with the date, time and device saved · Sent with <span className="font-semibold text-[#4A4658]">StuPanel</span></span>}
+      right={
+        <>
+          <span className={cn("hidden sm:inline-flex h-8 px-3 rounded-full text-[12.5px] font-semibold items-center gap-1.5",
             signed ? "bg-[#E7F5EE] text-[#1F8A5B]" : "bg-[#EEE8FD] text-[#5B3FD0]")}>
             {signed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-[#7D5CEF]" />}
             {signed ? "Signed" : "Waiting for your signature"}
           </span>
           <button type="button" onClick={() => window.print()} aria-label="Print or save as PDF"
-            className="h-9 px-3 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-shrink-0">
+            className="h-10 px-3.5 rounded-full bg-white/80 hover:bg-white text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.08)]">
             <Printer className="w-4 h-4" /><span className="hidden sm:inline">Print / PDF</span>
           </button>
-        </div>
-      </div>
-
-      <div className="max-w-[820px] mx-auto px-3 sm:px-4 py-5 sm:py-8 print:p-0 print:max-w-none">
+        </>
+      }>
         {signed && (
           <div className="mb-4 rounded-[18px] bg-[#E7F5EE] px-4 py-3.5 flex items-start gap-3 print:hidden" role="status">
             <CheckCircle2 className="w-5 h-5 text-[#1F8A5B] flex-shrink-0 mt-0.5" />
@@ -122,10 +111,6 @@ export default function ContractSignPage({ params }: { params: Promise<{ token: 
           )}
         </ContractPaper>
 
-        <p className="mt-5 flex items-center justify-center gap-1.5 text-[12px] text-[#9893A8] print:hidden">
-          <ShieldCheck className="w-3.5 h-3.5" />Signed online with the date, time and device saved · Sent with StuPanel
-        </p>
-      </div>
-    </main>
+    </PublicShell>
   );
 }

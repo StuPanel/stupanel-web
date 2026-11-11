@@ -53,7 +53,7 @@ export function DocViewer({ data, design, fileName, shareText, extra, doc, top }
     window.open(url, "_blank", "noopener");
   }
 
-  const btn = "h-11 px-4 rounded-full text-sm font-semibold inline-flex items-center gap-2 shadow-[0_1px_2px_rgba(22,18,40,.08)]";
+  const btn = "h-11 px-4 rounded-full text-sm font-semibold inline-flex items-center gap-2 shadow-[0_1px_2px_rgba(22,18,40,.08)] transition-colors";
   return (
     <>
       <DesignFonts fonts={[design.font]} />
@@ -67,19 +67,20 @@ export function DocViewer({ data, design, fileName, shareText, extra, doc, top }
         }
       `}</style>
 
-      <div className="doc-screen min-h-screen bg-[#ECE9F2] py-6 px-3 sm:py-10">
+      <div className="doc-screen min-h-dvh sp-shell py-6 px-3 sm:py-10">
+        <div className="sp-scene" aria-hidden="true" />
         <div className="mx-auto" style={{ maxWidth: Math.min(paper.w, 860) }}>
           <div className="flex flex-wrap gap-2 justify-center mb-5">
             <button type="button" onClick={downloadPdf} disabled={busy} className={`${btn} bg-[#17151F] text-white`}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}Download PDF
             </button>
-            <button type="button" onClick={() => window.print()} className={`${btn} bg-white text-[#17151F]`}><Printer className="w-4 h-4" />Print</button>
-            {shareText && <button type="button" onClick={whatsapp} className={`${btn} bg-[#25D366] text-white`}><MessageCircle className="w-4 h-4" />WhatsApp</button>}
+            <button type="button" onClick={() => window.print()} className={`${btn} bg-white/85 hover:bg-white text-[#17151F]`}><Printer className="w-4 h-4" />Print</button>
+            {shareText && <button type="button" onClick={whatsapp} className={`${btn} bg-[#1F8A5B] text-white`}><MessageCircle className="w-4 h-4" />WhatsApp</button>}
           </div>
           {top}
-          <ScaledBox width={paper.w}>{page}</ScaledBox>
+          <div className="rounded-[6px] overflow-hidden shadow-[0_1px_2px_rgba(22,18,40,.06),0_24px_60px_-24px_rgba(40,28,96,.35)]"><ScaledBox width={paper.w}>{page}</ScaledBox></div>
           {extra && <div className="mt-6">{extra}</div>}
-          <p className="text-center text-[11px] text-[#8A8599] mt-8">Made with StuPanel</p>
+          <p className="text-center text-[12px] text-[#8A8599] mt-8">Sent with <span className="font-semibold text-[#4A4658]">StuPanel</span></p>
         </div>
       </div>
 

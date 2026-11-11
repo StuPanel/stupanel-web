@@ -50,14 +50,14 @@ export function PortalMusic({ token, music, brand, onChanged }: { token: string;
 
   return (
     <>
-      <div className="mx-4 mb-4 rounded-2xl p-3.5 flex items-center gap-3" style={{ backgroundColor: `${brand}12` }}>
+      <div className="mx-4 sm:mx-5 mb-4 rounded-2xl p-3.5 flex items-center gap-3" style={{ backgroundColor: `${brand}12` }}>
         <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ backgroundColor: brand }}>
           <Music2 className="w-5 h-5" />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900">{t.card}</p>
-          <p className="text-xs text-slate-600">
-            {sent ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{t.sent}</span>
+          <p className="text-sm font-bold text-[#17151F]">{t.card}</p>
+          <p className="text-xs text-[#4A4658]">
+            {sent ? <span className="inline-flex items-center gap-1 text-[#1F8A5B] font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{t.sent}</span>
               : music.counts.total ? t.done(music.counts.filled, music.counts.parts) : t.cardSub}
           </p>
         </div>
@@ -176,26 +176,26 @@ function MusicSheet({ token, music, brand, onClose }: {
 
   // a plain function (not a component) so typing a note never loses focus
   const songRow = (s: MusicPick, i: number) => (
-    <li key={s.youtubeId} className="rounded-2xl bg-white border border-slate-100 p-2.5">
+    <li key={s.youtubeId} className="rounded-2xl bg-white border border-[#F1EFF6] p-2.5">
       <div className="flex items-center gap-2.5">
         <span className="w-6 h-6 rounded-full text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand }}>{i + 1}</span>
         <Thumb song={s} label={t.listen} playing={playing === s.youtubeId} onPlay={() => setPlaying(p => (p === s.youtubeId ? null : s.youtubeId))} />
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold text-slate-900 leading-snug line-clamp-2">{s.title}</p>
-          <p className="text-xs text-slate-500">{i === 0 ? t.first : t.order(i + 1)}{s.from === "studio" ? ` · ${t.studioPick}` : ""}</p>
+          <p className="text-[13.5px] font-semibold text-[#17151F] leading-snug line-clamp-2">{s.title}</p>
+          <p className="text-xs text-[#6B6680]">{i === 0 ? t.first : t.order(i + 1)}{s.from === "studio" ? ` · ${t.studioPick}` : ""}</p>
         </div>
         {!locked && (
           <div className="flex items-center flex-shrink-0">
-            <button type="button" aria-label={t.up} disabled={i === 0} onClick={() => move(i, -1)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25"><ArrowUp className="w-4 h-4" /></button>
-            <button type="button" aria-label={t.down} disabled={i === list.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-25"><ArrowDown className="w-4 h-4" /></button>
-            <button type="button" aria-label={t.remove} onClick={() => change(list.filter((_, j) => j !== i))} className="w-8 h-8 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50"><X className="w-4 h-4" /></button>
+            <button type="button" aria-label={t.up} disabled={i === 0} onClick={() => move(i, -1)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F1EFF6] disabled:opacity-25"><ArrowUp className="w-4 h-4" /></button>
+            <button type="button" aria-label={t.down} disabled={i === list.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F1EFF6] disabled:opacity-25"><ArrowDown className="w-4 h-4" /></button>
+            <button type="button" aria-label={t.remove} onClick={() => change(list.filter((_, j) => j !== i))} className="w-8 h-8 rounded-full flex items-center justify-center text-[#C2304F] hover:bg-[#FEF5F7]"><X className="w-4 h-4" /></button>
           </div>
         )}
       </div>
-      {locked ? (s.note && <p className="mt-2 text-[13px] text-slate-600 pl-8">“{s.note}”</p>) : (
+      {locked ? (s.note && <p className="mt-2 text-[13px] text-[#4A4658] pl-8">“{s.note}”</p>) : (
         <input value={s.note ?? ""} maxLength={200} placeholder={t.note} aria-label={t.note}
           onChange={e => change(list.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))}
-          className="mt-2 w-full h-9 px-3 rounded-xl bg-slate-50 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-300" />
+          className="mt-2 w-full h-9 px-3 rounded-xl bg-[#F7F5FB] text-[13px] text-[#17151F] placeholder:text-[#8A8599] outline-none focus:ring-2 focus:ring-[#B5B0C4]" />
       )}
     </li>
   );
@@ -208,10 +208,10 @@ function MusicSheet({ token, music, brand, onClose }: {
         <div className="px-4 sm:px-5 pt-5 pb-3 flex items-center gap-3">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: brand }}><Music2 className="w-5 h-5" /></span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[18px] font-extrabold text-slate-900 leading-tight truncate">{t.card}</h2>
-            <p className="text-[13px] text-slate-500 truncate">{music.program}</p>
+            <h2 className="text-[18px] font-extrabold text-[#17151F] leading-tight truncate">{t.card}</h2>
+            <p className="text-[13px] text-[#6B6680] truncate">{music.program}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t.close} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-slate-500 flex-shrink-0"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={onClose} aria-label={t.close} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#6B6680] flex-shrink-0"><X className="w-4 h-4" /></button>
         </div>
 
         {/* Parts */}
@@ -221,7 +221,7 @@ function MusicSheet({ token, music, brand, onClose }: {
               const n = picks[p.key]?.length ?? 0, on = i === step;
               return (
                 <button key={p.key} role="tab" aria-selected={on} type="button" onClick={() => { setStep(i); setMsg(""); setPlaying(null); }}
-                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 flex-shrink-0", on ? "text-white" : "bg-white text-slate-600")}
+                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 flex-shrink-0", on ? "text-white" : "bg-white text-[#4A4658]")}
                   style={on ? { backgroundColor: brand } : undefined}>
                   {n > 0 && <Check className="w-3.5 h-3.5" />}{p.label}<span className="opacity-70 tabular-nums">{n}/{music.perPart}</span>
                 </button>
@@ -232,14 +232,14 @@ function MusicSheet({ token, music, brand, onClose }: {
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-5">
           {locked && (
-            <div className="mb-3 rounded-2xl bg-emerald-50 border border-emerald-100 p-3.5">
-              <p className="text-sm font-bold text-emerald-800 flex items-center gap-1.5"><Lock className="w-4 h-4" />{t.locked}</p>
-              <p className="text-[13px] text-emerald-800/80 mt-0.5">{music.submittedAt ? `${t.sentOn(fmt(music.submittedAt))}. ` : ""}{asked ? t.asked : t.lockedSub}</p>
-              {!asked && !asking && <button type="button" onClick={() => setAsking(true)} className="mt-2.5 h-9 px-4 rounded-full bg-white text-emerald-800 text-[13px] font-semibold border border-emerald-200">{t.ask}</button>}
+            <div className="mb-3 rounded-2xl bg-[#F0FAF4] border border-[#E7F5EE] p-3.5">
+              <p className="text-sm font-bold text-[#14613F] flex items-center gap-1.5"><Lock className="w-4 h-4" />{t.locked}</p>
+              <p className="text-[13px] text-[#14613F]/80 mt-0.5">{music.submittedAt ? `${t.sentOn(fmt(music.submittedAt))}. ` : ""}{asked ? t.asked : t.lockedSub}</p>
+              {!asked && !asking && <button type="button" onClick={() => setAsking(true)} className="mt-2.5 h-9 px-4 rounded-full bg-white text-[#14613F] text-[13px] font-semibold border border-[#CDEBDB]">{t.ask}</button>}
               {asking && (
                 <div className="mt-2.5 space-y-2">
-                  <textarea value={why} onChange={e => setWhy(e.target.value)} rows={2} maxLength={500} placeholder={t.why} aria-label={t.why} className="w-full rounded-xl bg-white p-2.5 text-[13px] outline-none border border-emerald-200" />
-                  <button type="button" onClick={askReopen} disabled={sending} className="h-9 px-4 rounded-full bg-emerald-700 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+                  <textarea value={why} onChange={e => setWhy(e.target.value)} rows={2} maxLength={500} placeholder={t.why} aria-label={t.why} className="w-full rounded-xl bg-white p-2.5 text-[13px] outline-none border border-[#CDEBDB]" />
+                  <button type="button" onClick={askReopen} disabled={sending} className="h-9 px-4 rounded-full bg-[#1F8A5B] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
                     {sending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{t.askSend}
                   </button>
                 </div>
@@ -256,21 +256,21 @@ function MusicSheet({ token, music, brand, onClose }: {
 
           {review ? (
             <>
-              <h3 className="text-[17px] font-extrabold text-slate-900">{t.reviewTitle}</h3>
-              <p className="text-[13px] text-slate-500 mb-3">{t.reviewSub}</p>
-              {emptyParts.length > 0 && <p className="mb-3 rounded-2xl bg-amber-50 border border-amber-100 p-3 text-[13px] text-amber-900">{t.warn(emptyParts.map(p => p.label).join(", "))}</p>}
+              <h3 className="text-[17px] font-extrabold text-[#17151F]">{t.reviewTitle}</h3>
+              <p className="text-[13px] text-[#6B6680] mb-3">{t.reviewSub}</p>
+              {emptyParts.length > 0 && <p className="mb-3 rounded-2xl bg-[#FFF9EF] border border-[#FFF3E0] p-3 text-[13px] text-[#7A4A00]">{t.warn(emptyParts.map(p => p.label).join(", "))}</p>}
               <div className="space-y-3">
                 {parts.map((p, i) => (
-                  <div key={p.key} className="rounded-2xl bg-white border border-slate-100 p-3.5">
+                  <div key={p.key} className="rounded-2xl bg-white border border-[#F1EFF6] p-3.5">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-slate-900">{p.label}</p>
+                      <p className="text-sm font-bold text-[#17151F]">{p.label}</p>
                       <button type="button" onClick={() => setStep(i)} className="text-[13px] font-semibold" style={{ color: brand }}>{t.change}</button>
                     </div>
-                    {(picks[p.key] ?? []).length === 0 ? <p className="text-[13px] text-slate-400 mt-1">{t.empty}</p> : (
+                    {(picks[p.key] ?? []).length === 0 ? <p className="text-[13px] text-[#8A8599] mt-1">{t.empty}</p> : (
                       <ol className="mt-1.5 space-y-1.5">
                         {(picks[p.key] ?? []).map((s, j) => (
-                          <li key={s.youtubeId} className="text-[13px] text-slate-800 flex gap-2"><span className="font-bold tabular-nums" style={{ color: brand }}>{j + 1}.</span>
-                            <span className="min-w-0"><span className="block line-clamp-2">{s.title}</span>{s.note && <span className="block text-slate-500">“{s.note}”</span>}</span></li>
+                          <li key={s.youtubeId} className="text-[13px] text-[#17151F] flex gap-2"><span className="font-bold tabular-nums" style={{ color: brand }}>{j + 1}.</span>
+                            <span className="min-w-0"><span className="block line-clamp-2">{s.title}</span>{s.note && <span className="block text-[#6B6680]">“{s.note}”</span>}</span></li>
                         ))}
                       </ol>
                     )}
@@ -278,28 +278,28 @@ function MusicSheet({ token, music, brand, onClose }: {
                 ))}
               </div>
               <textarea value={note} onChange={e => { dirty.current = true; setNote(e.target.value); }} rows={2} maxLength={1000} placeholder={t.anyNote} aria-label={t.anyNote}
-                className="mt-3 w-full rounded-2xl bg-white border border-slate-100 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-300" />
-              <p className="mt-2 text-xs text-slate-500">{t.after}</p>
+                className="mt-3 w-full rounded-2xl bg-white border border-[#F1EFF6] p-3 text-sm outline-none focus:ring-2 focus:ring-[#B5B0C4]" />
+              <p className="mt-2 text-xs text-[#6B6680]">{t.after}</p>
             </>
           ) : (
             <>
               <div className="flex items-baseline justify-between mb-1.5 mt-1">
-                <h3 className="text-sm font-bold text-slate-900">{t.yours} <span className="text-slate-400 tabular-nums">({list.length}/{music.perPart})</span></h3>
+                <h3 className="text-sm font-bold text-[#17151F]">{t.yours} <span className="text-[#8A8599] tabular-nums">({list.length}/{music.perPart})</span></h3>
               </div>
-              {!locked && <p className="text-xs text-slate-500 mb-2">{t.upTo(music.perPart)}</p>}
-              {list.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-4 text-center text-[13px] text-slate-500">{t.none}</p>
+              {!locked && <p className="text-xs text-[#6B6680] mb-2">{t.upTo(music.perPart)}</p>}
+              {list.length === 0 ? <p className="rounded-2xl border border-dashed border-[#E4E0EC] bg-white/60 p-4 text-center text-[13px] text-[#6B6680]">{t.none}</p>
                 : <ol className="space-y-2">{list.map((s, i) => songRow(s, i))}</ol>}
 
-              {msg && <p role="alert" className="mt-2.5 rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 text-[13px] text-rose-700">{msg}</p>}
+              {msg && <p role="alert" className="mt-2.5 rounded-xl bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 text-[13px] text-[#C2304F]">{msg}</p>}
 
               {!locked && (
                 <>
-                  <div className="mt-4 rounded-2xl bg-white border border-slate-100 p-3.5">
-                    <p className="text-sm font-bold text-slate-900">{t.own}</p>
-                    <p className="text-xs text-slate-500 mb-2">{t.ownHint}</p>
+                  <div className="mt-4 rounded-2xl bg-white border border-[#F1EFF6] p-3.5">
+                    <p className="text-sm font-bold text-[#17151F]">{t.own}</p>
+                    <p className="text-xs text-[#6B6680] mb-2">{t.ownHint}</p>
                     <div className="flex gap-2">
                       <input value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addOwn(); }} inputMode="url" placeholder={t.paste} aria-label={t.paste}
-                        className="flex-1 min-w-0 h-11 px-3.5 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-slate-300" />
+                        className="flex-1 min-w-0 h-11 px-3.5 rounded-xl bg-[#F7F5FB] text-sm outline-none focus:ring-2 focus:ring-[#B5B0C4]" />
                       <button type="button" onClick={addOwn} disabled={adding || !link.trim()} className="h-11 px-4 rounded-xl text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand }}>
                         {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}{t.add}
                       </button>
@@ -308,16 +308,16 @@ function MusicSheet({ token, music, brand, onClose }: {
 
                   {ideas.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2">{t.ideas}</h3>
+                      <h3 className="text-sm font-bold text-[#17151F] mb-2">{t.ideas}</h3>
                       <ul className="space-y-2">
                         {ideas.map(s => (
-                          <li key={s.youtubeId} className="rounded-2xl bg-white border border-slate-100 p-2.5 flex items-center gap-2.5">
+                          <li key={s.youtubeId} className="rounded-2xl bg-white border border-[#F1EFF6] p-2.5 flex items-center gap-2.5">
                             <Thumb song={s} label={t.listen} playing={playing === s.youtubeId} onPlay={() => setPlaying(p => (p === s.youtubeId ? null : s.youtubeId))} />
                             <div className="min-w-0 flex-1">
-                              <p className="text-[13.5px] font-semibold text-slate-900 leading-snug line-clamp-2">{s.title}</p>
-                              <p className="text-xs text-slate-500 truncate">{s.pick ? t.studioPick : s.channel}</p>
+                              <p className="text-[13.5px] font-semibold text-[#17151F] leading-snug line-clamp-2">{s.title}</p>
+                              <p className="text-xs text-[#6B6680] truncate">{s.pick ? t.studioPick : s.channel}</p>
                             </div>
-                            <a href={s.url} target="_blank" rel="noreferrer" aria-label={t.youtube} className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>
+                            <a href={s.url} target="_blank" rel="noreferrer" aria-label={t.youtube} className="w-9 h-9 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F1EFF6] flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>
                             <button type="button" onClick={() => addSong(s, "studio")} aria-label={`${t.add}: ${s.title}`} className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand }}><Plus className="w-5 h-5" /></button>
                           </li>
                         ))}
@@ -331,24 +331,24 @@ function MusicSheet({ token, music, brand, onClose }: {
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-5 py-3 bg-white/85 backdrop-blur border-t border-slate-100 flex items-center gap-2">
+        <div className="px-4 sm:px-5 py-3 bg-white/85 backdrop-blur border-t border-[#F1EFF6] flex items-center gap-2">
           {locked ? (
             <>
-              <span className="flex-1 text-[13px] text-slate-500">{t.songs(total)}</span>
+              <span className="flex-1 text-[13px] text-[#6B6680]">{t.songs(total)}</span>
               {step < parts.length - 1 && <button type="button" onClick={() => setStep(s => s + 1)} className="h-11 px-5 rounded-full text-white text-sm font-semibold inline-flex items-center gap-1.5" style={{ backgroundColor: brand }}>{t.next}<ArrowRight className="w-4 h-4" /></button>}
             </>
           ) : review ? (
             <>
-              <button type="button" onClick={() => setStep(parts.length - 1)} className="h-11 px-4 rounded-full bg-slate-100 text-slate-700 text-sm font-semibold inline-flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" />{t.back}</button>
+              <button type="button" onClick={() => setStep(parts.length - 1)} className="h-11 px-4 rounded-full bg-[#F1EFF6] text-[#33303F] text-sm font-semibold inline-flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" />{t.back}</button>
               <button type="button" onClick={send} disabled={sending || total === 0} className="flex-1 h-11 rounded-full text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: brand }}>
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{sending ? t.sending : t.send}
               </button>
             </>
           ) : (
             <>
-              <span className={cn("flex-1 text-[13px] inline-flex items-center gap-1.5", save === "error" ? "text-rose-600" : "text-slate-500")} aria-live="polite">
+              <span className={cn("flex-1 text-[13px] inline-flex items-center gap-1.5", save === "error" ? "text-[#C2304F]" : "text-[#6B6680]")} aria-live="polite">
                 {save === "saving" && <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t.saving}</>}
-                {save === "saved" && <><Check className="w-3.5 h-3.5 text-emerald-600" />{t.saved}</>}
+                {save === "saved" && <><Check className="w-3.5 h-3.5 text-[#1F8A5B]" />{t.saved}</>}
                 {save === "error" && t.notSaved}
               </span>
               <button type="button" onClick={() => { setStep(s => s + 1); setMsg(""); setPlaying(null); }}

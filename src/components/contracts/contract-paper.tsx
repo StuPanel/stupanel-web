@@ -42,7 +42,7 @@ export function ContractPaper({ studio, clientName, title, number, details, sect
   const contact = [studio.phone, studio.email].filter(Boolean).join(" · ");
 
   return (
-    <article className={cn("bg-white text-[#17151F] rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_18px_50px_-20px_rgba(22,18,40,.25)] print:shadow-none print:rounded-none", className)}>
+    <article className={cn("sp-paper bg-white text-[#17151F] rounded-[20px] print:rounded-none", className)}>
       <header className="flex items-center gap-3.5 px-6 sm:px-10 pt-7 pb-5 border-b border-[#E9E5F1]">
         <StudioLogo url={studio.logoUrl} name={studio.name} size={48} />
         <div className="min-w-0 flex-1">

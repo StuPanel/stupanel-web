@@ -1,5 +1,6 @@
 "use client";
 
+import { CURRENCY_OPTIONS } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link2, Loader2, Plus, Trash2, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -9,14 +10,7 @@ import { BRAND, safeLogo } from "@/lib/brand";
 import { LanguageGroup } from "./studio-setup";
 import { Group, Row, Select, TextArea, TextField, useSettings, useSynced } from "../_ui";
 
-const CURRENCIES = [
-  { value: "BDT", label: "৳ BDT — Taka" },
-  { value: "USD", label: "$ USD — US Dollar" },
-  { value: "INR", label: "₹ INR — Indian Rupee" },
-  { value: "GBP", label: "£ GBP — British Pound" },
-  { value: "EUR", label: "€ EUR — Euro" },
-  { value: "AED", label: "AED — UAE Dirham" },
-];
+const CURRENCIES = CURRENCY_OPTIONS;
 
 const TIMEZONES = [
   { value: "Asia/Dhaka", label: "Dhaka (GMT+6)" },

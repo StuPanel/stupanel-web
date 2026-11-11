@@ -71,7 +71,7 @@ function WorkTypes() {
 
   return (
     <>
-      <Group title="Program types" note="Pick a type when you add a program and its parts fill in as days — e.g. Muslim wedding → Gaye Holud, Wedding, Reception. A type with no parts gets one day. Turn off the ones you don't do; old programs keep theirs.">
+      <Group title="Program types" note="Pick a type when you add a program (or a package) and its parts fill in as days — e.g. Wedding → Ceremony, Wedding, Reception. A type with no parts gets one day. Turn off the ones you don't do; old programs keep theirs.">
         <div id="set-workTypes" className="sp-set-row scroll-mt-28 divide-y divide-[#EEEBF4]">
           {types.map((t, i) => (
             <TypeCard key={t.id} type={t} open={open === t.id} onToggle={() => setOpen(o => o === t.id ? null : t.id)}

@@ -28,14 +28,14 @@ const CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album"
 // Values must match the API's PaymentMethodType enum (bKash/Nagad/Rocket are "mobile_banking").
 const PAYMENT_METHODS: { value: string; label: string }[] = [
   { value: "cash", label: "Cash" },
-  { value: "mobile_banking", label: "bKash / Nagad / Rocket" },
+  { value: "mobile_banking", label: "Mobile wallet" },
   { value: "bank_transfer", label: "Bank transfer" },
   { value: "credit_card", label: "Card" },
   { value: "cheque", label: "Cheque" },
   { value: "other", label: "Other" },
 ];
 const METHOD_LABEL: Record<string, string> = {
-  cash: "Cash", mobile_banking: "bKash / Nagad / Rocket", bank_transfer: "Bank transfer",
+  cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank transfer",
   credit_card: "Card", debit_card: "Card", cheque: "Cheque", online_gateway: "Online", other: "Other",
 };
 

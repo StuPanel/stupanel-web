@@ -243,7 +243,7 @@ const INV_STATE: Record<string, { label: string; cls: string }> = {
   paid: { label: "Paid", cls: "text-[#1F8A5B]" }, overdue: { label: "Overdue", cls: "text-[#C2304F]" }, cancelled: { label: "Cancelled", cls: "text-[#6B6680]" },
 };
 
-const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", card: "Card", other: "Other" };
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", card: "Card", other: "Other" };
 
 function ProfileDrawer({
   client, onClose, onEdit,

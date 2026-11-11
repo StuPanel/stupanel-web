@@ -12,6 +12,12 @@ export interface Package {
   id: string;
   name: string;
   basePrice?: number;
+  currency?: string;
+  /** Program type name (Settings → Program types). */
+  category?: string | null;
+  /** Day names the package covers. */
+  eventTypesIncluded?: string[];
+  isActive?: boolean;
 }
 
 export interface TeamMember {

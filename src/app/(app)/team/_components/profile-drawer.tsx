@@ -66,7 +66,7 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 // ─── Pay a member (split over the programs they are owed for) ───────────────
 type Due = { id: string; bookingNumber: string; eventName: string | null; date: string; bill: number; paid: number; due: number };
-const PAY_METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "bKash / Nagad" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
+const PAY_METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const r2 = (n: number) => Math.round(n * 100) / 100;
 /** Oldest program first; anything over the total goes on the last one (same rule as the API). */
 function autoSplit(progs: Due[], amount: number): Record<string, number> {

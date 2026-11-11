@@ -53,7 +53,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: React.Rea
 };
 
 const SETUP_LABEL: Record<string, string> = { own: "own setup", other: "others' gear", rented: "rented gear" };
-const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "bKash / Nagad", bank_transfer: "Bank", other: "Other" };
+const METHOD_LABEL: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", other: "Other" };
 const ROLE_CFG: Record<string, string> = {
   photographer: "Photographer", videographer: "Videographer", cinematographer: "Cinematographer", drone_pilot: "Drone", assistant: "Assistant",
   drone_operator: "Drone", photo_editor: "Photo Editor", video_editor: "Video Editor",

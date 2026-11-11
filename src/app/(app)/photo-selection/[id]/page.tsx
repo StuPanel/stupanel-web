@@ -24,6 +24,7 @@ import {
 } from "@/lib/photos";
 import { AddPhotos, uploadPhotos, type UploadState } from "../_components/add-photos";
 import { GallerySettings } from "../_components/gallery-settings";
+import { HandoffPanel } from "../_components/handoff";
 
 type Filter = "all" | "picked" | "important" | "rejected" | "none" | "notes" | "highlight" | "problems";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -277,6 +278,8 @@ export default function GalleryPage() {
       {g.status !== "submitted" && g.clientNote && (
         <div className="mb-4 rounded-[18px] bg-white p-4 flex items-start gap-3"><MessageSquareText className="w-5 h-5 text-[#5B3FD0] flex-shrink-0 mt-0.5" /><p className="text-[14px] text-[#17151F]">“{g.clientNote}”</p></div>
       )}
+
+      {g.status !== "preparing" && <HandoffPanel g={g} />}
 
       {/* Making previews / uploads */}
       {(working || g.counts.failed > 0) && (

@@ -186,3 +186,35 @@ export function placeMark(W: number, H: number, wm: Pick<Watermark, "size" | "ma
     width: w, height: h,
   };
 }
+
+// ─── After the client has chosen (phase 2–3) ─────────────────────────────────
+
+export type DriveCopy = {
+  state: "running" | "done" | "failed";
+  total: number; done: number; copied: number; skipped: number; failed: number;
+  /** chosen photos that came from a computer (not on Drive) */
+  notOnDrive: number;
+  startedAt: string; finishedAt?: string; error?: string;
+  folders: { email: string; url: string }[];
+};
+export type Handoff = {
+  drive: DriveCopy | null;
+  designer: { userId: string; name: string; assignmentId: string; status: string; deadline: string | null } | null;
+  share: { token: string; url: string } | null;
+};
+
+/** Folder names used on Drive and on the computer. */
+export const MARK_FOLDER = { important: "Most important", selected: "Chosen" } as const;
+/** "Md / Bappy's" → a name a folder can have. */
+export const folderName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120) || "Photos";
+
+/** The family's view-only page. */
+export type SharedGallery = {
+  id: string; title: string;
+  studio: { name: string; logoUrl: string | null; phone: string | null };
+  client: string;
+  event: { name: string | null; date: string | null };
+  albums: { id: string; name: string }[];
+  img: Img;
+  photos: { id: string; a: string; w: number | null; h: number | null; hl: boolean; c: boolean }[];
+};

@@ -19,6 +19,10 @@ export interface ContractRow {
   id: string; contractNumber: string; title: string; status: ContractStatus; publicToken: string; bookingId: string | null; clientId: string;
   details: ContractDetails; sentAt: string | null; viewedAt: string | null; lastViewedAt: string | null; viewCount: number;
   signedAt: string | null; signerName: string | null; createdAt: string; updatedAt: string;
+  /** Last time the studio reminded the client to sign */
+  lastRemindedAt?: string | null;
+  /** Sent a few days ago (or since the last reminder) and still not signed */
+  needsReminder?: boolean;
   client: { id: string; firstName: string; lastName: string | null; phone: string | null; email: string | null };
   booking: { id: string; bookingNumber: string; eventName: string | null; eventDate: string | null } | null;
 }

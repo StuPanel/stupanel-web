@@ -8,7 +8,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Copy, Eye, FileSignature, FileText, PencilLine, Plus, Send, Sparkles, Trash2 } from "lucide-react";
+import { BellRing, CheckCircle2, Copy, Eye, FileSignature, FileText, PencilLine, Plus, Send, Sparkles, Trash2 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { waNumber } from "@/lib/phone";
+import { reminderMessage, sendReminder } from "./_components/remind-box";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -38,6 +41,7 @@ export default function ContractsPage() {
   const [tpl, setTpl] = useState<{ starters: ContractTemplate[]; custom: ContractTemplate[] } | null>(null);
   const [drawer, setDrawer] = useState<{ template?: ContractTemplate; startFrom?: ContractTemplate } | null>(null);
   const seq = useRef(0);
+  const { companyName } = useAuth();
 
   const load = useCallback(async () => {
     const n = ++seq.current;
@@ -51,6 +55,14 @@ export default function ContractsPage() {
 
   const loadTpl = useCallback(() => apiFetch(`${API}/contracts/templates`).then(r => (r.ok ? r.json() : null)).then(d => d && setTpl(d)).catch(() => undefined), []);
   useEffect(() => { if (tab === "templates" && !tpl) void loadTpl(); }, [tab, tpl, loadTpl]);
+
+  /** Open WhatsApp with the reminder ready, and note it so the nudge waits again. */
+  function remindOnWhatsApp(c: ContractRow) {
+    const url = `https://wa.me/${waNumber(c.client.phone) ?? ""}?text=${encodeURIComponent(reminderMessage(c, companyName || "Your studio"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    void sendReminder(c.id, "whatsapp").then(at => { if (at) setRows(rs => rs && rs.map(x => (x.id === c.id ? { ...x, lastRemindedAt: at, needsReminder: false } : x))); });
+  }
+  const overdue = (rows ?? []).filter(c => c.needsReminder);
 
   async function copyLink(c: ContractRow) {
     // Copying a draft's link means the studio is sending it — make it live first
@@ -108,6 +120,12 @@ export default function ContractsPage() {
               </div>
             </div>
           )}
+          {overdue.length > 0 && (
+            <div className="rounded-[20px] bg-[#FFF3E0] px-4 py-3 mb-4 flex items-center gap-3" role="status">
+              <BellRing className="w-5 h-5 text-[#9A5B00] flex-shrink-0" />
+              <p className="flex-1 min-w-0 text-[13.5px] text-[#5C3A00]"><span className="font-bold">{overdue.length === 1 ? "1 contract is" : `${overdue.length} contracts are`} still not signed</span> after a few days. Tap the bell to remind the client on WhatsApp.</p>
+            </div>
+          )}
           <Chips<Filter> label="Filter by status" value={filter} onChange={setFilter} options={[
             { value: "all", label: "All", count: counts.all ?? 0 },
             ...(["draft", "sent", "viewed", "signed"] as const).map(k => ({ value: k as Filter, label: STATUS_META[k].label, count: counts[k] ?? 0, dot: STATUS_META[k].dot })),
@@ -139,6 +157,10 @@ export default function ContractsPage() {
                         <span className={cn("h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center flex-shrink-0", st.cls)}>{st.label}</span>
                       </Link>
                       <span className="flex items-center gap-0.5 flex-shrink-0">
+                        {c.needsReminder && (
+                          <button type="button" onClick={() => remindOnWhatsApp(c)} aria-label={`Remind ${clientFull(c.client)} on WhatsApp`} title="Remind on WhatsApp"
+                            className="w-9 h-9 rounded-full bg-[#FFF3E0] text-[#9A5B00] hover:bg-[#FFE8C2] flex items-center justify-center"><BellRing className="w-4 h-4" /></button>
+                        )}
                         <button type="button" onClick={() => copyLink(c)} aria-label={`Copy the link of ${c.title}`} title="Copy link" className="w-9 h-9 rounded-full text-[#6B6680] hover:bg-[#EEE8FD] hover:text-[#5B3FD0] flex items-center justify-center"><Copy className="w-4 h-4" /></button>
                         <button type="button" onClick={() => remove(c)} aria-label={`Delete ${c.title}`} title="Delete" className="hidden sm:flex w-9 h-9 rounded-full text-[#6B6680] hover:bg-[#FDECEF] hover:text-[#C2304F] items-center justify-center"><Trash2 className="w-4 h-4" /></button>
                       </span>

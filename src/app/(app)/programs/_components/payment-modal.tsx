@@ -73,64 +73,64 @@ export function PaymentModal({ booking, onClose, onSaved }: {
       <div className="sp-backdrop z-50" onClick={onClose} />
       <div className="fixed inset-0 z-50 pointer-events-none">
         <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-900">Record Payment</h3>
-              <p className="text-xs text-slate-400 mt-0.5">{booking.eventName ?? booking.bookingNumber}</p>
+              <h3 className="font-bold text-[#17151F]">Record Payment</h3>
+              <p className="text-xs text-[#8A8599] mt-0.5">{booking.eventName ?? booking.bookingNumber}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">
-              <X className="w-4 h-4 text-slate-500" />
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]">
+              <X className="w-4 h-4 text-[#6B6680]" />
             </button>
           </div>
 
           <div className="p-5 space-y-3">
             {due > 0 && (
-              <div className="flex items-center justify-between px-3 py-2 bg-red-50 rounded-xl border border-red-100">
-                <span className="text-xs text-red-600">Outstanding Due</span>
-                <span className="font-bold text-red-700 text-sm">{formatCurrency(due, bk.currency)}</span>
+              <div className="flex items-center justify-between px-3 py-2 bg-[#FEF5F7] rounded-xl border border-[#FDECEF]">
+                <span className="text-xs text-[#C2304F]">Outstanding Due</span>
+                <span className="font-bold text-[#C2304F] text-sm">{formatCurrency(due, bk.currency)}</span>
               </div>
             )}
-            {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+            {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg">{error}</p>}
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Amount *</Label>
+              <Label className="text-xs font-medium text-[#4A4658]">Amount *</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8599] text-sm">{sym}</span>
                 <Input type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)}
-                  placeholder="0" className="pl-7 h-11 border-slate-200 text-base font-semibold" autoFocus />
+                  placeholder="0" className="pl-7 h-11 border-[#E4E0EC] text-base font-semibold" autoFocus />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-600">Method</Label>
+                <Label className="text-xs font-medium text-[#4A4658]">Method</Label>
                 <select value={method} onChange={e => setMethod(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                  className="w-full h-10 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                   {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-600">Date</Label>
-                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-slate-200 text-sm" />
+                <Label className="text-xs font-medium text-[#4A4658]">Date</Label>
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
               </div>
             </div>
 
             <AccountPicker value={walletId} onChange={setWalletId} method={method} />
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Reference / TrxID</Label>
-              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="Transaction ID, bank ref…" className="h-10 border-slate-200 text-sm" />
+              <Label className="text-xs font-medium text-[#4A4658]">Reference / TrxID</Label>
+              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="Transaction ID, bank ref…" className="h-10 border-[#E4E0EC] text-sm" />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600">Note</Label>
-              <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="h-10 border-slate-200 text-sm" />
+              <Label className="text-xs font-medium text-[#4A4658]">Note</Label>
+              <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="h-10 border-[#E4E0EC] text-sm" />
             </div>
           </div>
 
           <div className="px-5 pb-5 flex gap-3">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-            <Button onClick={submit} disabled={loading} className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
+            <Button onClick={submit} disabled={loading} className="flex-1 h-11 bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
               Record Payment
             </Button>

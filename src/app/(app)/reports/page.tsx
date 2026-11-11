@@ -91,8 +91,8 @@ export default function ReportsPage() {
 
   if (error) return (
     <div className="flex flex-col items-center justify-center py-24 gap-3">
-      <p className="text-slate-500">Failed to load reports. Please try again.</p>
-      <button onClick={fetchAll} className="text-sm text-indigo-600 underline">Retry</button>
+      <p className="text-[#6B6680]">Failed to load reports. Please try again.</p>
+      <button onClick={fetchAll} className="text-sm text-[#7D5CEF] underline">Retry</button>
     </div>
   );
 
@@ -194,29 +194,29 @@ export default function ReportsPage() {
                   <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full group"
                     title={`${MONTHS_SHORT[i]}: ${chartMetric === "programs" ? d.value : fmtFull(d.value)}`}>
                     <div className={cn("w-full rounded-[6px] transition-colors",
-                      isNeg ? "bg-red-300 group-hover:bg-red-400"
+                      isNeg ? "bg-[#EDA6B5] group-hover:bg-[#DA6A82]"
                       : isCurrent ? "bg-[#7D5CEF]"
-                      : chartMetric === "profit" ? "bg-emerald-300 group-hover:bg-emerald-400"
+                      : chartMetric === "profit" ? "bg-[#9AD5B6] group-hover:bg-[#4FB884]"
                       : "bg-[#CFC2F8] group-hover:bg-[#B29DF8]")}
                       style={{ height: `${h}%` }} />
-                    <span className="text-xs text-slate-400">{MONTHS_SHORT[i][0]}</span>
+                    <span className="text-xs text-[#8A8599]">{MONTHS_SHORT[i][0]}</span>
                   </div>
                 );
               })}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100">
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#F1EFF6]">
               <div>
-                <p className="text-xs text-slate-400">Total Revenue</p>
-                <p className="font-bold text-slate-900">{fmtFull(monthly.reduce((s, m) => s + m.revenue, 0))}</p>
+                <p className="text-xs text-[#8A8599]">Total Revenue</p>
+                <p className="font-bold text-[#17151F]">{fmtFull(monthly.reduce((s, m) => s + m.revenue, 0))}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400">Total Costs</p>
-                <p className="font-bold text-slate-900">{fmtFull(monthly.reduce((s, m) => s + m.costs, 0))}</p>
+                <p className="text-xs text-[#8A8599]">Total Costs</p>
+                <p className="font-bold text-[#17151F]">{fmtFull(monthly.reduce((s, m) => s + m.costs, 0))}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400">Net Profit</p>
-                <p className={cn("font-bold", summary.netProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
+                <p className="text-xs text-[#8A8599]">Net Profit</p>
+                <p className={cn("font-bold", summary.netProfit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]")}>
                   {fmtFull(monthly.reduce((s, m) => s + m.profit, 0))}
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default function ReportsPage() {
         <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
           <h2 className="font-bold text-[#17151F] text-[15px] mb-4">Programs by Status</h2>
           {statusBreakdown.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No data</p>
+            <p className="text-sm text-[#8A8599] text-center py-8">No data</p>
           ) : (
             <div className="space-y-2.5">
               {statusBreakdown.sort((a, b) => b.count - a.count).map(item => {
@@ -239,16 +239,16 @@ export default function ReportsPage() {
                   <div key={item.status}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full", STATUS_COLOR[item.status] ?? "bg-slate-400")} />
-                        <span className="text-xs font-medium text-slate-700">{STATUS_LABEL[item.status] ?? item.status}</span>
+                        <span className={cn("w-2 h-2 rounded-full", STATUS_COLOR[item.status] ?? "bg-[#8A8599]")} />
+                        <span className="text-xs font-medium text-[#33303F]">{STATUS_LABEL[item.status] ?? item.status}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-slate-500">
-                        <span className="font-semibold text-slate-800">{item.count}</span>
-                        <span className="text-slate-400">{fmtFull(item.revenue)}</span>
+                      <div className="flex items-center gap-3 text-xs text-[#6B6680]">
+                        <span className="font-semibold text-[#17151F]">{item.count}</span>
+                        <span className="text-[#8A8599]">{fmtFull(item.revenue)}</span>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={cn("h-full rounded-full transition-all", STATUS_COLOR[item.status] ?? "bg-slate-400")}
+                    <div className="h-1.5 bg-[#F1EFF6] rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all", STATUS_COLOR[item.status] ?? "bg-[#8A8599]")}
                         style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -262,7 +262,7 @@ export default function ReportsPage() {
         <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
           <h2 className="font-bold text-[#17151F] text-[15px] mb-4">Top Clients — {year}</h2>
           {topClients.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No data</p>
+            <p className="text-sm text-[#8A8599] text-center py-8">No data</p>
           ) : (
             <div className="space-y-2">
               {topClients.map((tc, i) => {
@@ -270,21 +270,21 @@ export default function ReportsPage() {
                 const pct = maxRev > 0 ? (tc.revenue / maxRev) * 100 : 0;
                 return (
                   <div key={tc.client.id} className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-300 w-4 text-right flex-shrink-0">{i + 1}</span>
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">
+                    <span className="text-xs font-bold text-[#B5B0C4] w-4 text-right flex-shrink-0">{i + 1}</span>
+                    <div className="w-7 h-7 rounded-full bg-[#EEE8FD] flex items-center justify-center text-xs font-bold text-[#5B3FD0] flex-shrink-0">
                       {tc.client.firstName[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs font-semibold text-slate-800 truncate">
+                        <p className="text-xs font-semibold text-[#17151F] truncate">
                           {tc.client.firstName} {tc.client.lastName ?? ""}
                         </p>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                          <span className="text-xs text-slate-400">{tc.programs}p</span>
-                          <span className="text-xs font-bold text-slate-900">{fmtFull(tc.revenue)}</span>
+                          <span className="text-xs text-[#8A8599]">{tc.programs}p</span>
+                          <span className="text-xs font-bold text-[#17151F]">{fmtFull(tc.revenue)}</span>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-[#F1EFF6] rounded-full overflow-hidden">
                         <div className="h-full bg-[#7D5CEF] rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -306,18 +306,18 @@ export default function ReportsPage() {
               const pct = maxEarned > 0 ? (te.totalEarned / maxEarned) * 100 : 0;
               return (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-[#F1EFF6] flex items-center justify-center text-xs font-bold text-[#4A4658] flex-shrink-0">
                     {te.memberName[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-semibold text-slate-800">{te.memberName}</p>
+                      <p className="text-xs font-semibold text-[#17151F]">{te.memberName}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">{te.programs} program{te.programs > 1 ? "s" : ""}</span>
-                        <span className="text-xs font-bold text-slate-900">{fmtFull(te.totalEarned)}</span>
+                        <span className="text-xs text-[#8A8599]">{te.programs} program{te.programs > 1 ? "s" : ""}</span>
+                        <span className="text-xs font-bold text-[#17151F]">{fmtFull(te.totalEarned)}</span>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-[#F1EFF6] rounded-full overflow-hidden">
                       <div className="h-full bg-[#1F5C99] rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -325,9 +325,9 @@ export default function ReportsPage() {
               );
             })}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between text-sm">
-            <span className="text-slate-500">Total team payout</span>
-            <span className="font-bold text-slate-900">{fmtFull(teamEarnings.reduce((s, t) => s + t.totalEarned, 0))}</span>
+          <div className="mt-4 pt-3 border-t border-[#F1EFF6] flex justify-between text-sm">
+            <span className="text-[#6B6680]">Total team payout</span>
+            <span className="font-bold text-[#17151F]">{fmtFull(teamEarnings.reduce((s, t) => s + t.totalEarned, 0))}</span>
           </div>
         </div>
       )}

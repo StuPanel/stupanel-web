@@ -120,38 +120,38 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   return (
     <aside className={cn(
       "flex flex-col w-full h-full bg-white overflow-hidden",
-      isMobile ? "" : "sp-glass rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]"
+      isMobile ? "" : "sp-glass rounded-2xl border border-[#E4E0EC]/80 shadow-[0_8px_30px_-12px_rgba(91,63,208,0.18)]"
     )}>
       {/* Brand */}
       <div className={cn("flex items-center flex-shrink-0 pt-4 pb-3", wide ? "px-4 justify-between" : "flex-col gap-2 px-2")}>
         <Link href="/dashboard" onClick={isMobile ? onClose : undefined} className="flex items-center gap-2.5 min-w-0">
           <BrandMark size={34} />
-          {wide && <span className="font-extrabold text-[17px] tracking-tight text-slate-900">StuPanel</span>}
+          {wide && <span className="font-extrabold text-[17px] tracking-tight text-[#17151F]">StuPanel</span>}
         </Link>
         {!isMobile && (
           <button
             onClick={onToggle}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-700 hover:bg-violet-50 transition-colors"
+            className="p-1.5 rounded-lg text-[#8A8599] hover:text-[#5B3FD0] hover:bg-[#F7F4FE] transition-colors"
           >
             {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
           </button>
         )}
         {isMobile && (
-          <button onClick={onClose} className="p-2 -mr-1 rounded-lg hover:bg-slate-100" aria-label="Close menu">
-            <X className="w-5 h-5 text-slate-500" />
+          <button onClick={onClose} className="p-2 -mr-1 rounded-lg hover:bg-[#F1EFF6]" aria-label="Close menu">
+            <X className="w-5 h-5 text-[#6B6680]" />
           </button>
         )}
       </div>
 
       {/* Studio identity */}
       <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
-        <div className={cn("flex items-center rounded-xl bg-slate-50 border border-slate-100", wide ? "gap-2.5 p-2" : "p-1.5")}>
+        <div className={cn("flex items-center rounded-xl bg-[#F7F5FB] border border-[#F1EFF6]", wide ? "gap-2.5 p-2" : "p-1.5")}>
           <StudioLogo url={companyLogo} name={companyName} size={32} className="rounded-lg" />
           {wide && (
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{companyName || "Your studio"}</p>
-              <p className="text-xs text-slate-500 leading-tight mt-0.5">Studio workspace</p>
+              <p className="text-[13px] font-semibold text-[#17151F] truncate leading-tight">{companyName || "Your studio"}</p>
+              <p className="text-xs text-[#6B6680] leading-tight mt-0.5">Studio workspace</p>
             </div>
           )}
         </div>
@@ -163,7 +163,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
           <div key={group.title}>
             {wide
               ? <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
-              : <div className="h-px bg-slate-100 mx-2 mb-2" />}
+              : <div className="h-px bg-[#F1EFF6] mx-2 mb-2" />}
             <ul className="space-y-px">
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -184,10 +184,10 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
                       {wide && <span className="flex-1 truncate">{item.name}</span>}
                       {item.href === "/chat" && chatUnread > 0 && !isActive && (
                         wide
-                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">
+                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">
                               {chatUnread > 9 ? "9+" : chatUnread}
                             </span>
-                          : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-600 ring-2 ring-white" />
+                          : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#7D5CEF] ring-2 ring-white" />
                       )}
                     </Link>
                   </li>
@@ -199,7 +199,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       </nav>
 
       {/* You: profile, plan, settings, log out */}
-      <div className={cn("flex-shrink-0 border-t border-slate-100", wide ? "p-2" : "p-2 flex justify-center")}>
+      <div className={cn("flex-shrink-0 border-t border-[#F1EFF6]", wide ? "p-2" : "p-2 flex justify-center")}>
         <AccountMenu variant={wide ? "sidebar" : "collapsed"} side={isMobile ? "top" : "right"} onNavigate={isMobile ? onClose : undefined} />
       </div>
     </aside>

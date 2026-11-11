@@ -90,14 +90,14 @@ export function DeleteDialog({ booking, onClose, onDeleted }: {
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="sp-modal w-full max-w-sm p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-7 h-7 text-red-500" />
+          <div className="w-14 h-14 rounded-full bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
-          <h3 className="font-bold text-slate-900 text-lg">Delete Program?</h3>
-          <p className="text-slate-500 text-sm mt-2"><span className="font-semibold text-slate-700">{booking.eventName ?? booking.bookingNumber}</span> will be permanently deleted.</p>
+          <h3 className="font-bold text-[#17151F] text-lg">Delete Program?</h3>
+          <p className="text-[#6B6680] text-sm mt-2"><span className="font-semibold text-[#33303F]">{booking.eventName ?? booking.bookingNumber}</span> will be permanently deleted.</p>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200">Cancel</Button>
-            <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
+            <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}Delete
             </Button>
           </div>
@@ -129,12 +129,12 @@ export function StatusPipeline({ current, bookingId, onChanged, hideTitle }: {
 
   return (
     <div className="space-y-2">
-      {!hideTitle && <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</p>}
+      {!hideTitle && <p className="text-xs font-semibold text-[#8A8599] uppercase tracking-wider">Status</p>}
       {isCancelled ? (
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-red-200 bg-red-50">
-          <span className="text-sm font-semibold text-red-700 capitalize">{current}</span>
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-[#F6CFD8] bg-[#FEF5F7]">
+          <span className="text-sm font-semibold text-[#C2304F] capitalize">{current}</span>
           <button onClick={() => changeStatus("confirmed")}
-            className="text-xs text-slate-500 hover:text-indigo-600 underline">Reopen</button>
+            className="text-xs text-[#6B6680] hover:text-[#7D5CEF] underline">Reopen</button>
         </div>
       ) : (
         <div className="grid grid-cols-4 gap-1">
@@ -147,16 +147,16 @@ export function StatusPipeline({ current, bookingId, onChanged, hideTitle }: {
               <button key={s} onClick={() => changeStatus(s)}
                 disabled={loading !== null}
                 className={cn("flex-shrink-0 flex flex-col items-center justify-start gap-1 px-1 py-1.5 rounded-xl transition-all min-w-0",
-                  active ? "bg-indigo-600" : done ? "bg-indigo-100 hover:bg-indigo-200" : "bg-slate-100 hover:bg-slate-200")}>
+                  active ? "bg-[#7D5CEF]" : done ? "bg-[#EEE8FD] hover:bg-indigo-200" : "bg-[#F1EFF6] hover:bg-[#E4E0EC]")}>
                 <div className={cn("w-4 h-4 rounded-full flex items-center justify-center",
-                  active ? "bg-white" : done ? "bg-indigo-500" : "bg-slate-300")}>
+                  active ? "bg-white" : done ? "bg-[#7D5CEF]" : "bg-[#B5B0C4]")}>
                   {loading === s
-                    ? <Loader2 className="w-2.5 h-2.5 animate-spin text-indigo-600" />
+                    ? <Loader2 className="w-2.5 h-2.5 animate-spin text-[#7D5CEF]" />
                     : done ? <Check className="w-2.5 h-2.5 text-white" />
-                    : <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-indigo-600" : "bg-slate-400")} />}
+                    : <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-[#7D5CEF]" : "bg-[#8A8599]")} />}
                 </div>
                 <span className={cn("text-xs font-semibold leading-tight text-center max-w-[52px]",
-                  active ? "text-white" : done ? "text-indigo-700" : "text-slate-400")}>
+                  active ? "text-white" : done ? "text-[#5B3FD0]" : "text-[#8A8599]")}>
                   {sc?.label ?? s}
                 </span>
               </button>
@@ -167,10 +167,10 @@ export function StatusPipeline({ current, bookingId, onChanged, hideTitle }: {
       {!isCancelled && (
         <div className="flex gap-2 mt-1">
           <button onClick={async () => { if (await askConfirm({ title: "Cancel this program?", message: "The program will be marked as cancelled. You can reopen it later.", confirmLabel: "Mark cancelled", danger: true })) changeStatus("cancelled"); }}
-            className="text-xs text-red-500 hover:text-red-700 underline">Mark Cancelled</button>
+            className="text-xs text-[#C2304F] hover:text-[#C2304F] underline">Mark Cancelled</button>
           {current !== "completed" && (
             <button onClick={() => changeStatus("completed")}
-              className="text-xs text-emerald-600 hover:text-emerald-700 underline">Mark Completed</button>
+              className="text-xs text-[#1F8A5B] hover:text-[#1F8A5B] underline">Mark Completed</button>
           )}
         </div>
       )}

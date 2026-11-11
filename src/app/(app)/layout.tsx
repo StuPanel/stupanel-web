@@ -46,21 +46,21 @@ function VerificationBanner({ email }: { email: string }) {
   }
 
   return (
-    <div className="mx-3 sm:mx-4 lg:mx-0 mb-3 rounded-xl bg-violet-50 border border-violet-200 px-4 py-2.5 flex items-center gap-3 flex-wrap">
-      <MailWarning className="w-4 h-4 text-violet-700 flex-shrink-0" />
-      <p className="text-sm text-violet-900 flex-1">
+    <div className="mx-3 sm:mx-4 lg:mx-0 mb-3 rounded-xl bg-[#F7F4FE] border border-[#E4DCFB] px-4 py-2.5 flex items-center gap-3 flex-wrap">
+      <MailWarning className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />
+      <p className="text-sm text-[#3F2A99] flex-1">
         Please verify your email <span className="font-semibold">{email}</span> to unlock all features.
       </p>
       {sent ? (
-        <span className="text-sm text-emerald-700 font-medium">Email sent! Check your inbox.</span>
+        <span className="text-sm text-[#1F8A5B] font-medium">Email sent! Check your inbox.</span>
       ) : (
         <button onClick={resend} disabled={sending}
-          className="text-sm font-semibold text-violet-700 hover:text-violet-900 underline underline-offset-2 flex items-center gap-1 disabled:opacity-60">
-          {sending && <span className="w-3 h-3 border-2 border-violet-600 border-t-transparent rounded-full animate-spin inline-block" />}
+          className="text-sm font-semibold text-[#5B3FD0] hover:text-[#3F2A99] underline underline-offset-2 flex items-center gap-1 disabled:opacity-60">
+          {sending && <span className="w-3 h-3 border-2 border-[#7D5CEF] border-t-transparent rounded-full animate-spin inline-block" />}
           Resend email
         </button>
       )}
-      <button onClick={() => setDismissed(true)} className="text-violet-400 hover:text-violet-700 flex-shrink-0" aria-label="Dismiss">
+      <button onClick={() => setDismissed(true)} className="text-[#A28BF5] hover:text-[#5B3FD0] flex-shrink-0" aria-label="Dismiss">
         <X className="w-4 h-4" />
       </button>
     </div>
@@ -72,21 +72,21 @@ function AppLayoutSkeleton({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="min-h-full sp-shell">
       <div className={cn("hidden lg:block fixed top-3 bottom-3 left-3 z-30", collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W)}>
-        <div className="h-full rounded-2xl bg-white border border-slate-200/80 p-3 space-y-2">
-          <div className="h-9 rounded-xl bg-slate-100 animate-pulse mb-4" />
-          {Array.from({ length: 9 }).map((_, i) => <div key={i} className="h-9 rounded-xl bg-slate-50 animate-pulse" />)}
+        <div className="h-full rounded-2xl bg-white border border-[#E4E0EC]/80 p-3 space-y-2">
+          <div className="h-9 rounded-xl bg-[#F1EFF6] animate-pulse mb-4" />
+          {Array.from({ length: 9 }).map((_, i) => <div key={i} className="h-9 rounded-xl bg-[#F7F5FB] animate-pulse" />)}
         </div>
       </div>
       <div className={cn(collapsed ? CONTENT_ML_COLLAPSED : CONTENT_ML, "lg:mr-3")}>
         <div className="h-16 flex items-center px-4 lg:px-0 gap-3">
-          <div className="h-10 w-72 bg-white rounded-xl border border-slate-200 animate-pulse" />
+          <div className="h-10 w-72 bg-white rounded-xl border border-[#E4E0EC] animate-pulse" />
         </div>
         <main className="px-3 sm:px-4 lg:px-0 space-y-4">
-          <div className="h-8 w-48 bg-slate-200/70 rounded-lg animate-pulse" />
+          <div className="h-8 w-48 bg-[#E4E0EC]/70 rounded-lg animate-pulse" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-white rounded-2xl border border-[#F1EFF6] animate-pulse" />)}
           </div>
-          <div className="h-64 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+          <div className="h-64 bg-white rounded-2xl border border-[#F1EFF6] animate-pulse" />
         </main>
       </div>
     </div>
@@ -192,13 +192,13 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
-          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
+          <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-[#E4E0EC] shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
             {mobileTabs.filter(t => canOpen(user, t.href)).map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.name} href={item.href}
                   className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
-                    isActive ? "bg-violet-50 text-violet-700" : "text-slate-500 active:bg-slate-50")}>
+                    isActive ? "bg-[#F7F4FE] text-[#5B3FD0]" : "text-[#6B6680] active:bg-[#F7F5FB]")}>
                   <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 2} />
                   <span className={cn("text-xs leading-none", isActive ? "font-semibold" : "font-medium")}>{item.name}</span>
                 </Link>
@@ -206,7 +206,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
             })}
             <button onClick={() => setMenuOpen(true)}
               className={cn("flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-colors",
-                moreActive ? "bg-violet-50 text-violet-700" : "text-slate-500 active:bg-slate-50")}>
+                moreActive ? "bg-[#F7F4FE] text-[#5B3FD0]" : "text-[#6B6680] active:bg-[#F7F5FB]")}>
               <LayoutGrid className="w-5 h-5" strokeWidth={moreActive ? 2.4 : 2} />
               <span className={cn("text-xs leading-none", moreActive ? "font-semibold" : "font-medium")}>More</span>
             </button>

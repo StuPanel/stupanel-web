@@ -79,7 +79,7 @@ export default function CompleteProfilePage() {
   if (fetchingUser) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" />
       </div>
     );
   }
@@ -87,32 +87,32 @@ export default function CompleteProfilePage() {
   return (
     <>
       <div className="mb-7">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
-          <CheckCircle className="w-6 h-6 text-indigo-600" />
+        <div className="w-12 h-12 rounded-2xl bg-[#F7F4FE] flex items-center justify-center mb-4">
+          <CheckCircle className="w-6 h-6 text-[#7D5CEF]" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Almost done!</h2>
-        <p className="text-slate-500 mt-1 text-sm">
+        <h2 className="text-2xl font-bold text-[#17151F]">Almost done!</h2>
+        <p className="text-[#6B6680] mt-1 text-sm">
           Confirm your studio details to finish setting up your account.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          <div className="px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">
             {error}
           </div>
         )}
 
         {/* Company Name */}
         <div className="space-y-1.5">
-          <Label className="text-slate-700 text-sm font-medium">Studio / Company Name *</Label>
+          <Label className="text-[#33303F] text-sm font-medium">Studio / Company Name *</Label>
           <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               value={form.companyName}
               onChange={set("companyName")}
-              placeholder="e.g. Faisal Photography"
-              className="pl-10 h-11 border-slate-200"
+              placeholder="e.g. Golden Frame Studio"
+              className="pl-10 h-11 border-[#E4E0EC]"
               required
             />
           </div>
@@ -120,65 +120,65 @@ export default function CompleteProfilePage() {
 
         {/* Phone */}
         <div className="space-y-1.5">
-          <Label className="text-slate-700 text-sm font-medium">
-            Phone <span className="text-slate-400 font-normal">(optional)</span>
+          <Label className="text-[#33303F] text-sm font-medium">
+            Phone <span className="text-[#8A8599] font-normal">(optional)</span>
           </Label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               type="tel"
               value={form.phone}
               onChange={set("phone")}
               placeholder="Phone number"
-              className="pl-10 h-11 border-slate-200"
+              className="pl-10 h-11 border-[#E4E0EC]"
             />
           </div>
         </div>
 
         {/* Password */}
         <div className="space-y-1.5">
-          <Label className="text-slate-700 text-sm font-medium">
+          <Label className="text-[#33303F] text-sm font-medium">
             Set Password *
           </Label>
-          <p className="text-xs text-slate-400 -mt-1">Required — so you can also log in with email if Google sign-in isn&apos;t available.</p>
+          <p className="text-xs text-[#8A8599] -mt-1">Required — so you can also log in with email if Google sign-in isn&apos;t available.</p>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={set("password")}
               placeholder="Min. 6 characters"
-              className="pl-10 pr-10 h-11 border-slate-200"
+              className="pl-10 pr-10 h-11 border-[#E4E0EC]"
               required
             />
             <button type="button" onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-slate-700 text-sm font-medium">Confirm Password *</Label>
+          <Label className="text-[#33303F] text-sm font-medium">Confirm Password *</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input
               type={showConfirm ? "text" : "password"}
               value={form.confirmPassword}
               onChange={set("confirmPassword")}
               placeholder="Repeat password"
-              className="pl-10 pr-10 h-11 border-slate-200"
+              className="pl-10 pr-10 h-11 border-[#E4E0EC]"
               required
             />
             <button type="button" onClick={() => setShowConfirm(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]">
               {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         <Button type="submit" disabled={loading}
-          className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold mt-2">
+          className="w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold mt-2">
           {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : "Continue to Setup"}
         </Button>
       </form>

@@ -142,9 +142,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   }
 
   const typeIcon = (type: SearchResult["type"]) => {
-    if (type === "booking") return <Camera className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />;
-    if (type === "client") return <Users className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />;
-    return <FileText className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />;
+    if (type === "booking") return <Camera className="w-3.5 h-3.5 text-[#7D5CEF] flex-shrink-0" />;
+    if (type === "client") return <Users className="w-3.5 h-3.5 text-[#1F8A5B] flex-shrink-0" />;
+    return <FileText className="w-3.5 h-3.5 text-[#7D5CEF] flex-shrink-0" />;
   };
 
   const typeLabel = (type: SearchResult["type"]) => {
@@ -168,7 +168,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             {/* Mobile: brand */}
             <Link href="/dashboard" className="lg:hidden flex items-center gap-2 min-w-0">
               <BrandMark size={30} />
-              <span className="font-extrabold text-[16px] tracking-tight text-slate-900 truncate">StuPanel</span>
+              <span className="font-extrabold text-[16px] tracking-tight text-[#17151F] truncate">StuPanel</span>
             </Link>
 
             {/* Search box (desktop inline, mobile as a drop-down row) */}
@@ -177,7 +177,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               mobileSearch ? "absolute left-3 right-3 top-[60px] sm:left-4 sm:right-4 z-30" : "hidden"
             )}>
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599] pointer-events-none" />
                 <input
                   ref={inputRef}
                   value={query}
@@ -185,13 +185,13 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   onKeyDown={handleKeyDown}
                   onFocus={() => { if (results.length > 0) setOpen(true); }}
                   placeholder="Search programs, clients, invoices…"
-                  className="w-full h-10 pl-10 pr-9 bg-white border border-slate-200 rounded-xl text-sm shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15 focus:border-violet-400 transition-shadow"
+                  className="w-full h-10 pl-10 pr-9 bg-white border border-[#E4E0EC] rounded-xl text-sm shadow-sm placeholder:text-[#8A8599] focus:outline-none focus:ring-4 focus:ring-[#7D5CEF]/15 focus:border-[#A28BF5] transition-shadow"
                 />
                 {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-500 animate-spin" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7D5CEF] animate-spin" />
                 )}
                 {query && !searching && (
-                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search">
+                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]" aria-label="Clear search">
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -201,10 +201,10 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               {open && (
                 <div
                   ref={dropdownRef}
-                  className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(22,20,29,0.35)] border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200"
+                  className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-[0_20px_50px_-20px_rgba(22,20,29,0.35)] border border-[#E4E0EC] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200"
                 >
                   {results.length === 0 && !searching && (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">No results found</div>
+                    <div className="px-4 py-8 text-center text-sm text-[#8A8599]">No results found</div>
                   )}
                   {results.length > 0 && (
                     <ul className="p-1.5 max-h-80 overflow-y-auto">
@@ -214,16 +214,16 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                             onMouseEnter={() => setSelected(i)}
                             onClick={() => navigate(r)}
                             className={cn("w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors",
-                              selected === i ? "bg-violet-50" : "hover:bg-slate-50")}
+                              selected === i ? "bg-[#F7F4FE]" : "hover:bg-[#F7F5FB]")}
                           >
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-[#F1EFF6] flex items-center justify-center flex-shrink-0">
                               {typeIcon(r.type)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-800 truncate">{r.label}</p>
-                              {r.sub && <p className="text-xs text-slate-400 truncate">{r.sub}</p>}
+                              <p className="text-sm font-medium text-[#17151F] truncate">{r.label}</p>
+                              {r.sub && <p className="text-xs text-[#8A8599] truncate">{r.sub}</p>}
                             </div>
-                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                            <span className="text-xs font-semibold text-[#6B6680] bg-[#F1EFF6] px-1.5 py-0.5 rounded-md flex-shrink-0">
                               {typeLabel(r.type)}
                             </span>
                           </button>
@@ -240,7 +240,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             <button
               onClick={() => { setMobileSearch(v => !v); setTimeout(() => inputRef.current?.focus(), 50); }}
               className={cn("lg:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-                mobileSearch ? "bg-violet-50 text-violet-700" : "bg-white border border-slate-200 text-slate-600")}
+                mobileSearch ? "bg-[#F7F4FE] text-[#5B3FD0]" : "bg-white border border-[#E4E0EC] text-[#4A4658]")}
               aria-label="Search"
             >
               {mobileSearch ? <X className="w-[18px] h-[18px]" /> : <Search className="w-[18px] h-[18px]" />}

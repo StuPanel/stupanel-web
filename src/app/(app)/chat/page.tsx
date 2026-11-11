@@ -56,8 +56,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[calc(100dvh-11rem)] lg:h-[calc(100vh-6.5rem)] flex flex-col rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-      <div className="relative flex items-center gap-1.5 px-3 py-2.5 border-b border-slate-100 flex-shrink-0">
+    <div className="h-[calc(100dvh-11rem)] lg:h-[calc(100vh-6.5rem)] flex flex-col rounded-2xl overflow-hidden border border-[#E4E0EC] bg-white shadow-sm">
+      <div className="relative flex items-center gap-1.5 px-3 py-2.5 border-b border-[#F1EFF6] flex-shrink-0">
         <div role="tablist" aria-label="Chat" className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] flex-1 min-w-0">
           {order.map(key => {
             const t = TABS[key];

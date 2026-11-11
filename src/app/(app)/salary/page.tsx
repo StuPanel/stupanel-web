@@ -214,25 +214,25 @@ export default function SalaryPage() {
       {paying && (
         <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setPaying(null); }}>
           <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1EFF6]">
               <div>
-                <h2 className="font-bold text-slate-900">Pay salary</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{paying.teamMember.firstName} {paying.teamMember.lastName} · {MONTHS[paying.month - 1]} {paying.year}</p>
+                <h2 className="font-bold text-[#17151F]">Pay salary</h2>
+                <p className="text-xs text-[#8A8599] mt-0.5">{paying.teamMember.firstName} {paying.teamMember.lastName} · {MONTHS[paying.month - 1]} {paying.year}</p>
               </div>
-              <button onClick={() => setPaying(null)} aria-label="Close" className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+              <button onClick={() => setPaying(null)} aria-label="Close" className="w-8 h-8 rounded-lg hover:bg-[#F1EFF6] flex items-center justify-center">
+                <X className="w-4 h-4 text-[#6B6680]" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between px-3 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-xs text-emerald-700">Salary to pay</span>
-                <span className="font-bold text-emerald-800">{fmt(Number(paying.netSalary))}</span>
+              <div className="flex items-center justify-between px-3 py-2.5 bg-[#F0FAF4] rounded-xl border border-[#E7F5EE]">
+                <span className="text-xs text-[#1F8A5B]">Salary to pay</span>
+                <span className="font-bold text-[#14613F]">{fmt(Number(paying.netSalary))}</span>
               </div>
               <AccountPicker label="Paid from" value={pay.walletId} method="cash" payOut={Number(paying.netSalary)} onChange={w => setPay(p => ({ ...p, walletId: w }))} />
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-slate-600">Date</span>
+                <span className="text-xs font-medium text-[#4A4658]">Date</span>
                 <input type="date" value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-10 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </label>
             </div>
             <div className="px-6 pb-6 flex gap-3 mt-auto">
@@ -250,88 +250,88 @@ export default function SalaryPage() {
       {modal && (
         <div className="sp-backdrop z-50" onClick={e => { if (e.target === e.currentTarget) setModal(false); }}>
           <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="font-bold text-slate-900">Generate Salary Slip</h2>
-              <button onClick={() => setModal(false)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1EFF6]">
+              <h2 className="font-bold text-[#17151F]">Generate Salary Slip</h2>
+              <button onClick={() => setModal(false)} className="w-8 h-8 rounded-lg hover:bg-[#F1EFF6] flex items-center justify-center">
+                <X className="w-4 h-4 text-[#6B6680]" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Team Member *</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Team Member *</label>
                 <select value={form.memberId} onChange={set("memberId")}
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                  className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                   <option value="">Select member…</option>
                   {members.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Month</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Month</label>
                   <select value={form.month} onChange={set("month")}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none">
+                    className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none">
                     {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Year</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Year</label>
                   <select value={form.year} onChange={set("year")}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none">
+                    className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none">
                     {years.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Base Salary</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Base Salary</label>
                 <input type="number" value={form.baseSalary} onChange={set("baseSalary")} placeholder="0"
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Program Bonus</label>
+                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Program Bonus</label>
                   <button onClick={calcBonus} disabled={!form.memberId || calcLoading}
-                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50">
+                    className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium disabled:opacity-50">
                     {calcLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                     Auto-calculate
                   </button>
                 </div>
                 <input type="number" value={form.programBonus} onChange={set("programBonus")} placeholder="0"
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                 {bonusBreakdown.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {bonusBreakdown.map((b, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs bg-blue-50 px-3 py-1.5 rounded-lg">
-                        <span className="text-blue-700 truncate">{b.eventName}</span>
-                        <span className="font-bold text-blue-800 ml-2 flex-shrink-0">{formatCurrency(Math.round(b.amount))}</span>
+                      <div key={i} className="flex items-center justify-between text-xs bg-[#F2F7FC] px-3 py-1.5 rounded-lg">
+                        <span className="text-[#1F5C99] truncate">{b.eventName}</span>
+                        <span className="font-bold text-[#174A7C] ml-2 flex-shrink-0">{formatCurrency(Math.round(b.amount))}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Deductions</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Deductions</label>
                 <input type="number" value={form.deductions} onChange={set("deductions")} placeholder="0"
-                  className="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                  className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </div>
 
               {/* Net total */}
-              <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
-                <span className="text-sm text-slate-300">Net Salary</span>
+              <div className="bg-[#17151F] text-white rounded-2xl p-4 flex items-center justify-between">
+                <span className="text-sm text-[#B5B0C4]">Net Salary</span>
                 <span className="text-xl font-extrabold text-white">
                   {fmt(Math.max(0, (Number(form.baseSalary) || 0) + (Number(form.programBonus) || 0) - (Number(form.deductions) || 0)))}
                 </span>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">Notes (optional)</label>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Notes (optional)</label>
                 <textarea value={form.notes} onChange={set("notes")} rows={2} placeholder="Any notes…"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-indigo-400" />
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm resize-none focus:outline-none focus:border-indigo-400" />
               </div>
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => setModal(false)} className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={() => setModal(false)} className="flex-1 h-11 rounded-xl border border-[#E4E0EC] text-sm font-medium text-[#4A4658] hover:bg-[#F7F5FB]">Cancel</button>
               <button onClick={save} disabled={saving || !form.memberId}
-                className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                className="flex-1 h-11 rounded-xl bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Generate Slip"}
               </button>
             </div>

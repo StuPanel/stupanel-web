@@ -42,7 +42,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Your whole studio,<br />in one calm place.
           </h1>
           <p className="text-[#CFC2F8] text-base leading-relaxed mt-3">
-            Studio management for photography, wedding &amp; event studios in Bangladesh.
+            Studio management for photography, wedding &amp; event studios.
           </p>
 
           <ul className="mt-8 grid grid-cols-2 gap-3">
@@ -78,14 +78,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="flex items-center px-5 sm:px-8 pt-5 pb-2 lg:hidden">
           <div className="flex items-center gap-2.5">
             <Image src="/brand/stupanel-icon-128.png" alt="StuPanel" width={36} height={36} priority />
-            <span className="font-extrabold text-lg tracking-tight text-slate-900">StuPanel</span>
+            <span className="font-extrabold text-lg tracking-tight text-[#17151F]">StuPanel</span>
           </div>
         </div>
 
         {/* Form area */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6">
           <div className="w-full max-w-[420px]">
-            <div className="sp-glass bg-white rounded-3xl shadow-[0_20px_60px_-30px_rgba(91,63,208,0.35)] border border-slate-200/80 p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="sp-glass bg-white rounded-3xl shadow-[0_20px_60px_-30px_rgba(91,63,208,0.35)] border border-[#E4E0EC]/80 p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
               {children}
             </div>
           </div>

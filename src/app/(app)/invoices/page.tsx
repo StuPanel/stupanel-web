@@ -40,13 +40,13 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 const STATUS: Record<string, { label: string; badge: string; dot: string }> = {
-  draft:          { label: "Draft",         badge: "bg-slate-100 text-slate-600",   dot: "bg-slate-400"   },
-  sent:           { label: "Sent",          badge: "bg-blue-100 text-blue-700",     dot: "bg-blue-500"    },
-  viewed:         { label: "Viewed",        badge: "bg-violet-100 text-violet-700", dot: "bg-violet-500"  },
-  paid:           { label: "Paid",          badge: "bg-emerald-100 text-emerald-700",dot:"bg-emerald-500" },
-  partially_paid: { label: "Part. Paid",    badge: "bg-amber-100 text-amber-700",   dot: "bg-amber-500"   },
-  overdue:        { label: "Overdue",       badge: "bg-red-100 text-red-600",       dot: "bg-red-500"     },
-  void:           { label: "Void",          badge: "bg-slate-100 text-slate-400",   dot: "bg-slate-300"   },
+  draft:          { label: "Draft",         badge: "bg-[#F1EFF6] text-[#4A4658]",   dot: "bg-[#8A8599]"   },
+  sent:           { label: "Sent",          badge: "bg-[#E8F0FA] text-[#1F5C99]",     dot: "bg-[#2F6FB3]"    },
+  viewed:         { label: "Viewed",        badge: "bg-[#EEE8FD] text-[#5B3FD0]", dot: "bg-[#7D5CEF]"  },
+  paid:           { label: "Paid",          badge: "bg-[#E7F5EE] text-[#1F8A5B]",dot:"bg-[#1F8A5B]" },
+  partially_paid: { label: "Part. Paid",    badge: "bg-[#FFF3E0] text-[#9A5B00]",   dot: "bg-[#D88A12]"   },
+  overdue:        { label: "Overdue",       badge: "bg-[#FDECEF] text-[#C2304F]",       dot: "bg-[#C2304F]"     },
+  void:           { label: "Void",          badge: "bg-[#F1EFF6] text-[#8A8599]",   dot: "bg-[#B5B0C4]"   },
 };
 
 function calcItemTotal(qty: number, unitPrice: number, discountType?: string, discountValue?: number): number {
@@ -128,21 +128,21 @@ function CatalogModal({ onSelect, onClose, currency }: {
       <div className="sp-backdrop z-60" onClick={onClose} />
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="w-full max-w-lg sp-modal flex flex-col max-h-[80vh]">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-900">Service Catalog</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Select to auto-fill</p>
+              <h3 className="font-bold text-[#17151F]">Service Catalog</h3>
+              <p className="text-xs text-[#8A8599] mt-0.5">Select to auto-fill</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-500" /></button>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F1EFF6]"><X className="w-4 h-4 text-[#6B6680]" /></button>
           </div>
-          <div className="p-4 border-b border-slate-100 flex gap-2">
+          <div className="p-4 border-b border-[#F1EFF6] flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8A8599]" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search services…"
-                className="w-full h-9 pl-8 pr-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
             </div>
             <select value={cat} onChange={e => setCat(e.target.value)}
-              className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+              className="h-9 px-2.5 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
               <option value="">All</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -152,25 +152,25 @@ function CatalogModal({ onSelect, onClose, currency }: {
               <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
             ) : items.length === 0 ? (
               <div className="text-center py-10">
-                <BookOpen className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">No catalog items yet</p>
-                <p className="text-xs text-slate-300 mt-1">Add services in Settings → Service Catalog</p>
+                <BookOpen className="w-8 h-8 text-[#E4E0EC] mx-auto mb-2" />
+                <p className="text-sm text-[#8A8599]">No catalog items yet</p>
+                <p className="text-xs text-[#B5B0C4] mt-1">Add services in Settings → Service Catalog</p>
               </div>
             ) : items.map(item => (
               <button key={item.id} onClick={() => onSelect(item)}
-                className="w-full flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-indigo-50 text-left transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                className="w-full flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-[#F7F4FE] text-left transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-[#EEE8FD] flex items-center justify-center text-[#7D5CEF] flex-shrink-0">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-slate-800 truncate">{item.name}</p>
-                  {item.description && <p className="text-xs text-slate-400 truncate">{item.description}</p>}
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {item.category && <span className="text-indigo-500 font-medium">{item.category} · </span>}
+                  <p className="font-semibold text-sm text-[#17151F] truncate">{item.name}</p>
+                  {item.description && <p className="text-xs text-[#8A8599] truncate">{item.description}</p>}
+                  <p className="text-xs text-[#8A8599] mt-0.5">
+                    {item.category && <span className="text-[#7D5CEF] font-medium">{item.category} · </span>}
                     {item.unit}
                   </p>
                 </div>
-                <p className="font-bold text-sm text-slate-900 flex-shrink-0">{s}{Number(item.defaultPrice).toLocaleString()}</p>
+                <p className="font-bold text-sm text-[#17151F] flex-shrink-0">{s}{Number(item.defaultPrice).toLocaleString()}</p>
               </button>
             ))}
           </div>
@@ -194,50 +194,50 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
   }
 
   return (
-    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+    <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl space-y-2">
       {/* Row 1: Name + Description */}
       <div className="flex items-start gap-2">
         <div className="flex-1 space-y-2">
           <div className="flex gap-2">
             <input value={item.name} onChange={e => onChange({ ...item, name: e.target.value })}
-              placeholder="Item name *" className="flex-1 h-9 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+              placeholder="Item name *" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
             <input value={item.description ?? ""} onChange={e => onChange({ ...item, description: e.target.value })}
-              placeholder="Description" className="flex-1 h-9 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+              placeholder="Description" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
           </div>
           {/* Row 2: Category + Unit */}
           <div className="flex gap-2">
             <div className="flex-1 relative">
               <input value={item.category ?? ""} onChange={e => onChange({ ...item, category: e.target.value })}
                 list={`cat-list-${item.id}`} placeholder="Category"
-                className="w-full h-8 px-3 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-indigo-400 bg-white" />
+                className="w-full h-8 px-3 rounded-lg border border-[#E4E0EC] text-xs focus:outline-none focus:border-indigo-400 bg-white" />
               <datalist id={`cat-list-${item.id}`}>
                 {CATEGORIES.map(c => <option key={c} value={c} />)}
               </datalist>
             </div>
             <select value={item.unit ?? "service"} onChange={e => onChange({ ...item, unit: e.target.value })}
-              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400">
+              className="h-8 px-2 rounded-lg border border-[#E4E0EC] bg-white text-xs focus:outline-none focus:border-indigo-400">
               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
           {/* Row 3: Qty + Price + Discount */}
           <div className="flex gap-2 items-center flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500">Qty</span>
+              <span className="text-xs text-[#6B6680]">Qty</span>
               <input type="number" min="0.01" step="0.01" value={item.quantity}
                 onChange={e => recalc({ quantity: Number(e.target.value) || 0 })}
-                className="w-16 h-8 px-2 text-center rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+                className="w-16 h-8 px-2 text-center rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
             </div>
             <div className="flex items-center gap-1.5 flex-1 min-w-24">
-              <span className="text-xs text-slate-500">Price</span>
+              <span className="text-xs text-[#6B6680]">Price</span>
               <input type="number" min="0" value={item.unitPrice}
                 onChange={e => recalc({ unitPrice: Number(e.target.value) || 0 })}
-                className="flex-1 h-8 px-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+                className="flex-1 h-8 px-2 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
             </div>
             {/* Discount toggle */}
             <div className="flex items-center gap-1">
-              <span className="text-xs text-slate-500">Disc</span>
+              <span className="text-xs text-[#6B6680]">Disc</span>
               <select value={discType} onChange={e => recalc({ discountType: e.target.value === "none" ? undefined : e.target.value, discountValue: undefined })}
-                className="h-8 px-1.5 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:border-indigo-400">
+                className="h-8 px-1.5 rounded-lg border border-[#E4E0EC] bg-white text-xs focus:outline-none focus:border-indigo-400">
                 <option value="none">—</option>
                 <option value="percent">%</option>
                 <option value="fixed">{s}</option>
@@ -246,28 +246,28 @@ function ItemRow({ item, onChange, onRemove, canRemove, currency }: {
                 <input type="number" min="0" value={item.discountValue ?? ""}
                   onChange={e => recalc({ discountValue: Number(e.target.value) || 0 })}
                   placeholder={discType === "percent" ? "%" : s}
-                  className="w-16 h-8 px-2 rounded-lg border border-amber-300 text-sm focus:outline-none focus:border-amber-400 bg-white" />
+                  className="w-16 h-8 px-2 rounded-lg border border-[#F3C979] text-sm focus:outline-none focus:border-[#E9A63A] bg-white" />
               )}
             </div>
           </div>
         </div>
         {canRemove && (
-          <button onClick={onRemove} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 mt-1 flex-shrink-0">
+          <button onClick={onRemove} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#FEF5F7] text-[#8A8599] hover:text-[#C2304F] mt-1 flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
       {/* Item total */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-200">
-        <div className="flex gap-2 text-xs text-slate-400">
+      <div className="flex items-center justify-between pt-1 border-t border-[#E4E0EC]">
+        <div className="flex gap-2 text-xs text-[#8A8599]">
           <span>{item.quantity} {item.unit || "service"} × {s}{Number(item.unitPrice).toLocaleString()}</span>
           {discType !== "none" && item.discountValue && (
-            <span className="text-amber-500">
+            <span className="text-[#D88A12]">
               − {discType === "percent" ? `${item.discountValue}%` : `${s}${item.discountValue.toLocaleString()}`}
             </span>
           )}
         </div>
-        <span className="font-bold text-sm text-slate-800">{s}{item.total.toLocaleString()}</span>
+        <span className="font-bold text-sm text-[#17151F]">{s}{item.total.toLocaleString()}</span>
       </div>
     </div>
   );
@@ -312,50 +312,50 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+    <div className="bg-white border border-[#E4E0EC] rounded-2xl p-4 space-y-3 shadow-sm">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-slate-800 uppercase tracking-wide">Record Payment</p>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100"><X className="w-3.5 h-3.5 text-slate-400" /></button>
+        <p className="text-xs font-bold text-[#17151F] uppercase tracking-wide">Record Payment</p>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded hover:bg-[#F1EFF6]"><X className="w-3.5 h-3.5 text-[#8A8599]" /></button>
       </div>
-      {error && <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded-lg">{error}</p>}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-center justify-between">
-        <span className="text-xs text-amber-700 font-medium">Balance Due</span>
-        <span className="font-bold text-amber-800">{c}{balance.toLocaleString()}</span>
+      {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-2 py-1.5 rounded-lg">{error}</p>}
+      <div className="bg-[#FFF9EF] border border-[#F6E3B8] rounded-xl p-2.5 flex items-center justify-between">
+        <span className="text-xs text-[#9A5B00] font-medium">Balance Due</span>
+        <span className="font-bold text-[#8A5600]">{c}{balance.toLocaleString()}</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Amount *</Label>
+          <Label className="text-xs text-[#6B6680]">Amount *</Label>
           <input type="number" min="0" max={balance} value={amount} onChange={e => setAmount(Number(e.target.value))}
             placeholder={`Max ${c}${balance.toLocaleString()}`}
-            className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Method *</Label>
+          <Label className="text-xs text-[#6B6680]">Method *</Label>
           <select value={method} onChange={e => setMethod(e.target.value)}
-            className="w-full h-9 px-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+            className="w-full h-9 px-2 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
             {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Date</Label>
+          <Label className="text-xs text-[#6B6680]">Date</Label>
           <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-            className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
         </div>
         <AccountPicker className="col-span-full" value={walletId} onChange={setWalletId} method={method} />
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Reference</Label>
+          <Label className="text-xs text-[#6B6680]">Reference</Label>
           <input value={ref} onChange={e => setRef(e.target.value)} placeholder="Ref / TXN ID"
-            className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+            className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs text-slate-500">Notes</Label>
+        <Label className="text-xs text-[#6B6680]">Notes</Label>
         <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes"
-          className="w-full h-9 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+          className="w-full h-9 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
       </div>
       <div className="flex gap-2 pt-1">
-        <Button variant="outline" onClick={onClose} className="flex-1 h-9 border-slate-200 text-slate-600 text-xs">Cancel</Button>
-        <Button disabled={saving} onClick={save} className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5">
+        <Button variant="outline" onClick={onClose} className="flex-1 h-9 border-[#E4E0EC] text-[#4A4658] text-xs">Cancel</Button>
+        <Button disabled={saving} onClick={save} className="flex-1 h-9 bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white text-xs gap-1.5">
           {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</> : <><CreditCard className="w-3.5 h-3.5" />Record Payment</>}
         </Button>
       </div>
@@ -494,40 +494,40 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
         <div className="w-full max-w-[1140px] bg-white shadow-2xl flex">
 
           {/* ── LEFT: Form panel ── */}
-          <div className="w-full lg:w-[440px] flex-shrink-0 flex flex-col border-r border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div className="w-full lg:w-[440px] flex-shrink-0 flex flex-col border-r border-[#E4E0EC] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">New Invoice</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Preview updates live on the right</p>
+                <h2 className="font-bold text-[#17151F] text-lg">New Invoice</h2>
+                <p className="text-xs text-[#8A8599] mt-0.5">Preview updates live on the right</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100"><X className="w-5 h-5 text-slate-500" /></button>
+              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F1EFF6]"><X className="w-5 h-5 text-[#6B6680]" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</p>}
+              {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
 
               {/* Client */}
               <div className="space-y-1.5 relative">
-                <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Client *</Label>
+                <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Client *</Label>
                 {selectedClient ? (
-                  <div className="flex items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl">
-                    <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-sm">{selectedClient.firstName[0]}</div>
-                    <div className="flex-1"><p className="font-semibold text-slate-800 text-sm">{selectedClient.firstName} {selectedClient.lastName ?? ""}</p><p className="text-xs text-slate-400">{selectedClient.phone}</p></div>
-                    <button onClick={() => { setSelectedClient(null); setSelectedBookingId(""); }} className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
+                    <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-[#5B3FD0] font-bold text-sm">{selectedClient.firstName[0]}</div>
+                    <div className="flex-1"><p className="font-semibold text-[#17151F] text-sm">{selectedClient.firstName} {selectedClient.lastName ?? ""}</p><p className="text-xs text-[#8A8599]">{selectedClient.phone}</p></div>
+                    <button onClick={() => { setSelectedClient(null); setSelectedBookingId(""); }} className="text-[#8A8599] hover:text-[#C2304F]"><X className="w-4 h-4" /></button>
                   </div>
                 ) : (
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
                     <input value={clientSearch} onChange={e => { setClientSearch(e.target.value); setClientDropdown(true); }}
                       onFocus={() => setClientDropdown(true)}
                       placeholder="Search client…"
-                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400" />
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
                     {clientDropdown && filteredClients.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E4E0EC] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
                         {filteredClients.slice(0,8).map(c => (
                           <button key={c.id} onClick={() => { setSelectedClient(c); setClientSearch(""); setClientDropdown(false); }}
-                            className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 text-sm flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold">{c.firstName[0]}</div>
-                            <div><p className="font-medium text-slate-800">{c.firstName} {c.lastName ?? ""}</p><p className="text-xs text-slate-400">{c.phone}</p></div>
+                            className="w-full px-4 py-2.5 text-left hover:bg-[#F7F4FE] text-sm flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full bg-[#E4E0EC] flex items-center justify-center text-xs font-bold">{c.firstName[0]}</div>
+                            <div><p className="font-medium text-[#17151F]">{c.firstName} {c.lastName ?? ""}</p><p className="text-xs text-[#8A8599]">{c.phone}</p></div>
                           </button>
                         ))}
                       </div>
@@ -539,9 +539,9 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Booking link */}
               {selectedClient && clientBookings.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Link to Booking <span className="text-slate-400 font-normal normal-case">(optional)</span></Label>
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Link to Booking <span className="text-[#8A8599] font-normal normal-case">(optional)</span></Label>
                   <select value={selectedBookingId} onChange={e => setSelectedBookingId(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                    className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                     <option value="">No booking linked</option>
                     {clientBookings.map(b => <option key={b.id} value={b.id}>{b.bookingNumber} — {b.eventName || "Untitled"}</option>)}
                   </select>
@@ -551,17 +551,17 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Dates + Currency */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Issue Date</Label>
-                  <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-10 border-slate-200 text-sm" />
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Issue Date</Label>
+                  <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Due Date</Label>
-                  <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-10 border-slate-200 text-sm" />
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Due Date</Label>
+                  <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Currency</Label>
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Currency</Label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400">
+                    className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400">
                     {["BDT","USD","INR","GBP"].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -570,14 +570,14 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               {/* Items */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Line Items *</Label>
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Line Items *</Label>
                   <div className="flex gap-2">
                     <button onClick={() => setCatalogOpen(true)}
-                      className="text-xs text-violet-600 hover:text-violet-700 font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-violet-50">
+                      className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#F7F4FE]">
                       <BookOpen className="w-3.5 h-3.5" />Catalog
                     </button>
                     <button onClick={() => setItems(its => [...its, { id: crypto.randomUUID(), name: "", quantity: 1, unitPrice: 0, total: 0 }])}
-                      className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1">
+                      className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-semibold flex items-center gap-1">
                       <Plus className="w-3.5 h-3.5" />Add Item
                     </button>
                   </div>
@@ -591,60 +591,60 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
               </div>
 
               {/* Pricing */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="bg-[#F7F5FB] border border-[#E4E0EC] rounded-2xl p-4 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-500">Discount ({s})</Label>
+                    <Label className="text-xs text-[#6B6680]">Discount ({s})</Label>
                     <input type="number" min="0" value={discountAmount} onChange={e => setDiscountAmount(Number(e.target.value))}
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+                      className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-500">Tax Label</Label>
+                    <Label className="text-xs text-[#6B6680]">Tax Label</Label>
                     <input value={taxLabel} onChange={e => setTaxLabel(e.target.value)} maxLength={10}
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+                      className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-500">Tax %</Label>
+                    <Label className="text-xs text-[#6B6680]">Tax %</Label>
                     <input type="number" min="0" max="30" step="0.5" value={taxPercent} onChange={e => setTaxPercent(Number(e.target.value))}
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 bg-white" />
+                      className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
                   </div>
                 </div>
-                <div className="border-t border-slate-200 pt-3 space-y-1.5 text-sm">
-                  <div className="flex justify-between text-slate-500"><span>Subtotal</span><span>{s}{subtotal.toLocaleString()}</span></div>
-                  {discountAmount > 0 && <div className="flex justify-between text-emerald-600"><span>Discount</span><span>−{s}{discountAmount.toLocaleString()}</span></div>}
-                  {taxAmt > 0 && <div className="flex justify-between text-slate-500"><span>{taxLabel} ({taxPercent}%)</span><span>+{s}{Math.round(taxAmt).toLocaleString()}</span></div>}
-                  <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2"><span>Grand Total</span><span>{s}{Math.round(grand).toLocaleString()}</span></div>
+                <div className="border-t border-[#E4E0EC] pt-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span>{s}{subtotal.toLocaleString()}</span></div>
+                  {discountAmount > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{s}{discountAmount.toLocaleString()}</span></div>}
+                  {taxAmt > 0 && <div className="flex justify-between text-[#6B6680]"><span>{taxLabel} ({taxPercent}%)</span><span>+{s}{Math.round(taxAmt).toLocaleString()}</span></div>}
+                  <div className="flex justify-between font-bold text-[#17151F] text-base border-t border-[#E4E0EC] pt-2"><span>Grand Total</span><span>{s}{Math.round(grand).toLocaleString()}</span></div>
                 </div>
               </div>
 
               {/* Notes + Terms */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Notes</Label>
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Notes</Label>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any notes for the client…"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 resize-none" />
+                    className="w-full px-3 py-2 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Terms & Conditions</Label>
+                  <Label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Terms & Conditions</Label>
                   <textarea value={terms} onChange={e => setTerms(e.target.value)} rows={3} placeholder="Payment terms…"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 resize-none" />
+                    className="w-full px-3 py-2 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
                 </div>
               </div>
             </div>
 
             {/* Footer buttons */}
-            <div className="px-6 py-4 border-t border-slate-200 flex gap-3 flex-shrink-0">
-              <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-slate-200 text-slate-600">Cancel</Button>
-              <Button disabled={saving} onClick={save} className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+            <div className="px-6 py-4 border-t border-[#E4E0EC] flex gap-3 flex-shrink-0">
+              <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC] text-[#4A4658]">Cancel</Button>
+              <Button disabled={saving} onClick={save} className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-2">
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : <><FileText className="w-4 h-4" />Create Invoice</>}
               </Button>
             </div>
           </div>
 
           {/* ── RIGHT: Live preview ── */}
-          <div className="hidden lg:flex flex-1 flex-col bg-slate-100 overflow-hidden">
-            <div className="px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-200 bg-white">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Live Preview</p>
+          <div className="hidden lg:flex flex-1 flex-col bg-[#F1EFF6] overflow-hidden">
+            <div className="px-5 pt-4 pb-2 flex-shrink-0 border-b border-[#E4E0EC] bg-white">
+              <p className="text-xs font-semibold text-[#8A8599] uppercase tracking-widest">Live Preview</p>
             </div>
             <div className="flex-1 overflow-y-auto py-6 px-4">
               <div className="max-w-[680px] mx-auto rounded-xl overflow-hidden shadow-lg">
@@ -725,19 +725,19 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <div className="sp-backdrop z-40" onClick={onClose} />
       <div className="sp-drawer z-50 max-w-lg flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+        <div className="px-5 py-4 border-b border-[#E4E0EC] flex items-center justify-between flex-shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-slate-900">{inv.invoiceNumber}</h2>
+              <h2 className="font-bold text-[#17151F]">{inv.invoiceNumber}</h2>
               {inv.docType === "quotation"
                 ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-[#EEE8FD] text-[#5B3FD0]">Quotation</span>
                 : STATE[inv.state ?? ""]
                   ? <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: STATE[inv.state!].bg, color: STATE[inv.state!].text }}>{STATE[inv.state!].label}</span>
                   : <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", s.badge)}>{s.label}</span>}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">{inv.client.firstName} {inv.client.lastName ?? ""} · {inv.client.phone ?? ""}</p>
+            <p className="text-xs text-[#8A8599] mt-0.5">{inv.client.firstName} {inv.client.lastName ?? ""} · {inv.client.phone ?? ""}</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100"><X className="w-5 h-5 text-slate-500" /></button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F1EFF6]"><X className="w-5 h-5 text-[#6B6680]" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -745,40 +745,40 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           <div className="flex flex-wrap gap-2">
             {inv.status === "draft" && (
               <Button size="sm" onClick={() => doAction("send", "Invoice marked as sent!")} disabled={acting}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                className="bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-1.5">
                 <Send className="w-3.5 h-3.5" />Mark as Sent
               </Button>
             )}
             {balance > 0 && inv.status !== "void" && inv.docType !== "quotation" && (inv.booking || ["sent","viewed","partially_paid","overdue"].includes(inv.status)) && (
               <Button size="sm" onClick={() => setRecordingPayment(r => !r)} disabled={acting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+                className="bg-[#1F8A5B] hover:bg-[#1F8A5B] text-white gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />Record Payment
               </Button>
             )}
             {!inv.booking && ["sent","viewed","partially_paid"].includes(inv.status) && (
               <Button size="sm" onClick={() => doAction("paid", "Invoice marked as paid!")} disabled={acting}
-                variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 gap-1.5">
+                variant="outline" className="border-[#9AD5B6] text-[#1F8A5B] hover:bg-[#F0FAF4] gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />Mark Paid
               </Button>
             )}
             {["sent","viewed","partially_paid","overdue"].includes(inv.status) && inv.client.email && (
               <Button size="sm" onClick={() => doAction("reminder", "Reminder sent!", "POST")} disabled={acting}
-                variant="outline" className="border-slate-200 text-slate-600 gap-1.5">
+                variant="outline" className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
                 <Bell className="w-3.5 h-3.5" />Remind
               </Button>
             )}
             <a href={url} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline" className="border-slate-200 text-slate-600 gap-1.5">
+              <Button size="sm" variant="outline" className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
                 <Eye className="w-3.5 h-3.5" />Preview
               </Button>
             </a>
             <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Link copied!", type: "success" }); }}
-              className="border-slate-200 text-slate-600 gap-1.5">
+              className="border-[#E4E0EC] text-[#4A4658] gap-1.5">
               <Copy className="w-3.5 h-3.5" />Copy Link
             </Button>
             {!inv.booking && ["draft","void"].includes(inv.status) && (
               <Button size="sm" variant="outline" onClick={doDelete} disabled={acting}
-                className="border-red-200 text-red-500 hover:bg-red-50 gap-1.5">
+                className="border-[#F6CFD8] text-[#C2304F] hover:bg-[#FEF5F7] gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" />Delete
               </Button>
             )}
@@ -790,11 +790,11 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           )}
 
           {/* Share link */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <p className="text-xs text-slate-600 truncate flex-1">{url}</p>
+          <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+            <p className="text-xs text-[#4A4658] truncate flex-1">{url}</p>
             <button onClick={() => { navigator.clipboard.writeText(url); setToast({ msg: "Copied!", type: "success" }); }}
-              className="text-xs text-indigo-600 font-semibold flex-shrink-0 hover:text-indigo-700">Copy</button>
+              className="text-xs text-[#7D5CEF] font-semibold flex-shrink-0 hover:text-[#5B3FD0]">Copy</button>
           </div>
 
           {inv.booking && (
@@ -803,49 +803,49 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
 
           {/* Booking link */}
           {inv.booking && (
-            <div className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
-              <FileText className="w-4 h-4 text-indigo-500" />
-              <p className="text-xs text-indigo-700 font-medium">{inv.booking.bookingNumber} — {inv.booking.eventName || "Untitled"}</p>
+            <div className="flex items-center gap-2 p-3 bg-[#F7F4FE] border border-[#EEE8FD] rounded-xl">
+              <FileText className="w-4 h-4 text-[#7D5CEF]" />
+              <p className="text-xs text-[#5B3FD0] font-medium">{inv.booking.bookingNumber} — {inv.booking.eventName || "Untitled"}</p>
             </div>
           )}
 
           {/* Items */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Line Items</p>
-            <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Line Items</p>
+            <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
               {inv.items.map((item, i) => (
-                <div key={item.id} className={cn("px-4 py-3 flex items-start justify-between gap-2", i > 0 && "border-t border-slate-100")}>
+                <div key={item.id} className={cn("px-4 py-3 flex items-start justify-between gap-2", i > 0 && "border-t border-[#F1EFF6]")}>
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       {(item as any).category && (
-                        <span className="text-xs px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded font-medium">{(item as any).category}</span>
+                        <span className="text-xs px-1.5 py-0.5 bg-[#EEE8FD] text-[#7D5CEF] rounded font-medium">{(item as any).category}</span>
                       )}
-                      <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+                      <p className="text-sm font-semibold text-[#17151F]">{item.name}</p>
                     </div>
-                    {item.description && <p className="text-xs text-slate-400">{item.description}</p>}
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    {item.description && <p className="text-xs text-[#8A8599]">{item.description}</p>}
+                    <p className="text-xs text-[#8A8599] mt-0.5">
                       {item.quantity} {(item as any).unit || "service"} × {c}{Number(item.unitPrice).toLocaleString()}
                       {(item as any).discountType && (item as any).discountType !== "none" && (item as any).discountValue && (
-                        <span className="text-amber-500 ml-1">
+                        <span className="text-[#D88A12] ml-1">
                           − {(item as any).discountType === "percent" ? `${(item as any).discountValue}%` : `${c}${(item as any).discountValue.toLocaleString()}`}
                         </span>
                       )}
                     </p>
                   </div>
-                  <p className="font-bold text-sm text-slate-900 flex-shrink-0">{c}{Number(item.total).toLocaleString()}</p>
+                  <p className="font-bold text-sm text-[#17151F] flex-shrink-0">{c}{Number(item.total).toLocaleString()}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Totals */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5 text-sm">
-            <div className="flex justify-between text-slate-500"><span>Subtotal</span><span>{c}{Number(inv.subtotal).toLocaleString()}</span></div>
-            {Number(inv.discountAmount) > 0 && <div className="flex justify-between text-emerald-600"><span>Discount</span><span>−{c}{Number(inv.discountAmount).toLocaleString()}</span></div>}
-            {Number(inv.taxAmount) > 0 && <div className="flex justify-between text-slate-500"><span>{inv.taxLabel} ({inv.taxPercent}%)</span><span>+{c}{Number(inv.taxAmount).toLocaleString()}</span></div>}
-            <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2"><span>Grand Total</span><span>{c}{Number(inv.grandTotal).toLocaleString()}</span></div>
-            {Number(inv.paidAmount) > 0 && <div className="flex justify-between text-emerald-600 font-semibold"><span>Paid</span><span>−{c}{Number(inv.paidAmount).toLocaleString()}</span></div>}
-            <div className={cn("flex justify-between font-bold text-base", Number(inv.balanceDue) > 0 ? "text-red-600" : "text-emerald-600")}>
+          <div className="bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl p-4 space-y-1.5 text-sm">
+            <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span>{c}{Number(inv.subtotal).toLocaleString()}</span></div>
+            {Number(inv.discountAmount) > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{c}{Number(inv.discountAmount).toLocaleString()}</span></div>}
+            {Number(inv.taxAmount) > 0 && <div className="flex justify-between text-[#6B6680]"><span>{inv.taxLabel} ({inv.taxPercent}%)</span><span>+{c}{Number(inv.taxAmount).toLocaleString()}</span></div>}
+            <div className="flex justify-between font-bold text-[#17151F] text-base border-t border-[#E4E0EC] pt-2"><span>Grand Total</span><span>{c}{Number(inv.grandTotal).toLocaleString()}</span></div>
+            {Number(inv.paidAmount) > 0 && <div className="flex justify-between text-[#1F8A5B] font-semibold"><span>Paid</span><span>−{c}{Number(inv.paidAmount).toLocaleString()}</span></div>}
+            <div className={cn("flex justify-between font-bold text-base", Number(inv.balanceDue) > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>
               <span>Balance Due</span><span>{c}{Number(inv.balanceDue).toLocaleString()}</span>
             </div>
           </div>
@@ -853,23 +853,23 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
           {/* Payment History */}
           {(payments.length > 0 || payLoading) && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment History</p>
+              <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Payment History</p>
               {payLoading ? (
-                <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+                <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
               ) : (
-                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
                   {payments.map((pay, i) => (
-                    <div key={pay.id} className={cn("px-4 py-3 flex items-center justify-between gap-2", i > 0 && "border-t border-slate-100")}>
+                    <div key={pay.id} className={cn("px-4 py-3 flex items-center justify-between gap-2", i > 0 && "border-t border-[#F1EFF6]")}>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800 capitalize">{METHOD_LABEL[pay.paymentMethod] ?? pay.paymentMethod.replace("_", " ")}</p>
-                        <p className="text-xs text-slate-400">{fmtDate(pay.paymentDate)}{pay.referenceNumber ? ` · ${pay.referenceNumber}` : ""}</p>
+                        <p className="text-sm font-semibold text-[#17151F] capitalize">{METHOD_LABEL[pay.paymentMethod] ?? pay.paymentMethod.replace("_", " ")}</p>
+                        <p className="text-xs text-[#8A8599]">{fmtDate(pay.paymentDate)}{pay.referenceNumber ? ` · ${pay.referenceNumber}` : ""}</p>
                       </div>
-                      <p className="font-bold text-sm text-emerald-700">+{c}{Number(pay.amount).toLocaleString()}</p>
+                      <p className="font-bold text-sm text-[#1F8A5B]">+{c}{Number(pay.amount).toLocaleString()}</p>
                     </div>
                   ))}
-                  <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-medium">Total Paid</span>
-                    <span className="font-bold text-sm text-emerald-700">{c}{payments.reduce((a, p) => a + Number(p.amount), 0).toLocaleString()}</span>
+                  <div className="px-4 py-2.5 bg-[#F7F5FB] border-t border-[#E4E0EC] flex justify-between items-center">
+                    <span className="text-xs text-[#6B6680] font-medium">Total Paid</span>
+                    <span className="font-bold text-sm text-[#1F8A5B]">{c}{payments.reduce((a, p) => a + Number(p.amount), 0).toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -878,26 +878,26 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
 
           {/* Timeline */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Timeline</p>
+            <p className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Timeline</p>
             {[
-              { label: "Issued", date: inv.issueDate, dot: "bg-slate-400" },
-              { label: "Due", date: inv.dueDate, dot: "bg-amber-400" },
-              { label: "Sent", date: inv.sentAt, dot: "bg-blue-400" },
-              { label: "Viewed", date: inv.viewedAt, dot: "bg-violet-400" },
-              { label: "Paid", date: inv.paidAt, dot: "bg-emerald-500" },
+              { label: "Issued", date: inv.issueDate, dot: "bg-[#8A8599]" },
+              { label: "Due", date: inv.dueDate, dot: "bg-[#E9A63A]" },
+              { label: "Sent", date: inv.sentAt, dot: "bg-[#6C9BD0]" },
+              { label: "Viewed", date: inv.viewedAt, dot: "bg-[#A28BF5]" },
+              { label: "Paid", date: inv.paidAt, dot: "bg-[#1F8A5B]" },
             ].filter(x => x.date).map(x => (
               <div key={x.label} className="flex items-center gap-3">
                 <span className={cn("w-2 h-2 rounded-full flex-shrink-0", x.dot)} />
-                <span className="text-xs text-slate-500 w-12">{x.label}</span>
-                <span className="text-xs font-medium text-slate-700">{fmtDate(x.date!)}</span>
+                <span className="text-xs text-[#6B6680] w-12">{x.label}</span>
+                <span className="text-xs font-medium text-[#33303F]">{fmtDate(x.date!)}</span>
               </div>
             ))}
           </div>
 
           {inv.notes && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <p className="text-xs font-semibold text-slate-500 mb-1">Notes</p>
-              <p className="text-xs text-slate-600">{inv.notes}</p>
+            <div className="p-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-xl">
+              <p className="text-xs font-semibold text-[#6B6680] mb-1">Notes</p>
+              <p className="text-xs text-[#4A4658]">{inv.notes}</p>
             </div>
           )}
         </div>
@@ -1021,7 +1021,7 @@ export default function InvoicesPage() {
         <div className="fixed inset-0 bg-black/20 z-40 flex items-center justify-center">
           <div className="bg-white rounded-[20px] p-5 shadow-xl flex items-center gap-3">
             <Loader2 className="w-5 h-5 animate-spin text-[#7D5CEF]" />
-            <p className="text-sm font-medium text-slate-700">Loading invoice…</p>
+            <p className="text-sm font-medium text-[#33303F]">Loading invoice…</p>
           </div>
         </div>
       )}

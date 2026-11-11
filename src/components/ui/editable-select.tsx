@@ -30,7 +30,7 @@ export function EditableSelect({
   const [isCustom, setIsCustom] = useState(!isKnownValue);
 
   const baseClassName = cn(
-    "w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-indigo-400",
+    "w-full h-11 px-3 rounded-lg border border-[#E4E0EC] bg-white text-sm focus:outline-none focus:border-indigo-400",
     className,
   );
 
@@ -47,7 +47,7 @@ export function EditableSelect({
           type="button"
           onClick={() => { setIsCustom(false); onChange(""); }}
           title="Back to list"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8A8599] hover:text-[#4A4658]"
         >
           <X className="w-3.5 h-3.5" />
         </button>

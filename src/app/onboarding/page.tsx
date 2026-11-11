@@ -81,13 +81,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#F7F5FB] flex flex-col">
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-slate-100">
+      <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-[#F1EFF6]">
         <div className="flex items-center gap-2">
           <BrandMark size={32} />
-          <span className="font-extrabold tracking-tight text-slate-900">StuPanel</span>
+          <span className="font-extrabold tracking-tight text-[#17151F]">StuPanel</span>
         </div>
 
         {/* Step indicator */}
@@ -96,27 +96,27 @@ export default function OnboardingPage() {
             <div key={s} className="flex items-center gap-2">
               <div className={cn(
                 "flex items-center gap-1.5 text-sm font-medium",
-                i < step ? "text-emerald-600" : i === step ? "text-indigo-600" : "text-slate-400"
+                i < step ? "text-[#1F8A5B]" : i === step ? "text-[#7D5CEF]" : "text-[#8A8599]"
               )}>
                 <div className={cn(
                   "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
-                  i < step ? "bg-emerald-500 border-emerald-500 text-white" :
-                  i === step ? "bg-indigo-600 border-indigo-600 text-white" :
-                  "bg-white border-slate-300 text-slate-400"
+                  i < step ? "bg-[#1F8A5B] border-[#1F8A5B] text-white" :
+                  i === step ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" :
+                  "bg-white border-[#B5B0C4] text-[#8A8599]"
                 )}>
                   {i < step ? <Check className="w-3 h-3" /> : i + 1}
                 </div>
                 <span className="hidden sm:block">{s}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={cn("w-8 h-px", i < step ? "bg-emerald-300" : "bg-slate-200")} />
+                <div className={cn("w-8 h-px", i < step ? "bg-[#9AD5B6]" : "bg-[#E4E0EC]")} />
               )}
             </div>
           ))}
         </div>
 
         <button onClick={() => router.push("/dashboard")}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+          className="text-xs text-[#8A8599] hover:text-[#4A4658] transition-colors">
           Skip for now
         </button>
       </div>
@@ -129,8 +129,8 @@ export default function OnboardingPage() {
           {step === 0 && (
             <div>
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">What type of studio do you run?</h1>
-                <p className="text-slate-500 mt-1.5 text-sm">We&apos;ll personalize StuPanel for your needs.</p>
+                <h1 className="text-2xl font-bold text-[#17151F]">What type of studio do you run?</h1>
+                <p className="text-[#6B6680] mt-1.5 text-sm">We&apos;ll personalize StuPanel for your needs.</p>
               </div>
 
               <div className="grid gap-3">
@@ -140,19 +140,19 @@ export default function OnboardingPage() {
                     className={cn(
                       "w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
                       studioType === t.id
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                        ? "border-[#7D5CEF] bg-[#F7F4FE]"
+                        : "border-[#E4E0EC] bg-white hover:border-[#B5B0C4]"
                     )}>
                     <span className="text-2xl">{t.icon}</span>
                     <div className="flex-1">
-                      <p className={cn("font-semibold text-sm", studioType === t.id ? "text-indigo-700" : "text-slate-900")}>
+                      <p className={cn("font-semibold text-sm", studioType === t.id ? "text-[#5B3FD0]" : "text-[#17151F]")}>
                         {t.label}
                       </p>
-                      <p className="text-slate-500 text-xs mt-0.5">{t.desc}</p>
+                      <p className="text-[#6B6680] text-xs mt-0.5">{t.desc}</p>
                     </div>
                     <div className={cn(
                       "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
-                      studioType === t.id ? "border-indigo-500 bg-indigo-500" : "border-slate-300"
+                      studioType === t.id ? "border-[#7D5CEF] bg-[#7D5CEF]" : "border-[#B5B0C4]"
                     )}>
                       {studioType === t.id && <Check className="w-3 h-3 text-white" />}
                     </div>
@@ -161,7 +161,7 @@ export default function OnboardingPage() {
               </div>
 
               <Button onClick={() => setStep(1)} disabled={!studioType}
-                className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold mt-6 gap-2">
+                className="w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold mt-6 gap-2">
                 Continue <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
@@ -171,29 +171,29 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div>
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">Almost there!</h1>
-                <p className="text-slate-500 mt-1.5 text-sm">A few more details to set up your studio.</p>
+                <h1 className="text-2xl font-bold text-[#17151F]">Almost there!</h1>
+                <p className="text-[#6B6680] mt-1.5 text-sm">A few more details to set up your studio.</p>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+              <div className="bg-white rounded-2xl border border-[#E4E0EC] p-6 space-y-5">
                 {/* City */}
                 <div className="space-y-1.5">
-                  <Label className="text-slate-700 text-sm font-medium">City / Location</Label>
+                  <Label className="text-[#33303F] text-sm font-medium">City / Location</Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
                     <Input placeholder="e.g. your city"
                       value={info.city} onChange={setInfoField("city")}
-                      className="pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400" />
+                      className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" />
                   </div>
                 </div>
 
                 {/* Currency */}
                 <div className="space-y-1.5">
-                  <Label className="text-slate-700 text-sm font-medium">Currency</Label>
+                  <Label className="text-[#33303F] text-sm font-medium">Currency</Label>
                   <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599] z-10" />
                     <select value={info.currency} onChange={setInfoField("currency")}
-                      className="w-full h-11 pl-10 pr-4 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-indigo-400 appearance-none cursor-pointer">
+                      className="w-full h-11 pl-10 pr-4 rounded-lg border border-[#E4E0EC] bg-white text-sm text-[#17151F] focus:outline-none focus:border-indigo-400 appearance-none cursor-pointer">
                       {CURRENCIES.map(c => (
                         <option key={c.code} value={c.code}>
                           {c.symbol} {c.code} — {c.name}
@@ -205,32 +205,32 @@ export default function OnboardingPage() {
 
                 {/* Website */}
                 <div className="space-y-1.5">
-                  <Label className="text-slate-700 text-sm font-medium">
+                  <Label className="text-[#33303F] text-sm font-medium">
                     Studio Website
-                    <span className="text-slate-400 font-normal ml-1">(optional)</span>
+                    <span className="text-[#8A8599] font-normal ml-1">(optional)</span>
                   </Label>
                   <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
                     <Input placeholder="https://yourstudio.com"
                       value={info.website} onChange={setInfoField("website")}
-                      className="pl-10 h-11 bg-white border-slate-200 focus:border-indigo-400" />
+                      className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" />
                   </div>
                 </div>
               </div>
 
               {saveError && (
-                <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <p className="mt-4 text-sm text-[#C2304F] bg-[#FEF5F7] border border-[#F6CFD8] rounded-lg px-3 py-2">
                   {saveError}
                 </p>
               )}
 
               <div className="flex gap-3 mt-4">
                 <Button variant="outline" onClick={() => setStep(0)}
-                  className="h-11 gap-2 border-slate-200 text-slate-600">
+                  className="h-11 gap-2 border-[#E4E0EC] text-[#4A4658]">
                   <ChevronLeft className="w-4 h-4" /> Back
                 </Button>
                 <Button onClick={finish} disabled={loading}
-                  className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-2">
+                  className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold gap-2">
                   {loading
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Setting up...</>
                     : <>Finish Setup <ChevronRight className="w-4 h-4" /></>
@@ -243,11 +243,11 @@ export default function OnboardingPage() {
           {/* ── STEP 2: Done ── */}
           {step === 2 && (
             <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-emerald-600" />
+              <div className="w-20 h-20 rounded-full bg-[#E7F5EE] flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-[#1F8A5B]" />
               </div>
-              <h1 className="text-2xl font-bold text-slate-900">You&apos;re all set!</h1>
-              <p className="text-slate-500 mt-2 text-sm leading-relaxed">
+              <h1 className="text-2xl font-bold text-[#17151F]">You&apos;re all set!</h1>
+              <p className="text-[#6B6680] mt-2 text-sm leading-relaxed">
                 Your studio is ready. Let&apos;s go to your dashboard.
               </p>
 
@@ -258,15 +258,15 @@ export default function OnboardingPage() {
                   { icon: "💰", label: "Payments" },
                   { icon: "📸", label: "Delivery" },
                 ].map(f => (
-                  <div key={f.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <div key={f.label} className="bg-white rounded-xl border border-[#E4E0EC] p-4 text-center">
                     <div className="text-2xl mb-1">{f.icon}</div>
-                    <p className="text-slate-700 text-sm font-medium">{f.label}</p>
+                    <p className="text-[#33303F] text-sm font-medium">{f.label}</p>
                   </div>
                 ))}
               </div>
 
               <Button onClick={() => router.push("/dashboard")}
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-base gap-2">
+                className="w-full h-12 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-base gap-2">
                 Go to Dashboard <ChevronRight className="w-4 h-4" />
               </Button>
             </div>

@@ -97,70 +97,70 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Delivery</p>
+      <p className="text-xs font-semibold text-[#8A8599] uppercase tracking-wider">Delivery</p>
 
-      {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+      {error && <p className="text-xs text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg">{error}</p>}
 
       {booking.deliveryMethod === "drive_auto" && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+        <div className="bg-[#F0FAF4] border border-[#CDEBDB] rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2">
-            <HardDrive className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">Drive Folder Created</span>
+            <HardDrive className="w-4 h-4 text-[#1F8A5B]" />
+            <span className="text-sm font-semibold text-[#1F8A5B]">Drive Folder Created</span>
           </div>
-          {booking.driveDeliveredAt && <p className="text-xs text-emerald-600">{fmtDate(booking.driveDeliveredAt)}</p>}
+          {booking.driveDeliveredAt && <p className="text-xs text-[#1F8A5B]">{fmtDate(booking.driveDeliveredAt)}</p>}
           {booking.driveFolderUrl && (
             <a href={booking.driveFolderUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+              className="flex items-center gap-1.5 text-sm text-[#7D5CEF] hover:underline">
               <ExternalLink className="w-3.5 h-3.5" /> Open Drive Folder
             </a>
           )}
           <button onClick={createDriveFolder} disabled={autoLoading}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 underline">
+            className="flex items-center gap-1.5 text-xs text-[#8A8599] hover:text-[#7D5CEF] underline">
             {autoLoading && <Loader2 className="w-3 h-3 animate-spin" />} Create New Folder
           </button>
         </div>
       )}
 
       {booking.deliveryMethod === "drive_link" && !editing && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+        <div className="bg-[#F0FAF4] border border-[#CDEBDB] rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">Drive Link</span>
+              <Link2 className="w-4 h-4 text-[#1F8A5B]" />
+              <span className="text-sm font-semibold text-[#1F8A5B]">Drive Link</span>
             </div>
-            <button onClick={() => setEditing(true)} className="text-xs text-slate-400 hover:text-indigo-600">Edit</button>
+            <button onClick={() => setEditing(true)} className="text-xs text-[#8A8599] hover:text-[#7D5CEF]">Edit</button>
           </div>
-          {booking.deliveryDate && <p className="text-xs text-emerald-600">{fmtDate(booking.deliveryDate)}</p>}
+          {booking.deliveryDate && <p className="text-xs text-[#1F8A5B]">{fmtDate(booking.deliveryDate)}</p>}
           {booking.deliveryLink && (
             <a href={booking.deliveryLink} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-indigo-600 hover:underline break-all">
+              className="flex items-center gap-1.5 text-sm text-[#7D5CEF] hover:underline break-all">
               <ExternalLink className="w-3.5 h-3.5 shrink-0" /> {booking.deliveryLink.length > 40 ? booking.deliveryLink.slice(0, 40) + "…" : booking.deliveryLink}
             </a>
           )}
-          {booking.deliveryNote && <p className="text-xs text-slate-500">{booking.deliveryNote}</p>}
+          {booking.deliveryNote && <p className="text-xs text-[#6B6680]">{booking.deliveryNote}</p>}
         </div>
       )}
 
       {booking.deliveryMethod === "r2" && !editing && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+        <div className="bg-[#F0FAF4] border border-[#CDEBDB] rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ArrowRight className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">R2 Cloud Upload</span>
+              <ArrowRight className="w-4 h-4 text-[#1F8A5B]" />
+              <span className="text-sm font-semibold text-[#1F8A5B]">R2 Cloud Upload</span>
             </div>
-            <button onClick={() => { setEditing(true); setMode("r2"); }} className="text-xs text-slate-400 hover:text-indigo-600">Add More</button>
+            <button onClick={() => { setEditing(true); setMode("r2"); }} className="text-xs text-[#8A8599] hover:text-[#7D5CEF]">Add More</button>
           </div>
           {r2Files.length > 0 && (
             <div className="space-y-1">
               {r2Files.map((f, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
-                  {f.status === "done" ? <Check className="w-3 h-3 text-emerald-500" /> : f.status === "error" ? <X className="w-3 h-3 text-red-500" /> : <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
-                  <span className="text-slate-600 truncate">{f.name}</span>
+                  {f.status === "done" ? <Check className="w-3 h-3 text-[#1F8A5B]" /> : f.status === "error" ? <X className="w-3 h-3 text-[#C2304F]" /> : <Loader2 className="w-3 h-3 animate-spin text-[#7D5CEF]" />}
+                  <span className="text-[#4A4658] truncate">{f.name}</span>
                 </div>
               ))}
             </div>
           )}
-          <a href="/delivery" className="flex items-center gap-1.5 text-xs text-indigo-600 hover:underline">
+          <a href="/delivery" className="flex items-center gap-1.5 text-xs text-[#7D5CEF] hover:underline">
             <ExternalLink className="w-3 h-3" /> Manage files in Delivery page
           </a>
         </div>
@@ -172,28 +172,28 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
             <div className="space-y-2">
               <div className={`grid gap-2 ${r2Enabled ? "grid-cols-3" : "grid-cols-2"}`}>
                 <button onClick={() => setMode("drive_link")}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
-                  <Link2 className="w-4 h-4 text-indigo-500" />
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-[#E4E0EC] hover:border-indigo-300 hover:bg-[#F7F4FE] transition-all text-left">
+                  <Link2 className="w-4 h-4 text-[#7D5CEF]" />
                   <div>
-                    <p className="text-xs font-bold text-slate-700">Manual Link</p>
-                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Paste Google Drive, Dropbox or WeTransfer link. Saved in DB. All companies.</p>
+                    <p className="text-xs font-bold text-[#33303F]">Manual Link</p>
+                    <p className="text-xs text-[#8A8599] leading-relaxed mt-0.5">Paste Google Drive, Dropbox or WeTransfer link. Saved in DB. All companies.</p>
                   </div>
                 </button>
                 <button onClick={createDriveFolder} disabled={autoLoading}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
-                  {autoLoading ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <HardDrive className="w-4 h-4 text-emerald-500" />}
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-[#E4E0EC] hover:border-indigo-300 hover:bg-[#F7F4FE] transition-all text-left">
+                  {autoLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#7D5CEF]" /> : <HardDrive className="w-4 h-4 text-[#1F8A5B]" />}
                   <div>
-                    <p className="text-xs font-bold text-slate-700">Drive Auto</p>
-                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Auto-creates a folder in your Google Drive. Requires connected Drive account. All companies.</p>
+                    <p className="text-xs font-bold text-[#33303F]">Drive Auto</p>
+                    <p className="text-xs text-[#8A8599] leading-relaxed mt-0.5">Auto-creates a folder in your Google Drive. Requires connected Drive account. All companies.</p>
                   </div>
                 </button>
                 {r2Enabled && (
                   <button onClick={() => setMode("r2")}
-                    className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left">
-                    <ArrowRight className="w-4 h-4 text-blue-500" />
+                    className="flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 border-dashed border-[#E4E0EC] hover:border-indigo-300 hover:bg-[#F7F4FE] transition-all text-left">
+                    <ArrowRight className="w-4 h-4 text-[#2F6FB3]" />
                     <div>
-                      <p className="text-xs font-bold text-slate-700">R2 Upload</p>
-                      <p className="text-xs text-slate-400 leading-relaxed mt-0.5">Upload files to Cloudflare R2 cloud. Secure storage. Super Admin permission required.</p>
+                      <p className="text-xs font-bold text-[#33303F]">R2 Upload</p>
+                      <p className="text-xs text-[#8A8599] leading-relaxed mt-0.5">Upload files to Cloudflare R2 cloud. Secure storage. Super Admin permission required.</p>
                     </div>
                   </button>
                 )}
@@ -202,61 +202,61 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
           )}
 
           {mode === "drive_link" && (
-            <div className="space-y-2.5 bg-slate-50 rounded-xl p-4">
+            <div className="space-y-2.5 bg-[#F7F5FB] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600">Manual Link Delivery</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Paste your Google Drive, Dropbox, or WeTransfer link</p>
+                  <p className="text-xs font-semibold text-[#4A4658]">Manual Link Delivery</p>
+                  <p className="text-xs text-[#8A8599] mt-0.5">Paste your Google Drive, Dropbox, or WeTransfer link</p>
                 </div>
                 {!booking.deliveryMethod && (
-                  <button onClick={() => setMode(null)} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
+                  <button onClick={() => setMode(null)} className="text-xs text-[#8A8599] hover:text-[#4A4658]">← Back</button>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Delivery Link *</Label>
+                <Label className="text-xs text-[#6B6680]">Delivery Link *</Label>
                 <Input value={link} onChange={e => setLink(e.target.value)}
                   placeholder="https://drive.google.com/drive/folders/..."
-                  className="h-10 text-sm border-slate-200" />
+                  className="h-10 text-sm border-[#E4E0EC]" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Delivery Date</Label>
-                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 text-sm border-slate-200" />
+                  <Label className="text-xs text-[#6B6680]">Delivery Date</Label>
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 text-sm border-[#E4E0EC]" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Note</Label>
-                  <Input value={note} onChange={e => setNote(e.target.value)} placeholder="200 photos, 2 reels…" className="h-10 text-sm border-slate-200" />
+                  <Label className="text-xs text-[#6B6680]">Note</Label>
+                  <Input value={note} onChange={e => setNote(e.target.value)} placeholder="200 photos, 2 reels…" className="h-10 text-sm border-[#E4E0EC]" />
                 </div>
               </div>
-              <Button onClick={saveLink} disabled={saving} className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+              <Button onClick={saveLink} disabled={saving} className="w-full h-10 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Delivery"}
               </Button>
             </div>
           )}
 
           {mode === "r2" && (
-            <div className="space-y-2.5 bg-slate-50 rounded-xl p-4">
+            <div className="space-y-2.5 bg-[#F7F5FB] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600">R2 Cloud Upload</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Files stored securely on Cloudflare R2. Client downloads after full payment.</p>
+                  <p className="text-xs font-semibold text-[#4A4658]">R2 Cloud Upload</p>
+                  <p className="text-xs text-[#8A8599] mt-0.5">Files stored securely on Cloudflare R2. Client downloads after full payment.</p>
                 </div>
-                <button onClick={() => { setMode(null); setEditing(!booking.deliveryMethod); setR2Files([]); }} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
+                <button onClick={() => { setMode(null); setEditing(!booking.deliveryMethod); setR2Files([]); }} className="text-xs text-[#8A8599] hover:text-[#4A4658]">← Back</button>
               </div>
               <input ref={r2InputRef} type="file" multiple className="hidden"
                 onChange={e => e.target.files && handleR2Upload(e.target.files)} />
               <button onClick={() => r2InputRef.current?.click()} disabled={r2Uploading}
-                className="w-full flex flex-col items-center gap-2 py-6 rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-all">
-                {r2Uploading ? <Loader2 className="w-6 h-6 animate-spin text-indigo-500" /> : <ArrowRight className="w-6 h-6 text-slate-400" />}
-                <span className="text-xs text-slate-500">{r2Uploading ? "Uploading…" : "Click to select files"}</span>
-                <span className="text-xs text-slate-400">Photos, Videos, ZIP — max 500 MB each</span>
+                className="w-full flex flex-col items-center gap-2 py-6 rounded-xl border-2 border-dashed border-[#B5B0C4] hover:border-indigo-400 hover:bg-[#F7F4FE] transition-all">
+                {r2Uploading ? <Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" /> : <ArrowRight className="w-6 h-6 text-[#8A8599]" />}
+                <span className="text-xs text-[#6B6680]">{r2Uploading ? "Uploading…" : "Click to select files"}</span>
+                <span className="text-xs text-[#8A8599]">Photos, Videos, ZIP — max 500 MB each</span>
               </button>
               {r2Files.length > 0 && (
                 <div className="space-y-1.5 max-h-32 overflow-y-auto">
                   {r2Files.map((f, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs bg-white rounded-lg px-3 py-2">
-                      {f.status === "done" ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : f.status === "error" ? <X className="w-3.5 h-3.5 text-red-500 shrink-0" /> : <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500 shrink-0" />}
-                      <span className={`truncate ${f.status === "error" ? "text-red-600" : "text-slate-700"}`}>{f.name}</span>
+                      {f.status === "done" ? <Check className="w-3.5 h-3.5 text-[#1F8A5B] shrink-0" /> : f.status === "error" ? <X className="w-3.5 h-3.5 text-[#C2304F] shrink-0" /> : <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7D5CEF] shrink-0" />}
+                      <span className={`truncate ${f.status === "error" ? "text-[#C2304F]" : "text-[#33303F]"}`}>{f.name}</span>
                     </div>
                   ))}
                 </div>

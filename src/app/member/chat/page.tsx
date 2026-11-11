@@ -122,7 +122,7 @@ export default function MemberChatPage() {
                         {isMe && (
                           msg.readAt
                             ? <CheckCheck className="w-3 h-3 text-[#7D5CEF]" />
-                            : <Check className="w-3 h-3 text-slate-300" />
+                            : <Check className="w-3 h-3 text-[#B5B0C4]" />
                         )}
                       </div>
                     </div>

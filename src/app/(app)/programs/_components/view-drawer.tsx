@@ -43,59 +43,59 @@ function DeliveryOverview({ booking }: { booking: Booking }) {
 
   if (!method) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-center">
-        <p className="text-xs text-slate-400">No delivery set yet</p>
+      <div className="rounded-xl border border-dashed border-[#E4E0EC] px-4 py-3 text-center">
+        <p className="text-xs text-[#8A8599]">No delivery set yet</p>
       </div>
     );
   }
 
   const methodMeta = {
-    drive_auto: { icon: <HardDrive className="w-4 h-4 text-emerald-600" />, label: "Drive Auto", color: "text-emerald-700" },
-    drive_link: { icon: <Link2 className="w-4 h-4 text-indigo-600" />, label: "Drive Link", color: "text-indigo-700" },
-    r2: { icon: <Cloud className="w-4 h-4 text-blue-600" />, label: "R2 Cloud", color: "text-blue-700" },
-  }[method] ?? { icon: <HardDrive className="w-4 h-4 text-slate-500" />, label: method, color: "text-slate-600" };
+    drive_auto: { icon: <HardDrive className="w-4 h-4 text-[#1F8A5B]" />, label: "Drive Auto", color: "text-[#1F8A5B]" },
+    drive_link: { icon: <Link2 className="w-4 h-4 text-[#7D5CEF]" />, label: "Drive Link", color: "text-[#5B3FD0]" },
+    r2: { icon: <Cloud className="w-4 h-4 text-[#1F5C99]" />, label: "R2 Cloud", color: "text-[#1F5C99]" },
+  }[method] ?? { icon: <HardDrive className="w-4 h-4 text-[#6B6680]" />, label: method, color: "text-[#4A4658]" };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+    <div className="rounded-xl border border-[#E4E0EC] bg-[#F7F5FB] overflow-hidden">
       {/* Method header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-white">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E4E0EC] bg-white">
         <div className="flex items-center gap-2">
           {methodMeta.icon}
           <span className={`text-xs font-semibold ${methodMeta.color}`}>{methodMeta.label}</span>
         </div>
         {method === "drive_auto" && booking.driveFolderUrl && (
           <a href={booking.driveFolderUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700">
+            className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">
             <ExternalLink className="w-3 h-3" /> Open Folder
           </a>
         )}
         {method === "drive_link" && (booking.deliveryLink || linksCount > 0) && (
           <a href={booking.deliveryLink ?? "#"} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700">
+            className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">
             <ExternalLink className="w-3 h-3" /> Open
           </a>
         )}
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 divide-x divide-slate-200">
+      <div className="grid grid-cols-3 divide-x divide-[#E4E0EC]">
         <div className="flex flex-col items-center justify-center py-3 gap-0.5">
-          <span className="text-base font-bold text-slate-800">
+          <span className="text-base font-bold text-[#17151F]">
             {method === "r2" ? (r2FileCount ?? "—") : (method === "drive_auto" ? "✓" : linksCount)}
           </span>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-[#8A8599]">
             {method === "r2" ? "Files" : method === "drive_auto" ? "Folder" : "Links"}
           </span>
         </div>
         <div className="flex flex-col items-center justify-center py-3 gap-0.5">
-          <span className="text-base font-bold text-slate-800">{linksCount}</span>
-          <span className="text-xs text-slate-400">Links</span>
+          <span className="text-base font-bold text-[#17151F]">{linksCount}</span>
+          <span className="text-xs text-[#8A8599]">Links</span>
         </div>
         <div className="flex flex-col items-center justify-center py-3 gap-0.5 px-1">
-          <span className="text-xs font-semibold text-slate-700 text-center leading-tight">
+          <span className="text-xs font-semibold text-[#33303F] text-center leading-tight">
             {booking.deliveryDate ? fmtDate(booking.deliveryDate) : "—"}
           </span>
-          <span className="text-xs text-slate-400">Date</span>
+          <span className="text-xs text-[#8A8599]">Date</span>
         </div>
       </div>
     </div>
@@ -130,14 +130,14 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
   const hasInfo = brief.videoStyle || brief.photoStyle || brief.colorStyle || brief.musicInfo || brief.specialInstructions;
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+    <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F7F5FB] border-b border-[#E4E0EC]">
         <div className="flex items-center gap-2">
-          <Palette className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-600">Creative Brief</span>
-          {hasInfo && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Set</span>}
+          <Palette className="w-3.5 h-3.5 text-[#6B6680]" />
+          <span className="text-xs font-semibold text-[#4A4658]">Creative Brief</span>
+          {hasInfo && <span className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-1.5 py-0.5 rounded-full font-medium">Set</span>}
         </div>
-        <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Edit"}</button>
+        <button onClick={() => setEditing(!editing)} className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">{editing ? "Cancel" : "Edit"}</button>
       </div>
 
       {editing ? (
@@ -149,43 +149,43 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
             { key: "musicInfo", label: "Music", placeholder: "e.g. Soft instrumental, upbeat for the reel" },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
-              <p className="text-xs text-slate-500 mb-1">{label}</p>
+              <p className="text-xs text-[#6B6680] mb-1">{label}</p>
               <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                placeholder={placeholder} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                placeholder={placeholder} className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
             </div>
           ))}
           <div>
-            <p className="text-xs text-slate-500 mb-1">Special Instructions</p>
+            <p className="text-xs text-[#6B6680] mb-1">Special Instructions</p>
             <textarea value={form.specialInstructions} onChange={e => setForm(f => ({ ...f, specialInstructions: e.target.value }))}
               placeholder="Highlight the first dance, include all family moments..." rows={3}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+              className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF] resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-slate-500 mb-1">Editing Deadline</p>
+              <p className="text-xs text-[#6B6680] mb-1">Editing Deadline</p>
               <input type="date" value={form.editingDeadline} onChange={e => setForm(f => ({ ...f, editingDeadline: e.target.value }))}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 mb-1">Delivery Deadline</p>
+              <p className="text-xs text-[#6B6680] mb-1">Delivery Deadline</p>
               <input type="date" value={form.deliveryDeadline} onChange={e => setForm(f => ({ ...f, deliveryDeadline: e.target.value }))}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full text-sm border border-[#E4E0EC] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
             </div>
           </div>
           <button onClick={save} disabled={saving}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
+            className="w-full py-2 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Creative Brief
           </button>
         </div>
       ) : hasInfo ? (
         <div className="p-4 space-y-2 bg-white">
-          {brief.videoStyle && <div className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 w-24">Video Style</span><span className="text-slate-800">{brief.videoStyle}</span></div>}
-          {brief.photoStyle && <div className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 w-24">Photo Style</span><span className="text-slate-800">{brief.photoStyle}</span></div>}
-          {brief.colorStyle && <div className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 w-24">Color Grade</span><span className="text-slate-800">{brief.colorStyle}</span></div>}
-          {brief.musicInfo && <div className="flex gap-2 text-sm"><span className="text-slate-400 shrink-0 w-24">Music</span><span className="text-slate-800">{brief.musicInfo}</span></div>}
-          {brief.specialInstructions && <p className="text-xs text-slate-600 bg-purple-50 rounded-lg px-3 py-2 mt-1">{brief.specialInstructions}</p>}
+          {brief.videoStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Video Style</span><span className="text-[#17151F]">{brief.videoStyle}</span></div>}
+          {brief.photoStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Photo Style</span><span className="text-[#17151F]">{brief.photoStyle}</span></div>}
+          {brief.colorStyle && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Color Grade</span><span className="text-[#17151F]">{brief.colorStyle}</span></div>}
+          {brief.musicInfo && <div className="flex gap-2 text-sm"><span className="text-[#8A8599] shrink-0 w-24">Music</span><span className="text-[#17151F]">{brief.musicInfo}</span></div>}
+          {brief.specialInstructions && <p className="text-xs text-[#4A4658] bg-[#F7F4FE] rounded-lg px-3 py-2 mt-1">{brief.specialInstructions}</p>}
           {(brief.editingDeadline || brief.deliveryDeadline) && (
-            <div className="flex gap-4 text-xs text-slate-500 pt-1">
+            <div className="flex gap-4 text-xs text-[#6B6680] pt-1">
               {brief.editingDeadline && <span>✏️ Editing by {brief.editingDeadline}</span>}
               {brief.deliveryDeadline && <span>📦 Delivery by {brief.deliveryDeadline}</span>}
             </div>
@@ -193,7 +193,7 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
         </div>
       ) : (
         <div className="px-4 py-3 text-center bg-white">
-          <p className="text-xs text-slate-400">No creative brief yet — click Edit to add</p>
+          <p className="text-xs text-[#8A8599]">No creative brief yet — click Edit to add</p>
         </div>
       )}
     </div>
@@ -201,14 +201,14 @@ function CreativeBriefSection({ booking, onSaved }: { booking: Booking; onSaved:
 }
 
 const ASSIGNMENT_STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  assigned:           { label: "Assigned",          cls: "bg-slate-100 text-slate-600" },
-  in_progress:        { label: "In Progress",        cls: "bg-blue-100 text-blue-700" },
-  submitted:          { label: "Submitted",          cls: "bg-amber-100 text-amber-700" },
-  under_review:       { label: "Under Review",       cls: "bg-yellow-100 text-yellow-700" },
-  revision_requested: { label: "Revision Needed",    cls: "bg-red-100 text-red-700" },
-  resubmitted:        { label: "Resubmitted",        cls: "bg-orange-100 text-orange-700" },
-  approved:           { label: "Approved",           cls: "bg-emerald-100 text-emerald-700" },
-  delivered:          { label: "Delivered",          cls: "bg-green-100 text-green-700" },
+  assigned:           { label: "Assigned",          cls: "bg-[#F1EFF6] text-[#4A4658]" },
+  in_progress:        { label: "In Progress",        cls: "bg-[#E8F0FA] text-[#1F5C99]" },
+  submitted:          { label: "Submitted",          cls: "bg-[#FFF3E0] text-[#9A5B00]" },
+  under_review:       { label: "Under Review",       cls: "bg-[#FFF3E0] text-[#9A5B00]" },
+  revision_requested: { label: "Revision Needed",    cls: "bg-[#FDECEF] text-[#C2304F]" },
+  resubmitted:        { label: "Resubmitted",        cls: "bg-[#FFF3E0] text-[#9A5B00]" },
+  approved:           { label: "Approved",           cls: "bg-[#E7F5EE] text-[#1F8A5B]" },
+  delivered:          { label: "Delivered",          cls: "bg-[#E7F5EE] text-[#1F8A5B]" },
 };
 
 type EditorAssignment = {
@@ -449,35 +449,35 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+    <div className="rounded-xl border border-[#E4E0EC] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F7F5FB] border-b border-[#E4E0EC]">
         <div className="flex items-center gap-2">
-          <Clapperboard className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-600">Editor Assignments</span>
-          {!loading && assignments.length > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium">{assignments.length}</span>}
+          <Clapperboard className="w-3.5 h-3.5 text-[#6B6680]" />
+          <span className="text-xs font-semibold text-[#4A4658]">Editor Assignments</span>
+          {!loading && assignments.length > 0 && <span className="text-xs bg-[#EEE8FD] text-[#5B3FD0] px-1.5 py-0.5 rounded-full font-medium">{assignments.length}</span>}
         </div>
-        <button onClick={() => setEditing(!editing)} className="text-xs text-indigo-600 hover:text-indigo-700">{editing ? "Cancel" : "Assign"}</button>
+        <button onClick={() => setEditing(!editing)} className="text-xs text-[#7D5CEF] hover:text-[#5B3FD0]">{editing ? "Cancel" : "Assign"}</button>
       </div>
 
       {editing ? (
         <div className="p-4 space-y-4 bg-white">
           {editorMembers.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center">No members with editor roles found</p>
+            <p className="text-xs text-[#8A8599] text-center">No members with editor roles found</p>
           ) : (
             <div className="space-y-4">
               {editorMembers.map(m => (
-                <div key={m.id} className="rounded-xl border border-slate-100 p-3 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">{m.firstName} {m.lastName ?? ""}</p>
+                <div key={m.id} className="rounded-xl border border-[#F1EFF6] p-3 space-y-2">
+                  <p className="text-sm font-semibold text-[#33303F]">{m.firstName} {m.lastName ?? ""}</p>
                   <div className="flex gap-2 flex-wrap">
                     {m.memberRoles.includes("photo_editor") && (
                       <button onClick={() => toggleEditor(m.id, "photo_editor")}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "photo_editor") ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-600 hover:border-indigo-300"}`}>
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "photo_editor") ? "bg-[#7D5CEF] text-white border-[#7D5CEF]" : "border-[#E4E0EC] text-[#4A4658] hover:border-indigo-300"}`}>
                         Photo Editor
                       </button>
                     )}
                     {m.memberRoles.includes("video_editor") && (
                       <button onClick={() => toggleEditor(m.id, "video_editor")}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "video_editor") ? "bg-purple-600 text-white border-purple-600" : "border-slate-200 text-slate-600 hover:border-purple-300"}`}>
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${draft.find(e => e.userId === m.id && e.role === "video_editor") ? "bg-[#7D5CEF] text-white border-[#7D5CEF]" : "border-[#E4E0EC] text-[#4A4658] hover:border-purple-300"}`}>
                         Video Editor
                       </button>
                     )}
@@ -486,20 +486,20 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                     <div key={e.role} className="space-y-2 pt-1">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <p className="text-xs text-slate-400 mb-0.5">Editing Deadline</p>
+                          <p className="text-xs text-[#8A8599] mb-0.5">Editing Deadline</p>
                           <input type="date" value={e.editingDeadline ?? ""}
                             onChange={ev => updateDraftField(m.id, e.role, "editingDeadline", ev.target.value)}
-                            className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
                         </div>
                         <div>
-                          <p className="text-xs text-slate-400 mb-0.5">Delivery Deadline</p>
+                          <p className="text-xs text-[#8A8599] mb-0.5">Delivery Deadline</p>
                           <input type="date" value={e.deliveryDeadline ?? ""}
                             onChange={ev => updateDraftField(m.id, e.role, "deliveryDeadline", ev.target.value)}
-                            className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400 mb-1">What to deliver <span className="text-slate-300">— the client hears once, when all of it is done</span></p>
+                        <p className="text-xs text-[#8A8599] mb-1">What to deliver <span className="text-[#B5B0C4]">— the client hears once, when all of it is done</span></p>
                         <div className="flex flex-wrap gap-1.5">
                           {PLAN_TYPES[e.role].map(t => {
                             const on = (e.deliverables ?? []).includes(t);
@@ -515,10 +515,10 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400 mb-0.5">Studio Note</p>
+                        <p className="text-xs text-[#8A8599] mb-0.5">Studio Note</p>
                         <input value={e.studioNote ?? ""} onChange={ev => updateDraftField(m.id, e.role, "studioNote", ev.target.value)}
                           placeholder="Instructions for this editor..."
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                          className="w-full text-xs border border-[#E4E0EC] rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]" />
                       </div>
                     </div>
                   ))}
@@ -527,29 +527,29 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
             </div>
           )}
           <button onClick={save} disabled={saving}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
+            className="w-full py-2 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Save Assignments
           </button>
         </div>
       ) : loading ? (
-        <div className="py-4 flex justify-center bg-white"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
+        <div className="py-4 flex justify-center bg-white"><Loader2 className="w-4 h-4 animate-spin text-[#8A8599]" /></div>
       ) : assignments.length > 0 ? (
-        <div className="divide-y divide-slate-100 bg-white">
+        <div className="divide-y divide-[#F1EFF6] bg-white">
           {assignments.map(a => {
             const name = `${a.user?.firstName ?? ""} ${a.user?.lastName ?? ""}`.trim();
-            const statusCfg = ASSIGNMENT_STATUS_CFG[a.status] ?? { label: a.status, cls: "bg-slate-100 text-slate-600" };
+            const statusCfg = ASSIGNMENT_STATUS_CFG[a.status] ?? { label: a.status, cls: "bg-[#F1EFF6] text-[#4A4658]" };
             return (
               <div key={a.id} className="px-4 py-3 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-800">{name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.role === "photo_editor" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
+                  <span className="text-sm font-semibold text-[#17151F]">{name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.role === "photo_editor" ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#EEE8FD] text-[#5B3FD0]"}`}>
                     {a.role === "photo_editor" ? "Photo Editor" : "Video Editor"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.cls}`}>{statusCfg.label}</span>
-                  {a.editingDeadline && <span className="text-xs text-slate-400">✏️ {fmtDate(a.editingDeadline)}</span>}
-                  {a.deliveryDeadline && <span className="text-xs text-slate-400">📦 {fmtDate(a.deliveryDeadline)}</span>}
+                  {a.editingDeadline && <span className="text-xs text-[#8A8599]">✏️ {fmtDate(a.editingDeadline)}</span>}
+                  {a.deliveryDeadline && <span className="text-xs text-[#8A8599]">📦 {fmtDate(a.deliveryDeadline)}</span>}
                 </div>
                 {a.progress && (a.progress.plan.length > 0 || a.progress.done > 0) && (
                   <div className="rounded-xl bg-[#F7F5FB] px-3 py-2 space-y-2">
@@ -602,7 +602,7 @@ function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; t
         </div>
       ) : (
         <div className="px-4 py-3 text-center bg-white">
-          <p className="text-xs text-slate-400">No editors assigned — click Assign</p>
+          <p className="text-xs text-[#8A8599]">No editors assigned — click Assign</p>
         </div>
       )}
     </div>

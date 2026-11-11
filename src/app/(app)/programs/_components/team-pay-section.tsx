@@ -42,7 +42,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <h2 className="flex-1 px-1 text-[13px] font-bold text-[#4A4658]">Team pay</h2>
-        {locked && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"><Lock className="w-3 h-3" />Bill locked</span>}
+        {locked && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#6B6680] bg-[#F1EFF6] px-2 py-0.5 rounded-full"><Lock className="w-3 h-3" />Bill locked</span>}
       </div>
       <div className={cn("bg-white rounded-[20px] divide-y divide-[#EEEBF4] overflow-hidden", CARD_SHADOW)}>
         {entries.map(e => {
@@ -52,13 +52,13 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-[15px] font-semibold text-[#17151F] truncate">{e.memberName}</p>
-                  <p className="text-xs text-slate-500 truncate">
+                  <p className="text-xs text-[#6B6680] truncate">
                     Bill {formatCurrency(bill, booking.currency)}{p > 0 && <> · paid {formatCurrency(p, booking.currency)}</>}
                   </p>
                 </div>
                 {due > 0 ? (
                   <>
-                    <span className="text-sm font-bold text-red-600 tabular-nums">{formatCurrency(due, booking.currency)}</span>
+                    <span className="text-sm font-bold text-[#C2304F] tabular-nums">{formatCurrency(due, booking.currency)}</span>
                     {e.memberId && (
                       <button type="button" onClick={() => setPaying(e)}
                         className="h-8 px-3 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] text-white text-xs font-semibold inline-flex items-center gap-1">
@@ -70,7 +70,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
                   <>
                     {extra > 0.009
                       ? <span className="text-xs font-semibold text-[#823072] bg-[#FBF2FA] px-2 py-1 rounded-full tabular-nums">Paid {formatCurrency(extra, booking.currency)} extra</span>
-                      : <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><Check className="w-3 h-3" />Paid</span>}
+                      : <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#1F8A5B] bg-[#F0FAF4] px-2 py-1 rounded-full"><Check className="w-3 h-3" />Paid</span>}
                     {e.memberId && (
                       <button type="button" onClick={() => setPaying(e)} aria-label={`Pay ${e.memberName} more`}
                         className="h-8 px-3 rounded-full bg-[#F5F3FA] text-[#5B3FD0] text-xs font-semibold inline-flex items-center gap-1">
@@ -83,11 +83,11 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
               {(e.payments ?? []).length > 0 && (
                 <div className="mt-1.5 space-y-1">
                   {e.payments!.map(x => (
-                    <div key={x.id} className="flex items-center gap-2 text-xs text-slate-500 pl-2 border-l-2 border-emerald-200">
+                    <div key={x.id} className="flex items-center gap-2 text-xs text-[#6B6680] pl-2 border-l-2 border-[#CDEBDB]">
                       <span className="flex-1 truncate">{fmtDate(x.date)} · {x.walletName ?? methodName(x.method)}{x.note ? ` · ${x.note}` : ""}</span>
-                      <span className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(x.amount, booking.currency)}</span>
+                      <span className="font-semibold text-[#1F8A5B] tabular-nums">{formatCurrency(x.amount, booking.currency)}</span>
                       <button type="button" onClick={() => undo(e, x.id)} disabled={busy === x.id} aria-label="Remove this payment"
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500">
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-[#B5B0C4] hover:text-[#C2304F]">
                         {busy === x.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                       </button>
                     </div>
@@ -98,8 +98,8 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
           );
         })}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAF9FC] text-xs">
-          <span className="text-slate-500">Total {formatCurrency(total, booking.currency)} · paid {formatCurrency(paid, booking.currency)}</span>
-          <span className={cn("font-bold", total - paid > 0 ? "text-red-600" : "text-emerald-700")}>Owe {formatCurrency(Math.max(0, total - paid), booking.currency)}</span>
+          <span className="text-[#6B6680]">Total {formatCurrency(total, booking.currency)} · paid {formatCurrency(paid, booking.currency)}</span>
+          <span className={cn("font-bold", total - paid > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>Owe {formatCurrency(Math.max(0, total - paid), booking.currency)}</span>
         </div>
       </div>
       <PayMember booking={booking} entry={paying} onClose={() => setPaying(null)} onSaved={onSaved} />

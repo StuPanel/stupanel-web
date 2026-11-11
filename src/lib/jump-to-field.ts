@@ -34,18 +34,18 @@ function find(name?: string): HTMLElement | null {
   return empty ?? null;
 }
 
-let lit: { el: HTMLElement; timer: number } | null = null;
-function flash(el: HTMLElement) {
-  if (lit) { window.clearTimeout(lit.timer); lit.el.classList.remove("sp-attn"); } // one at a time
-  el.classList.remove("sp-attn");
+let lit: { el: HTMLElement; cls: string; timer: number } | null = null;
+function flash(el: HTMLElement, cls: string) {
+  if (lit) { window.clearTimeout(lit.timer); lit.el.classList.remove(lit.cls); } // one at a time
+  el.classList.remove(cls);
   void el.offsetWidth; // restart the animation
-  el.classList.add("sp-attn");
-  lit = { el, timer: window.setTimeout(() => { el.classList.remove("sp-attn"); lit = null; }, 2400) };
+  el.classList.add(cls);
+  lit = { el, cls, timer: window.setTimeout(() => { el.classList.remove(cls); lit = null; }, 2400) };
 }
 
-function go(el: HTMLElement, focus: boolean) {
+function go(el: HTMLElement, focus: boolean, cls = "sp-attn") {
   el.scrollIntoView({ behavior: "smooth", block: "center" });
-  flash(el);
+  flash(el, cls);
   if (!focus) return;
   // Inside a bigger block, prefer the empty required box; else the first thing you can type in.
   const emptyReq = Array.from(el.querySelectorAll<HTMLElement>("[data-required]")).find(isEmpty);
@@ -60,12 +60,13 @@ function go(el: HTMLElement, focus: boolean) {
  * right after a setState that shows the field or the message.
  * Returns nothing; safe to call when nothing matches.
  */
-export function jumpToField(name?: string, opts: { focus?: boolean; toMessage?: boolean } = {}) {
+export function jumpToField(name?: string, opts: { focus?: boolean; toMessage?: boolean; tone?: "error" | "info" } = {}) {
   if (typeof window === "undefined") return;
-  const { focus = true, toMessage = true } = opts;
+  const { focus = true, toMessage = true, tone = "error" } = opts;
+  const cls = tone === "info" ? "sp-attn-info" : "sp-attn";
   window.requestAnimationFrame(() => window.setTimeout(() => {
     const el = find(name);
-    if (el) { go(el, focus); return; }
+    if (el) { go(el, focus, cls); return; }
     if (!toMessage) return;
     const msg = scope().querySelector<HTMLElement>('[role="alert"]');
     if (msg) go(msg, false);

@@ -5,25 +5,22 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Plus, X, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
+  Plus, Loader2, Search, Eye, Edit2, Copy, Trash2, Send,
   Check,
   Link2, MessageCircle, FileText, ArrowRight,
   Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
   Monitor, Smartphone, Tablet, MoreHorizontal,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Tile } from "@/components/ui/apple";
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { AccountPicker } from "@/components/account-picker";
 import { API_URL as API } from "@/lib/api";
-import { CURRENCY_OPTIONS, currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
+import { currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 import { jumpToField } from "@/lib/jump-to-field";
+import { QuoteForm, type QDay, type QLine, type QuoteForForm, type QuotePrefill } from "./_components/quote-form";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -49,17 +46,15 @@ const STATUS: Record<string, { label: string; badge: string; dot: string; icon: 
   converted: { label: "Converted",badge: "bg-[#E3F2F1] text-[#126B66]",     dot: "bg-[#1A8A84]",    icon: CheckCircle2 },
 };
 
-const EVENT_TYPES = ["Wedding","Pre-Wedding","Reception","Engagement","Birthday","Corporate","Product","Fashion","Other"];
-const CURRENCIES  = CURRENCY_OPTIONS.map(c => c.value);
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Client { id: string; firstName: string; lastName?: string; phone?: string; }
-interface Program { id: string; name: string; category?: string; basePrice: number; currency?: string; isActive?: boolean; deliverablesDescription?: string; }
-interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; isPackageBase?: boolean; }
+type QuoteItem = QLine;
 interface ViewLog { id: string; viewedAt: string; ipAddress?: string; deviceType?: string; browser?: string; action?: string; }
 interface Quote {
   id: string; quoteNumber: string; status: string; version: number;
-  eventType?: string; eventDate?: string; venue?: string; currency: string;
+  eventType?: string; eventDate?: string; eventEndDate?: string; venue?: string; currency: string; eventDays?: QDay[];
+  programId?: string | null; discountType?: string | null; discountValue?: number; taxPercent?: number;
   subtotal: number; discountAmount: number; taxAmount: number; grandTotal: number;
   advanceRequired: number; validUntil?: string; notes?: string; termsAndConditions?: string;
   publicToken: string; sentAt?: string; viewedAt?: string; lastViewedAt?: string;
@@ -69,332 +64,6 @@ interface Quote {
   viewLogs?: ViewLog[];
   versions?: { id: string; version: number; createdAt: string }[];
   company?: { name: string; email?: string; phone?: string; address?: string; logoUrl?: string; currency: string };
-}
-
-// ─── Quote Item Row ────────────────────────────────────────────────────────────
-function ItemRow({ item, onChange, onRemove, canRemove }: {
-  item: QuoteItem; onChange: (i: QuoteItem) => void; onRemove: () => void; canRemove: boolean;
-}) {
-  return (
-    <div className="flex items-start gap-2 p-3 bg-[#F7F5FB] rounded-[16px]">
-      <div className="flex-1 min-w-0 space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input value={item.name} onChange={e => onChange({ ...item, name: e.target.value })}
-            placeholder="Item name" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-          <input value={item.description ?? ""} onChange={e => onChange({ ...item, description: e.target.value })}
-            placeholder="Description (optional)" className="flex-1 h-9 px-3 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-        </div>
-        <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-[#6B6680]">Qty</span>
-            <input type="number" min="1" value={item.qty}
-              onChange={e => { const q = Number(e.target.value)||1; onChange({ ...item, qty: q, total: q * item.unitPrice }); }}
-              className="w-16 h-8 px-2 text-center rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-          </div>
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <span className="text-xs text-[#6B6680]">Price</span>
-            <input type="number" min="0" value={item.unitPrice}
-              onChange={e => { const p = Number(e.target.value)||0; onChange({ ...item, unitPrice: p, total: item.qty * p }); }}
-              className="flex-1 h-8 px-2 rounded-lg border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs text-[#6B6680]">Total</span>
-            <span className="font-bold text-sm text-[#17151F] tabular-nums">{item.total.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-      {canRemove && (
-        <button onClick={onRemove} className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-[#FEF5F7] text-[#8A8599] hover:text-[#C2304F] mt-1">
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ─── Create/Edit Drawer ────────────────────────────────────────────────────────
-type QuotePrefill = { client: Client; eventType?: string; eventDate?: string; venue?: string };
-
-function QuoteDrawer({ quote, prefill, onClose, onSaved }: {
-  quote: Quote | null; prefill?: QuotePrefill | null; onClose: () => void; onSaved: (q: Quote) => void;
-}) {
-  const isEdit = !!quote;
-
-  const [clients, setClients] = useState<Client[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [clientSearch, setClientSearch] = useState("");
-  const [clientDropdown, setClientDropdown] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(quote?.client ?? prefill?.client ?? null);
-  const [eventType, setEventType] = useState(quote?.eventType ?? prefill?.eventType ?? "");
-  const [eventDate, setEventDate] = useState(quote?.eventDate ? new Date(quote.eventDate).toISOString().slice(0,10) : prefill?.eventDate ?? "");
-  const [venue, setVenue] = useState(quote?.venue ?? prefill?.venue ?? "");
-  const [selectedProgramId, setSelectedProgramId] = useState(quote?.program ? "" : "");
-  const [currency, setCurrency] = useState(quote?.currency ?? getStudioCurrency());
-  const [items, setItems] = useState<QuoteItem[]>(quote?.items ?? [{ id: crypto.randomUUID(), name: "", qty: 1, unitPrice: 0, total: 0 }]);
-  const [discountType, setDiscountType] = useState<"percent"|"fixed"|"">("percent");
-  const [discountValue, setDiscountValue] = useState(0);
-  const [taxPercent, setTaxPercent] = useState(0);
-  const [advanceRequired, setAdvanceRequired] = useState(Number(quote?.advanceRequired ?? 0));
-  const [validUntil, setValidUntil] = useState(quote?.validUntil ? new Date(quote.validUntil).toISOString().slice(0,10) : "");
-  const [notes, setNotes] = useState(quote?.notes ?? "");
-  const [terms, setTerms] = useState(quote?.termsAndConditions ?? "1. 50% advance payment required to confirm booking.\n2. Full payment due on event day.\n3. Edited photos delivered within 30 working days.\n4. This quote is valid until the date mentioned above.");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [advancePercent, setAdvancePercent] = useState(50);
-  const sym = currSym(currency);
-
-  const subtotal = items.reduce((s, i) => s + i.total, 0);
-  const discAmt = discountType === "percent" ? subtotal * (discountValue / 100) : (discountType === "fixed" ? discountValue : 0);
-  const afterDisc = subtotal - discAmt;
-  const taxAmt = afterDisc * (taxPercent / 100);
-  const grand = afterDisc + taxAmt;
-
-  // auto-recalculate advance when grand total changes (new quotes only)
-  useEffect(() => {
-    if (!isEdit) setAdvanceRequired(Math.round(grand * advancePercent / 100));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grand]);
-
-  useEffect(() => {
-    apiFetch(`${API}/clients?limit=100`).then(r => r.json()).then(d => setClients(d.data ?? []));
-    apiFetch(`${API}/packages?limit=100`).then(r => r.json()).then(d => setPrograms(Array.isArray(d) ? d : (d.data ?? [])));
-    // fetch company defaults for new quotes only
-    if (!isEdit) {
-      apiFetch(`${API}/companies/me`).then(r => r.json()).then(d => {
-        if (d.defaultTerms) setTerms(d.defaultTerms);
-        if (d.defaultValidityDays) {
-          const dt = new Date();
-          dt.setDate(dt.getDate() + Number(d.defaultValidityDays));
-          setValidUntil(localDateStr(dt));
-        }
-        if (d.defaultAdvancePercent) {
-          const pct = Number(d.defaultAdvancePercent);
-          setAdvancePercent(pct);
-          setAdvanceRequired(Math.round(grand * pct / 100));
-        }
-      }).catch(() => {/* silently ignore */});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function pickProgram(pid: string) {
-    setSelectedProgramId(pid);
-    const p = programs.find(x => x.id === pid);
-    if (!p) return;
-    // The package becomes the first line; lines the user already typed stay (an earlier package line is replaced)
-    const base = { id: crypto.randomUUID(), name: p.name, description: p.deliverablesDescription ?? "", qty: 1, unitPrice: Number(p.basePrice), total: Number(p.basePrice), isPackageBase: true };
-    setItems(its => [base, ...its.filter(i => !i.isPackageBase && (i.name.trim() || i.unitPrice))]);
-    if (p.currency) setCurrency(p.currency);
-  }
-
-  function addItem() {
-    setItems(its => [...its, { id: crypto.randomUUID(), name: "", qty: 1, unitPrice: 0, total: 0 }]);
-  }
-
-  async function save() {
-    if (!selectedClient) { setError("Please select a client."); jumpToField("client"); return; }
-    if (items.every(i => !i.name.trim())) { setError("Add at least one item."); jumpToField("items"); return; }
-    setError(""); setSaving(true);
-    try {
-      const body = {
-        clientId: selectedClient.id, eventType: eventType || undefined,
-        eventDate: eventDate || undefined, venue: venue || undefined,
-        programId: selectedProgramId || undefined,
-        items: items.filter(i => i.name.trim()),
-        subtotal, discountType: discountType || undefined, discountValue,
-        taxPercent, grandTotal: grand, advanceRequired, currency,
-        validUntil: validUntil || undefined, notes: notes || undefined,
-        termsAndConditions: terms || undefined,
-      };
-      const url = isEdit ? `${API}/quotes/${quote.id}` : `${API}/quotes`;
-      const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const d = await r.json();
-      if (!r.ok) { setError(d.message || "Failed to save."); return; }
-      onSaved(d);
-    } catch { setError("Something went wrong."); }
-    finally { setSaving(false); }
-  }
-
-  const filteredClients = clients.filter(c =>
-    `${c.firstName} ${c.lastName ?? ""} ${c.phone ?? ""}`.toLowerCase().includes(clientSearch.toLowerCase())
-  );
-
-  return (
-    <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="sp-drawer sp-form z-50 sm:max-w-2xl flex flex-col">
-        <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#EEEBF4] flex-shrink-0">
-            <Tile icon={FileText} color="deep" size={40} />
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit quote" : "New quote"}</h2>
-              <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{isEdit ? `${quote.quoteNumber} · version ${quote.version}` : "Price, package and terms for a client"}</p>
-            </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
-          </div>
-
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {error && <p role="alert" className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
-
-          {/* Client */}
-          <div data-field="client" className="space-y-1.5 relative">
-            <Label className="text-[13px] font-semibold text-[#4A4658]">Client *</Label>
-            {selectedClient ? (
-              <div className="flex items-center gap-3 px-3 py-2.5 bg-[#F7F4FE] border border-indigo-200 rounded-xl">
-                <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-[#5B3FD0] font-bold text-sm">{selectedClient.firstName[0]}</div>
-                <div className="flex-1"><p className="font-semibold text-[#17151F] text-sm">{selectedClient.firstName} {selectedClient.lastName ?? ""}</p><p className="text-xs text-[#8A8599]">{selectedClient.phone}</p></div>
-                <button onClick={() => setSelectedClient(null)} className="text-[#8A8599] hover:text-[#C2304F]"><X className="w-4 h-4" /></button>
-              </div>
-            ) : (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
-                <input value={clientSearch} onChange={e => { setClientSearch(e.target.value); setClientDropdown(true); }}
-                  onFocus={() => setClientDropdown(true)}
-                  placeholder="Search client by name or phone…"
-                  className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-                {clientDropdown && filteredClients.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-[#E4E0EC] rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                    {filteredClients.slice(0, 8).map(c => (
-                      <button key={c.id} onClick={() => { setSelectedClient(c); setClientSearch(""); setClientDropdown(false); }}
-                        className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm hover:bg-[#F7F4FE] text-left">
-                        <div className="w-7 h-7 rounded-full bg-[#E4E0EC] flex items-center justify-center text-[#4A4658] font-bold text-xs">{c.firstName[0]}</div>
-                        <div><p className="font-medium text-[#17151F]">{c.firstName} {c.lastName ?? ""}</p><p className="text-xs text-[#8A8599]">{c.phone}</p></div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Event Info */}
-          <div className="space-y-3">
-            <Label className="text-[13px] font-semibold text-[#4A4658]">Event Info</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Event Type</Label>
-                <select value={eventType} onChange={e => setEventType(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white">
-                  <option value="">Select type…</option>
-                  {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Event Date</Label>
-                <Input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
-              </div>
-              <div className="col-span-2 space-y-1">
-                <Label className="text-xs text-[#6B6680]">Venue</Label>
-                <Input value={venue} onChange={e => setVenue(e.target.value)} placeholder="e.g. Grand Hotel ballroom" className="h-10 border-[#E4E0EC] text-sm" />
-              </div>
-            </div>
-          </div>
-
-          {/* Package auto-fill */}
-          {programs.some(p => p.isActive !== false) && (
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-semibold text-[#4A4658]">Auto-fill from Package</Label>
-              <select value={selectedProgramId} onChange={e => pickProgram(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white">
-                <option value="">Pick a package to auto-fill items…</option>
-                {programs.filter(p => p.isActive !== false || p.id === selectedProgramId).map(p => <option key={p.id} value={p.id}>{p.name} — {currSym(p.currency || currency)}{Number(p.basePrice).toLocaleString()}</option>)}
-              </select>
-            </div>
-          )}
-
-          {/* Line Items */}
-          <div data-field="items" className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-[13px] font-semibold text-[#4A4658]">Line Items *</Label>
-              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium">
-                <Plus className="w-3.5 h-3.5" />Add Item
-              </button>
-            </div>
-            <div className="space-y-2">
-              {items.map((item, i) => (
-                <ItemRow key={item.id} item={item}
-                  onChange={updated => setItems(its => its.map((x, j) => j === i ? updated : x))}
-                  onRemove={() => setItems(its => its.filter((_, j) => j !== i))}
-                  canRemove={items.length > 1} />
-              ))}
-            </div>
-          </div>
-
-          {/* Pricing */}
-          <div className="space-y-3 bg-[#F7F5FB] border border-[#E4E0EC] rounded-2xl p-4">
-            <Label className="text-[13px] font-semibold text-[#4A4658]">Pricing</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Currency</Label>
-                <select value={currency} onChange={e => setCurrency(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white">
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Discount</Label>
-                <div className="flex gap-1.5">
-                  <select value={discountType} onChange={e => setDiscountType(e.target.value as any)}
-                    className="w-24 h-10 px-2 rounded-xl border border-[#E4E0EC] text-xs focus:outline-none focus:border-indigo-400 bg-white">
-                    <option value="">None</option>
-                    <option value="percent">%</option>
-                    <option value="fixed">{sym}</option>
-                  </select>
-                  {discountType && <input type="number" min="0" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))}
-                    className="flex-1 h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Tax (%)</Label>
-                <input type="number" min="0" step="0.5" value={taxPercent} onChange={e => setTaxPercent(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6B6680]">Advance Required {grand > 0 && <span className="text-indigo-400">({Math.round(advanceRequired / grand * 100)}%)</span>}</Label>
-                <input type="number" min="0" value={advanceRequired} onChange={e => setAdvanceRequired(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 bg-white" />
-              </div>
-            </div>
-
-            {/* Totals */}
-            <div className="border-t border-[#E4E0EC] pt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between text-[#6B6680]"><span>Subtotal</span><span className="font-medium">{sym}{subtotal.toLocaleString()}</span></div>
-              {discAmt > 0 && <div className="flex justify-between text-[#1F8A5B]"><span>Discount</span><span>−{sym}{discAmt.toLocaleString()}</span></div>}
-              {taxAmt > 0 && <div className="flex justify-between text-[#6B6680]"><span>Tax ({taxPercent}%)</span><span>+{sym}{taxAmt.toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold text-[#17151F] text-base border-t border-[#E4E0EC] pt-2"><span>Grand Total</span><span>{sym}{grand.toLocaleString()}</span></div>
-              <div className="flex justify-between text-[#B36B00] font-semibold"><span>Advance Required</span><span>{sym}{advanceRequired.toLocaleString()}</span></div>
-            </div>
-          </div>
-
-          {/* Valid Until + Notes */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-semibold text-[#4A4658]">Valid Until</Label>
-              <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="h-10 border-[#E4E0EC] text-sm" />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-[13px] font-semibold text-[#4A4658]">Notes for Client</Label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                placeholder="Any special notes for the client…"
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400 resize-none" />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-[13px] font-semibold text-[#4A4658]">Terms & Conditions</Label>
-              <textarea value={terms} onChange={e => setTerms(e.target.value)} rows={4}
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E4E0EC] text-sm font-mono focus:outline-none focus:border-indigo-400 resize-y text-xs" />
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 pb-6 pt-3 border-t border-[#F1EFF6] flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1 h-12 border-[#E4E0EC]">Cancel</Button>
-          <Button onClick={save} disabled={saving} className="flex-1 h-12 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-2">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            {isEdit ? "Update Quote" : "Create Quote"}
-          </Button>
-        </div>
-      </div>
-    </>
-  );
 }
 
 // ─── View Drawer ───────────────────────────────────────────────────────────────
@@ -455,12 +124,16 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
     { label: "Declined", at: q.rejectedAt, dot: "#C2304F" },
     { label: "Booked", at: q.convertedAt, dot: "#126B66" },
   ].filter(t => t.at);
+  const qDays = q.eventDays ?? [];
   const event = [
-    q.eventType && { label: "Event", value: q.eventType },
-    q.eventDate && { label: "Date", value: fmtDate(q.eventDate) },
-    q.venue && { label: "Venue", value: q.venue },
+    q.eventType && { label: "Program", value: q.eventType },
+    ...(qDays.length ? [] : [
+      q.eventDate && { label: "Date", value: fmtDate(q.eventDate) },
+      q.venue && { label: "Venue", value: q.venue },
+    ]),
     q.validUntil && { label: "Valid until", value: fmtDate(q.validUntil) },
   ].filter(Boolean) as { label: string; value: string }[];
+  const dayNames = new Map(qDays.map((d, i) => [d.id, d.eventType || `Day ${i + 1}`]));
 
   return (
     <DocDrawer onClose={onClose} icon={FileText} color="violet" title={q.quoteNumber} label={`Quote ${q.quoteNumber}`}
@@ -556,13 +229,33 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
             </DocCard>
           )}
 
+          {/* Days */}
+          {qDays.length > 0 && (
+            <DocCard title="Days" flush>
+              {qDays.map((d, i) => (
+                <div key={d.id} className="px-4 py-3 flex items-center gap-3 text-[14px]">
+                  <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[#17151F] truncate">{d.eventType || `Day ${i + 1}`}</p>
+                    {d.location && <p className="text-[12.5px] text-[#6B6680] truncate">{d.location}</p>}
+                  </div>
+                  <span className={cn("font-semibold tabular-nums flex-shrink-0", d.date ? "text-[#17151F]" : "text-[#A29DB3]")}>{d.date ? fmtDate(d.date) : "Date not set"}</span>
+                </div>
+              ))}
+            </DocCard>
+          )}
+
           {/* Items */}
           <DocCard title="Items" flush>
             {q.items.map(item => (
               <div key={item.id} className="px-4 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-[#17151F]">{item.name}</p>
+                  <p className="text-[14px] font-semibold text-[#17151F]">{item.name}
+                    {(item.kind === "package" || item.isPackageBase) && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#5B3FD0] bg-[#EEE8FD] px-1.5 py-0.5 rounded-full">Package</span>}
+                    {item.kind === "extra" && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#126B66] bg-[#E3F2F1] px-1.5 py-0.5 rounded-full">Extra</span>}
+                  </p>
                   {item.description && <p className="text-[12.5px] text-[#6B6680] mt-0.5">{item.description}</p>}
+                  {!!item.days?.length && <p className="text-[12.5px] text-[#5B3FD0] mt-0.5">{item.days.map(id => dayNames.get(id)).filter(Boolean).join(" · ")}</p>}
                   <p className="text-[12.5px] text-[#8A8599] mt-0.5 tabular-nums">{item.qty} × {money(item.unitPrice)}</p>
                 </div>
                 <p className="text-[14px] font-bold text-[#17151F] tabular-nums flex-shrink-0">{money(item.total)}</p>
@@ -777,7 +470,7 @@ function QuotesPageInner() {
       leadId ? apiFetch(`${API}/leads/${leadId}`).then(r => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
     ]).then(([client, lead]) => {
       if (!client) return;
-      setPrefill({ client, eventType: lead?.eventType ?? undefined, eventDate: lead?.eventDates?.[0] ?? undefined, venue: lead?.venue ?? undefined });
+      setPrefill({ client, eventType: lead?.eventType ?? undefined, eventDates: Array.isArray(lead?.eventDates) ? lead.eventDates : undefined, venue: lead?.venue ?? undefined });
       setShowCreate(true);
     }).catch(() => {});
   }, [params, router]);
@@ -811,10 +504,10 @@ function QuotesPageInner() {
     load();
   }
 
-  function onSaved(saved: Quote) {
-    setShowCreate(false); setEditTarget(null);
+  function onSaved(saved: { id: string }) {
+    setShowCreate(false); setEditTarget(null); setPrefill(null);
     load();
-    setViewTarget(saved);
+    apiFetch(`${API}/quotes/${saved.id}`).then(r => (r.ok ? r.json() : null)).then(q => { if (q) setViewTarget(q); }).catch(() => {});
   }
 
   const sc = meta.statusCounts;
@@ -869,7 +562,7 @@ function QuotesPageInner() {
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
       {(showCreate || editTarget) && (
-        <QuoteDrawer quote={editTarget} prefill={editTarget ? null : prefill} onClose={() => { setShowCreate(false); setEditTarget(null); setPrefill(null); }} onSaved={onSaved} />
+        <QuoteForm quote={editTarget as QuoteForForm | null} prefill={editTarget ? null : prefill} onClose={() => { setShowCreate(false); setEditTarget(null); setPrefill(null); }} onSaved={onSaved} />
       )}
       <ViewDrawer quote={viewTarget} onClose={() => setViewTarget(null)} onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }} onRefresh={load} />
     </div>

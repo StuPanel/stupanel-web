@@ -6,7 +6,8 @@
  * (Settings → Program types), its team uses the studio's roles (incl. custom ones).
  * Picking a package in a program fills price, type and days; in a quote it fills the first line.
  */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Package as HeaderIcon, Plus, Edit3, Trash2, Loader2, Package, CheckCircle2, Eye, EyeOff, Search, X } from "lucide-react";
 import { CARD_SHADOW, EmptyState, MainButton, PageHeader, RowsSkeleton, SearchField, Tile } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -16,57 +17,13 @@ import { cn } from "@/lib/utils";
 import { CURRENCY_OPTIONS, currencySymbol, formatCurrency, getStudioCurrency } from "@/lib/format";
 import { matches } from "@/components/list-ui";
 import { TEAM_ROLES } from "../team/_components/rate-card";
+import { DELIVERY_METHODS, LEVEL_LABELS, dayLabel, roleLabel, summaryLines, type Pkg, type StaffingLine } from "./_components/summary";
 import { jumpToField } from "@/lib/jump-to-field";
-
-interface StaffingLine { role: string; level?: string; count: number; }
-
-interface Pkg {
-  id: string; name: string; description?: string; category?: string;
-  basePrice: number; currency: string; priceIsNegotiable: boolean;
-  durationHours?: number; durationDays?: number; durationUnit?: "hours" | "days";
-  deliveryDays?: number; deliverablesDescription?: string;
-  eventTypesIncluded?: string[]; staffing?: StaffingLine[];
-  photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
-  ritualsIncluded?: string[]; deliveryMethod?: string;
-  isActive: boolean; isVisibleInPortal: boolean; sortOrder: number;
-}
+import { TabBar, useTab } from "@/components/ui/profile-page";
+import type { Extra } from "@/lib/extras";
+import { ExtraDrawer, ExtrasList, draftOf, loadExtras } from "./_components/extras";
 
 type WorkType = { id: string; name: string; active: boolean; events: { id: string; name: string }[] };
-
-const DELIVERY_METHODS = [
-  { value: "google_drive", label: "Online (Google Drive)" },
-  { value: "pendrive", label: "USB drive" },
-  { value: "both", label: "Online + USB drive" },
-  { value: "other", label: "Other" },
-];
-const DELIVERY_LABELS: Record<string, string> = Object.fromEntries(DELIVERY_METHODS.map(d => [d.value, d.value === "other" ? "Custom delivery" : d.label]));
-
-/** Old packages saved day keys like "pre_wedding"; show them readable. */
-const dayLabel = (v: string) => (/^[a-z_]+$/.test(v) ? v.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ") : v);
-const roleLabel = (r: string) => TEAM_ROLES.find(x => x.id === r)?.label ?? r;
-/** Levels were dropped (the team has none); old ones still show. */
-const LEVEL_LABELS: Record<string, string> = { junior: "Junior", associate: "Associate", senior: "Senior", lead: "Lead", top_senior: "Top Senior" };
-
-/** "What you get" lines — shared by the card and the drawer preview. */
-function summaryLines(p: Partial<Pkg>): string[] {
-  const lines: string[] = [];
-  (p.staffing ?? []).forEach(s => {
-    const level = s.level ? `${LEVEL_LABELS[s.level] ?? s.level} ` : "";
-    lines.push(`${s.count} ${level}${roleLabel(s.role)}${s.count > 1 ? "s" : ""}`);
-  });
-  if (p.durationUnit === "days" && p.durationDays) lines.push(`${p.durationDays} day${p.durationDays > 1 ? "s" : ""} coverage`);
-  else if (p.durationHours) lines.push(`${p.durationHours} hours coverage`);
-  if (p.photoEditCount) lines.push(`${p.photoEditCount} edited photo${p.photoEditCount > 1 ? "s" : ""}`);
-  if (p.trailerCount || p.fullVideoCount) {
-    lines.push([
-      p.trailerCount ? `${p.trailerCount} trailer${p.trailerCount > 1 ? "s" : ""}` : null,
-      p.fullVideoCount ? `${p.fullVideoCount} full video${p.fullVideoCount > 1 ? "s" : ""}` : null,
-    ].filter(Boolean).join(" + "));
-  }
-  if (p.ritualsIncluded?.length) lines.push(`Also: ${p.ritualsIncluded.join(", ")}`);
-  if (p.deliveryMethod) lines.push(`Delivered via ${DELIVERY_LABELS[p.deliveryMethod] ?? p.deliveryMethod}`);
-  return lines;
-}
 
 type Form = {
   name: string; description: string; category: string; basePrice: string; currency: string; priceIsNegotiable: boolean;
@@ -391,6 +348,20 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PackagesPage() {
+  return <Suspense fallback={<RowsSkeleton n={4} />}><PackagesPageInner /></Suspense>;
+}
+
+const TABS = ["packages", "extras"] as const;
+
+function PackagesPageInner() {
+  const params = useSearchParams();
+  const [tab, setTab] = useTab("/packages", TABS, params.get("tab"));
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const [extrasLoading, setExtrasLoading] = useState(true);
+  const [extraDraft, setExtraDraftRaw] = useState<ReturnType<typeof draftOf> | null>(null);
+  const [extraKey, setExtraKey] = useState(0);
+  const setExtraDraft = (d: ReturnType<typeof draftOf> | null) => { if (d) setExtraKey(k => k + 1); setExtraDraftRaw(d); };
+  const fetchExtras = useCallback(() => loadExtras().then(setExtras).finally(() => setExtrasLoading(false)), []);
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
@@ -409,10 +380,11 @@ export default function PackagesPage() {
 
   useEffect(() => {
     fetchPackages();
+    fetchExtras();
     apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null))
       .then(d => d && setWorkTypes((d.workTypes ?? []).filter((w: WorkType) => w.active))).catch(() => {});
     apiFetch(`${API}/team/custom-roles`).then(r => (r.ok ? r.json() : [])).then(d => setCustomRoles(Array.isArray(d) ? d : [])).catch(() => {});
-  }, [fetchPackages]);
+  }, [fetchPackages, fetchExtras]);
 
   async function toggle(pkg: Pkg) {
     const r = await apiFetch(`${API}/packages/${pkg.id}/toggle`, { method: "PATCH" }).catch(() => null);
@@ -430,16 +402,27 @@ export default function PackagesPage() {
   }
 
   const shown = useMemo(() => packages.filter(p => matches(q, p.name, p.category, p.description)), [packages, q]);
+  const shownExtras = useMemo(() => extras.filter(x => matches(q, x.name, x.category, x.description)), [extras, q]);
   const openNew = () => { setEditTarget(null); setDrawer(true); };
+  const isExtras = tab === "extras";
+  const list = isExtras ? extras : packages;
 
   return (
     <div className="space-y-4">
-      <PageHeader icon={HeaderIcon} color="violet" title="Packages" sub={<>{packages.length} package{packages.length === 1 ? "" : "s"} you offer</>}>
-        {packages.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder="Search packages" />}
-        <MainButton icon={Plus} onClick={openNew}>New package</MainButton>
+      <PageHeader icon={HeaderIcon} color="violet" title="Packages"
+        sub={isExtras ? <>{extras.length} extra{extras.length === 1 ? "" : "s"} you sell on top of a package</> : <>{packages.length} package{packages.length === 1 ? "" : "s"} you offer</>}>
+        {list.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder={isExtras ? "Search extras" : "Search packages"} />}
+        {isExtras ? <MainButton icon={Plus} onClick={() => setExtraDraft(draftOf())}>New extra</MainButton> : <MainButton icon={Plus} onClick={openNew}>New package</MainButton>}
       </PageHeader>
 
-      {loading ? (
+      <TabBar label="Packages and extras" value={tab} onChange={t => { setTab(t); setQ(""); }}
+        tabs={[{ id: "packages", label: "Packages", count: packages.length }, { id: "extras", label: "Extras", count: extras.length }]} />
+
+      {isExtras ? (
+        q && extras.length > 0 && shownExtras.length === 0
+          ? <EmptyState icon={Search} title={`No extras match "${q}"`} text="Try another name." />
+          : <ExtrasList extras={shownExtras} all={extras} searching={!!q} loading={extrasLoading} onAdd={seed => setExtraDraft(draftOf(null, seed))} onEdit={x => setExtraDraft(draftOf(x))} />
+      ) : loading ? (
         <RowsSkeleton n={4} />
       ) : packages.length === 0 ? (
         <EmptyState icon={Package} title="No packages yet" text="Make ready-made packages — pick one when you add a program or a quote and its price and days fill in."
@@ -452,6 +435,7 @@ export default function PackagesPage() {
         </div>
       )}
 
+      {extraDraft && <ExtraDrawer key={extraDraft.id ?? `new-${extraDraft.name}-${extraKey}`} draft={extraDraft} onClose={() => setExtraDraft(null)} onSaved={fetchExtras} />}
       <PackageDrawer open={drawer} onClose={() => { setDrawer(false); setEditTarget(null); }} onSaved={fetchPackages} editing={editTarget}
         workTypes={workTypes} customRoles={customRoles} />
     </div>

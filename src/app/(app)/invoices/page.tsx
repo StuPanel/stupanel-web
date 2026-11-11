@@ -121,7 +121,7 @@ function CatalogModal({ onSelect, onClose, currency }: {
     setLoading(true);
     const p = new URLSearchParams({ limit: "100", ...(search && { search }), ...(cat && { category: cat }) });
     apiFetch(`${API}/service-catalog?${p}`).then(r => r.json()).then(d => {
-      setItems(d.data ?? []);
+      setItems(Array.isArray(d) ? d.filter((x: { isActive?: boolean }) => x.isActive !== false) : (d?.data ?? []));
     }).catch(() => setItems([])).finally(() => setLoading(false));
   }, [search, cat]);
 

@@ -15,9 +15,9 @@ export function sampleInvoice(studio: DocStudio, opts: { vatOn: boolean; vatPerc
     client: { name: "Nusrat Jahan & Arif Hossain", phone: "01711-000000", email: "nusrat@example.com" },
     programName: "Wedding — Gold package", programRef: "PRG-0042",
     eventDays: [
-      { label: "Gaye Holud", date: ev(20), place: "Bashundhara Convention Hall" },
-      { label: "Wedding", date: ev(22), place: "Radisson Blu, Dhaka" },
-      { label: "Reception", date: ev(23), place: "Senakunja, Dhaka Cantonment" },
+      { label: "Holud", date: ev(20), place: "Grand Convention Hall" },
+      { label: "Wedding", date: ev(22), place: "Grand Hotel Ballroom" },
+      { label: "Reception", date: ev(23), place: "Garden Pavilion" },
     ],
     items: [
       { name: "Gold wedding package", description: "3 events · 2 photographers · 1 cinematographer", qty: 1, rate: 70000, total: 70000 },

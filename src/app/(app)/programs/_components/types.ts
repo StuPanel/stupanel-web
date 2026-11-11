@@ -56,7 +56,7 @@ export interface Shift {
 
 export interface EventDay {
   id: string;
-  /** Program type id from Settings → Work types (e.g. "muslim-wedding"); same on every day. */
+  /** Program type id from Settings → Work types (e.g. "wedding"); same on every day. */
   programType?: string;
   eventType: string;
   date: string;

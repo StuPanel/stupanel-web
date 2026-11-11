@@ -9,6 +9,8 @@ import { IdentityCard } from "@/components/ui/profile-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { ImageCropModal } from "@/components/ui/image-crop";
 import { MemberPhoto, PROFILE_EVENT, Spinner } from "../_components/kit";
+import { DaysOffSection, PayoutSection } from "../_components/prefs";
+import type { MemberPrefs } from "@/lib/member-prefs";
 import { apiFetch, API_URL as API } from "@/lib/api";
 
 interface Profile {
@@ -26,6 +28,10 @@ export default function MemberProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [prefs, setPrefs] = useState<MemberPrefs | null>(null);
+  useEffect(() => {
+    apiFetch(`${API}/member/prefs`).then(r => (r.ok ? r.json() : null)).then(d => { if (d?.daysOff) setPrefs(d); }).catch(() => {});
+  }, []);
   const photoRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
 
@@ -144,7 +150,7 @@ export default function MemberProfilePage() {
 
   return (
     <div>
-      <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details and password" />
+      <PageHeader icon={UserCircle} color="orchid" title="My profile" sub="Your details, days off, how you get paid and password" />
       {cropSrc && <ImageCropModal title="Position your photo" saveLabel="Save photo" src={cropSrc} size={400} maxBytes={100 * 1024} quality={0.85} onSave={savePhoto} onClose={closeCrop} />}
 
       <IdentityCard
@@ -185,6 +191,13 @@ export default function MemberProfilePage() {
           {savedOk ? "Saved" : "Save"}
         </button>
       </form>
+
+      {prefs && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-5 [&>*]:min-w-0">
+          <DaysOffSection prefs={prefs} onChange={setPrefs} />
+          <PayoutSection prefs={prefs} onChange={setPrefs} />
+        </div>
+      )}
 
       <form onSubmit={changePassword}>
         <FormGroup title="Password" note="Signed in with Google only? You can skip this.">

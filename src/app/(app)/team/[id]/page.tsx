@@ -25,6 +25,8 @@ import { STATUS_CFG } from "../../programs/_components/constants";
 import { MONTHS, PayDrawer, role, type MemberPayment, type ProfileData } from "../_components/pay-drawer";
 import { DeleteDialog, MemberDrawer, ResetPassDialog } from "../_components/member-drawer";
 import { SETUP_CATS, gearRents, unitLabel } from "../_components/rate-card";
+import { DaysOffList, PastRateRequests, PayoutView, RateRequestCard, waitingRequest } from "../_components/member-prefs-view";
+import { dayRange, todayStr, type MemberPrefs } from "@/lib/member-prefs";
 
 const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 const TABS = ["overview", "programs", "payments", "prices", "about"] as const;
@@ -38,6 +40,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   const [tab, setTab] = useTab<Tab>(`/team/${id}`, TABS, sp.get("tab"));
 
   const [data, setData] = useState<ProfileData | null>(null);
+  const [prefsOverride, setPrefs] = useState<MemberPrefs | null>(null);
   const [pays, setPays] = useState<MemberPayment[]>([]);
   const [missing, setMissing] = useState(false);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
@@ -111,6 +114,12 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   const rates = (m.roleRates ?? []).filter(r => r.rate || r.withSetup);
   const monthly = m.payRateType === "monthly" && m.payRate ? Number(m.payRate) : 0;
   const gear = m.setup ?? [];
+  const prefs = prefsOverride ?? data.prefs ?? null;
+  const waiting = waitingRequest(prefs);
+  const today = todayStr();
+  const soon = new Date(); soon.setDate(soon.getDate() + 60);
+  const soonStr = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, "0")}-${String(soon.getDate()).padStart(2, "0")}`;
+  const offSoon = (prefs?.daysOff ?? []).filter(d => d.to >= today && d.from <= soonStr);
   const roleNames = (s: string) => s.split(", ").filter(Boolean).map(r => role(r).label).join(", ");
 
   async function toggleActive() {
@@ -236,8 +245,19 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
         <div className="min-w-0">
           <TabBar tabs={tabs} value={tab} onChange={setTab} label="Team member sections" />
 
+          {waiting && (tab === "overview" || tab === "prices") && (
+            <div className="mb-6">
+              <RateRequestCard memberId={m.id} name={m.firstName} req={waiting} onAnswered={setPrefs} onPrices={() => setEditing(true)} />
+            </div>
+          )}
+
           {tab === "overview" && (
             <>
+              {offSoon.length > 0 && (
+                <p role="status" className="mb-6 rounded-[14px] bg-[#FFF3E0] text-[#7A4800] text-[13.5px] px-4 py-3">
+                  <b>{m.firstName} can&apos;t work</b> {offSoon.map(d => `${dayRange(d)}${d.note ? ` (${d.note})` : ""}`).join(", ")}.
+                </p>
+              )}
               <Section title="Coming up" action={upcoming.length > 3 ? <button type="button" onClick={() => setTab("programs")} className={linkBtn}>All {upcoming.length}<ChevronRight className="w-3.5 h-3.5" /></button> : undefined}>
                 {upcoming.length ? <List>{upcoming.slice(0, 3).map(upcomingRow)}</List> : (
                   <Empty icon={CalendarDays} title="Nothing booked yet" text="Add them to a program's shift and it shows here." />
@@ -356,11 +376,14 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                   ); })}</List>
                 )}
               </Section>
+              {prefs && <PastRateRequests list={prefs.rateRequests} />}
             </>
           )}
 
           {tab === "about" && (
             <>
+              {prefs && <PayoutView prefs={prefs} />}
+              {prefs && <DaysOffList prefs={prefs} />}
               <Section title="Contact" action={<button type="button" onClick={() => setEditing(true)} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
                 <List>
                   {m.phone && <Row href={`tel:${m.phone}`} external icon={Phone} color="blue" title={m.phone} sub="Phone / WhatsApp" />}
@@ -392,7 +415,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Drawers */}
-      {payOpen && <PayDrawer member={m} onClose={() => setPayOpen(false)} onSaved={load} />}
+      {payOpen && <PayDrawer member={m} payout={prefs?.payout} onClose={() => setPayOpen(false)} onSaved={load} />}
       <MemberDrawer open={editing} editing={editing ? m : null} onClose={() => setEditing(false)} onSaved={load} customRoles={customRoles} onCustomRolesChange={setCustomRoles} />
       <ResetPassDialog member={resetting ? m : null} onClose={() => setResetting(false)} onDone={load} />
       <DeleteDialog member={deleting ? m : null} onClose={() => setDeleting(false)} onDeleted={() => router.replace("/team")} />

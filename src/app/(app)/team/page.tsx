@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit3, MoreHorizontal, MessageCircle, KeyRound, UserCheck
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { Avatar } from "@/components/ui/profile-kit";
+import { offOn, todayStr } from "@/lib/member-prefs";
 import { DEFAULT_ROLES, DeleteDialog, MemberDrawer, ResetPassDialog, roleConfig, type Member } from "./_components/member-drawer";
 import { useRouter } from "next/navigation";
 import { unitLabel } from "./_components/rate-card";
@@ -119,6 +120,8 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
           {m.firstName} {m.lastName ?? ""}
           {m.memberType === "freelancer" && <span className="text-[11px] font-bold text-[#9E3A8C] bg-[#FBF2FA] px-1.5 py-0.5 rounded-full">Freelancer</span>}
           {m.role === "manager" && <span className="text-[11px] font-bold text-[#5B3FD0] bg-[#EEE8FD] px-1.5 py-0.5 rounded-full">Manager</span>}
+          {m.rateRequestWaiting && <span className="text-[11px] font-bold text-[#823072] bg-[#F7E9F4] px-1.5 py-0.5 rounded-full whitespace-nowrap">Rate change asked</span>}
+          {offOn(m.daysOff, [todayStr()]).length > 0 && <span className="text-[11px] font-bold text-[#7A4800] bg-[#FFF3E0] px-1.5 py-0.5 rounded-full whitespace-nowrap">Off today</span>}
           {!m.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Inactive</span>}
         </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">

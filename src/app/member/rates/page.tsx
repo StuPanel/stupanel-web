@@ -16,6 +16,8 @@ import { Empty, List, Row, Section, linkBtn, softBtn } from "@/components/ui/pro
 import { SetupEditor, gearRents, setupToItems, type SetupItem } from "@/app/(app)/team/_components/rate-card";
 import { Spinner } from "../_components/kit";
 import { GearRow, RatePrice, rateSub, roleInfo, type MyRates } from "../_components/rates";
+import { RateRequestSection } from "../_components/prefs";
+import type { MemberPrefs } from "@/lib/member-prefs";
 
 export default function MyRatesPage() {
   const [data, setData] = useState<MyRates | null>(null);
@@ -23,12 +25,14 @@ export default function MyRatesPage() {
   const [editing, setEditing] = useState(false);
   const [items, setItems] = useState<SetupItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [prefs, setPrefs] = useState<MemberPrefs | null>(null);
 
   useEffect(() => {
     apiFetch(`${API}/member/rates`)
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(setData)
       .catch(() => setFailed(true));
+    apiFetch(`${API}/member/prefs`).then(r => (r.ok ? r.json() : null)).then(d => { if (d?.rateRequests) setPrefs(d); }).catch(() => {});
   }, []);
 
   if (failed) return <EmptyState icon={BadgeDollarSign} title="Couldn't load your rates" text="Check your internet and refresh the page." />;
@@ -98,6 +102,8 @@ export default function MyRatesPage() {
           )}
         </Section>
       </div>
+
+      {prefs && <RateRequestSection prefs={prefs} onChange={setPrefs} />}
 
       <FormDrawer open={editing} onClose={() => { if (!saving) setEditing(false); }} icon={Package} color="deep" title="My gear" sub="Names only — the studio sets the rent"
         footer={<>

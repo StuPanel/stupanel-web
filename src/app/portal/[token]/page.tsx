@@ -5,7 +5,7 @@ import {
   Camera, Calendar, FileText, CreditCard, Receipt,
   Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink, ChevronRight, Wallet,
   Package, Image as ImageIcon, Lock, Download, Link2, MessageCircle,
-  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen, Folder,
+  FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen, Folder, FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -144,9 +144,16 @@ interface PortalData {
     paymentMethod?: string; paymentDate: string;
     referenceNumber?: string; notes?: string;
   }[];
+  /** Agreements the studio sent (never drafts). */
+  contracts?: PortalContract[];
+}
+interface PortalContract {
+  id: string; contractNumber: string; title: string; status: string; publicToken: string;
+  sentAt?: string | null; signedAt?: string | null; signerName?: string | null;
+  booking?: { eventName?: string | null; eventDate?: string | null } | null;
 }
 
-type Tab = "programs" | "quotes" | "invoices" | "payments" | "messages";
+type Tab = "programs" | "contracts" | "quotes" | "invoices" | "payments" | "messages";
 
 // ─── Delivery Section (unchanged logic) ──────────────────────────────────────
 function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingId, studio, programName }: {
@@ -464,7 +471,7 @@ function BookingCard({ b, brand, token, studio, music, onMusicChanged, photos }:
 
 /** A tappable row in a list card (quotes, invoices, payments). */
 function DocRow({ href, icon, color, title, sub, amount, amountSub, chip }: {
-  href?: string; icon: React.ElementType; color: "deep" | "orchid" | "green"; title: string; sub: React.ReactNode;
+  href?: string; icon: React.ElementType; color: "deep" | "orchid" | "green" | "ink"; title: string; sub: React.ReactNode;
   amount: string; amountSub?: React.ReactNode; chip?: { label: string; color: string };
 }) {
   const inner = (
@@ -548,9 +555,12 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   const readyDeliveries = data.bookings.filter(b => b.delivery !== null && b.delivery !== undefined).length;
   const totalDue = data.bookings.reduce((s, b) => s + Math.max(0, Number(b.grandTotal) - Number(b.paidAmount)), 0);
   const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const contracts = data.contracts ?? [];
+  const toSign = contracts.filter(x => x.status !== "signed");
 
   const allTabs: { id: Tab; label: string; count?: number; enabled: boolean }[] = [
     { id: "programs", label: "Programs", count: totalPrograms, enabled: true },
+    { id: "contracts", label: "Agreements", count: contracts.length, enabled: contracts.length > 0 },
     { id: "quotes", label: "Quotes", count: data.quotes.length, enabled: data.company.portalShowQuotes !== false },
     { id: "invoices", label: "Invoices", count: data.invoices.length, enabled: data.company.portalShowInvoices !== false },
     { id: "payments", label: "Payments", count: data.payments.length, enabled: data.company.portalShowPayments !== false },
@@ -585,6 +595,25 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
         )}
       </section>
 
+      {toSign.length > 0 && (
+        <section className={cn("mb-6 bg-white rounded-[22px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4", CARD_SHADOW)} aria-label="Agreements to sign">
+          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+            <Tile icon={FileSignature} color="ink" size={44} />
+            <div className="min-w-0">
+              <p className="text-[16px] font-extrabold tracking-[-0.01em] text-[#17151F]">
+                {toSign.length === 1 ? "Your agreement is ready to sign" : `${toSign.length} agreements are ready to sign`}
+              </p>
+              <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">
+                {toSign.length === 1 ? [toSign[0].title, toSign[0].booking?.eventName].filter(Boolean).join(" · ") : "Please read and sign each one."}
+              </p>
+            </div>
+          </div>
+          {toSign.length === 1
+            ? <a href={`/c/${toSign[0].publicToken}`} className="h-11 px-5 rounded-full bg-[#17151F] hover:bg-[#2B2836] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-2 flex-shrink-0"><FileSignature className="w-4 h-4" />Read and sign</a>
+            : <button type="button" onClick={() => setTab("contracts")} className="h-11 px-5 rounded-full bg-[#17151F] hover:bg-[#2B2836] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-2 flex-shrink-0"><FileSignature className="w-4 h-4" />See agreements</button>}
+        </section>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard icon={Camera} color="deep" label="Programs" value={totalPrograms} />
         <StatCard icon={CheckCircle} color="green" label="Completed" value={completedPrograms} />
@@ -612,6 +641,22 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
             </section>
           ))}
         </div>
+      )}
+
+      {tab === "contracts" && (
+        <ul className={cn("bg-white rounded-[22px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
+          {contracts.map(x => {
+            const signed = x.status === "signed";
+            return (
+              <DocRow key={x.id} href={`/c/${x.publicToken}`} icon={FileSignature} color="ink" title={x.title}
+                sub={[x.contractNumber, x.booking?.eventName, x.booking?.eventDate ? fmtDate(x.booking.eventDate) : null].filter(Boolean).join(" · ")}
+                amount=""
+                amountSub={signed
+                  ? <span className="text-[#1F8A5B] font-semibold">Signed{x.signedAt ? ` ${fmtDate(x.signedAt)}` : ""}</span>
+                  : <span className="text-[#9A5B00] font-semibold">Waiting for you</span>} />
+            );
+          })}
+        </ul>
       )}
 
       {tab === "quotes" && (data.quotes.length === 0

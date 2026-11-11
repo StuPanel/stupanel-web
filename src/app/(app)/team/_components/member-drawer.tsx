@@ -348,7 +348,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
 
         {tab === "pay" && <>
         <FormGroup title="Prices" note={form.memberRoles.length
-          ? <>Put a price in <strong>Work only</strong> (they use someone else&apos;s gear) and/or <strong>With own setup</strong>. Use &quot;All programs&quot; or pick a program type for a different price. <strong>Leave a box empty to use the studio price</strong> (shown in grey, set in Settings → Team &amp; Pay). These fill in by themselves when you put them on a program — you can still change them there.</>
+          ? <>Pick <strong>what the price is for</strong> (shift, day, program…) and the <strong>program type</strong> — each pair keeps its own price. <strong>Leave a box empty to use the studio price</strong> (shown in grey, set in Settings → Team &amp; Pay). Prices fill in by themselves when you put them on a program — you can still change them there.</>
           : undefined}>
           <RateEditor roles={pickedRoles} lines={lines} onChange={setLines} workTypes={workTypes} fallback={studioRates} />
           {!form.memberRoles.length && (

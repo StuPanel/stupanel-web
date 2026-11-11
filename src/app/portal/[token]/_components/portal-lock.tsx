@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Lock, MessageCircle, LinkIcon, ShieldCheck } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
 import { StudioLogo } from "@/components/studio-logo";
+import { CARD_SHADOW } from "@/components/ui/apple";
 import { setPortalSession, waLink } from "@/lib/portal-session";
 
 export type PortalMeta = {
@@ -82,9 +83,10 @@ export function PortalLock({ token, kind, meta, onUnlocked }: {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F3FA] flex flex-col">
+    <div className="min-h-dvh sp-shell flex flex-col">
+      <div className="sp-scene" aria-hidden="true" />
       <main className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm bg-white rounded-[20px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)] p-6 sm:p-8 text-center">
+        <div className={`w-full max-w-sm bg-white rounded-[26px] p-6 sm:p-8 text-center ${CARD_SHADOW}`}>
           <StudioLogo url={meta?.studio.logoUrl} name={meta?.studio.name} size={64} className="mx-auto rounded-2xl" />
           <p className="mt-3 text-sm font-semibold text-[#4A4658]">{meta?.studio.name ?? "Client Portal"}</p>
 
@@ -145,7 +147,7 @@ export function PortalLock({ token, kind, meta, onUnlocked }: {
           )}
         </div>
       </main>
-      <footer className="pb-6 text-center text-xs text-[#6B6680]">Powered by <span className="font-semibold text-[#17151F]">StuPanel</span></footer>
+      <footer className="pb-7 text-center text-[12px] text-[#8A8599]">Sent with <span className="font-semibold text-[#4A4658]">StuPanel</span></footer>
     </div>
   );
 }

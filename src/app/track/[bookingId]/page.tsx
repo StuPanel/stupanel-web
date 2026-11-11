@@ -1,13 +1,13 @@
 "use client";
 
+/** Where a client's program stands — a simple step list from booking to delivery. No login. */
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2, Clock, XCircle, Camera, Loader2, MapPin, CalendarDays, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check, MapPin, Phone, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
-import { StudioLogo } from "@/components/studio-logo";
-import { BRAND } from "@/lib/brand";
-
+import { CARD_SHADOW, DateBox } from "@/components/ui/apple";
+import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 
 interface Step { key: string; label: string; done: boolean; current: boolean; }
 interface TrackData {
@@ -31,164 +31,74 @@ export default function TrackPage() {
       .finally(() => setLoading(false));
   }, [bookingId]);
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-    </div>
-  );
+  if (loading) return <PublicLoading />;
+  if (error || !data) return <PublicMessage icon={XCircle} tone="red" title="Program not found" text="This tracking link isn't working. Please ask the studio for a new one." />;
 
-  if (error || !data) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="text-center">
-        <XCircle className="w-16 h-16 text-red-300 mx-auto mb-4" />
-        <h1 className="text-xl font-bold text-slate-700">Booking Not Found</h1>
-        <p className="text-slate-400 mt-2">This tracking link may be invalid or expired.</p>
-      </div>
-    </div>
-  );
-
-  const accent = BRAND;
   const steps = data.steps ?? [];
-  const currentStep = steps.find(s => s.current);
   const doneCount = steps.filter(s => s.done).length;
+  const pct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
+  const current = steps.find(s => s.current);
+  const date = data.eventDate && !isNaN(new Date(data.eventDate).getTime()) ? data.eventDate : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Studio Header */}
-      <div className="text-white px-4 py-6 shadow-sm" style={{ backgroundColor: accent }}>
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <StudioLogo url={data.studio.logoUrl} name={data.studio.name} size={48} tone="onDark" />
-          <div>
-            <p className="font-bold text-lg leading-tight">{data.studio.name}</p>
-            <p className="text-xs text-white/70">Booking Tracker</p>
+    <PublicShell studio={data.studio} sub="Program tracker" width="max-w-[640px]"
+      right={data.studio.phone && (
+        <a href={`tel:${data.studio.phone}`} className="h-10 px-3.5 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">
+          <Phone className="w-4 h-4" />Call
+        </a>
+      )}>
+      <p className="px-1 mb-2 text-[14px] text-[#6B6680]">Hello, {data.clientFirstName}</p>
+
+      <section className={cn("bg-white rounded-[22px] p-5 mb-4", CARD_SHADOW)}>
+        <div className="flex items-start gap-3.5">
+          {date && <DateBox date={date} />}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{data.eventName || "Your program"}</h1>
+            <p className="mt-1 text-[12.5px] text-[#6B6680] tabular-nums">{[data.bookingNumber, data.eventDate].filter(Boolean).join(" · ")}</p>
+            {data.eventLocation && <p className="mt-0.5 text-[12.5px] text-[#6B6680] inline-flex items-center gap-1"><MapPin className="w-3 h-3 flex-shrink-0" />{data.eventLocation}</p>}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        {/* Booking Info Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-mono text-slate-400 mb-1">{data.bookingNumber}</p>
-              <h1 className="text-lg font-bold text-slate-900">{data.eventName || "Your Booking"}</h1>
-              <p className="text-sm text-slate-500 mt-0.5">Hello, {data.clientFirstName} 👋</p>
-            </div>
-            {data.isCancelled ? (
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl flex-shrink-0">
-                <XCircle className="w-4 h-4" />Cancelled
-              </div>
-            ) : (
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs text-slate-400 mb-0.5">{doneCount} / {steps.length} steps</p>
-                <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${steps.length > 0 ? (doneCount / steps.length) * 100 : 0}%`, backgroundColor: accent }} />
-                </div>
-              </div>
-            )}
+        {data.isCancelled ? (
+          <div className="mt-4 rounded-[14px] bg-[#FDECEF] px-4 py-3 flex items-start gap-3 text-[#9C2340]">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div><p className="font-bold">This program was cancelled</p><p className="text-[13px] mt-0.5">Please contact the studio for details.</p></div>
           </div>
-
-          {(data.eventDate || data.eventLocation) && (
-            <div className="mt-4 flex items-center gap-4 text-sm text-slate-500 pt-3 border-t border-slate-100">
-              {data.eventDate && (
-                <div className="flex items-center gap-1.5">
-                  <CalendarDays className="w-4 h-4 text-slate-400" />
-                  {data.eventDate}
-                </div>
-              )}
-              {data.eventLocation && (
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                  {data.eventLocation}
-                </div>
-              )}
+        ) : steps.length > 0 && (
+          <div className="mt-5">
+            <div className="flex items-baseline justify-between text-[13px] mb-2">
+              <span className="text-[#6B6680]">Now: <span className="font-bold text-[#17151F]">{current?.label ?? data.statusLabel}</span></span>
+              <span className="text-[#6B6680] tabular-nums">{doneCount} of {steps.length}</span>
             </div>
-          )}
-        </div>
-
-        {/* Current Status */}
-        {!data.isCancelled && currentStep && (
-          <div className="rounded-2xl p-4 border-2 text-white" style={{ backgroundColor: accent, borderColor: accent }}>
-            <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Current Status</p>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-white/80" />
-              <p className="text-lg font-bold">{currentStep.label}</p>
+            <div className="h-2 rounded-full bg-[#F1EFF6] overflow-hidden" role="progressbar" aria-label="Progress" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+              <div className="h-full rounded-full bg-gradient-to-r from-[#8E72F2] to-[#5B3FD0] transition-all duration-700" style={{ width: `${pct}%` }} />
             </div>
           </div>
         )}
+      </section>
 
-        {data.isCancelled && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-red-700">Booking Cancelled</p>
-              <p className="text-sm text-red-500 mt-0.5">Please contact the studio for more information.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Steps Timeline */}
-        {!data.isCancelled && steps.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Progress Timeline</p>
-            <div className="space-y-0">
-              {steps.map((step, i) => (
-                <div key={step.key} className="flex items-start gap-3">
-                  {/* Left line + dot */}
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <div className={cn("w-8 h-8 rounded-full border-2 flex items-center justify-center z-10",
-                      step.done ? "border-transparent" : step.current ? "border-transparent" : "border-slate-200 bg-white")}>
-                      {step.done ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: accent }}>
-                          <CheckCircle2 className="w-4 h-4 text-white" />
-                        </div>
-                      ) : step.current ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center animate-pulse" style={{ backgroundColor: accent + "30", border: `2px solid ${accent}` }}>
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: accent }} />
-                        </div>
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border-2 border-slate-200 bg-white" />
-                      )}
-                    </div>
-                    {i < steps.length - 1 && (
-                      <div className="w-0.5 h-6 mt-0.5" style={{ backgroundColor: step.done ? accent : "#e2e8f0" }} />
-                    )}
-                  </div>
-                  {/* Label */}
-                  <div className="pb-4 pt-1 min-w-0">
-                    <p className={cn("text-sm font-medium",
-                      step.current ? "text-slate-900 font-bold" : step.done ? "text-slate-600" : "text-slate-300")}>
-                      {step.label}
-                    </p>
-                    {step.current && (
-                      <p className="text-xs mt-0.5" style={{ color: accent }}>← Currently here</p>
-                    )}
-                  </div>
+      {!data.isCancelled && steps.length > 0 && (
+        <section className={cn("bg-white rounded-[22px] p-5", CARD_SHADOW)}>
+          <h2 className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599] mb-4">Steps</h2>
+          <ol>
+            {steps.map((step, i) => (
+              <li key={step.key} className="flex gap-3.5">
+                <div className="flex flex-col items-center flex-shrink-0">
+                  <span className={cn("w-8 h-8 rounded-full flex items-center justify-center",
+                    step.done ? "bg-[#7D5CEF] text-white" : step.current ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "bg-[#F1EFF6]")}>
+                    {step.done ? <Check className="w-4 h-4" strokeWidth={3} /> : step.current ? <span className="w-2.5 h-2.5 rounded-full bg-[#7D5CEF] animate-pulse" /> : <span className="w-2 h-2 rounded-full bg-[#CFC8DD]" />}
+                  </span>
+                  {i < steps.length - 1 && <span className={cn("w-0.5 flex-1 min-h-[18px] my-1 rounded-full", step.done ? "bg-[#7D5CEF]" : "bg-[#EEEBF4]")} />}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Contact studio */}
-        {data.studio.phone && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-slate-400">Need help?</p>
-              <p className="text-sm font-semibold text-slate-800">Contact {data.studio.name}</p>
-            </div>
-            <a href={`tel:${data.studio.phone}`}
-              className="h-9 px-4 rounded-xl text-white text-sm font-medium flex items-center gap-2"
-              style={{ backgroundColor: accent }}>
-              Call Studio
-            </a>
-          </div>
-        )}
-
-        <p className="text-center text-xs text-slate-300 pt-2">
-          Powered by StuPanel — Studio Management System
-        </p>
-      </div>
-    </div>
+                <div className="pt-1.5 pb-4 min-w-0">
+                  <p className={cn("text-[14.5px]", step.current ? "font-bold text-[#17151F]" : step.done ? "font-medium text-[#4A4658]" : "text-[#A29DB3]")}>{step.label}</p>
+                  {step.current && <p className="text-[12.5px] text-[#5B3FD0] font-semibold mt-0.5">You are here</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </PublicShell>
   );
 }

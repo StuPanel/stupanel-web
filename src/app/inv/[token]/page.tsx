@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { Loader2, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
+import { PublicLoading, PublicMessage } from "@/components/public/public-shell";
 import { withDefaults } from "@/components/invoice-doc/design";
 import { DocViewer } from "@/components/invoice-doc/doc-viewer";
 import { docDate, type DocData } from "@/components/invoice-doc/invoice-document";
@@ -44,12 +45,8 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
       .catch(() => setError(true));
   }, [token]);
 
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2] px-6">
-      <p className="text-[#6B6680] text-center">This invoice link isn&apos;t working. Please ask the studio for a new link.</p>
-    </div>
-  );
-  if (!raw) return <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2]"><Loader2 className="w-7 h-7 animate-spin text-[#7D5CEF]" /></div>;
+  if (error) return <PublicMessage icon={Receipt} title="Invoice not found" text="This invoice link isn't working. Please ask the studio for a new link." />;
+  if (!raw) return <PublicLoading />;
 
   const data = toDoc(raw);
   const design = withDefaults(raw.company?.invoiceDesign);

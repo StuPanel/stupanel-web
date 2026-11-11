@@ -2,8 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import {
-  Loader2, Camera, Calendar, FileText, CreditCard, Receipt,
-  Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink,
+  Camera, Calendar, FileText, CreditCard, Receipt,
+  Phone, Mail, MapPin, CheckCircle, XCircle, Clock, ExternalLink, ChevronRight, Wallet,
   Package, Image as ImageIcon, Lock, Download, Link2, MessageCircle,
   FileImage, FileVideo, FileArchive, File, ChevronDown, ChevronUp, FolderOpen, Folder,
 } from "lucide-react";
@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { PortalChat } from "./_components/portal-chat";
-import { StudioLogo } from "@/components/studio-logo";
+import { CARD_SHADOW, Chips, DateBox, EmptyState, StatCard, Tile } from "@/components/ui/apple";
+import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 import { BRAND } from "@/lib/brand";
 import { PortalMusic } from "./_components/portal-music";
 import { PortalPhotos } from "./_components/portal-photos";
@@ -80,22 +81,22 @@ const DELIVERY_STATUS: Record<string, { label: string; color: string; icon: Reac
 };
 
 const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
-  draft:    { label: "Draft",    color: "bg-slate-100 text-slate-600" },
-  sent:     { label: "Sent",     color: "bg-blue-100 text-blue-700" },
-  viewed:   { label: "Viewed",   color: "bg-violet-100 text-violet-700" },
-  accepted: { label: "Accepted", color: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "Rejected", color: "bg-red-100 text-red-600" },
-  expired:  { label: "Expired",  color: "bg-orange-100 text-orange-700" },
+  draft:    { label: "Draft",    color: "bg-[#F1EFF6] text-[#4A4658]" },
+  sent:     { label: "Sent",     color: "bg-[#E8F0FA] text-[#1F5C99]" },
+  viewed:   { label: "Viewed",   color: "bg-[#F7E9F4] text-[#9E3A8C]" },
+  accepted: { label: "Accepted", color: "bg-[#E7F5EE] text-[#1F8A5B]" },
+  rejected: { label: "Rejected", color: "bg-[#FDECEF] text-[#C2304F]" },
+  expired:  { label: "Expired",  color: "bg-[#FFF3E0] text-[#9A5B00]" },
 };
 
 const INV_STATUS: Record<string, { label: string; color: string }> = {
-  draft:          { label: "Draft",          color: "bg-slate-100 text-slate-600" },
-  sent:           { label: "Sent",           color: "bg-blue-100 text-blue-700" },
-  viewed:         { label: "Viewed",         color: "bg-violet-100 text-violet-700" },
-  paid:           { label: "Paid",           color: "bg-emerald-100 text-emerald-700" },
-  partially_paid: { label: "Partially Paid", color: "bg-amber-100 text-amber-700" },
-  overdue:        { label: "Overdue",        color: "bg-red-100 text-red-700" },
-  void:           { label: "Void",           color: "bg-slate-100 text-slate-400" },
+  draft:          { label: "Draft",          color: "bg-[#F1EFF6] text-[#4A4658]" },
+  sent:           { label: "Sent",           color: "bg-[#E8F0FA] text-[#1F5C99]" },
+  viewed:         { label: "Viewed",         color: "bg-[#F7E9F4] text-[#9E3A8C]" },
+  paid:           { label: "Paid",           color: "bg-[#E7F5EE] text-[#1F8A5B]" },
+  partially_paid: { label: "Partly paid", color: "bg-[#FFF3E0] text-[#9A5B00]" },
+  overdue:        { label: "Overdue",        color: "bg-[#FDECEF] text-[#C2304F]" },
+  void:           { label: "Void",           color: "bg-[#F1EFF6] text-[#8A8599]" },
 };
 
 interface R2File {
@@ -227,7 +228,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   const totalItems = delivery.r2Files.length + driveFiles.length + delivery.links.length + (delivery.driveFolderUrl && driveFiles.length === 0 ? 1 : 0);
 
   return (
-    <div className="mt-3 rounded-xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
+    <div className="mt-3 rounded-2xl border border-[#E4DCFB] bg-[#F7F5FB] overflow-hidden">
       <button
         onClick={() => setExpanded(e => !e)}
         className="w-full px-4 py-3 flex items-center justify-between gap-3"
@@ -237,7 +238,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
             <Package className="w-3.5 h-3.5 text-white" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold text-[#17151F]">Delivery Ready</p>
+            <p className="text-sm font-bold text-[#17151F]">Your files</p>
             <p className="text-xs text-[#6B6680]">{totalItems} item{totalItems > 1 ? "s" : ""} available</p>
           </div>
         </div>
@@ -259,10 +260,10 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                     <Link2 className="w-4 h-4" style={{ color: brand }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-800">{l.title || "Delivery Link"}</p>
-                    <p className="text-xs text-slate-400 truncate">{l.url}</p>
+                    <p className="text-xs font-semibold text-[#17151F]">{l.title || "Delivery Link"}</p>
+                    <p className="text-xs text-[#8A8599] truncate">{l.url}</p>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#8A8599] flex-shrink-0 transition-colors" />
+                  <ExternalLink className="w-3.5 h-3.5 text-[#B5B0C4] group-hover:text-[#8A8599] flex-shrink-0 transition-colors" />
                 </a>
               ))}
             </div>
@@ -280,10 +281,10 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                 <ImageIcon className="w-4 h-4 text-[#5B3FD0]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-800">Google Drive Folder</p>
-                <p className="text-xs text-slate-400 truncate">{delivery.driveFolderUrl}</p>
+                <p className="text-xs font-semibold text-[#17151F]">Google Drive Folder</p>
+                <p className="text-xs text-[#8A8599] truncate">{delivery.driveFolderUrl}</p>
               </div>
-              <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#5B3FD0] flex-shrink-0 transition-colors" />
+              <ExternalLink className="w-3.5 h-3.5 text-[#B5B0C4] group-hover:text-[#5B3FD0] flex-shrink-0 transition-colors" />
             </a>
           )}
 
@@ -314,8 +315,8 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                       <div className="flex items-center gap-2 px-3 py-2.5">
                         <button onClick={() => toggleFolder(folderKey)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                           <FolderOpen className="w-3.5 h-3.5 text-[#5B3FD0] flex-shrink-0" />
-                          <span className="text-sm font-semibold text-slate-800 truncate">{folderKey}</span>
-                          <span className="text-xs text-slate-400 flex-shrink-0">({files.length})</span>
+                          <span className="text-sm font-semibold text-[#17151F] truncate">{folderKey}</span>
+                          <span className="text-xs text-[#8A8599] flex-shrink-0">({files.length})</span>
                         </button>
                         <a href={downloadZipUrl(folderKey)} title="Download folder as ZIP"
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-[#6B6680] hover:bg-[#F7F5FB] transition-colors flex-shrink-0"
@@ -331,14 +332,14 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                           {files.map(f => {
                             const Icon = fileIcon(f.mimeType);
                             return (
-                              <div key={f.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-[#EEEBF4]">
+                              <div key={f.id} className="flex items-center gap-3 p-3 bg-[#F7F5FB] rounded-xl border border-[#EEEBF4]">
                                 <a href={f.viewUrl || f.downloadUrl || "#"} target="_blank" rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 hover:border-[#CFC8DD] transition-colors">
-                                  <Icon className="w-4 h-4 text-slate-400" />
+                                  className="w-8 h-8 rounded-lg bg-white border border-[#EEEBF4] flex items-center justify-center flex-shrink-0 hover:border-[#CFC8DD] transition-colors">
+                                  <Icon className="w-4 h-4 text-[#8A8599]" />
                                 </a>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-slate-800 truncate">{f.fileName}</p>
-                                  <p className="text-xs text-slate-400">{fmtBytes(f.fileSize)}</p>
+                                  <p className="text-xs font-medium text-[#17151F] truncate">{f.fileName}</p>
+                                  <p className="text-xs text-[#8A8599]">{fmtBytes(f.fileSize)}</p>
                                 </div>
                                 {f.downloadUrl ? (
                                   <a href={f.downloadUrl} target="_blank" rel="noopener noreferrer"
@@ -347,7 +348,7 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
                                     <Download className="w-3 h-3" />
                                   </a>
                                 ) : (
-                                  <span className="flex items-center gap-1 text-xs text-slate-400 px-2.5 py-1.5">
+                                  <span className="flex items-center gap-1 text-xs text-[#8A8599] px-2.5 py-1.5">
                                     <Lock className="w-3 h-3" />Locked
                                   </span>
                                 )}
@@ -368,64 +369,39 @@ function DeliverySection({ delivery, dueAmount, currency, brand, token, bookingI
   );
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <div className="bg-white/15 rounded-2xl p-3.5">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <Icon className="w-3.5 h-3.5 text-white/75" />
-        <p className="text-xs font-medium text-white/70 leading-none">{label}</p>
-      </div>
-      <p className="text-2xl font-extrabold text-white leading-none">{value}</p>
-    </div>
-  );
-}
-
 // ─── Delivery Status Badge ────────────────────────────────────────────────────
 function DeliveryStatusBadge({ status }: { status: string }) {
   const ds = DELIVERY_STATUS[status] ?? DELIVERY_STATUS.not_started;
   const Icon = ds.icon;
   return (
-    <span className={cn("flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0", ds.color)}>
-      <Icon className="w-3 h-3" />
-      {ds.label}
+    <span className={cn("h-7 inline-flex items-center gap-1 text-[12px] font-bold px-2.5 rounded-full flex-shrink-0", ds.color)}>
+      <Icon className="w-3.5 h-3.5" />{ds.label}
     </span>
   );
 }
 
 // ─── Payment Progress Bar ─────────────────────────────────────────────────────
-function PaymentBar({ grandTotal, paidAmount, currency, brand }: {
-  grandTotal: number; paidAmount: number; currency: string; brand: string;
-}) {
+function PaymentBar({ grandTotal, paidAmount, currency }: { grandTotal: number; paidAmount: number; currency: string }) {
   const cs = sym(currency);
   const gt = Number(grandTotal);
   const paid = Number(paidAmount);
   const bal = Math.max(0, gt - paid);
   const pct = gt > 0 ? Math.min(100, (paid / gt) * 100) : 0;
   const fullyPaid = bal <= 0 && gt > 0;
-
   if (gt === 0) return null;
-
   return (
-    <div className="mt-2.5">
-      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: fullyPaid ? "#10b981" : brand }}
-        />
+    <div className="mt-3.5">
+      <div className="h-2 bg-[#F1EFF6] rounded-full overflow-hidden" role="progressbar" aria-label="Paid so far" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: fullyPaid ? "#1F8A5B" : "linear-gradient(90deg,#8E72F2,#5B3FD0)" }} />
       </div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-500">
-          {cs}{num(gt)} total
-          {paid > 0 && <span className="text-emerald-600 ml-1.5">· {cs}{num(paid)} paid</span>}
+      <div className="flex items-center justify-between gap-3 mt-2 text-[13px]">
+        <span className="text-[#6B6680]">
+          <span className="font-semibold text-[#17151F] tabular-nums">{cs}{num(gt)}</span> total
+          {paid > 0 && <> · <span className="text-[#1F8A5B] font-semibold tabular-nums">{cs}{num(paid)}</span> paid</>}
         </span>
-        {fullyPaid ? (
-          <span className="flex items-center gap-1 font-bold text-emerald-600">
-            <CheckCircle className="w-3 h-3" />Fully Paid
-          </span>
-        ) : (
-          <span className="font-bold text-red-600">{cs}{num(bal)} due</span>
-        )}
+        {fullyPaid
+          ? <span className="inline-flex items-center gap-1 font-bold text-[#1F8A5B]"><CheckCircle className="w-3.5 h-3.5" />Fully paid</span>
+          : <span className="font-bold text-[#C2304F] tabular-nums">{cs}{num(bal)} due</span>}
       </div>
     </div>
   );
@@ -440,78 +416,76 @@ function BookingCard({ b, brand, token, studio, music, onMusicChanged, photos }:
   const hasExpandable = !!b.delivery || !!b.deliveryLink;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div
-        className={cn("p-4", hasExpandable && "cursor-pointer select-none")}
-        onClick={hasExpandable ? () => setExpanded(e => !e) : undefined}
-      >
-        {/* Top row */}
-        <div className="flex items-start justify-between gap-3 mb-1">
+    <article className={cn("bg-white rounded-[22px] overflow-hidden", CARD_SHADOW)}>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start gap-3.5">
+          <DateBox date={b.eventDate} />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-900 truncate text-[15px]">{b.eventName || "Program"}</p>
-            <div className="flex flex-wrap items-center gap-2 mt-0.5">
-              <span className="text-xs text-slate-400 font-mono">{b.bookingNumber}</span>
-              {b.eventLocation && (
-                <span className="text-xs text-slate-400 flex items-center gap-0.5">
-                  <MapPin className="w-2.5 h-2.5" />{b.eventLocation}
-                </span>
-              )}
+            <div className="flex items-start gap-2">
+              <h3 className="flex-1 min-w-0 text-[16px] font-extrabold tracking-[-0.01em] text-[#17151F] leading-snug">{b.eventName || "Program"}</h3>
+              <DeliveryStatusBadge status={ds} />
             </div>
+            <p className="mt-0.5 text-[12.5px] text-[#6B6680] tabular-nums">
+              {[b.bookingNumber, b.eventDate ? fmtDate(b.eventDate) : null].filter(Boolean).join(" · ")}
+            </p>
+            {b.eventLocation && <p className="mt-0.5 text-[12.5px] text-[#6B6680] inline-flex items-center gap-1"><MapPin className="w-3 h-3 flex-shrink-0" />{b.eventLocation}</p>}
           </div>
-          <DeliveryStatusBadge status={ds} />
         </div>
 
-        {/* Date */}
-        {b.eventDate && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1.5">
-            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />{fmtDate(b.eventDate)}
-          </div>
-        )}
+        <PaymentBar grandTotal={b.grandTotal} paidAmount={b.paidAmount} currency={b.currency} />
 
-        {/* Payment bar */}
-        <PaymentBar grandTotal={b.grandTotal} paidAmount={b.paidAmount} currency={b.currency} brand={brand} />
-
-        {/* Expand hint */}
         {hasExpandable && (
-          <div className="flex justify-end mt-2 pt-2 border-t border-slate-50">
-            <span className="flex items-center gap-1 text-xs text-slate-400 font-medium">
-              {expanded
-                ? <><ChevronUp className="w-3.5 h-3.5" />Hide files</>
-                : <><ChevronDown className="w-3.5 h-3.5" />{b.delivery?.fullyPaid === false ? "See what's ready" : "View files"}</>
-              }
-            </span>
-          </div>
+          <button type="button" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}
+            className="mt-3.5 w-full h-10 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#17151F] inline-flex items-center justify-center gap-1.5 transition-colors">
+            {expanded ? <><ChevronUp className="w-4 h-4" />Hide files</> : <><Package className="w-4 h-4" />{b.delivery?.fullyPaid === false ? "See what's ready" : "View your files"}</>}
+          </button>
         )}
       </div>
 
       {photos.length > 0 && <PortalPhotos token={token} galleries={photos} brand={brand} onChanged={onMusicChanged} />}
       {music && <PortalMusic token={token} music={music} brand={brand} onChanged={onMusicChanged} />}
 
-      {/* Expanded delivery */}
       {expanded && (
-        <div className="px-4 pb-4 -mt-1">
+        <div className="px-4 sm:px-5 pb-5 -mt-2">
           {b.delivery ? (
-            <DeliverySection
-              delivery={b.delivery}
-              dueAmount={bal}
-              currency={b.currency}
-              brand={brand}
-              token={token}
-              bookingId={b.id}
-              studio={studio}
-              programName={b.eventName || b.bookingNumber}
-            />
+            <DeliverySection delivery={b.delivery} dueAmount={bal} currency={b.currency} brand={brand} token={token} bookingId={b.id}
+              studio={studio} programName={b.eventName || b.bookingNumber} />
           ) : b.deliveryLink ? (
             <a href={b.deliveryLink} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white w-full transition-opacity hover:opacity-90"
-              style={{ backgroundColor: brand }}>
-              <ImageIcon className="w-4 h-4" />View Delivery
+              className="mt-3 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold flex items-center justify-center gap-2">
+              <ImageIcon className="w-4 h-4" />Open your photos & videos
             </a>
           ) : null}
         </div>
       )}
-    </div>
+    </article>
   );
+}
+
+/** A tappable row in a list card (quotes, invoices, payments). */
+function DocRow({ href, icon, color, title, sub, amount, amountSub, chip }: {
+  href?: string; icon: React.ElementType; color: "deep" | "orchid" | "green"; title: string; sub: React.ReactNode;
+  amount: string; amountSub?: React.ReactNode; chip?: { label: string; color: string };
+}) {
+  const inner = (
+    <>
+      <Tile icon={icon} color={color} size={40} />
+      <span className="flex-1 min-w-0">
+        <span className="block text-[15px] font-semibold text-[#17151F] truncate">{title}</span>
+        <span className="block text-[12.5px] text-[#6B6680] truncate">{sub}</span>
+      </span>
+      <span className="text-right flex-shrink-0">
+        <span className="block text-[15px] font-extrabold text-[#17151F] tabular-nums">{amount}</span>
+        {amountSub && <span className="block text-[12px] tabular-nums">{amountSub}</span>}
+      </span>
+      {chip && <span className={cn("hidden sm:inline-flex h-6 px-2.5 rounded-full text-[12px] font-bold items-center flex-shrink-0", chip.color)}>{chip.label}</span>}
+      {href && <ChevronRight className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
+    </>
+  );
+  const cls = "flex items-center gap-3 px-4 sm:px-5 py-3.5 min-h-[68px]";
+  return href
+    ? <li><a href={href} target="_blank" rel="noopener noreferrer" className={cn(cls, "hover:bg-[#F7F5FB] transition-colors")}>{inner}</a></li>
+    : <li className={cls}>{inner}</li>;
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -553,7 +527,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
       setData(d);
       setGate(null);
     } catch {
-      setError("This portal link is invalid or has been deactivated.");
+      setError("This portal link is invalid or has been turned off.");
     } finally {
       setLoading(false);
     }
@@ -563,305 +537,138 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
   // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => { loadPortal(); }, [token]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F5F3FA]">
-      <Loader2 className="w-8 h-8 animate-spin text-[#7D5CEF]" />
-    </div>
-  );
-
+  if (loading) return <PublicLoading />;
   if (gate) return <PortalLock token={token} kind={gate.kind} meta={gate.meta} onUnlocked={() => { setLoading(true); setGate(null); loadPortal(); }} />;
-
-  if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F5F3FA] px-4">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#FDECEF] flex items-center justify-center mx-auto mb-4">
-          <XCircle className="w-8 h-8 text-[#C2304F]" />
-        </div>
-        <h2 className="text-lg font-bold text-[#17151F] mb-1">Link Invalid</h2>
-        <p className="text-[#6B6680] text-sm">{error || "Portal not found"}</p>
-      </div>
-    </div>
-  );
+  if (error || !data) return <PublicMessage icon={XCircle} tone="red" title="This link isn't working" text={error || "Please ask your studio for a new link."} />;
 
   const brand = BRAND;
   const c = sym(data.company.currency);
-
-  // Stats computed from bookings
   const totalPrograms = data.bookings.length;
   const completedPrograms = data.bookings.filter(b => ["completed", "delivered"].includes(b.status)).length;
   const readyDeliveries = data.bookings.filter(b => b.delivery !== null && b.delivery !== undefined).length;
   const totalDue = data.bookings.reduce((s, b) => s + Math.max(0, Number(b.grandTotal) - Number(b.paidAmount)), 0);
   const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
 
-  const allTabs: { id: Tab; label: string; icon: React.ElementType; count: number; enabled: boolean }[] = [
-    { id: "programs",  label: "Programs",  icon: Camera,        count: totalPrograms,         enabled: true },
-    { id: "quotes",    label: "Quotes",    icon: FileText,      count: data.quotes.length,    enabled: data.company.portalShowQuotes   !== false },
-    { id: "invoices",  label: "Invoices",  icon: Receipt,       count: data.invoices.length,  enabled: data.company.portalShowInvoices !== false },
-    { id: "payments",  label: "Payments",  icon: CreditCard,    count: data.payments.length,  enabled: data.company.portalShowPayments !== false },
-    { id: "messages",  label: "Messages",  icon: MessageCircle, count: 0,                     enabled: data.company.portalShowMessages !== false },
+  const allTabs: { id: Tab; label: string; count?: number; enabled: boolean }[] = [
+    { id: "programs", label: "Programs", count: totalPrograms, enabled: true },
+    { id: "quotes", label: "Quotes", count: data.quotes.length, enabled: data.company.portalShowQuotes !== false },
+    { id: "invoices", label: "Invoices", count: data.invoices.length, enabled: data.company.portalShowInvoices !== false },
+    { id: "payments", label: "Payments", count: data.payments.length, enabled: data.company.portalShowPayments !== false },
+    { id: "messages", label: "Messages", enabled: data.company.portalShowMessages !== false },
   ];
   const tabs = allTabs.filter(t => t.enabled);
+  const wa = data.company.phone ? waLink(data.company.phone, `Hi ${data.company.name}, `) : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div style={{ backgroundColor: brand }}>
-        <div className="max-w-3xl mx-auto px-4 pt-6 pb-5">
-
-          {/* Company row */}
-          <div className="flex items-center gap-3 mb-5">
-            <StudioLogo url={data.company.logoUrl} name={data.company.name} size={48} tone="onDark" />
-            <div>
-              <p className="font-bold text-white text-base leading-none">{data.company.name}</p>
-              <p className="text-xs text-white/60 mt-0.5">Client Portal</p>
-            </div>
-          </div>
-
-          {/* Welcome greeting */}
-          <div className="mb-5">
-            <h1 className="text-2xl font-extrabold text-white leading-tight">
-              Welcome back, {data.client.firstName}!
-            </h1>
-            <div className="flex flex-wrap gap-3 mt-1.5">
-              {data.client.phone && (
-                <span className="text-xs text-white/60 flex items-center gap-1">
-                  <Phone className="w-3 h-3" />{data.client.phone}
-                </span>
-              )}
-              {data.client.email && (
-                <span className="text-xs text-white/60 flex items-center gap-1">
-                  <Mail className="w-3 h-3" />{data.client.email}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* 4 stat cards — 2×2 on mobile, 4-col on md+ */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            <StatCard label="Total Programs"  value={totalPrograms}       icon={Camera} />
-            <StatCard label="Completed"       value={completedPrograms}   icon={CheckCircle} />
-            <StatCard label="Deliveries"      value={readyDeliveries}     icon={Package} />
-            <StatCard label="Balance Due"     value={`${c}${num(totalDue)}`} icon={CreditCard} />
-          </div>
-
-          {/* Custom welcome message */}
-          {data.company.portalWelcomeMessage && (
-            <div className="mt-4 px-4 py-3 bg-white/15 rounded-xl">
-              <p className="text-sm text-white/85 leading-relaxed">{data.company.portalWelcomeMessage}</p>
-            </div>
+    <PublicShell studio={data.company} sub="Client portal"
+      right={
+        <>
+          {data.company.phone && (
+            <a href={`tel:${data.company.phone}`} aria-label={`Call ${data.company.name}`} title="Call"
+              className="w-10 h-10 rounded-full bg-white/80 hover:bg-white text-[#17151F] flex items-center justify-center shadow-[0_1px_2px_rgba(22,18,40,.08)]"><Phone className="w-4 h-4" /></a>
           )}
-        </div>
+          {wa && (
+            <a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${data.company.name}`}
+              className="h-10 px-3.5 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /><span className="hidden sm:inline">WhatsApp</span></a>
+          )}
+        </>
+      }>
+      {/* Hello */}
+      <section className="mb-5">
+        <h1 className="text-[26px] sm:text-[30px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Welcome back, {data.client.firstName}</h1>
+        <p className="mt-1 text-[13.5px] text-[#6B6680] flex flex-wrap gap-x-3 gap-y-0.5">
+          {data.client.phone && <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{data.client.phone}</span>}
+          {data.client.email && <span className="inline-flex items-center gap-1 min-w-0"><Mail className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate">{data.client.email}</span></span>}
+        </p>
+        {data.company.portalWelcomeMessage && (
+          <p className={cn("mt-4 bg-white rounded-[20px] px-4 py-3.5 text-[14px] text-[#33303F] leading-relaxed", CARD_SHADOW)}>{data.company.portalWelcomeMessage}</p>
+        )}
+      </section>
 
-        {/* Tab bar — overlaps into white */}
-        <div className="max-w-3xl mx-auto px-4 pb-0">
-          <div className="flex gap-1 bg-white rounded-t-2xl shadow-sm border-x border-t border-slate-200 p-1">
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all",
-                  tab === t.id ? "text-white shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                )}
-                style={tab === t.id ? { backgroundColor: brand } : {}}
-              >
-                <t.icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{t.label}</span>
-                {t.count > 0 && (
-                  <span className={cn(
-                    "text-xs px-1.5 py-0.5 rounded-full font-bold",
-                    tab === t.id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
-                  )}>{t.count}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard icon={Camera} color="deep" label="Programs" value={totalPrograms} />
+        <StatCard icon={CheckCircle} color="green" label="Completed" value={completedPrograms} />
+        <StatCard icon={Package} color="teal" label="Files ready" value={readyDeliveries} />
+        <StatCard icon={CreditCard} color={totalDue > 0 ? "red" : "green"} label="Still to pay" value={`${c}${num(totalDue)}`} />
       </div>
 
-      {/* ── Content ─────────────────────────────────────────── */}
-      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12">
+      {tabs.length > 1 && (
+        <Chips<Tab> label="Show" value={tab} onChange={setTab} options={tabs.map(t => ({ value: t.id, label: t.label, count: t.count }))} />
+      )}
 
-        {/* PROGRAMS TAB */}
-        {tab === "programs" && (
-          <div className="space-y-6">
-            {data.bookings.length === 0 && <EmptyState icon={Camera} text="No programs yet" />}
-            {groupByMonth(data.bookings).map(([month, bkgs]) => (
-              <div key={month}>
-                {/* Month header */}
-                <div className="flex items-center gap-3 mb-3">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                    {month}
-                  </p>
-                  <span className="text-xs bg-slate-200 text-slate-500 rounded-full px-2 py-0.5 font-bold flex-shrink-0">
-                    {bkgs.length}
-                  </span>
-                  <div className="flex-1 h-px bg-slate-200" />
-                </div>
-                <div className="space-y-3">
-                  {bkgs.map(b => (
-                    <BookingCard key={b.id} b={b} brand={brand} token={token}
-                      music={music.find(m => m.bookingId === b.id)} onMusicChanged={loadMusic} photos={photos.filter(x => x.bookingId === b.id)}
-                      studio={{ name: data.company.name, phone: data.company.phone, bkashNumber: data.company.bkashNumber, nagadNumber: data.company.nagadNumber }} />
-                  ))}
-                </div>
+      {tab === "programs" && (
+        <div className="space-y-6">
+          {data.bookings.length === 0 && <EmptyState icon={Camera} title="No programs yet" text="Your programs with the studio will show here." />}
+          {groupByMonth(data.bookings).map(([month, bkgs]) => (
+            <section key={month}>
+              <h2 className="px-1 mb-2.5 text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{month} <span className="text-[#B5B0C4]">· {bkgs.length}</span></h2>
+              <div className="space-y-3">
+                {bkgs.map(b => (
+                  <BookingCard key={b.id} b={b} brand={brand} token={token}
+                    music={music.find(m => m.bookingId === b.id)} onMusicChanged={loadMusic} photos={photos.filter(x => x.bookingId === b.id)}
+                    studio={{ name: data.company.name, phone: data.company.phone, bkashNumber: data.company.bkashNumber, nagadNumber: data.company.nagadNumber }} />
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            </section>
+          ))}
+        </div>
+      )}
 
-        {/* QUOTES TAB */}
-        {tab === "quotes" && (
-          <div className="space-y-3">
-            {data.quotes.length === 0 && <EmptyState icon={FileText} text="No quotes yet" />}
+      {tab === "quotes" && (data.quotes.length === 0
+        ? <EmptyState icon={FileText} title="No quotes yet" text="Quotes from the studio will show here." />
+        : (
+          <ul className={cn("bg-white rounded-[22px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
             {data.quotes.map(q => {
-              const st = QUOTE_STATUS[q.status] ?? { label: q.status, color: "bg-slate-100 text-slate-600" };
-              const cs = sym(q.currency);
-              const expired = q.validUntil && new Date(q.validUntil) < new Date();
+              const st = QUOTE_STATUS[q.status] ?? { label: q.status, color: "bg-[#F1EFF6] text-[#4A4658]" };
+              const expired = q.validUntil && new Date(q.validUntil) < new Date() && !["accepted", "rejected"].includes(q.status);
               return (
-                <div key={q.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div>
-                      <p className="font-bold text-slate-900">{q.quoteNumber}</p>
-                      <p className="text-xs text-slate-400">{fmtDate(q.createdAt)}</p>
-                    </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>{st.label}</span>
-                  </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="font-bold text-xl text-slate-900">{cs}{num(q.grandTotal)}</p>
-                    {q.validUntil && (
-                      <p className={cn("text-xs flex items-center gap-1", expired ? "text-red-500" : "text-slate-400")}>
-                        <Clock className="w-3 h-3" />
-                        {expired ? "Expired" : `Valid until ${fmtDate(q.validUntil)}`}
-                      </p>
-                    )}
-                  </div>
-                  {q.publicToken && (
-                    <a href={`/q/${q.publicToken}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors hover:bg-slate-50"
-                      style={{ borderColor: brand, color: brand }}>
-                      <ExternalLink className="w-4 h-4" />View Quote
-                    </a>
-                  )}
-                </div>
+                <DocRow key={q.id} href={q.publicToken ? `/q/${q.publicToken}` : undefined} icon={FileText} color="deep" title={q.quoteNumber}
+                  sub={<>{fmtDate(q.createdAt)}{q.validUntil ? <span className={expired ? "text-[#C2304F]" : ""}> · {expired ? "Expired" : `Valid until ${fmtDate(q.validUntil)}`}</span> : null}</>}
+                  amount={`${sym(q.currency)}${num(q.grandTotal)}`} chip={st} />
               );
             })}
-          </div>
-        )}
+          </ul>
+        ))}
 
-        {/* INVOICES TAB */}
-        {tab === "invoices" && (
-          <div className="space-y-3">
-            {data.invoices.length === 0 && <EmptyState icon={Receipt} text="No invoices yet" />}
+      {tab === "invoices" && (data.invoices.length === 0
+        ? <EmptyState icon={Receipt} title="No invoices yet" text="Invoices from the studio will show here." />
+        : (
+          <ul className={cn("bg-white rounded-[22px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
             {data.invoices.map(inv => {
-              const st = INV_STATUS[inv.status] ?? { label: inv.status, color: "bg-slate-100 text-slate-600" };
+              const st = INV_STATUS[inv.status] ?? { label: inv.status, color: "bg-[#F1EFF6] text-[#4A4658]" };
               const cs = sym(inv.currency);
               return (
-                <div key={inv.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div>
-                      <p className="font-bold text-slate-900">{inv.invoiceNumber}</p>
-                      <p className="text-xs text-slate-400">Issued: {fmtDate(inv.issueDate)}{inv.dueDate && ` · Due: ${fmtDate(inv.dueDate)}`}</p>
-                    </div>
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold", st.color)}>{st.label}</span>
-                  </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm">
-                      <span className="text-slate-400">Total: </span>
-                      <span className="font-bold text-slate-900">{cs}{num(inv.grandTotal)}</span>
-                      {Number(inv.paidAmount) > 0 && (
-                        <span className="text-emerald-600 ml-2">· Paid {cs}{num(inv.paidAmount)}</span>
-                      )}
-                    </div>
-                    {Number(inv.balanceDue) > 0 ? (
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-lg">
-                        Due {cs}{num(inv.balanceDue)}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                        <CheckCircle className="w-3.5 h-3.5" />Paid
-                      </span>
-                    )}
-                  </div>
-                  <a href={`/inv/${inv.publicToken}`} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors hover:bg-slate-50"
-                    style={{ borderColor: brand, color: brand }}>
-                    <ExternalLink className="w-4 h-4" />View Invoice
-                  </a>
-                </div>
+                <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} color="orchid" title={inv.invoiceNumber}
+                  sub={<>{fmtDate(inv.issueDate)}{inv.dueDate && ` · pay by ${fmtDate(inv.dueDate)}`}</>}
+                  amount={`${cs}${num(inv.grandTotal)}`}
+                  amountSub={Number(inv.balanceDue) > 0 ? <span className="text-[#C2304F] font-semibold">{cs}{num(inv.balanceDue)} due</span> : <span className="text-[#1F8A5B] font-semibold">Paid</span>}
+                  chip={st} />
               );
             })}
+          </ul>
+        ))}
+
+      {tab === "payments" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard icon={Wallet} color="green" label="You've paid" value={`${c}${num(totalPaid)}`} />
+            <StatCard icon={CreditCard} color={totalDue > 0 ? "red" : "green"} label="Still to pay" value={`${c}${num(totalDue)}`} />
           </div>
-        )}
+          {data.payments.length === 0
+            ? <EmptyState icon={CreditCard} title="No payments yet" text="Every payment the studio records shows here." />
+            : (
+              <ul className={cn("bg-white rounded-[22px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
+                {data.payments.map(p => (
+                  <DocRow key={p.id} icon={CheckCircle} color="green" title={`${sym(p.currency)}${num(p.amount)}`}
+                    sub={<>{fmtDate(p.paymentDate)}{p.paymentMethod ? <span className="capitalize"> · {p.paymentMethod.replace(/_/g, " ")}</span> : null}{p.referenceNumber ? ` · Ref ${p.referenceNumber}` : ""}{p.notes ? ` · ${p.notes}` : ""}</>}
+                    amount="" amountSub={<span className="text-[#1F8A5B] font-semibold">Received</span>} />
+                ))}
+              </ul>
+            )}
+        </div>
+      )}
 
-        {/* PAYMENTS TAB */}
-        {tab === "payments" && (
-          <div className="space-y-3">
-            {/* Summary card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-0.5">Total Paid</p>
-                <p className="text-2xl font-extrabold" style={{ color: brand }}>{c}{num(totalPaid)}</p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand + "15" }}>
-                <CheckCircle className="w-6 h-6" style={{ color: brand }} />
-              </div>
-            </div>
-            {data.payments.length === 0 && <EmptyState icon={CreditCard} text="No payment records yet" />}
-            {data.payments.map(p => (
-              <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-slate-900 text-base">{sym(p.currency)}{num(p.amount)}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {fmtDate(p.paymentDate)}
-                      {p.paymentMethod && (
-                        <span className="ml-2 bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-medium capitalize">
-                          {p.paymentMethod.replace(/_/g, " ")}
-                        </span>
-                      )}
-                    </p>
-                    {p.referenceNumber && <p className="text-xs text-slate-400 mt-0.5">Ref: {p.referenceNumber}</p>}
-                  </div>
-                  <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  </div>
-                </div>
-                {p.notes && <p className="text-xs text-slate-500 mt-2 italic border-t border-slate-50 pt-2">{p.notes}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* MESSAGES TAB */}
-        {tab === "messages" && (
-          <PortalChat token={token} brand={brand} companyName={data.company.name} />
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-slate-200 bg-white py-4 px-4 text-center">
-        <p className="text-xs text-slate-400">
-          Powered by <span className="font-semibold text-slate-600">StuPanel</span>
-          {data.company.phone && (
-            <span className="ml-3">
-              · <a href={`tel:${data.company.phone}`} className="hover:text-slate-800">{data.company.phone}</a>
-            </span>
-          )}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
-  return (
-    <div className="text-center py-14">
-      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-        <Icon className="w-6 h-6 text-slate-300" />
-      </div>
-      <p className="text-slate-400 text-sm">{text}</p>
-    </div>
+      {tab === "messages" && <PortalChat token={token} brand={brand} companyName={data.company.name} />}
+    </PublicShell>
   );
 }

@@ -42,7 +42,7 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
         const done = g.status === "submitted" || g.status === "taken";
         const left = g.status === "open" || g.status === "submitted" ? timeLeft(g.deadline) : null;
         return (
-          <div key={g.id} className="mx-4 mb-4 rounded-2xl overflow-hidden border border-slate-100" style={{ backgroundColor: `${brand}0D` }}>
+          <div key={g.id} className="mx-4 sm:mx-5 mb-4 rounded-2xl overflow-hidden border border-[#EEEBF4]" style={{ backgroundColor: `${brand}0D` }}>
             {g.covers.length > 0 && (
               <div className="grid grid-cols-4 gap-0.5">
                 {g.covers.slice(0, 4).map((c, i) => (
@@ -54,12 +54,12 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
             <div className="p-3.5 flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ backgroundColor: brand }}><Images className="w-5 h-5" /></span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">{t.card}</p>
-                <p className="text-xs text-slate-600 truncate">
-                  {g.status === "taken" ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><Lock className="w-3 h-3" />{t.started}</span>
-                    : g.status === "submitted" ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{t.sent} · {t.chosen(g.picked)}</span>
+                <p className="text-sm font-bold text-[#17151F] truncate">{t.card}</p>
+                <p className="text-xs text-[#4A4658] truncate">
+                  {g.status === "taken" ? <span className="inline-flex items-center gap-1 text-[#1F8A5B] font-semibold"><Lock className="w-3 h-3" />{t.started}</span>
+                    : g.status === "submitted" ? <span className="inline-flex items-center gap-1 text-[#1F8A5B] font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{t.sent} · {t.chosen(g.picked)}</span>
                     : g.picked ? t.chosen(g.picked) : t.cardSub(g.photos)}
-                  {left && <span className={cn("ml-1.5 font-semibold", left.soon ? "text-rose-600" : "text-slate-500")}>· {left.text}</span>}
+                  {left && <span className={cn("ml-1.5 font-semibold", left.soon ? "text-[#C2304F]" : "text-[#6B6680]")}>· {left.text}</span>}
                 </p>
               </div>
               <button type="button" onClick={() => setOpen(g.id)} className="h-10 px-4 rounded-full text-white text-sm font-semibold flex-shrink-0 hover:opacity-90" style={{ backgroundColor: brand }}>
@@ -217,9 +217,9 @@ function Chooser({ token, galleryId, brand, onClose }: {
   const markButtons = (p: GPhoto, big = false) => (
     <div className={cn("flex items-center", big ? "gap-2" : "gap-1")}>
       {([
-        { m: "selected" as Mark, I: Check, label: t.choose, on: "bg-emerald-500 text-white" },
-        { m: "important" as Mark, I: Heart, label: t.love, on: "bg-rose-500 text-white" },
-        { m: "rejected" as Mark, I: X, label: t.dont, on: "bg-slate-700 text-white" },
+        { m: "selected" as Mark, I: Check, label: t.choose, on: "bg-[#1F8A5B] text-white" },
+        { m: "important" as Mark, I: Heart, label: t.love, on: "bg-[#C2304F] text-white" },
+        { m: "rejected" as Mark, I: X, label: t.dont, on: "bg-[#33303F] text-white" },
       ]).map(b => {
         const on = p.m === b.m || (b.m === "selected" && p.m === "important" && !big);
         return (
@@ -227,7 +227,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
             onClick={e => { e.stopPropagation(); mark(p, b.m); }}
             className={cn("rounded-full flex items-center justify-center gap-1.5 font-semibold transition-all active:scale-90 disabled:opacity-60",
               big ? "h-12 px-4 text-[14px] flex-1" : "w-8 h-8",
-              p.m === b.m ? b.on : big ? "bg-white/10 text-white hover:bg-white/20" : on ? "bg-emerald-500/90 text-white" : "bg-white/85 text-slate-700 backdrop-blur hover:bg-white")}>
+              p.m === b.m ? b.on : big ? "bg-white/10 text-white hover:bg-white/20" : on ? "bg-[#1F8A5B]/90 text-white" : "bg-white/85 text-[#33303F] backdrop-blur hover:bg-white")}>
             <b.I className={big ? "w-5 h-5" : "w-4 h-4"} fill={b.m === "important" && p.m === "important" ? "currentColor" : "none"} strokeWidth={2.4} />
             {big && <span>{b.label}</span>}
           </button>
@@ -239,36 +239,36 @@ function Chooser({ token, galleryId, brand, onClose }: {
   return (
     <div className="fixed inset-0 z-[60] bg-[#F7F6FA] flex flex-col sp-fade-in" role="dialog" aria-modal="true" aria-label={t.card}>
       {/* Top bar */}
-      <header className="flex-shrink-0 bg-white/85 backdrop-blur-xl border-b border-slate-100">
+      <header className="flex-shrink-0 bg-white/85 backdrop-blur-xl border-b border-[#F1EFF6]">
         <div className="max-w-6xl mx-auto px-3 sm:px-5 h-14 flex items-center gap-3">
-          <button type="button" onClick={close} aria-label={t.close} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700"><ArrowLeft className="w-5 h-5" /></button>
+          <button type="button" onClick={close} aria-label={t.close} className="w-10 h-10 rounded-full hover:bg-[#F1EFF6] flex items-center justify-center text-[#33303F]"><ArrowLeft className="w-5 h-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-bold text-slate-900 truncate">{g?.title ?? "…"}</p>
-            <p className="text-[12px] text-slate-500 truncate">
-              {save === "saving" ? t.saving : save === "error" ? <span className="text-rose-600">{t.notSaved}</span> : save === "saved" ? <span className="text-emerald-700">{t.saved}</span> : g?.studio}
+            <p className="text-[15px] font-bold text-[#17151F] truncate">{g?.title ?? "…"}</p>
+            <p className="text-[12px] text-[#6B6680] truncate">
+              {save === "saving" ? t.saving : save === "error" ? <span className="text-[#C2304F]">{t.notSaved}</span> : save === "saved" ? <span className="text-[#1F8A5B]">{t.saved}</span> : g?.studio}
             </p>
           </div>
-          {left && <span className={cn("hidden sm:inline-flex h-8 px-3 rounded-full text-[12.5px] font-semibold items-center gap-1", left.soon ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600")}><CalendarClock className="w-3.5 h-3.5" />{left.text}</span>}
+          {left && <span className={cn("hidden sm:inline-flex h-8 px-3 rounded-full text-[12.5px] font-semibold items-center gap-1", left.soon ? "bg-[#FEF5F7] text-[#C2304F]" : "bg-[#F1EFF6] text-[#4A4658]")}><CalendarClock className="w-3.5 h-3.5" />{left.text}</span>}
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
         {!g ? (
-          failed ? <p className="text-center text-slate-500 py-20">Could not open — please try again.</p>
+          failed ? <p className="text-center text-[#6B6680] py-20">Could not open — please try again.</p>
             : <div className="max-w-6xl mx-auto p-4 grid grid-cols-3 sm:grid-cols-5 gap-1.5">{Array.from({ length: 15 }).map((_, i) => <div key={i} className="sp-skel aspect-square rounded-xl" />)}</div>
         ) : (
           <div className="max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-32">
             {/* Messages */}
-            {g.welcome && <div className="mb-3 rounded-2xl bg-white p-4 text-[14px] text-slate-700 shadow-sm flex gap-2.5"><MessageSquareText className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: brand }} /><p className="whitespace-pre-line">{g.welcome}</p></div>}
+            {g.welcome && <div className="mb-3 rounded-2xl bg-white p-4 text-[14px] text-[#33303F] shadow-sm flex gap-2.5"><MessageSquareText className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: brand }} /><p className="whitespace-pre-line">{g.welcome}</p></div>}
             {locked && (
-              <div className="mb-3 rounded-2xl bg-slate-900 text-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="mb-3 rounded-2xl bg-[#17151F] text-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 <p className="flex-1 text-[14px] flex items-center gap-2"><Lock className="w-4 h-4 flex-shrink-0" />{g.status === "taken" ? t.lockedTaken : g.lockedWhy || t.lockedOver}</p>
-                {g.status === "taken" && (asked ? <span className="text-[13px] text-emerald-300">{t.asked}</span>
-                  : <button type="button" onClick={() => setAsking(true)} className="h-10 px-4 rounded-full bg-white text-slate-900 text-[13px] font-semibold flex-shrink-0">{t.ask}</button>)}
+                {g.status === "taken" && (asked ? <span className="text-[13px] text-[#9AD5B6]">{t.asked}</span>
+                  : <button type="button" onClick={() => setAsking(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-[13px] font-semibold flex-shrink-0">{t.ask}</button>)}
               </div>
             )}
             {!locked && g.status === "submitted" && (
-              <div className="mb-3 rounded-2xl bg-emerald-50 text-emerald-800 p-3.5 text-[13.5px] flex items-center gap-2"><CheckCircle2 className="w-4 h-4 flex-shrink-0" />{t.sent}. {t.sendHint}</div>
+              <div className="mb-3 rounded-2xl bg-[#F0FAF4] text-[#14613F] p-3.5 text-[13.5px] flex items-center gap-2"><CheckCircle2 className="w-4 h-4 flex-shrink-0" />{t.sent}. {t.sendHint}</div>
             )}
 
             {/* Albums */}
@@ -280,14 +280,14 @@ function Chooser({ token, galleryId, brand, onClose }: {
                   const on = current?.id === a.id;
                   return (
                     <button key={a.id} type="button" role="tab" aria-selected={on} onClick={() => { setAlbum(a.id); setFilter("all"); }}
-                      className={cn("flex-shrink-0 min-w-[140px] rounded-2xl px-4 py-2.5 text-left transition-all", on ? "text-white shadow-md" : "bg-white text-slate-800")}
+                      className={cn("flex-shrink-0 min-w-[140px] rounded-2xl px-4 py-2.5 text-left transition-all", on ? "text-white shadow-md" : "bg-white text-[#17151F]")}
                       style={on ? { backgroundColor: brand } : undefined}>
                       <span className="flex items-center justify-between gap-3">
                         <span className="text-[13.5px] font-bold truncate">{a.name}</span>
                         <span className="text-[12.5px] font-bold tabular-nums">{pr.text}</span>
                       </span>
-                      <span className={cn("block h-1 rounded-full mt-2 overflow-hidden", on ? "bg-white/25" : "bg-slate-100")}>
-                        <span className={cn("block h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-400" : on ? "bg-white" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!on && !pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} />
+                      <span className={cn("block h-1 rounded-full mt-2 overflow-hidden", on ? "bg-white/25" : "bg-[#F1EFF6]")}>
+                        <span className={cn("block h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-400" : on ? "bg-white" : pr.okRange ? "bg-[#1F8A5B]" : "")} style={{ width: `${pr.pct}%`, ...(!on && !pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} />
                       </span>
                     </button>
                   );
@@ -298,13 +298,13 @@ function Chooser({ token, galleryId, brand, onClose }: {
             {/* Highlights */}
             {highlights.length > 0 && filter === "all" && (
               <div className="mt-2 mb-3">
-                <p className="text-[13px] font-bold text-slate-700 mb-2 flex items-center gap-1.5"><Sparkles className="w-4 h-4" style={{ color: brand }} />{t.highlights}</p>
+                <p className="text-[13px] font-bold text-[#33303F] mb-2 flex items-center gap-1.5"><Sparkles className="w-4 h-4" style={{ color: brand }} />{t.highlights}</p>
                 <div className="flex gap-2 overflow-x-auto -mx-3 px-3 [scrollbar-width:none]">
                   {highlights.slice(0, 12).map(p => (
                     <button key={p.id} type="button" onClick={() => setView(shown.indexOf(p))} className="relative flex-shrink-0 w-36 h-24 sm:w-48 sm:h-32 rounded-2xl overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" className="w-full h-full object-cover" onContextMenu={e => e.preventDefault()} />
-                      {isPicked(p.m) && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center"><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>}
+                      {isPicked(p.m) && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>}
                     </button>
                   ))}
                 </div>
@@ -315,33 +315,33 @@ function Chooser({ token, galleryId, brand, onClose }: {
             <div className="flex gap-1.5 overflow-x-auto -mx-3 px-3 py-2 sticky top-0 z-10 bg-[#F7F6FA]/90 backdrop-blur [scrollbar-width:none]">
               {filters.map(f => (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors", filter === f.id ? "bg-slate-900 text-white" : "bg-white text-slate-600")}>
-                  {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-slate-400")}>{f.n}</span>
+                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors", filter === f.id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658]")}>
+                  {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-[#8A8599]")}>{f.n}</span>
                 </button>
               ))}
             </div>
-            {!locked && filter === "all" && !totalPicked && <p className="text-[12.5px] text-slate-500 mb-2">{t.tapHint}</p>}
+            {!locked && filter === "all" && !totalPicked && <p className="text-[12.5px] text-[#6B6680] mb-2">{t.tapHint}</p>}
 
             {/* Grid */}
-            {shown.length === 0 ? <p className="text-center text-slate-400 py-16 text-sm">{t.none}</p> : (
+            {shown.length === 0 ? <p className="text-center text-[#8A8599] py-16 text-sm">{t.none}</p> : (
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1 sm:gap-2">
                 {shown.map((p, i) => (
-                  <div key={p.id} className={cn("relative aspect-square rounded-xl overflow-hidden bg-slate-200 [content-visibility:auto] [contain-intrinsic-size:140px]",
-                    isPicked(p.m) && "ring-[3px] ring-emerald-500", p.m === "important" && "ring-rose-500", p.m === "rejected" && "opacity-45")}>
+                  <div key={p.id} className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
+                    isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
                     <button type="button" onClick={() => setView(i)} aria-label={p.n} className="absolute inset-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" loading="lazy" decoding="async" draggable={false} onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
                     </button>
-                    {p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
+                    {p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#C2304F] text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
                     {p.no && <span className="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow" style={{ color: brand }}><StickyNote className="w-3.5 h-3.5" /></span>}
                     {!locked && (
                       <button type="button" onClick={() => mark(p, isPicked(p.m) ? (p.m as Mark) : "selected")} aria-pressed={isPicked(p.m)} aria-label={t.choose}
                         className={cn("absolute right-1.5 bottom-1.5 w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90",
-                          isPicked(p.m) ? "bg-emerald-500 text-white" : "bg-white/80 text-slate-600 backdrop-blur")}>
+                          isPicked(p.m) ? "bg-[#1F8A5B] text-white" : "bg-white/80 text-[#4A4658] backdrop-blur")}>
                         <Check className="w-5 h-5" strokeWidth={3} />
                       </button>
                     )}
-                    {locked && isPicked(p.m) && <span className="absolute right-1.5 bottom-1.5 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center"><Check className="w-4 h-4" strokeWidth={3} /></span>}
+                    {locked && isPicked(p.m) && <span className="absolute right-1.5 bottom-1.5 w-7 h-7 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-4 h-4" strokeWidth={3} /></span>}
                   </div>
                 ))}
               </div>
@@ -352,15 +352,15 @@ function Chooser({ token, galleryId, brand, onClose }: {
 
       {/* Bottom bar */}
       {g && !thanks && (
-        <div className="flex-shrink-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex-shrink-0 bg-white/90 backdrop-blur-xl border-t border-[#F1EFF6] pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-3 sm:px-5 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               {current && (() => {
                 const pr = albumProgress(current, pickedIn(current.id));
                 return (
                   <>
-                    <p className="text-[13px] font-semibold text-slate-800 truncate">{current.name}: <span className="tabular-nums">{pr.text}</span></p>
-                    <div className="h-1.5 rounded-full bg-slate-100 mt-1.5 overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", pr.over ? "bg-rose-500" : pr.okRange ? "bg-emerald-500" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} /></div>
+                    <p className="text-[13px] font-semibold text-[#17151F] truncate">{current.name}: <span className="tabular-nums">{pr.text}</span></p>
+                    <div className="h-1.5 rounded-full bg-[#F1EFF6] mt-1.5 overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", pr.over ? "bg-[#C2304F]" : pr.okRange ? "bg-[#1F8A5B]" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} /></div>
                   </>
                 );
               })()}
@@ -376,7 +376,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
       )}
 
       {/* Toast */}
-      {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[90] max-w-[92vw] px-4 py-2.5 rounded-2xl bg-slate-900 text-white text-[13.5px] shadow-xl sp-pop-in">{toast}</div>}
+      {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[90] max-w-[92vw] px-4 py-2.5 rounded-2xl bg-[#17151F] text-white text-[13.5px] shadow-xl sp-pop-in">{toast}</div>}
 
       {/* Viewer */}
       {g && vp && view !== null && (
@@ -414,10 +414,10 @@ function Chooser({ token, galleryId, brand, onClose }: {
           <div className="sp-drawer z-[75] sm:max-w-[520px] flex flex-col bg-[#F7F6FA]" role="dialog" aria-modal="true" aria-label={t.reviewTitle}>
             <div className="px-5 pt-5 pb-3 flex items-center gap-3">
               <div className="flex-1">
-                <h2 className="text-[20px] font-extrabold text-slate-900">{t.reviewTitle}</h2>
-                <p className="text-[13px] text-slate-500">{t.reviewSub}</p>
+                <h2 className="text-[20px] font-extrabold text-[#17151F]">{t.reviewTitle}</h2>
+                <p className="text-[13px] text-[#6B6680]">{t.reviewSub}</p>
               </div>
-              <button type="button" onClick={() => setReviewing(false)} aria-label={t.close} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-slate-500"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setReviewing(false)} aria-label={t.close} className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#6B6680]"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-4 space-y-3">
               {albums.map(a => {
@@ -427,12 +427,12 @@ function Chooser({ token, galleryId, brand, onClose }: {
                 return (
                   <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[15px] font-bold text-slate-900">{a.name}</p>
-                      <span className={cn("h-7 px-2.5 rounded-full text-[12.5px] font-bold inline-flex items-center", pr.under || pr.over ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
+                      <p className="text-[15px] font-bold text-[#17151F]">{a.name}</p>
+                      <span className={cn("h-7 px-2.5 rounded-full text-[12.5px] font-bold inline-flex items-center", pr.under || pr.over ? "bg-[#FEF5F7] text-[#C2304F]" : "bg-[#F0FAF4] text-[#1F8A5B]")}>
                         {pr.text}
                       </span>
                     </div>
-                    <p className={cn("text-[12.5px] mt-1", pr.under || pr.over ? "text-rose-600" : "text-slate-500")}>
+                    <p className={cn("text-[12.5px] mt-1", pr.under || pr.over ? "text-[#C2304F]" : "text-[#6B6680]")}>
                       {pr.under ? t.fewer(diff) : pr.over ? t.more(diff) : a.limit ? t.ok : t.noLimit}
                       {list.some(p => p.m === "important") && ` · ♥ ${list.filter(p => p.m === "important").length}`}
                     </p>
@@ -442,20 +442,20 @@ function Chooser({ token, galleryId, brand, onClose }: {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img key={p.id} src={photoUrl(g.id, p.id, "t", g.img)} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
                         ))}
-                        {list.length > 20 && <span className="w-14 h-14 rounded-lg bg-slate-100 text-slate-500 text-[12px] font-semibold flex items-center justify-center flex-shrink-0">+{list.length - 20}</span>}
+                        {list.length > 20 && <span className="w-14 h-14 rounded-lg bg-[#F1EFF6] text-[#6B6680] text-[12px] font-semibold flex items-center justify-center flex-shrink-0">+{list.length - 20}</span>}
                       </div>
                     )}
                   </div>
                 );
               })}
               <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <label htmlFor="ps-note" className="text-[13px] font-semibold text-slate-700">{t.anyNote}</label>
+                <label htmlFor="ps-note" className="text-[13px] font-semibold text-[#33303F]">{t.anyNote}</label>
                 <textarea id="ps-note" value={note} maxLength={2000} rows={3} onChange={e => { setNote(e.target.value); noteDirty.current = true; }}
-                  className="mt-2 w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-[14px] outline-none border border-transparent focus:bg-white focus:border-slate-300 resize-none" />
+                  className="mt-2 w-full px-3.5 py-2.5 rounded-xl bg-[#F7F5FB] text-[14px] outline-none border border-transparent focus:bg-white focus:border-[#B5B0C4] resize-none" />
               </div>
             </div>
-            <div className="px-4 sm:px-5 py-4 bg-white/85 backdrop-blur border-t border-slate-100">
-              <p className="text-[12.5px] text-slate-500 mb-2">{t.sendHint}</p>
+            <div className="px-4 sm:px-5 py-4 bg-white/85 backdrop-blur border-t border-[#F1EFF6]">
+              <p className="text-[12.5px] text-[#6B6680] mb-2">{t.sendHint}</p>
               <button type="button" onClick={send} disabled={sending} className="w-full h-12 rounded-full text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundColor: brand }}>
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{sending ? t.sending : t.send}
               </button>
@@ -468,12 +468,12 @@ function Chooser({ token, galleryId, brand, onClose }: {
       {thanks && (
         <div className="fixed inset-0 z-[85] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sp-fade-in">
           <div className="w-full max-w-sm bg-white rounded-[28px] p-6 text-center sp-pop-in">
-            <span className="w-16 h-16 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center"><Check className="w-8 h-8" strokeWidth={3} /></span>
-            <p className="text-[20px] font-extrabold text-slate-900 mt-4">{t.thanks}</p>
-            <p className="text-[14px] text-slate-500 mt-1.5">{t.thanksSub}</p>
-            <p className="text-[13px] font-semibold text-slate-700 mt-3">{t.chosen(totalPicked)}</p>
+            <span className="w-16 h-16 mx-auto rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-8 h-8" strokeWidth={3} /></span>
+            <p className="text-[20px] font-extrabold text-[#17151F] mt-4">{t.thanks}</p>
+            <p className="text-[14px] text-[#6B6680] mt-1.5">{t.thanksSub}</p>
+            <p className="text-[13px] font-semibold text-[#33303F] mt-3">{t.chosen(totalPicked)}</p>
             <div className="flex gap-2 mt-5">
-              <button type="button" onClick={() => setThanks(false)} className="flex-1 h-11 rounded-full bg-slate-100 text-slate-700 text-[14px] font-semibold">{t.backToPhotos}</button>
+              <button type="button" onClick={() => setThanks(false)} className="flex-1 h-11 rounded-full bg-[#F1EFF6] text-[#33303F] text-[14px] font-semibold">{t.backToPhotos}</button>
               <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full text-white text-[14px] font-semibold" style={{ backgroundColor: brand }}>{t.close}</button>
             </div>
           </div>
@@ -484,11 +484,11 @@ function Chooser({ token, galleryId, brand, onClose }: {
       {asking && (
         <div className="fixed inset-0 z-[85] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sp-fade-in" onClick={() => setAsking(false)}>
           <div className="w-full max-w-sm bg-white rounded-[28px] p-5 sp-pop-in" onClick={e => e.stopPropagation()}>
-            <p className="text-[17px] font-bold text-slate-900">{t.ask}</p>
+            <p className="text-[17px] font-bold text-[#17151F]">{t.ask}</p>
             <textarea value={why} maxLength={500} rows={3} onChange={e => setWhy(e.target.value)} placeholder={t.why}
-              className="mt-3 w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-[14px] outline-none border border-transparent focus:bg-white focus:border-slate-300 resize-none" />
+              className="mt-3 w-full px-3.5 py-2.5 rounded-xl bg-[#F7F5FB] text-[14px] outline-none border border-transparent focus:bg-white focus:border-[#B5B0C4] resize-none" />
             <div className="flex gap-2 mt-3">
-              <button type="button" onClick={() => setAsking(false)} className="flex-1 h-11 rounded-full bg-slate-100 text-slate-700 text-[14px] font-semibold">{t.close}</button>
+              <button type="button" onClick={() => setAsking(false)} className="flex-1 h-11 rounded-full bg-[#F1EFF6] text-[#33303F] text-[14px] font-semibold">{t.close}</button>
               <button type="button" onClick={askChange} className="flex-1 h-11 rounded-full text-white text-[14px] font-semibold" style={{ backgroundColor: brand }}>{t.askSend}</button>
             </div>
           </div>

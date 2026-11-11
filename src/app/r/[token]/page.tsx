@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
+import { PublicLoading, PublicMessage } from "@/components/public/public-shell";
 import { withDefaults } from "@/components/invoice-doc/design";
 import { DocViewer } from "@/components/invoice-doc/doc-viewer";
 import type { DocData } from "@/components/invoice-doc/invoice-document";
@@ -36,12 +37,8 @@ export default function PublicReceiptPage({ params }: { params: Promise<{ token:
       .catch(() => setError(true));
   }, [token]);
 
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2] px-6">
-      <p className="text-[#6B6680] text-center">This receipt isn&apos;t available. It may have been cancelled and replaced — please ask the studio for the new one.</p>
-    </div>
-  );
-  if (!raw) return <div className="min-h-screen flex items-center justify-center bg-[#ECE9F2]"><Loader2 className="w-7 h-7 animate-spin text-[#7D5CEF]" /></div>;
+  if (error) return <PublicMessage icon={FileText} title="Receipt not found" text="This receipt isn't available. It may have been cancelled and replaced — please ask the studio for the new one." />;
+  if (!raw) return <PublicLoading />;
 
   const data = toDoc(raw);
   const design = withDefaults(raw.design);

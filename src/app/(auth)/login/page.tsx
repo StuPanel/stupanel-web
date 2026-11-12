@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { setAccessTokenCookie } from "@/lib/auth-cookie";
+import { StudioList } from "@/components/studio-list";
+import { NewPasswordStep } from "@/components/new-password-step";
+import { enterSession, isChoice, postPublic, saveSession, type Session, type StudioCard, type StudioChoice } from "@/lib/studio-session";
 
 function LoginForm() {
   const router = useRouter();
@@ -20,14 +22,32 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   // Google sign-in problems come back as ?error=… (e.g. "This Google account has no StuPanel account").
   const [error, setError] = useState(() => searchParams.get("error") ?? "");
+  // Works in several studios → pick one; a password the studio set → choose their own.
+  const [choice, setChoice] = useState<StudioChoice | null>(null);
+  const [picking, setPicking] = useState<string | null>(null);
+  const [newPass, setNewPass] = useState<Session | null>(null);
+
+  /** A session for one studio: set your own password first if the studio chose it. */
+  function open(d: Session) {
+    if (d.user.mustChangePassword) { saveSession(d); setNewPass(d); return; }
+    enterSession(d, redirectTo);
+  }
+
+  async function pick(st: StudioCard) {
+    if (!choice) return;
+    setPicking(st.userId); setError("");
+    const r = await postPublic<Session>("/auth/choose-studio", { ticket: choice.ticket, userId: st.userId });
+    if (!r.ok) { setPicking(null); setError(r.error); if (/log in again/i.test(r.error)) setChoice(null); return; }
+    open(r.data);
+  }
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (!token) return;
+    if (!token || searchParams.get("from")?.startsWith("/invite/")) return;
     const role = localStorage.getItem("user_role");
     if (role === "staff") { router.replace("/member/dashboard"); return; }
     router.replace("/dashboard");
-  }, [router]);
+  }, [router, searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,23 +76,34 @@ function LoginForm() {
         return;
       }
 
-      localStorage.setItem("access_token", data.accessToken);
-      localStorage.setItem("user_role", data.user.role);
-      setAccessTokenCookie(data.accessToken);
-
-      // Role-based redirect
-      if (data.user.role === "staff") {
-        window.location.href = "/member/dashboard";
-      } else if (!data.company.onboardingCompleted) {
-        window.location.href = "/onboarding";
-      } else {
-        window.location.href = redirectTo;
-      }
+      if (isChoice(data)) { setChoice(data); return; }
+      open(data as Session);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (newPass) {
+    return <NewPasswordStep currentPassword={password} onDone={() => enterSession(newPass, redirectTo)} />;
+  }
+
+  if (choice) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-[#17151F]">Choose a studio</h2>
+          <p className="text-[#6B6680] mt-1 text-sm">You work with {choice.studios.length} studios. You can switch any time from the studio name.</p>
+        </div>
+        {error && <div className="mb-4 px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">{error}</div>}
+        <StudioList studios={choice.studios} busyId={picking} onPick={pick} />
+        {choice.invites.length > 0 && (
+          <p className="mt-4 text-[13px] text-[#6B6680]">You also have {choice.invites.length === 1 ? "an invite" : `${choice.invites.length} invites`} from {choice.invites.map(i => i.name).join(", ")}. Open a studio, then answer it from the studio name.</p>
+        )}
+        <button type="button" onClick={() => { setChoice(null); setPassword(""); }} className="mt-6 text-sm font-semibold text-[#7D5CEF] hover:text-[#5B3FD0]">← Use another account</button>
+      </div>
+    );
   }
 
   return (

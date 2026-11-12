@@ -56,6 +56,31 @@ export interface Member {
   /** Manager only: parts of the studio they can use. */
   managerAreas?: string[];
   createdAt: string;
+  /** One login, many studios. */
+  login?: MemberLogin;
+}
+
+export type MemberLogin = {
+  /** Invite emailed, not accepted yet. */
+  invitePending: boolean; inviteExpired: boolean; invitedAt: string | null;
+  /** Uses one StuPanel login for several studios → only they change it. */
+  shared: boolean; mustChangePassword: boolean;
+};
+
+const validEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+const shortDate = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}-${d.getFullYear()}`;
+};
+
+/** Email the member's invite again (new 7-day link). */
+export async function resendInvite(m: Pick<Member, "id" | "email" | "firstName">) {
+  const r = await apiFetch(`${API}/team/${m.id}/resend-invite`, { method: "POST" }).catch(() => null);
+  const d = await r?.json().catch(() => ({}));
+  if (r?.ok) notify(`Invite sent again to ${m.email}`);
+  else notify(d?.message || "Couldn't send the invite. Please try again.", { error: true });
+  return !!r?.ok;
 }
 
 
@@ -86,6 +111,28 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
   const { user: me } = useAuth();
   const isOwner = me?.role === "owner";
   const [access, setAccess] = useState<{ manager: boolean; areas: string[] }>({ manager: false, areas: [] });
+  // New member with an email: send an invite (default) or set their login here.
+  const [loginMode, setLoginMode] = useState<"invite" | "password">("invite");
+  const [emailInfo, setEmailInfo] = useState<{ email: string; hasAccount: boolean; inThisStudio: boolean } | null>(null);
+  const login = editing?.login;
+  const lockedLogin = !!(login?.shared || login?.invitePending);
+
+  // Does this email already use StuPanel (another studio)? Then it can only be an invite.
+  useEffect(() => {
+    if (!open || isEdit || memberType !== "staff") return;
+    const email = form.email.trim().toLowerCase();
+    if (!validEmail(email)) return; // `known` ignores an answer for another email
+    const t = setTimeout(() => {
+      apiFetch(`${API}/team/email-check?email=${encodeURIComponent(email)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d) setEmailInfo({ email, hasAccount: !!d.hasAccount, inThisStudio: !!d.inThisStudio }); })
+        .catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [open, isEdit, memberType, form.email]);
+  const hasEmail = validEmail(form.email);
+  const known = emailInfo && emailInfo.email === form.email.trim().toLowerCase() ? emailInfo : null;
+  const sendInvite = !isEdit && memberType === "staff" && hasEmail && (!!known?.hasAccount || loginMode === "invite");
 
   // Rates follow Settings → Team & Pay (per shift or per program); program types from Settings → Work types
   useEffect(() => {
@@ -107,6 +154,8 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
     setTab("who");
+    setLoginMode("invite");
+    setEmailInfo(null);
     setAccess({ manager: editing?.role === "manager", areas: editing?.managerAreas ?? [] });
     setLines(ratesToLines(editing?.roleRates));
     setSetup(setupToItems(editing?.setup));
@@ -177,8 +226,9 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     if (freelancer && !form.phone.trim()) return fail("A freelancer needs a phone number — it's their ID.", "who");
     if (lines.some(l => l.unit === "custom" && !l.label.trim() && (l.rate || l.withSetup))) return fail("Please name each \"Other\" price.", "pay");
     if (setup.some(g => !g.name.trim() && gearHasRent(g))) return fail("Please write a name for each piece of gear.", "setup");
-    if (!freelancer) {
-      if (!form.username.trim()) return fail("Please choose a username for their login.", "login");
+    if (known?.inThisStudio) return fail("This email is already used by another member in your studio.", "who");
+    if (!freelancer && !sendInvite && !(isEdit && lockedLogin)) {
+      if (!form.username.trim()) return fail(hasEmail || isEdit ? "Please choose a username for their login." : "Add their email to send an invite, or choose a username and password.", "login");
       if (unCheck.available === false) return fail("That username is taken — pick another.", "login");
       if (!isEdit && form.password.length < 6) return fail("Password must be at least 6 characters.", "login");
     }
@@ -196,12 +246,15 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
         setup: cleanSetup,
       };
       const body = isEdit
-        ? { ...base, username: freelancer ? undefined : (form.username || undefined),
+        ? { ...base, username: freelancer || lockedLogin ? undefined : (form.username || undefined),
+            ...(lockedLogin ? { email: undefined } : {}),
             // The member edits their own gear too — tell the server what we loaded, so their changes since are kept.
             setupSeen: (editing?.setup ?? []).map(g => g.id).filter(Boolean) }
         : freelancer
           ? { ...base, memberType: "freelancer" }
-          : { ...base, memberType: "staff", username: form.username, password: form.password };
+          : sendInvite
+            ? { ...base, memberType: "staff", invite: true }
+            : { ...base, memberType: "staff", username: form.username, password: form.password };
       const url = isEdit ? `${API}/team/${editing!.id}` : `${API}/team`;
       const r = await apiFetch(url, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
@@ -216,7 +269,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
         });
         if (!ar.ok) { const ad = await ar.json().catch(() => ({})); setError(Array.isArray(ad.message) ? ad.message[0] : ad.message || "Saved, but couldn't change manager access."); onSaved(); return; }
       }
-      notify(isEdit ? "Saved" : freelancer ? `${form.firstName} added as a freelancer` : `${form.firstName} added to the team`);
+      notify(isEdit ? "Saved" : freelancer ? `${form.firstName} added as a freelancer` : sendInvite ? `Invite sent to ${form.email.trim()}` : `${form.firstName} added to the team`);
       onSaved(); onClose();
     } catch { setError("Something went wrong."); }
     finally { setLoading(false); }
@@ -303,8 +356,11 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
           <Field label="Phone / WhatsApp" required={!isStaff} hint={!isStaff ? "Used to send them program details on WhatsApp." : undefined}>
             {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number" value={form.phone} onChange={set("phone")} />}
           </Field>
-          <Field label="Email" hint="Optional — they get program reminder emails here.">
-            {id => <input id={id} className={inputCls} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} />}
+          <Field label="Email" hint={lockedLogin
+              ? login?.shared ? "Their own StuPanel login — only they can change it." : "Waiting for them to accept the invite."
+              : known?.hasAccount ? "Already uses StuPanel — they'll get an invite and keep their own login."
+              : isStaff && !isEdit ? "Best way: they get an invite to choose their own password." : "Optional — they get program reminder emails here."}>
+            {id => <input id={id} className={cn(inputCls, lockedLogin && "opacity-60")} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} disabled={lockedLogin} />}
           </Field>
         </FormGroup>
 
@@ -384,8 +440,50 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
 
         {tab === "setup" && <SetupEditor items={setup} onChange={setSetup} />}
 
-        {tab === "login" && isStaff && (
-          <FormGroup title="App login" note={isEdit ? "To change the password, use Reset password in the member menu." : "Share these with them — they can log in at app.stupanel.com."}>
+        {tab === "login" && isStaff && isEdit && lockedLogin && (
+          <FormGroup title="App login">
+            <div className="px-4 py-3.5 text-[14px] text-[#4A4658] leading-relaxed">
+              {login?.invitePending ? (
+                <>
+                  <p><b className="text-[#17151F]">{login.inviteExpired ? "Invite expired" : "Invite sent"}</b>{login.invitedAt ? ` on ${shortDate(login.invitedAt)}` : ""} to {form.email}. They join when they accept it.</p>
+                  <button type="button" onClick={() => resendInvite(editing!).then(ok => { if (ok) onSaved(); })}
+                    className="mt-3 h-9 px-4 rounded-full bg-[#EEE8FD] text-[13px] font-semibold text-[#5B3FD0]">Send invite again</button>
+                </>
+              ) : (
+                <p><b className="text-[#17151F]">Uses their own StuPanel login</b> — the same one for every studio they work with. Only they can change their username or password. If they forget it, send them a reset link from the member menu.</p>
+              )}
+            </div>
+          </FormGroup>
+        )}
+
+        {tab === "login" && isStaff && !isEdit && hasEmail && (
+          <FormGroup title="How they get in">
+            {known?.hasAccount ? (
+              <div className="px-4 py-3.5 text-[14px] text-[#4A4658] leading-relaxed">
+                <b className="text-[#17151F]">{form.email.trim()}</b> already uses StuPanel. We&apos;ll email them an invite — when they accept, your studio is added to their list. They keep their own login and password.
+              </div>
+            ) : (
+              <div role="radiogroup" aria-label="How they get in" className="p-2 grid gap-1.5">
+                {([
+                  { v: "invite", t: "Email an invite", d: "They choose their own password. Nobody else knows it." },
+                  { v: "password", t: "Set a username and password", d: "You give them the login. They choose their own password the first time." },
+                ] as const).map(o => {
+                  const on = loginMode === o.v;
+                  return (
+                    <button key={o.v} type="button" role="radio" aria-checked={on} onClick={() => setLoginMode(o.v)}
+                      className={cn("w-full flex items-start gap-3 p-3 rounded-[14px] text-left", on ? "bg-[#F7F4FE] ring-2 ring-[#7D5CEF]" : "hover:bg-[#F5F3FA]")}>
+                      <span className={cn("mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0", on ? "border-[#7D5CEF] bg-[#7D5CEF]" : "border-[#D8D3E3]")}>{on && <Check className="w-3 h-3 text-white" />}</span>
+                      <span><span className="block text-[15px] font-semibold text-[#17151F]">{o.t}</span><span className="block text-[13px] text-[#6B6680]">{o.d}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </FormGroup>
+        )}
+
+        {tab === "login" && isStaff && !lockedLogin && !sendInvite && (
+          <FormGroup title="App login" note={isEdit ? "To change the password, use Reset password in the member menu." : hasEmail ? "Share these with them. They choose their own password when they first log in." : "No email? Share these with them — they can log in at app.stupanel.com and choose their own password the first time."}>
             <Field label="Username" required>
               {id => (
                 <>
@@ -477,9 +575,22 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [sending, setSending] = useState(false);
   useEffect(() => { if (member) { setPass(""); setError(""); } }, [member]);
 
   if (!member) return null;
+  const realEmail = !!member.email && !member.email.includes(".internal");
+  const own = !!member.login?.shared;
+
+  async function sendLink() {
+    setSending(true); setError("");
+    const r = await apiFetch(`${API}/team/${member!.id}/send-reset-link`, { method: "POST" }).catch(() => null);
+    const d = await r?.json().catch(() => ({}));
+    setSending(false);
+    if (!r?.ok) { setError(d?.message || "Couldn't send it. Please try again."); return; }
+    notify(`Reset link sent to ${member!.email}`);
+    onClose();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -504,10 +615,21 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
             </div>
             <div>
               <h3 className="font-bold text-[#17151F]">Reset Password</h3>
-              <p className="text-xs text-[#8A8599]">{member.firstName} · @{member.username}</p>
+              <p className="text-xs text-[#8A8599]">{member.firstName}{member.username ? ` · @${member.username}` : ""}</p>
             </div>
           </div>
           {error && <div className="mb-3 text-sm text-[#C2304F] bg-[#FEF5F7] px-3 py-2 rounded-lg">{error}</div>}
+          {own ? (
+            <div>
+              <p className="text-[14px] text-[#4A4658] leading-relaxed">{member.firstName} uses one StuPanel login for several studios, so only they can change the password. We&apos;ll email them a link to choose a new one.</p>
+              <div className="flex gap-3 mt-5">
+                <Button variant="outline" type="button" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
+                <Button type="button" onClick={sendLink} disabled={sending} className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#6143CF] text-white gap-2">
+                  {sending && <Loader2 className="w-4 h-4 animate-spin" />}Email reset link
+                </Button>
+              </div>
+            </div>
+          ) : (
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-[#4A4658]">New Password</Label>
@@ -525,7 +647,14 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}Reset
               </Button>
             </div>
+            <p className="text-xs text-[#8A8599]">They choose their own password the next time they log in.</p>
+            {realEmail && (
+              <button type="button" onClick={sendLink} disabled={sending} className="w-full text-[13px] font-semibold text-[#5B3FD0] disabled:opacity-60">
+                {sending ? "Sending…" : `Or email a reset link to ${member.email}`}
+              </button>
+            )}
           </form>
+          )}
         </div>
       </div>
     </>
@@ -550,7 +679,7 @@ export function DeleteDialog({ member, onClose, onDeleted }: { member: Member | 
             <AlertTriangle className="w-7 h-7 text-[#C2304F]" />
           </div>
           <h3 className="font-bold text-[#17151F] text-lg">Remove Member?</h3>
-          <p className="text-[#6B6680] text-sm mt-2"><span className="font-semibold text-[#33303F]">{member.firstName}</span> (@{member.username}) will be removed.</p>
+          <p className="text-[#6B6680] text-sm mt-2"><span className="font-semibold text-[#33303F]">{member.firstName}</span>{member.username ? ` (@${member.username})` : ""} will be removed{member.login?.shared ? " from your studio. Their own StuPanel login stays for their other studios" : ""}.</p>
           <div className="flex gap-3 mt-6">
             <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC]">Cancel</Button>
             <Button onClick={doDelete} disabled={loading} className="flex-1 h-11 bg-[#C2304F] hover:bg-[#C2304F] text-white gap-2">

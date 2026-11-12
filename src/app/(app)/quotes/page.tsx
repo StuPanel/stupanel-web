@@ -12,6 +12,7 @@ import {
   Monitor, Smartphone, Tablet, MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FloatMenu } from "@/components/ui/float-menu";
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { AccountPicker } from "@/components/account-picker";
@@ -395,12 +396,6 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
   const sym = currSym(q.currency);
   const expired = q.validUntil && new Date(q.validUntil) < new Date() && !["converted", "accepted"].includes(q.status);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function h(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [menuOpen]);
 
   const item = "w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]";
   return (
@@ -425,15 +420,13 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
           <MoreHorizontal className="w-4 h-4" />
         </button>
-        {menuOpen && (
-          <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+        <FloatMenu anchor={menuRef} open={menuOpen} onClose={() => setMenuOpen(false)} width={192}>
             <button role="menuitem" onClick={() => { onView(); setMenuOpen(false); }} className={item}><Eye className="w-4 h-4 text-[#6B6680]" />Open</button>
             {["draft", "rejected"].includes(q.status) && <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className={item}><Edit2 className="w-4 h-4 text-[#6B6680]" />Edit</button>}
             {q.status === "draft" && <button role="menuitem" onClick={() => { onSend(); setMenuOpen(false); }} className={item}><Send className="w-4 h-4 text-[#5B3FD0]" />Send quote</button>}
             <button role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }} className={item}><Copy className="w-4 h-4 text-[#6B6680]" />Duplicate</button>
             {["draft", "rejected", "expired"].includes(q.status) && <button role="menuitem" onClick={() => { onDelete(); setMenuOpen(false); }} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Delete</button>}
-          </div>
-        )}
+          </FloatMenu>
       </div>
     </div>
   );

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   MoreHorizontal, Eye, Edit3, Trash2, AlertTriangle, Loader2, MapPin, Check,
 } from "lucide-react";
 import { DateBox } from "@/components/ui/apple";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FloatMenu } from "@/components/ui/float-menu";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import { STATUS_CFG, STATUS_PIPELINE } from "./constants";
@@ -23,12 +24,6 @@ export function ProgramRow({ b, onView, onEdit, onDelete }: {
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    function close(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [menuOpen]);
 
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
   const due = Number(b.grandTotal) - Number(b.paidAmount);
@@ -61,13 +56,11 @@ export function ProgramRow({ b, onView, onEdit, onDelete }: {
           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
           <MoreHorizontal className="w-4 h-4" />
         </button>
-        {menuOpen && (
-          <div role="menu" className="absolute right-0 top-10 w-44 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 overflow-hidden p-1">
+        <FloatMenu anchor={menuRef} open={menuOpen} onClose={() => setMenuOpen(false)} width={176}>
             <button role="menuitem" onClick={() => { onView(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Eye className="w-4 h-4 text-[#6B6680]" />Open</button>
             <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]"><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit</button>
             <button role="menuitem" onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#C2304F] hover:bg-[#FDECEF]"><Trash2 className="w-4 h-4" />Delete</button>
-          </div>
-        )}
+          </FloatMenu>
       </div>
     </div>
   );

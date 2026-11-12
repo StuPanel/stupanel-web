@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   MoreHorizontal, Copy, ExternalLink, UploadCloud, CheckCircle2, MapPin,
 } from "lucide-react";
 import { DateBox } from "@/components/ui/apple";
 import { cn } from "@/lib/utils";
+import { FloatMenu } from "@/components/ui/float-menu";
 import { DEL_STATUS, fmtDate, daysFromNow } from "./constants";
 import type { Booking } from "./types";
 import { formatCurrency } from "@/lib/format";
@@ -18,12 +19,6 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function close(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [menuOpen]);
 
   const allLinks = b.deliveryLinks?.filter(l => l.url) ?? (b.deliveryLink ? [{ id: "legacy", title: "Delivery Link", url: b.deliveryLink }] : []);
 
@@ -65,8 +60,7 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">
           <MoreHorizontal className="w-4 h-4" />
         </button>
-        {menuOpen && (
-          <div role="menu" className="absolute right-0 top-10 w-48 bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] z-30 p-1">
+        <FloatMenu anchor={menuRef} open={menuOpen} onClose={() => setMenuOpen(false)} width={192}>
             <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]">
               <UploadCloud className="w-4 h-4 text-[#6B6680]" />Upload / manage
             </button>
@@ -81,8 +75,7 @@ export function DeliveryCard({ b, onEdit }: { b: Booking; onEdit: () => void }) 
                 </a>
               </>
             )}
-          </div>
-        )}
+          </FloatMenu>
       </div>
     </div>
   );

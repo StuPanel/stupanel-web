@@ -9,11 +9,11 @@ export function sampleInvoice(studio: DocStudio, opts: { vatOn: boolean; vatPerc
   const total = subtotal - discount + taxAmount;
   const paid = 30000;
   return {
-    kind: "invoice", number: "PRG-0042", issueDate: today.toISOString(),
+    kind: "invoice", number: "INV-1042", issueDate: today.toISOString(),
     dueDate: new Date(new Date(ev(23)).getTime() + opts.dueDays * 864e5).toISOString(),
     state: "partly_paid", currency: opts.currency ?? "BDT", studio,
     client: { name: "Nusrat Jahan & Arif Hossain", phone: "01711-000000", email: "nusrat@example.com" },
-    programName: "Wedding — Gold package", programRef: "PRG-0042",
+    programName: "Wedding — Gold package", programRef: "PRG-1042",
     eventDays: [
       { label: "Holud", date: ev(20), place: "Grand Convention Hall" },
       { label: "Wedding", date: ev(22), place: "Grand Hotel Ballroom" },
@@ -25,14 +25,14 @@ export function sampleInvoice(studio: DocStudio, opts: { vatOn: boolean; vatPerc
       { name: "Drone coverage", description: "Wedding day", qty: 1, rate: 5000, total: 5000 },
     ],
     subtotal, discount, taxLabel: opts.vatLabel, taxPercent: opts.vatOn ? opts.vatPercent : 0, taxAmount, total, paid, due: total - paid,
-    payments: [{ date: today.toISOString(), amount: paid, method: "mobile_banking", receiptNumber: "MR-0007" }],
+    payments: [{ date: today.toISOString(), amount: paid, method: "mobile_banking", receiptNumber: "RCT-1007" }],
     terms: opts.terms || "50% advance confirms the date. The rest is due by the pay-by date. Edited photos are delivered within 30 days of the last event.",
   };
 }
 
 export function sampleReceipt(base: DocData): DocData {
   return {
-    ...base, kind: "receipt", number: "MR-0007", state: undefined,
+    ...base, kind: "receipt", number: "RCT-1007", state: undefined,
     receipt: { amount: 30000, method: "mobile_banking", trxId: "BK7X9Q2M1A", account: "bKash (Studio)", paidSoFar: 30000, dueAfter: base.total - 30000, forText: `${base.programName} (${base.programRef})` },
   };
 }

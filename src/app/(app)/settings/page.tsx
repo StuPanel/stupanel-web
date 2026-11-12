@@ -17,6 +17,7 @@ import { GROUPS, paneById, searchSettings, type PaneId } from "./_registry";
 import { PaneHeader, SettingsCtx, Tile, type Company, type SaveState, type StudioSettings } from "./_ui";
 import { BrandingPane, GeneralPane, OnlinePane } from "./_panes/studio";
 import { CatalogPane, InvoicesPane, PaymentPane, QuotesPane, TaxPane } from "./_panes/money";
+import { NumberingPane } from "./_panes/numbering";
 import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
 import { IntegrationsPane, SecurityPane } from "./_panes/account";
 import { AppearancePane } from "./_panes/appearance";
@@ -27,7 +28,7 @@ import { DeliveryRulesPane, FeaturesPane, TeamPayPane, WorkTypesPane } from "./_
 
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   general: GeneralPane, branding: BrandingPane, online: OnlinePane,
-  payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, tax: TaxPane, catalog: CatalogPane,
+  payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, numbering: NumberingPane, tax: TaxPane, catalog: CatalogPane,
   features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane, watermark: WatermarkPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   whatsapp: () => <WhatsAppTemplates embedded />,

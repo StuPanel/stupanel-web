@@ -367,6 +367,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [companyData, setCompanyData] = useState<any>({});
+  const [nextNumber, setNextNumber] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
@@ -390,6 +391,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       }
       setCompanyData(d);
     }).catch(() => {});
+    // The number this invoice will get (nothing is used up until it is saved).
+    apiFetch(`${API}/numbering`).then(r => (r.ok ? r.json() : null)).then(n => { if (n?.next?.invoice) setNextNumber(n.next.invoice); }).catch(() => {});
   }, []);
 
   const filteredClients = clients.filter(c =>
@@ -455,7 +458,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       bankAccountNumber: companyData?.bankAccountNumber,
       bkashNumber: companyData?.bkashNumber, nagadNumber: companyData?.nagadNumber,
     },
-    invoiceNumber: `${companyData?.invoicePrefix || "INV"}-###`,
+    invoiceNumber: nextNumber || `${companyData?.invoicePrefix || "INV"}-…`,
     issueDate, dueDate: dueDate || undefined, currency,
     clientName: selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName ?? ""}`.trim() : "Client Name",
     clientPhone: selectedClient?.phone, clientEmail: selectedClient?.email,

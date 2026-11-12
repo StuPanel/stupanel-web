@@ -72,7 +72,7 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
           className="fixed z-[80] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] p-1">
           <button role="menuitem" onClick={() => act(onEdit)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit info</button>
           {isOwner && member.memberType !== "freelancer" && (member.login?.invitePending
-            ? <button role="menuitem" onClick={() => act(() => { resendInvite(member); })} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Send className="w-4 h-4 text-[#6B6680]" />Send invite again</button>
+            ? <button role="menuitem" onClick={() => act(() => { resendInvite(member).then(ok => { if (ok) window.dispatchEvent(new Event(TEAM_CHANGED)); }); })} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Send className="w-4 h-4 text-[#6B6680]" />Send invite again</button>
             : <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />{member.login?.shared ? "Send reset link" : "Reset password"}</button>)}
           <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#823072]" : "text-[#1F8A5B]")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
@@ -88,6 +88,9 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
     </>
   );
 }
+
+/** Something in a row menu changed a member (e.g. invite sent again) → reload the list. */
+const TEAM_CHANGED = "team-changed";
 
 // ─── Member row (Apple style) ──────────────────────────────────────────────────
 function rateLine(m: Member, customRoles: string[]) {
@@ -175,6 +178,10 @@ export default function TeamPage() {
   }, []);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => {
+    window.addEventListener(TEAM_CHANGED, fetchMembers);
+    return () => window.removeEventListener(TEAM_CHANGED, fetchMembers);
+  }, [fetchMembers]);
 
   async function toggleStatus(m: Member) {
     await apiFetch(`${API}/team/${m.id}/toggle-status`, { method: "PATCH", headers: { "Content-Type": "application/json" } }).catch(() => {});

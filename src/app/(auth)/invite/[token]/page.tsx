@@ -86,7 +86,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     );
   }
   if (!info) return <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" /></div>;
-  if (declined) return <Message icon="ok" title="Invite declined" text={`We let ${info.studio.name} know nothing — you can simply ignore them. Your account is unchanged.`} />;
+  if (declined) return <Message icon="ok" title="Invite declined" text={`You won't join ${info.studio.name}. If this was a mistake, ask them to send a new invite.`} />;
   if (info.expired) return <Message icon="bad" title="This invite has expired" text={`Invites work for 7 days. Ask ${info.studio.name} to send it again.`} />;
 
   return (

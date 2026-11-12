@@ -150,7 +150,7 @@ export function ProgramPage({
           {(invoices.length > 0 || payments.length > 0) && (
             <RowList>
               {invoices.map(inv => (
-                <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} color="orchid" title={`Invoice ${inv.invoiceNumber}`}
+                <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} color="orchid" title={inv.invoiceNumber}
                   sub={inv.dueDate && Number(inv.balanceDue) > 0 ? `Pay by ${fmtDate(inv.dueDate)}` : fmtDate(inv.issueDate)}
                   amount={money(inv.grandTotal, inv.currency)}
                   amountSub={Number(inv.balanceDue) > 0 ? <span className="text-[#C2304F] font-semibold">{money(inv.balanceDue, inv.currency)} due</span> : <span className="text-[#1F8A5B] font-semibold">Paid</span>}
@@ -170,10 +170,10 @@ export function ProgramPage({
         <Section title={contracts.length > 1 ? "Agreements" : "Agreement"} icon={FileSignature} color="ink">
           <RowList>
             {contracts.map(x => (
-              <DocRow key={x.id} href={`/c/${x.publicToken}`} newTab={false} icon={FileSignature} color="ink" title={x.title} sub={x.contractNumber}
-                amountSub={x.status === "signed"
-                  ? <span className="text-[#1F8A5B] font-semibold">Signed{x.signedAt ? ` ${fmtDate(x.signedAt)}` : ""}</span>
-                  : <span className="text-[#9A5B00] font-semibold">Please sign</span>} />
+              <DocRow key={x.id} href={`/c/${x.publicToken}`} newTab={false} icon={FileSignature} color="ink" title={x.title}
+                sub={x.status === "signed"
+                  ? <span className="text-[#1F8A5B] font-semibold">Signed{x.signedAt ? ` ${fmtDate(x.signedAt)}` : ""} · {x.contractNumber}</span>
+                  : <span className="text-[#9A5B00] font-semibold">Please read and sign · {x.contractNumber}</span>} />
             ))}
           </RowList>
         </Section>

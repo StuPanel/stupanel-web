@@ -31,7 +31,7 @@ const T = {
     lockedTaken: "Your album has started — your choice is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
     seen: (n: number, of: number) => `Seen ${n} of ${of} photos`, seenAll: (n: number) => `You've seen all ${n} photos`,
     resume: "Continue where you left off", resumeSub: (i: number, n: number, a: string) => `Photo ${i} of ${n}${a ? ` · ${a}` : ""}`, resumeGo: "Continue", dismiss: "Dismiss",
-    left: (s: string) => s, tapHint: "Tap ✓ to choose. Open a photo to see it big.", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
+    left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
 type Filter = "all" | "unseen" | "picked" | "important" | "rejected";
@@ -118,6 +118,11 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   /** Only remember a spot once the client has moved (opening the page alone is not "stopping" there). */
   const moved = useRef(false);
   const [flash, setFlash] = useState<string | null>(null);
+  /** Grid: one tap opens the photo, two quick taps choose it. */
+  const tap = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [gridBurst, setGridBurst] = useState<{ id: string; n: number } | null>(null);
+  /** The viewer's tip shows the first time only. */
+  const [hintSeen, setHintSeen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -244,6 +249,25 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     queue.current.set(p.id, { ...(queue.current.get(p.id) ?? { id: p.id }), mark: next });
     schedule();
   }
+  /** Double-tap: choose it (never un-chooses — that's what the ✓ button is for). */
+  function quickChoose(p: GPhoto) {
+    if (!g || locked) return;
+    if (!isPicked(p.m)) mark(p, "selected");
+  }
+  function onCellTap(p: GPhoto, i: number) {
+    if (tap.current?.id === p.id) {
+      clearTimeout(tap.current.timer); tap.current = null;
+      if (locked) { setView(i); return; }
+      quickChoose(p);
+      setGridBurst(b => ({ id: p.id, n: (b?.n ?? 0) + 1 }));
+      navigator.vibrate?.(15);
+      return;
+    }
+    if (tap.current) clearTimeout(tap.current.timer);
+    tap.current = { id: p.id, timer: setTimeout(() => { tap.current = null; setView(i); }, locked ? 0 : 260) };
+  }
+  useEffect(() => () => { if (tap.current) clearTimeout(tap.current.timer); }, []);
+
   function setPhotoNote(p: GPhoto, text: string) {
     setG(x => (x ? { ...x, photos: x.photos.map(y => (y.id === p.id ? { ...y, no: text || null } : y)) } : x));
     queue.current.set(p.id, { ...(queue.current.get(p.id) ?? { id: p.id }), note: text || null });
@@ -428,10 +452,15 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                   <div key={p.id} id={`ph-${p.id}`} data-pid={p.id} style={flash === p.id ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : undefined}
                     className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
                     isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
-                    <button type="button" onClick={() => setView(i)} aria-label={p.n} className="absolute inset-0">
+                    <button type="button" onClick={() => onCellTap(p, i)} aria-label={p.n} className="absolute inset-0 [touch-action:manipulation]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" loading="lazy" decoding="async" draggable={false} onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
                     </button>
+                    {gridBurst?.id === p.id && (
+                      <span key={gridBurst.n} className="sp-burst absolute left-1/2 top-1/2 -ml-8 -mt-8 w-16 h-16 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center shadow-xl" aria-hidden>
+                        <Check className="w-9 h-9" strokeWidth={3} />
+                      </span>
+                    )}
                     {p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#C2304F] text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
                     {p.no && <span className="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow" style={{ color: brand }}><StickyNote className="w-3.5 h-3.5" /></span>}
                     {!locked && (
@@ -480,10 +509,12 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
       {/* Viewer */}
       {g && vp && view !== null && (
-        <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => setView(null)}
+        <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => { setView(null); setHintSeen(true); }}
           src={photoUrl(g.id, vp.id, "v", g.img)}
           preload={[shown[view + 1], shown[view + 2], shown[view - 1]].filter(Boolean).map(p => photoUrl(g.id, p!.id, "v", g.img))}
           title={`${view + 1} ${t.of} ${shown.length}`} sub={albums.find(a => a.id === vp.a)?.name}
+          onDoubleTap={locked ? undefined : () => quickChoose(vp)}
+          hint={!locked && !hintSeen ? t.viewHint : undefined}
           onKey={e => {
             if (locked) return false;
             const k = e.key.toLowerCase();

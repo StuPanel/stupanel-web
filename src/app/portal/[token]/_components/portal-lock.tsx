@@ -10,6 +10,8 @@ import { setPortalSession, waLink } from "@/lib/portal-session";
 export type PortalMeta = {
   active: boolean;
   studio: { name: string; logoUrl?: string | null; whatsapp?: string | null; country?: string | null };
+  /** For "Forgot your code?": the client's name and a studio link to their portal code (needs a studio login). */
+  client?: { name: string; studioLink: string } | null;
 };
 
 /**
@@ -41,11 +43,14 @@ export function PortalLock({ token, kind, meta, onUnlocked }: {
   const lockedFor = retryAt ? Math.max(0, Math.ceil((retryAt - now) / 60000)) : 0;
   const isLocked = !!retryAt && retryAt > now;
 
-  const pageUrl = typeof window !== "undefined" ? window.location.href : "";
+  // A ready message the studio can act on at once: who is asking, and a link that opens
+  // this client's portal code in StuPanel (it needs a studio login).
+  const who = meta?.client?.name ? `\nName: ${meta.client.name}` : "";
+  const open = meta?.client?.studioLink ? `\n\nFor ${studio}: open in StuPanel\n${meta.client.studioLink}` : "";
   const forgotLink = waLink(meta?.studio.whatsapp,
     kind === "retired"
-      ? `Hi ${studio}, my client portal link is no longer active. Could you send me a new link? (${pageUrl})`
-      : `Hi ${studio}, I can't open my client portal — could you send me my access code? (${pageUrl})`);
+      ? `Hi ${studio} 👋\nMy client portal link is no longer active. Could you send me a new one?${who}${open}`
+      : `Hi ${studio} 👋\nI need the access code for my client portal.${who}${open}`);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

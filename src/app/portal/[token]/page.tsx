@@ -480,7 +480,7 @@ function DocRow({ href, icon, color, title, sub, amount, amountSub, chip }: {
       <Tile icon={icon} color={color} size={40} />
       <span className="flex-1 min-w-0">
         <span className="block text-[15px] font-semibold text-[#17151F] truncate">{title}</span>
-        <span className="block text-[12.5px] text-[#6B6680] truncate">{sub}</span>
+        <span className="block text-[12.5px] text-[#6B6680] leading-snug sm:truncate">{sub}</span>
       </span>
       <span className="text-right flex-shrink-0">
         <span className="block text-[15px] font-extrabold text-[#17151F] tabular-nums">{amount}</span>
@@ -669,7 +669,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
               const expired = q.validUntil && new Date(q.validUntil) < new Date() && !["accepted", "rejected"].includes(q.status);
               return (
                 <DocRow key={q.id} href={q.publicToken ? `/q/${q.publicToken}` : undefined} icon={FileText} color="deep" title={q.quoteNumber}
-                  sub={<>{fmtDate(q.createdAt)}{q.validUntil ? <span className={expired ? "text-[#C2304F]" : ""}> · {expired ? "Expired" : `Valid until ${fmtDate(q.validUntil)}`}</span> : null}</>}
+                  sub={<>{fmtDate(q.createdAt)}{q.validUntil ? <span className={cn("block sm:inline", expired ? "text-[#C2304F]" : "")}><span className="hidden sm:inline"> · </span>{expired ? "Expired" : `Valid until ${fmtDate(q.validUntil)}`}</span> : null}</>}
                   amount={`${sym(q.currency)}${num(q.grandTotal)}`} chip={st} />
               );
             })}
@@ -685,7 +685,7 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
               const cs = sym(inv.currency);
               return (
                 <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} color="orchid" title={inv.invoiceNumber}
-                  sub={<>{fmtDate(inv.issueDate)}{inv.dueDate && ` · pay by ${fmtDate(inv.dueDate)}`}</>}
+                  sub={<>{fmtDate(inv.issueDate)}{inv.dueDate && <><span className="hidden sm:inline"> · </span><span className="block sm:inline">Pay by {fmtDate(inv.dueDate)}</span></>}</>}
                   amount={`${cs}${num(inv.grandTotal)}`}
                   amountSub={Number(inv.balanceDue) > 0 ? <span className="text-[#C2304F] font-semibold">{cs}{num(inv.balanceDue)} due</span> : <span className="text-[#1F8A5B] font-semibold">Paid</span>}
                   chip={st} />

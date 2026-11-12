@@ -174,7 +174,7 @@ export function Chips<T extends string>({ value, onChange, options, label }: {
       {options.map(o => {
         const on = o.value === value;
         return (
-          <button key={o.value} role="tab" aria-selected={on} type="button" onClick={() => onChange(o.value)}
+          <button key={o.value} role="tab" aria-selected={on} type="button" onClick={e => { onChange(o.value); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }}
             className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0",
               on ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] hover:text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
             {o.dot && <span className="w-2 h-2 rounded-full" style={{ background: o.dot }} />}

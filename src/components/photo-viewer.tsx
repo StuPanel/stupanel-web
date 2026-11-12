@@ -3,24 +3,37 @@
 /**
  * Full-screen photo viewer for photo selection (studio and client).
  * Swipe / arrow keys / buttons for the previous and next photo, Esc to close,
+ * double-tap (double-click) the photo for the page's quick action (e.g. choose it),
  * the next photos are loaded ahead so flipping feels instant.
  * The page passes the bar below the photo (mark buttons, notes…) as `footer`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function PhotoViewer({ count, index, onIndex, onClose, src, preload, title, sub, footer, top, onKey }: {
+export function PhotoViewer({ count, index, onIndex, onClose, src, preload, title, sub, footer, top, onKey, onDoubleTap, hint }: {
   count: number; index: number; onIndex: (i: number) => void; onClose: () => void;
   src: string; preload?: string[]; title: string; sub?: React.ReactNode;
   footer?: React.ReactNode; top?: React.ReactNode;
   /** Extra keys (e.g. S = select). Return true when handled. */
   onKey?: (e: KeyboardEvent) => boolean;
+  /** Double-tap / double-click on the photo (a check pops up). */
+  onDoubleTap?: () => void;
+  /** A short tip shown for a moment when the viewer opens. */
+  hint?: string;
 }) {
   const [loaded, setLoaded] = useState<string | null>(null);
   const [dx, setDx] = useState(0);
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
   const drag = useRef(0);
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const [burst, setBurst] = useState(0);
+  const doubleTap = useCallback(() => {
+    if (!onDoubleTap) return;
+    onDoubleTap();
+    setBurst(b => b + 1);
+    navigator.vibrate?.(15);
+  }, [onDoubleTap]);
   const prev = useCallback(() => { if (index > 0) onIndex(index - 1); }, [index, onIndex]);
   const next = useCallback(() => { if (index < count - 1) onIndex(index + 1); }, [index, count, onIndex]);
 
@@ -65,10 +78,19 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, preload, titl
     const x = t.clientX - start.current.x, y = t.clientY - start.current.y;
     if (Math.abs(x) > Math.abs(y)) { drag.current = x; setDx(x); }
   };
-  const onTouchEnd = () => {
+  const onTouchEnd = (e: React.TouchEvent) => {
     const s = start.current; start.current = null;
     const d = drag.current; drag.current = 0;
     if (!s) return;
+    // A quick tap that didn't move: two of them close together = double-tap
+    const t = e.changedTouches[0];
+    if (t && Math.abs(d) < 10 && Date.now() - s.t < 250) {
+      const l = lastTap.current;
+      if (l && Date.now() - l.t < 320 && Math.hypot(t.clientX - l.x, t.clientY - l.y) < 40) {
+        lastTap.current = null; e.preventDefault(); doubleTap(); setDx(0); return;
+      }
+      lastTap.current = { t: Date.now(), x: t.clientX, y: t.clientY };
+    } else lastTap.current = null;
     const fast = Math.abs(d) > 30 && Math.abs(d) / Math.max(1, Date.now() - s.t) > 0.4;
     if (d < -80 || (fast && d < 0)) next();
     else if (d > 80 || (fast && d > 0)) prev();
@@ -86,11 +108,18 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, preload, titl
         <span className="text-[13px] text-white/70 tabular-nums">{index + 1} / {count}</span>
         {top}
       </div>
-      <div className="relative flex-1 min-h-0 select-none" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <div className="relative flex-1 min-h-0 select-none [touch-action:pan-y_pinch-zoom]" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        onDoubleClick={onDoubleTap ? doubleTap : undefined}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img key={src} src={src} alt={title} draggable={false} onLoad={() => setLoaded(src)} onContextMenu={e => e.preventDefault()}
           className={cn("absolute inset-0 m-auto max-w-full max-h-full object-contain transition-opacity duration-200", loaded === src ? "opacity-100" : "opacity-0")}
           style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? "none" : undefined }} />
+        {burst > 0 && (
+          <span key={burst} className="sp-burst absolute left-1/2 top-1/2 -ml-12 -mt-12 w-24 h-24 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center shadow-2xl" aria-hidden>
+            <Check className="w-14 h-14" strokeWidth={3} />
+          </span>
+        )}
+        {hint && <span className="sp-hint absolute left-1/2 -translate-x-1/2 bottom-4 px-4 py-2 rounded-full bg-black/60 backdrop-blur text-[13px] text-white whitespace-nowrap">{hint}</span>}
         {loaded !== src && <Loader2 className="absolute left-1/2 top-1/2 -ml-4 -mt-4 w-8 h-8 animate-spin text-white/50" />}
         {index > 0 && (
           <button type="button" onClick={prev} aria-label="Previous photo"

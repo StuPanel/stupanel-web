@@ -512,3 +512,9 @@ html:not([data-backdrop="plain"]) .sp-shell main :where([class~="bg-white"]):whe
 .sp-form :is(input, textarea)::placeholder { color: #A29DB3; }
 .sp-form :is(input, select) { min-width: 0; }
 .sp-form :is([class*="bg-[#F7F5FB]"], [class*="bg-[#F7F4FE]"], [class*="bg-[#F5F3FA]"]) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { background-color: #fff !important; }
+
+/* Double-tap to choose: a check that pops up and fades (photo selection) */
+@keyframes sp-burst { 0% { opacity: 0; transform: scale(.4) } 25% { opacity: 1; transform: scale(1.15) } 45% { transform: scale(.95) } 70% { opacity: 1; transform: scale(1) } 100% { opacity: 0; transform: scale(1.1) } }
+.sp-burst { animation: sp-burst .8s ease-out forwards; pointer-events: none; }
+@keyframes sp-hint { 0%, 80% { opacity: 1 } 100% { opacity: 0 } }
+.sp-hint { animation: sp-hint 3.2s ease-out forwards; pointer-events: none; }

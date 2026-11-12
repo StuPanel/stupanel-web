@@ -6,6 +6,7 @@
  *   - a page header = big tile + title + one line, actions on the right
  */
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -169,12 +170,22 @@ export function Chips<T extends string>({ value, onChange, options, label }: {
   value: T; onChange: (v: T) => void; label: string;
   options: { value: T; label: string; count?: number; dot?: string }[];
 }) {
+  // Keep the picked chip in view on narrow screens (after the render, so nothing cancels the scroll).
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Sideways only — never moves the page up or down.
+    const box = list.current, on = box?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!box || !on) return;
+    const b = box.getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (r.left < b.left) box.scrollLeft -= b.left - r.left + 8;
+    else if (r.right > b.right) box.scrollLeft += r.right - b.right + 8;
+  }, [value]);
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-4 [scrollbar-width:none]">
+    <div ref={list} role="tablist" aria-label={label} className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-4 [scrollbar-width:none]">
       {options.map(o => {
         const on = o.value === value;
         return (
-          <button key={o.value} role="tab" aria-selected={on} type="button" onClick={e => { onChange(o.value); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }}
+          <button key={o.value} role="tab" aria-selected={on} type="button" onClick={() => onChange(o.value)}
             className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0",
               on ? "bg-[#16141D] text-white" : "bg-white text-[#4A4658] hover:text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]")}>
             {o.dot && <span className="w-2 h-2 rounded-full" style={{ background: o.dot }} />}

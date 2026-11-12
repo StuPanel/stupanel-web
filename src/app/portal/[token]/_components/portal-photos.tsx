@@ -10,11 +10,12 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, CalendarClock, Check, CheckCircle2, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
+  ArrowLeft, CalendarClock, Check, CheckCircle2, Eye, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portalPhotoApi, type SelectApi } from "@/lib/select-api";
 import { PhotoViewer } from "@/components/photo-viewer";
+import { useSeen } from "./use-seen";
 import { albumProgress, apiUrl, isPicked, photoUrl, timeLeft, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
 const T = {
@@ -28,6 +29,8 @@ const T = {
     anyNote: "Anything else for the studio? (optional)", send: "Send to the studio", sending: "Sending…", sendHint: "You can still change your choice until the studio starts the album.",
     thanks: "Sent! Thank you", thanksSub: "The studio will start your album. Until then you can still change your choice here.", backToPhotos: "Back to my photos", close: "Close",
     lockedTaken: "Your album has started — your choice is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
+    seen: (n: number, of: number) => `Seen ${n} of ${of} photos`, seenAll: (n: number) => `You've seen all ${n} photos`,
+    resume: "Continue where you left off", resumeSub: (i: number, n: number, a: string) => `Photo ${i} of ${n}${a ? ` · ${a}` : ""}`, resumeGo: "Continue", dismiss: "Dismiss",
     left: (s: string) => s, tapHint: "Tap ✓ to choose. Open a photo to see it big.", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -111,6 +114,10 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const noteDirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  /** Only remember a spot once the client has moved (opening the page alone is not "stopping" there). */
+  const moved = useRef(false);
+  const [flash, setFlash] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -176,6 +183,53 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     filter === "all" ? true : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inAlbum, filter]);
   const highlights = useMemo(() => inAlbum.filter(p => p.hl), [inAlbum]);
   const locked = !g?.canChange;
+  const { isSeen, version, resume, clearResume, markSeen, setLast } = useSeen(g?.id);
+  const seenIn = useMemo(() => inAlbum.filter(p => p.m || isSeen(p.id)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inAlbum, isSeen, version]);
+  const resumeAt = useMemo(() => {
+    if (!g || !resume || locked) return null;
+    const list = g.photos.filter(p => p.a === resume.a);
+    const i = list.findIndex(p => p.id === resume.p);
+    // Near the top there is nothing to continue from.
+    return i >= 12 ? { photo: list[i], i, n: list.length, album: albums.find(a => a.id === resume.a)?.name ?? "" } : null;
+  }, [g, resume, locked, albums]);
+
+  // Photos that come into view count as seen; the top one on screen is where they are.
+  useEffect(() => {
+    const root = mainRef.current;
+    if (!root || !g || !current) return;
+    const visible = new Set<string>();
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        const id = (e.target as HTMLElement).dataset.pid!;
+        if (e.isIntersecting) visible.add(id); else visible.delete(id);
+      }
+      if (t) clearTimeout(t);
+      t = setTimeout(() => {
+        if (!visible.size) return;
+        markSeen([...visible]);
+        if (moved.current && filter === "all") {
+          const top = shown.find(p => visible.has(p.id));
+          if (top) setLast({ a: current.id, p: top.id });
+        }
+      }, 350);
+    }, { root, threshold: 0.6 });
+    root.querySelectorAll<HTMLElement>("[data-pid]").forEach(el => io.observe(el));
+    return () => { io.disconnect(); if (t) clearTimeout(t); };
+  }, [g, current, shown, filter, markSeen, setLast]);
+
+  function goResume() {
+    if (!resumeAt) return;
+    moved.current = true;
+    setAlbum(resumeAt.photo.a); setFilter("all"); clearResume();
+    setTimeout(() => {
+      document.getElementById(`ph-${resumeAt.photo.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      setFlash(resumeAt.photo.id);
+      setTimeout(() => setFlash(null), 2200);
+    }, 60);
+  }
 
   function mark(p: GPhoto, m: Mark) {
     if (!g || locked) return;
@@ -218,6 +272,12 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const left = g && (g.status === "open" || g.status === "submitted") ? timeLeft(g.deadline) : null;
   const totalPicked = (g?.photos ?? []).filter(p => isPicked(p.m)).length;
   const vp = view !== null ? shown[view] : null;
+  useEffect(() => {
+    if (!vp) return;
+    markSeen([vp.id]);
+    moved.current = true;
+    setLast({ a: vp.a, p: vp.id });
+  }, [vp, markSeen, setLast]);
   const filters: { id: Filter; label: string; n: number }[] = [
     { id: "all", label: t.all, n: inAlbum.length },
     { id: "unseen", label: t.unseen, n: inAlbum.filter(p => !p.m).length },
@@ -264,7 +324,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainRef} onScroll={() => { moved.current = true; }} className="flex-1 overflow-y-auto">
         {!g ? (
           failed ? <p className="text-center text-[#6B6680] py-20 px-6">{failText ?? "Could not open — please try again."}</p>
             : <div className="max-w-6xl mx-auto p-4 grid grid-cols-3 sm:grid-cols-5 gap-1.5">{Array.from({ length: 15 }).map((_, i) => <div key={i} className="sp-skel aspect-square rounded-xl" />)}</div>
@@ -323,6 +383,33 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
               </div>
             )}
 
+            {/* Continue where you left off */}
+            {resumeAt && (
+              <div className="mt-1 mb-3 rounded-2xl bg-white p-2.5 pr-3 shadow-sm flex items-center gap-3 sp-pop-in">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl(g.id, resumeAt.photo.id, "t", g.img)} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" onContextMenu={e => e.preventDefault()} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold text-[#17151F] truncate">{t.resume}</p>
+                  <p className="text-[12.5px] text-[#6B6680] truncate">{t.resumeSub(resumeAt.i + 1, resumeAt.n, albums.length > 1 ? resumeAt.album : "")}</p>
+                </div>
+                <button type="button" onClick={goResume} className="h-10 px-4 rounded-full text-white text-[13.5px] font-semibold flex-shrink-0 hover:opacity-90" style={{ backgroundColor: brand }}>{t.resumeGo}</button>
+                <button type="button" onClick={clearResume} aria-label={t.dismiss} className="w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F1EFF6] flex-shrink-0"><X className="w-4 h-4" /></button>
+              </div>
+            )}
+
+            {/* How many photos they have looked at */}
+            {!locked && inAlbum.length > 0 && (
+              <div className="mt-1 mb-1 flex items-center gap-3">
+                <p className={cn("text-[12.5px] font-semibold flex items-center gap-1.5 flex-shrink-0", seenIn >= inAlbum.length ? "text-[#1F8A5B]" : "text-[#4A4658]")}>
+                  {seenIn >= inAlbum.length ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span className="tabular-nums">{seenIn >= inAlbum.length ? t.seenAll(inAlbum.length) : t.seen(seenIn, inAlbum.length)}</span>
+                </p>
+                <span className="flex-1 h-1 rounded-full bg-[#E9E6F0] overflow-hidden" aria-hidden>
+                  <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.round((seenIn / inAlbum.length) * 100)}%`, backgroundColor: seenIn >= inAlbum.length ? "#1F8A5B" : brand }} />
+                </span>
+              </div>
+            )}
+
             {/* Filters */}
             <div className="flex gap-1.5 overflow-x-auto -mx-3 px-3 py-2 sticky top-0 z-10 bg-[#F7F6FA]/90 backdrop-blur [scrollbar-width:none]">
               {filters.map(f => (
@@ -338,7 +425,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             {shown.length === 0 ? <p className="text-center text-[#8A8599] py-16 text-sm">{t.none}</p> : (
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1 sm:gap-2">
                 {shown.map((p, i) => (
-                  <div key={p.id} className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
+                  <div key={p.id} id={`ph-${p.id}`} data-pid={p.id} style={flash === p.id ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : undefined}
+                    className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
                     isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
                     <button type="button" onClick={() => setView(i)} aria-label={p.n} className="absolute inset-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}

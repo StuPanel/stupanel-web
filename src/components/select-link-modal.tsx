@@ -80,7 +80,7 @@ export function SelectLinkModal({ title, what, client, link, onSet, message, onP
                   </button>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className={`${btn} flex-1 bg-[#1F8A5B] hover:bg-[#18724A] text-white`}><MessageCircle className="w-4 h-4" />Send on WhatsApp</a>}
+                  {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className={`${btn} flex-1 bg-[#1F8A5B] hover:bg-[#18724A] text-white`}><MessageCircle className="w-4 h-4 flex-shrink-0" /><span className="whitespace-nowrap">WhatsApp</span></a>}
                   <button type="button" onClick={() => run("new")} disabled={!!busy} className={`${btn} bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F]`}>
                     {busy === "new" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}New link
                   </button>

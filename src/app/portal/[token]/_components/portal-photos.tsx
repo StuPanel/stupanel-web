@@ -33,8 +33,12 @@ const T = {
 
 type Filter = "all" | "unseen" | "picked" | "important" | "rejected";
 
-export function PortalPhotos({ token, galleries, brand, onChanged }: { token: string; galleries: ClientGalleryCard[]; brand: string; onChanged: () => void }) {
-  const [open, setOpen] = useState<string | null>(null);
+export function PortalPhotos({ token, galleries, brand, onChanged, autoOpen }: {
+  token: string; galleries: ClientGalleryCard[]; brand: string; onChanged: () => void;
+  /** Open this gallery's chooser right away (from the to-do list). */
+  autoOpen?: string;
+}) {
+  const [open, setOpen] = useState<string | null>(autoOpen && galleries.some(g => g.id === autoOpen) ? autoOpen : null);
   const chooserApi = useMemo(() => (open ? portalPhotoApi(token, open) : null), [token, open]);
   const t = T;
   return (
@@ -79,8 +83,10 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
 }
 
 /** The full-screen chooser. Without onClose (a direct link) there is nothing to go back to, so no close button. */
-export function Chooser({ api, brand, onClose, onLoaded, failText, after }: {
+export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, after }: {
   api: SelectApi; brand: string; onClose?: () => void; onLoaded?: (g: ClientGallery) => void;
+  /** It could not open (e.g. a link that was turned off) — the page shows its own message. */
+  onFailed?: () => void;
   /** Shown when it can't open (e.g. a link that was turned off). */
   failText?: string;
   /** Extra line under the "Sent!" buttons (e.g. a link to the client portal). */
@@ -113,8 +119,8 @@ export function Chooser({ api, brand, onClose, onLoaded, failText, after }: {
       const d: ClientGallery = await r.json();
       setG(d); onLoaded?.(d); setNote(d.clientNote ?? ""); setAsked(!!d.reopenRequestedAt);
       setAlbum(a => a || d.albums[0]?.id || "");
-    } catch { setFailed(true); }
-  }, [api, onLoaded]);
+    } catch { setFailed(true); onFailed?.(); }
+  }, [api, onLoaded, onFailed]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     document.documentElement.classList.add("sp-locked");

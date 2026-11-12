@@ -6,20 +6,24 @@
  * The link opens only this one selection.
  */
 import { use, useCallback, useMemo, useState } from "react";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Link2Off } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import { linkPhotoApi } from "@/lib/select-api";
 import type { ClientGallery } from "@/lib/photos";
 import { Chooser } from "@/app/portal/[token]/_components/portal-photos";
 import { PortalLink, type LinkBrand } from "@/components/public/portal-link";
+import { PublicMessage } from "@/components/public/public-shell";
 
 export default function PhotoLinkPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const api = useMemo(() => linkPhotoApi(token), [token]);
   const [brand, setBrand] = useState<LinkBrand | null>(null);
   const loaded = useCallback((g: ClientGallery) => setBrand((g as ClientGallery & { brand?: LinkBrand }).brand ?? null), []);
+  const [failed, setFailed] = useState(false);
+  const fail = useCallback(() => setFailed(true), []);
+  if (failed) return <PublicMessage icon={Link2Off} tone="red" title="This link is not working" text="Please ask the studio for a new one." />;
   return (
-    <Chooser api={api} brand={BRAND} onLoaded={loaded}
+    <Chooser api={api} brand={BRAND} onLoaded={loaded} onFailed={fail}
       failText="This link is not working. Please ask the studio for a new one."
       after={brand?.portalUrl ? <PortalLink url={brand.portalUrl} icon={LayoutGrid} /> : null} />
   );

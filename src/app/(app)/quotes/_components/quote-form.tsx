@@ -150,7 +150,8 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
       return [...ds, ...want.filter(n => !have.has(n.toLowerCase())).map(n => makeDay(n, ds[ds.length - 1]?.location ?? ""))];
     });
     const what = summaryLines(p);
-    const desc = [names.length ? names.join(" + ") : "", what.length ? what.join(" · ") : (p.deliverablesDescription ?? "")].filter(Boolean).join(" — ");
+    // One point per line: the days, then what the client gets.
+    const desc = [names.length ? names.join(" + ") : "", ...(what.length ? what : [p.deliverablesDescription ?? ""])].filter(Boolean).join("\n");
     const line: QLine = lineOf({ id: uid(), name: `${p.name} package`, description: desc.slice(0, 1000), qty: 1, unitPrice: num(p.basePrice), total: 0, isPackageBase: true, kind: "package" });
     setLines(ls => [line, ...ls.filter(l => l.kind !== "package")]);
     if (p.currency) setCurrency(p.currency);
@@ -389,7 +390,9 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
                               {l.kind === "package" && <span className="hidden sm:inline text-[11px] font-bold text-[#5B3FD0] bg-[#EEE8FD] px-2 py-0.5 rounded-full">Package</span>}
                               {l.kind === "extra" && <span className="hidden sm:inline text-[11px] font-bold text-[#126B66] bg-[#E3F2F1] px-2 py-0.5 rounded-full">Extra</span>}
                             </div>
-                            <input value={l.description ?? ""} onChange={e => setLine(l.id, { description: e.target.value })} placeholder="Details for the client (optional)" aria-label="Line details" className={cn(smallIn, "w-full h-9 text-[13px]")} />
+                            <textarea value={l.description ?? ""} onChange={e => setLine(l.id, { description: e.target.value })} placeholder="Details for the client (optional) — one point per line" aria-label="Line details"
+                              rows={Math.min(8, Math.max(1, (l.description ?? "").split("\n").length))}
+                              className={cn(smallIn, "w-full h-auto min-h-9 py-2 text-[13px] leading-relaxed resize-y")} />
                             {perDay && (
                               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                                 <span className="text-[12px] text-[#6B6680] mr-0.5">Which days:</span>

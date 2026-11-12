@@ -71,7 +71,7 @@ export function PortalPane() {
 // ─── Notifications ────────────────────────────────────────────────────────────
 type Prefs = { studio: Record<string, boolean>; client: Record<string, boolean>; team: Record<string, boolean> };
 const DEF: Prefs = {
-  studio: { onNewBooking: true, onBookingConfirmed: true, onBookingCancelled: true, onPaymentReceived: true, onInvoicePaid: true, onNewClient: false, onDeliveryUploaded: false },
+  studio: { onNewBooking: true, onBookingConfirmed: true, onBookingCancelled: true, onPaymentReceived: true, onInvoicePaid: false, onNewClient: false, onDeliveryUploaded: false },
   client: { sendBookingConfirmation: true, sendInvoiceEmail: true, sendPaymentReceipt: true, sendDeliveryReady: true, sendQuoteEmail: true },
   team: { onAssigned: true, onEditorAssigned: true },
 };
@@ -105,7 +105,7 @@ export function NotificationsPane() {
 
   return (
     <>
-      <Group title="Emails to you" note={`Sent to ${data.email ?? "your studio email"}.`}>
+      <Group title="Emails to you" note={`Sent to ${data.email ?? "your studio email"} when someone else does it — a manager, a team member or the client. Not for things you do yourself.`}>
         {STUDIO_ROWS.map(r => (
           <Row key={r.key} id={`n-${r.key}`} label={r.label}>
             <Switch label={r.label} on={prefs.studio[r.key]} onChange={v => toggle("studio", r.key, v)} />

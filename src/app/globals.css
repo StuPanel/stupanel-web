@@ -303,7 +303,8 @@ body {
   .sp-drawer.sp-closing { animation: sp-drawer-out .22s cubic-bezier(.4, 0, 1, 1) both; }
 }
 .sp-backdrop.sp-closing { animation: sp-fade-out .24s ease both; }
-html.sp-locked, html.sp-locked body { overflow: hidden; }
+/* Lock only the page scroller: hiding body overflow too (html and body are h-full) threw away the scroll position. */
+html.sp-locked { overflow: hidden; }
 
 /* Toast: top centre, white pill */
 .sp-toast {

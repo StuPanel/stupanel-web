@@ -161,7 +161,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
             {q.status === "draft" && <PillButton tone="primary" icon={sending ? Loader2 : Send} onClick={sendQuote} disabled={sending}>Send</PillButton>}
             {["draft","rejected"].includes(q.status) && <PillButton icon={Edit2} onClick={onEdit}>Edit</PillButton>}
             {q.status !== "draft" && <PillButton icon={MessageCircle} onClick={shareWA}>WhatsApp</PillButton>}
-            {q.convertedBookingId && <PillButton tone="primary" icon={ArrowRight} href={`/programs?view=${q.convertedBookingId}`}>Open program</PillButton>}
+            {q.convertedBookingId && <PillButton tone="primary" icon={ArrowRight} href={`/programs?view=${q.convertedBookingId}`}>{q.convertedBookingNumber ? `Open ${q.convertedBookingNumber}` : "Open program"}</PillButton>}
             <PillButton icon={Eye} href={publicUrl} external>Preview</PillButton>
           </div>
 

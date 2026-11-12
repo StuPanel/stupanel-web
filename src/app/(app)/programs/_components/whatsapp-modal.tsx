@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
 import type { Booking } from "./types";
 import { waNumber } from "@/lib/phone";
+import { DUE_CATEGORY } from "@/lib/due-reminder";
 
 interface WaTemplate { id: string; name: string; category: string; body: string; }
 
@@ -31,7 +32,8 @@ export function WhatsAppModal({ booking, onClose, preferCategory }: {
     setPhone(booking.client?.phone ?? "");
     apiFetch(`${API}/wa-templates`)
       .then(r => r.json()).then(d => {
-        const list: WaTemplate[] = Array.isArray(d) ? d : [];
+        // The due reminder is per client (Payments → Due), not for one program.
+        const list: WaTemplate[] = (Array.isArray(d) ? d : []).filter((t: WaTemplate) => t.category !== DUE_CATEGORY);
         setTemplates(list);
         const pick = preferCategory && list.find(t => t.category === preferCategory);
         if (pick) fillTemplate(pick.id);

@@ -5,6 +5,7 @@ import { MessageCircle, Send, Loader2, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { portalHeaders } from "@/lib/portal-session";
+import { fmtDate } from "@/lib/format";
 
 function fmtTime(iso: string) {
   const d = new Date(iso);
@@ -67,7 +68,7 @@ export function PortalChat({ token, brand, companyName }: { token: string; brand
 
   const groupedMessages: { date: string; msgs: DMMessage[] }[] = [];
   for (const msg of messages) {
-    const dateKey = new Date(msg.createdAt).toLocaleDateString("en-BD", { day: "2-digit", month: "short", year: "numeric" });
+    const dateKey = fmtDate(msg.createdAt);
     const last = groupedMessages[groupedMessages.length - 1];
     if (last && last.date === dateKey) last.msgs.push(msg);
     else groupedMessages.push({ date: dateKey, msgs: [msg] });

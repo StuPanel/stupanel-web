@@ -87,10 +87,11 @@ const QUOTE_STATUS: Record<string, { label: string; color: string }> = {
   accepted: { label: "Accepted", color: "bg-[#E7F5EE] text-[#1F8A5B]" },
   rejected: { label: "Rejected", color: "bg-[#FDECEF] text-[#C2304F]" },
   expired:  { label: "Expired",  color: "bg-[#FFF3E0] text-[#9A5B00]" },
+  converted: { label: "Booked",  color: "bg-[#E7F5EE] text-[#1F8A5B]" },
 };
 
 const INV_STATUS: Record<string, { label: string; color: string }> = {
-  draft:          { label: "Draft",          color: "bg-[#F1EFF6] text-[#4A4658]" },
+  draft:          { label: "Due",            color: "bg-[#FDECEF] text-[#C2304F]" },
   sent:           { label: "Sent",           color: "bg-[#E8F0FA] text-[#1F5C99]" },
   viewed:         { label: "Viewed",         color: "bg-[#F7E9F4] text-[#9E3A8C]" },
   paid:           { label: "Paid",           color: "bg-[#E7F5EE] text-[#1F8A5B]" },

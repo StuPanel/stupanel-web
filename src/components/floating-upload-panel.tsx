@@ -129,7 +129,7 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   }
 
   const leftBytes = unfinished.reduce((s, p) => s + p.size, 0);
-  // Where the unfinished files were going, e.g. "AKA-NOV26-0004 › Holud / Md Bappy".
+  // Where the unfinished files were going, e.g. "PRG-1007 › Holud / Md Bappy".
   const places = [...new Set(unfinished.map(p => [p.bookingName, p.folderPath?.split("/").slice(0, 2).join(" / ")].filter(Boolean).join(" › ")).filter(Boolean))];
 
   return (

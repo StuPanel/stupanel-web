@@ -73,9 +73,6 @@ export function QuotesPane() {
 // ─── Invoices ─────────────────────────────────────────────────────────────────
 export function InvoicesPane() {
   const { data, patch } = useSettings();
-  const pfx = (data.invoicePrefix || "INV").trim();
-  const start = Number(data.invoiceStartNumber ?? 1);
-  const pad = (n: number) => String(n).padStart(3, "0");
 
   return (
     <>
@@ -96,13 +93,10 @@ export function InvoicesPane() {
         </Row>
       </Group>
 
-      <Group title="Numbering" note={<>A program&apos;s invoice uses the program number. Invoices made by hand (album, prints…): <span className="font-semibold text-[#17151F] tabular-nums">{pfx}-{pad(start)}, {pfx}-{pad(start + 1)}…</span></>}>
-        <Row id="invoicePrefix" label="Prefix" hint="Letters before the number, like INV or SP">
-          <TextField label="Invoice prefix" value={data.invoicePrefix ?? "INV"} maxLength={20} mono align="right" onCommit={v => patch({ invoicePrefix: v || "INV" })} />
-        </Row>
-        <Row id="invoiceStartNumber" label="Starting number">
-          <NumberField label="Starting number" value={start} min={1} max={999999} onCommit={v => patch({ invoiceStartNumber: v })} />
-        </Row>
+      <Group title="Numbering" note="Codes and starting numbers for invoices, programs, quotes, receipts and agreements.">
+        <Link href="/settings?pane=numbering" className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-[#F7F5FB] text-sm font-semibold text-[#17151F]">
+          <span className="flex-1">Open Numbering</span><ChevronRight className="w-4 h-4 text-[#A29DB3]" />
+        </Link>
       </Group>
     </>
   );

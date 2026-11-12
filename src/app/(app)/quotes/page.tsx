@@ -60,7 +60,7 @@ interface Quote {
   advanceRequired: number; validUntil?: string; notes?: string; termsAndConditions?: string;
   publicToken: string; sentAt?: string; viewedAt?: string; lastViewedAt?: string;
   viewCount: number; acceptedAt?: string; rejectedAt?: string; convertedAt?: string;
-  convertedBookingId?: string; items: QuoteItem[];
+  convertedBookingId?: string; convertedBookingNumber?: string | null; items: QuoteItem[];
   client: Client; program?: { name: string; category?: string };
   viewLogs?: ViewLog[];
   versions?: { id: string; version: number; createdAt: string }[];
@@ -172,7 +172,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
               <div className="min-w-0">
                 <p className="text-[14px] font-bold text-[#14613F]">The client accepted</p>
                 <p className="text-[12.5px] text-[#1F8A5B] mt-0.5">{fmtDateTime(q.acceptedAt)}</p>
-                <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? "It's now a program." : "Tap Confirm booking to make it a program and record the advance."}</p>
+                <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? (q.convertedBookingNumber ? `Booked as ${q.convertedBookingNumber}.` : "It's now a program.") : "Tap Confirm booking to make it a program and record the advance."}</p>
               </div>
             </div>
           )}

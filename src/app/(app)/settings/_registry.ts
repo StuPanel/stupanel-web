@@ -6,12 +6,12 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Stamp,
+  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Stamp,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
-  | "payment" | "quotes" | "invoices" | "tax" | "catalog"
+  | "payment" | "quotes" | "invoices" | "numbering" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery" | "watermark"
   | "bookings" | "portal" | "notifications" | "whatsapp"
   | "profile" | "appearance" | "security" | "integrations";
@@ -39,7 +39,8 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     panes: [
       { id: "payment", title: "Payment Methods", sub: "How clients pay you — shown on quotes and invoices", icon: CreditCard, color: C.green, keywords: "bank bkash nagad" },
       { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote" },
-      { id: "invoices", title: "Invoices", sub: "Invoice designer, due date and numbering", icon: Receipt, color: C.orchid, keywords: "invoice" },
+      { id: "invoices", title: "Invoices", sub: "Invoice designer and due date", icon: Receipt, color: C.orchid, keywords: "invoice" },
+      { id: "numbering", title: "Numbering", sub: "Codes and numbers for programs, invoices, quotes, receipts and agreements", icon: Hash, color: C.ink, keywords: "number prefix code serial id PRG INV QT RCT AGR" },
       { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat" },
       { id: "catalog", title: "Service Catalog", sub: "Ready-made services for quick invoice lines", icon: BookOpen, color: C.teal, keywords: "services price" },
     ],
@@ -135,8 +136,12 @@ export const ENTRIES: Entry[] = [
   // Invoices
   { id: "invoiceDesign", pane: "invoices", section: "Design", label: "Invoice designer", keywords: "template design colour color font logo signature paper size a4 a5 pos vat look" },
   { id: "invoiceDueDays", pane: "invoices", section: "Payment", label: "Payment due", keywords: "due days deadline last event" },
-  { id: "invoicePrefix", pane: "invoices", section: "Numbering", label: "Invoice prefix", keywords: "number INV" },
-  { id: "invoiceStartNumber", pane: "invoices", section: "Numbering", label: "Starting number", keywords: "number serial" },
+  { id: "num-program", pane: "numbering", section: "Programs and invoices", label: "Program code", keywords: "number PRG id" },
+  { id: "invoicePrefix", pane: "numbering", section: "Programs and invoices", label: "Invoice code", keywords: "number INV prefix" },
+  { id: "num-program-start", pane: "numbering", section: "Programs and invoices", label: "Program and invoice starting number", keywords: "number serial start" },
+  { id: "num-quote", pane: "numbering", section: "Quotations", label: "Quote code", keywords: "number QT" },
+  { id: "num-receipt", pane: "numbering", section: "Money receipts", label: "Receipt code", keywords: "number RCT MR" },
+  { id: "num-agreement", pane: "numbering", section: "Agreements", label: "Agreement code", keywords: "number AGR contract" },
 
   // Tax
   { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label" },

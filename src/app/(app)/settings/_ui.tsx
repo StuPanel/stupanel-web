@@ -35,6 +35,8 @@ export type StudioSettings = {
   studioRates: { roleId: string; rateType: string; rate: number; withSetup?: number; workType?: string; label?: string }[];
   /** The backdrop for the whole studio (null = not chosen yet). */
   appearance?: { backdrop: "violet" | "golden" | "mehendi" | "lagoon" | "plain" | null };
+  /** Codes and starting numbers for programs, quotes, receipts and agreements (the invoice code is invoicePrefix). */
+  numbering?: Record<"program" | "quote" | "receipt" | "agreement", { prefix: string; start: number }>;
 };
 type PatchStudio = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => Promise<boolean>;
 

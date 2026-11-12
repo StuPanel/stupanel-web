@@ -11,8 +11,7 @@ import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, ExternalLink, Loader2, Lock, Music2, Play, Plus, Send, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-import { portalHeaders } from "@/lib/portal-session";
+import { portalMusicApi, type SelectApi } from "@/lib/select-api";
 import { embedUrl, type ClientMusic, type MusicPick, type MusicSong } from "@/lib/music";
 
 const T = {
@@ -44,8 +43,12 @@ function Thumb({ song, onPlay, playing, label }: { song: MusicSong; onPlay: () =
   );
 }
 
-export function PortalMusic({ token, music, brand, onChanged }: { token: string; music: ClientMusic; brand: string; onChanged: () => void }) {
-  const [open, setOpen] = useState(false);
+/** The music card. Inside the portal it uses the portal link; a direct link (/m/…) passes its own api and opens at once. */
+export function PortalMusic({ token, api, music, brand, onChanged, autoOpen }: {
+  token?: string; api?: SelectApi; music: ClientMusic; brand: string; onChanged: () => void; autoOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(!!autoOpen);
+  const sheetApi = useMemo(() => api ?? portalMusicApi(token ?? "", music.bookingId), [api, token, music.bookingId]);
   const t = T;
   const sent = music.status === "submitted";
 
@@ -68,14 +71,14 @@ export function PortalMusic({ token, music, brand, onChanged }: { token: string;
         </button>
       </div>
       {/* On the page itself — inside the program card a transform would trap the full-screen sheet. */}
-      {open && createPortal(<MusicSheet token={token} music={music} brand={brand}
+      {open && createPortal(<MusicSheet api={sheetApi} music={music} brand={brand}
         onClose={() => { setOpen(false); onChanged(); }} />, document.body)}
     </>
   );
 }
 
-function MusicSheet({ token, music, brand, onClose }: {
-  token: string; music: ClientMusic; brand: string; onClose: () => void;
+function MusicSheet({ api, music, brand, onClose }: {
+  api: SelectApi; music: ClientMusic; brand: string; onClose: () => void;
 }) {
   const t = T;
   const [picks, setPicks] = useState<Record<string, MusicPick[]>>(music.picks);
@@ -106,15 +109,15 @@ function MusicSheet({ token, music, brand, onClose }: {
   const push = useCallback(async () => {
     setSave("saving");
     try {
-      const r = await fetch(`${API}/public/portal/${token}/music/${music.bookingId}`, {
-        method: "PUT", headers: portalHeaders(token, { "Content-Type": "application/json" }),
+      const r = await fetch(api.url(""), {
+        method: "PUT", headers: api.headers({ "Content-Type": "application/json" }),
         body: JSON.stringify({ picks: latest.current.picks, clientNote: latest.current.note }),
       });
       if (!r.ok) throw new Error();
       dirty.current = false; setSave("saved");
       return true;
     } catch { setSave("error"); return false; }
-  }, [token, music.bookingId]);
+  }, [api]);
 
   // Save by itself, a moment after the last change
   useEffect(() => {
@@ -143,8 +146,8 @@ function MusicSheet({ token, music, brand, onClose }: {
     if (list.length >= music.perPart) { setMsg(t.full(music.perPart)); return; }
     setAdding(true); setMsg("");
     try {
-      const r = await fetch(`${API}/public/portal/${token}/music/lookup`, {
-        method: "POST", headers: portalHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify({ url }),
+      const r = await fetch(api.url("/lookup"), {
+        method: "POST", headers: api.headers({ "Content-Type": "application/json" }), body: JSON.stringify({ url }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setMsg(Array.isArray(d.message) ? d.message[0] : d.message || "Could not add this link."); return; }
@@ -157,7 +160,7 @@ function MusicSheet({ token, music, brand, onClose }: {
     setSending(true); setMsg("");
     try {
       if (dirty.current && !(await push())) { setMsg(t.notSaved); return; }
-      const r = await fetch(`${API}/public/portal/${token}/music/${music.bookingId}/submit`, { method: "POST", headers: portalHeaders(token) });
+      const r = await fetch(api.url("/submit"), { method: "POST", headers: api.headers() });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setMsg(Array.isArray(d.message) ? d.message[0] : d.message || t.notSaved); return; }
       setStatus("submitted"); setStep(0);
@@ -167,8 +170,8 @@ function MusicSheet({ token, music, brand, onClose }: {
   async function askReopen() {
     setSending(true);
     try {
-      const r = await fetch(`${API}/public/portal/${token}/music/${music.bookingId}/reopen`, {
-        method: "POST", headers: portalHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify({ reason: why }),
+      const r = await fetch(api.url("/reopen"), {
+        method: "POST", headers: api.headers({ "Content-Type": "application/json" }), body: JSON.stringify({ reason: why }),
       });
       if (r.ok) { setAsked(true); setAsking(false); }
     } finally { setSending(false); }

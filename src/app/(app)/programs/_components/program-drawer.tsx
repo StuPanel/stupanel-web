@@ -717,7 +717,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         <Row l="Contract" v={formatCurrency(total)} />
         {discount > 0 && <Row l="Discount" v={`− ${formatCurrency(discount)}`} />}
         <Row l={isEdit ? "Paid so far" : "Advance"} v={formatCurrency(paidSoFar)} />
-        <Row l="Client still owes" v={formatCurrency(Math.max(0, due))} strong tone={due > 0 ? "red" : "green"} />
+        <Row l="Balance due" v={formatCurrency(Math.max(0, due))} strong tone={due > 0 ? "red" : "green"} />
       </div>
       <div className="mt-4 pt-3 border-t border-[#EEEBF4] space-y-1.5 text-sm">
         <Row l="Team pay" v={`− ${formatCurrency(teamCost)}`} />
@@ -902,7 +902,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                       )}</Field>
                     ) : (
                       <div className="px-4 py-3.5 flex flex-col justify-center">
-                        <p className="text-[13px] font-semibold text-[#4A4658]">Still owes</p>
+                        <p className="text-[13px] font-semibold text-[#4A4658]">Balance due</p>
                         <p className={cn("text-xl font-extrabold tabular-nums", due > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>{formatCurrency(Math.max(0, due))}</p>
                       </div>
                     )}

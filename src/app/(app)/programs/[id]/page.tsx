@@ -166,7 +166,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     if (early && lastDate && lastDate < today())
       todos.push({ tone: "violet", icon: ArrowRight, title: "The program date has passed", sub: "Move it to Shooting or Editing", run: () => setStatus("editing") });
     if (done && due > 0.009)
-      todos.push({ tone: "red", icon: Wallet, title: `Client still owes ${formatCurrency(due, b.currency)}`, sub: "Delivered, but not fully paid", run: () => setPaymentOpen(true) });
+      todos.push({ tone: "red", icon: Wallet, title: `Balance due: ${formatCurrency(due, b.currency)}`, sub: "Delivered, but not fully paid", run: () => setPaymentOpen(true) });
     if ((done || b.status === "ready_for_delivery") && teamOwed > 0.009)
       todos.push({ tone: "amber", icon: Users, title: `Team is owed ${formatCurrency(teamOwed, b.currency)}`, sub: "Pay the people who worked on this program", run: () => setTab("team") });
   }

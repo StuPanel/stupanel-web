@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { fmtDate } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { PortalAccessModal } from "@/components/portal-access-modal";
+import { SelectLinkModal } from "@/components/select-link-modal";
 import { PhotoViewer } from "@/components/photo-viewer";
 import {
   albumProgress, isPicked, namesCsv, namesList, photoUrl, STATUS_LABEL, STATUS_STYLE, timeLeft,
@@ -55,6 +57,8 @@ export default function GalleryPage() {
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
   const [portal, setPortal] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [link, setLink] = useState<{ url: string } | null | undefined>(undefined);
   const [menu, setMenu] = useState<"copy" | "more" | null>(null);
   const [busy, setBusy] = useState(false);
   const [upload, setUpload] = useState<UploadState | null>(null);
@@ -105,7 +109,19 @@ export default function GalleryPage() {
   async function send() {
     if (!g) return;
     if (g.counts.working && !(await askConfirm({ title: "Some previews are still being made", message: `${g.counts.working} photos are not ready yet. The client sees them as soon as they are. Send now?`, confirmLabel: "Send now" }))) return;
-    if (await act("send")) { notify("Sent — the client can choose in their portal"); setPortal(true); }
+    if (await act("send")) { notify("Sent — share it with the client"); openShare(); }
+  }
+  // The direct link (no code) for this selection lives with the handoff state.
+  function openShare() {
+    setSharing(true); setLink(undefined);
+    apiFetch(`${API}/photo-selection/${id}/handoff`).then(r => (r.ok ? r.json() : null)).then(d => setLink(d?.link ?? null)).catch(() => setLink(null));
+  }
+  async function setShareLink(on: boolean, reset?: boolean) {
+    const r = await apiFetch(`${API}/photo-selection/${id}/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on, reset: !!reset }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't do that", { error: true }); return false; }
+    setLink(d.link ?? null);
+    return true;
   }
   async function take() {
     if (!g) return;
@@ -225,7 +241,7 @@ export default function GalleryPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setAdding(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><ImagePlus className="w-4 h-4" />Add photos</button>
-          <button type="button" onClick={() => setPortal(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Link2 className="w-4 h-4" />Client link</button>
+          <button type="button" onClick={openShare} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Link2 className="w-4 h-4" />Share</button>
           <button type="button" onClick={() => setSettings(true)} aria-label="Settings" title="Settings" className="w-10 h-10 rounded-full bg-white text-[#4A4658] inline-flex items-center justify-center hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Settings2 className="w-4 h-4" /></button>
           <div className="relative">
             <button type="button" onClick={() => setMenu(m => (m === "more" ? null : "more"))} aria-label="More" aria-expanded={menu === "more"} className="w-10 h-10 rounded-full bg-white text-[#4A4658] inline-flex items-center justify-center hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><MoreHorizontal className="w-4 h-4" /></button>
@@ -455,6 +471,12 @@ export default function GalleryPage() {
 
       {adding && <AddPhotos galleryId={g.id} programId={g.program.id} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} onUpload={startUpload} />}
       {settings && <GallerySettings g={g} onClose={() => setSettings(false)} onSaved={load} />}
+      {sharing && (
+        <SelectLinkModal title="Share photo selection" what="this photo selection" client={g.client} link={link}
+          onSet={setShareLink}
+          message={url => `Hi ${g.client.firstName}, please choose the photos for your album here — no code needed:\n${url}${g.deadline ? `\nPlease choose by ${fmtDate(g.deadline)}.` : ""}`}
+          onPortal={() => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
+      )}
       {portal && <PortalAccessModal client={{ id: g.client.id, firstName: g.client.firstName, lastName: g.client.lastName, phone: g.client.phone }} onClose={() => setPortal(false)} />}
       {left && (
         <div className={cn("fixed right-4 bottom-24 lg:bottom-6 z-30 h-10 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 shadow-[0_10px_30px_-12px_rgba(22,18,40,.4)]",

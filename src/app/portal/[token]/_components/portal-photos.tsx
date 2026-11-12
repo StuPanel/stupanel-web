@@ -13,8 +13,7 @@ import {
   ArrowLeft, CalendarClock, Check, CheckCircle2, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_URL as API } from "@/lib/api";
-import { portalHeaders } from "@/lib/portal-session";
+import { portalPhotoApi, type SelectApi } from "@/lib/select-api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { albumProgress, apiUrl, isPicked, photoUrl, timeLeft, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
@@ -36,6 +35,7 @@ type Filter = "all" | "unseen" | "picked" | "important" | "rejected";
 
 export function PortalPhotos({ token, galleries, brand, onChanged }: { token: string; galleries: ClientGalleryCard[]; brand: string; onChanged: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
+  const chooserApi = useMemo(() => (open ? portalPhotoApi(token, open) : null), [token, open]);
   const t = T;
   return (
     <>
@@ -71,15 +71,20 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
         );
       })}
       {/* On the page itself — inside the program card a transform would trap the full-screen chooser. */}
-      {open && createPortal(
-        <Chooser token={token} galleryId={open} brand={brand}
+      {chooserApi && createPortal(
+        <Chooser api={chooserApi} brand={brand}
           onClose={() => { setOpen(null); onChanged(); }} />, document.body)}
     </>
   );
 }
 
-function Chooser({ token, galleryId, brand, onClose }: {
-  token: string; galleryId: string; brand: string; onClose: () => void;
+/** The full-screen chooser. Without onClose (a direct link) there is nothing to go back to, so no close button. */
+export function Chooser({ api, brand, onClose, onLoaded, failText, after }: {
+  api: SelectApi; brand: string; onClose?: () => void; onLoaded?: (g: ClientGallery) => void;
+  /** Shown when it can't open (e.g. a link that was turned off). */
+  failText?: string;
+  /** Extra line under the "Sent!" buttons (e.g. a link to the client portal). */
+  after?: React.ReactNode;
 }) {
   const t = T;
   const [g, setG] = useState<ClientGallery | null>(null);
@@ -103,13 +108,13 @@ function Chooser({ token, galleryId, brand, onClose }: {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/public/portal/${token}/photos/${galleryId}`, { headers: portalHeaders(token) });
+      const r = await fetch(api.url(""), { headers: api.headers() });
       if (!r.ok) throw new Error();
       const d: ClientGallery = await r.json();
-      setG(d); setNote(d.clientNote ?? ""); setAsked(!!d.reopenRequestedAt);
+      setG(d); onLoaded?.(d); setNote(d.clientNote ?? ""); setAsked(!!d.reopenRequestedAt);
       setAlbum(a => a || d.albums[0]?.id || "");
     } catch { setFailed(true); }
-  }, [token, galleryId]);
+  }, [api, onLoaded]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     document.documentElement.classList.add("sp-locked");
@@ -130,8 +135,8 @@ function Chooser({ token, galleryId, brand, onClose }: {
     if (noteDirty.current) { body.clientNote = note; noteDirty.current = false; }
     setSave("saving");
     try {
-      const r = await fetch(`${API}/public/portal/${token}/photos/${galleryId}/marks`, {
-        method: "PUT", headers: portalHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify(body),
+      const r = await fetch(api.url("/marks"), {
+        method: "PUT", headers: api.headers({ "Content-Type": "application/json" }), body: JSON.stringify(body),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.message || "");
@@ -149,7 +154,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
       if (e instanceof Error && e.message) say(e.message);
       return false;
     }
-  }, [token, galleryId, note, t]);
+  }, [api, note, t]);
 
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -189,7 +194,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
     if (!(await flush())) return;
     setSending(true);
     try {
-      const r = await fetch(`${API}/public/portal/${token}/photos/${galleryId}/submit`, { method: "POST", headers: portalHeaders(token) });
+      const r = await fetch(api.url("/submit"), { method: "POST", headers: api.headers() });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { say(d.message || t.notSaved); return; }
       setReviewing(false); setThanks(true);
@@ -197,12 +202,12 @@ function Chooser({ token, galleryId, brand, onClose }: {
     } finally { setSending(false); }
   }
   async function askChange() {
-    const r = await fetch(`${API}/public/portal/${token}/photos/${galleryId}/reopen`, {
-      method: "POST", headers: portalHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify({ reason: why }),
+    const r = await fetch(api.url("/reopen"), {
+      method: "POST", headers: api.headers({ "Content-Type": "application/json" }), body: JSON.stringify({ reason: why }),
     }).catch(() => null);
     if (r?.ok) { setAsked(true); setAsking(false); say(t.asked); }
   }
-  async function close() { await flush(); onClose(); }
+  async function close() { await flush(); onClose?.(); }
 
   const left = g && (g.status === "open" || g.status === "submitted") ? timeLeft(g.deadline) : null;
   const totalPicked = (g?.photos ?? []).filter(p => isPicked(p.m)).length;
@@ -242,7 +247,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
       {/* Top bar */}
       <header className="flex-shrink-0 bg-white/85 backdrop-blur-xl border-b border-[#F1EFF6]">
         <div className="max-w-6xl mx-auto px-3 sm:px-5 h-14 flex items-center gap-3">
-          <button type="button" onClick={close} aria-label={t.close} className="w-10 h-10 rounded-full hover:bg-[#F1EFF6] flex items-center justify-center text-[#33303F]"><ArrowLeft className="w-5 h-5" /></button>
+          {onClose && <button type="button" onClick={close} aria-label={t.close} className="w-10 h-10 rounded-full hover:bg-[#F1EFF6] flex items-center justify-center text-[#33303F]"><ArrowLeft className="w-5 h-5" /></button>}
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-bold text-[#17151F] truncate">{g?.title ?? "…"}</p>
             <p className="text-[12px] text-[#6B6680] truncate">
@@ -255,7 +260,7 @@ function Chooser({ token, galleryId, brand, onClose }: {
 
       <main className="flex-1 overflow-y-auto">
         {!g ? (
-          failed ? <p className="text-center text-[#6B6680] py-20">Could not open — please try again.</p>
+          failed ? <p className="text-center text-[#6B6680] py-20 px-6">{failText ?? "Could not open — please try again."}</p>
             : <div className="max-w-6xl mx-auto p-4 grid grid-cols-3 sm:grid-cols-5 gap-1.5">{Array.from({ length: 15 }).map((_, i) => <div key={i} className="sp-skel aspect-square rounded-xl" />)}</div>
         ) : (
           <div className="max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-32">
@@ -475,8 +480,9 @@ function Chooser({ token, galleryId, brand, onClose }: {
             <p className="text-[13px] font-semibold text-[#33303F] mt-3">{t.chosen(totalPicked)}</p>
             <div className="flex gap-2 mt-5">
               <button type="button" onClick={() => setThanks(false)} className="flex-1 h-11 rounded-full bg-[#F1EFF6] text-[#33303F] text-[14px] font-semibold">{t.backToPhotos}</button>
-              <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full text-white text-[14px] font-semibold" style={{ backgroundColor: brand }}>{t.close}</button>
+              {onClose && <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full text-white text-[14px] font-semibold" style={{ backgroundColor: brand }}>{t.close}</button>}
             </div>
+            {after}
           </div>
         </div>
       )}

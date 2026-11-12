@@ -4,7 +4,7 @@
  * Music for one program (studio side).
  * Off → "Let the client choose music" with the parts taken from the program (days + planned videos).
  * On → status, the client's songs per part (in their order, with notes), the studio's suggestions, lock / open again.
- * The client chooses in their portal — same link and access code as everything else.
+ * The client chooses in their portal, or on a direct link (no code) for this program's music only.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { PortalAccessModal } from "@/components/portal-access-modal";
+import { SelectLinkModal } from "@/components/select-link-modal";
 import { inputCls } from "@/components/ui/form-kit";
 import { musicAsText, type LibrarySong, type MusicPart, type MusicSelection, type MusicSuggestion } from "@/lib/music";
 import type { Booking } from "./types";
@@ -37,6 +38,9 @@ export function MusicSection({ booking }: { booking: Booking }) {
   const [library, setLibrary] = useState<LibrarySong[] | null>(null);
   const [showLib, setShowLib] = useState(false);
   const [portal, setPortal] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  /** The direct link (no code) for this program's music. undefined = not loaded yet. */
+  const [shareLink, setShareLink] = useState<{ url: string } | null | undefined>(undefined);
   /** The studio's own music tags (e.g. Outdoor trailer) — offered as parts too. */
   const [ownTags, setOwnTags] = useState<string[]>([]);
   useEffect(() => {
@@ -49,7 +53,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
   const load = useCallback(async () => {
     try {
       const r = await apiFetch(`${API}/music/booking/${booking.id}`);
-      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); }
+      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); setShareLink(d.link ?? null); }
     } finally { setLoading(false); }
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
@@ -74,6 +78,13 @@ export function MusicSection({ booking }: { booking: Booking }) {
     setBusy("setup");
     if (await put({ parts: all, perPart }, sel ? "Saved" : "Music is on — the client can choose in their portal")) { setNewPart(""); setSetup(false); }
     setBusy("");
+  }
+
+  async function setLinkOn(on: boolean, reset?: boolean) {
+    const r = await apiFetch(`${API}/music/booking/${booking.id}/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on, reset: !!reset }) });
+    if (!r.ok) { notify(await err(r), { error: true }); return false; }
+    const d = await r.json(); setShareLink(d.link ?? null);
+    return true;
   }
 
   async function setStatus(status: "open" | "submitted" | "off") {
@@ -202,7 +213,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
           ? <button type="button" onClick={() => setStatus("open")} disabled={!!busy} className={cn(chip, wantsChange ? "bg-[#7D5CEF] text-white" : "bg-white text-[#17151F]")}><LockOpen className="w-3.5 h-3.5" />Open again for the client</button>
           : <button type="button" onClick={() => setStatus("submitted")} disabled={!!busy || !s.counts.total} className={cn(chip, "bg-white text-[#17151F] disabled:opacity-50")}><Lock className="w-3.5 h-3.5" />Lock now</button>}
         {s.counts.total > 0 && <button type="button" onClick={copyList} className={cn(chip, "bg-white text-[#17151F]")}><Copy className="w-3.5 h-3.5" />Copy list</button>}
-        {client && !sent && <button type="button" onClick={() => setPortal(true)} className={cn(chip, "bg-[#E2F4EA] text-[#1F8A5B]")}><Link2 className="w-3.5 h-3.5" />Client portal link</button>}
+        {client && !sent && <button type="button" onClick={() => setSharing(true)} className={cn(chip, "bg-[#E2F4EA] text-[#1F8A5B]")}><Link2 className="w-3.5 h-3.5" />Share with client</button>}
         <button type="button" onClick={() => setStatus("off")} disabled={!!busy} className={cn(chip, "text-[#6B6680]")}>Turn off</button>
       </div>
 
@@ -286,6 +297,12 @@ export function MusicSection({ booking }: { booking: Booking }) {
         )}
       </details>
 
+      {sharing && client && (
+        <SelectLinkModal title="Share music choosing" what="this program's music" client={client} link={shareLink}
+          onSet={setLinkOn}
+          message={url => `Hi ${client.firstName}, please choose the songs for ${program} here — no code needed:\n${url}`}
+          onPortal={() => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
+      )}
       {portal && client && <PortalAccessModal client={client} onClose={() => setPortal(false)} />}
     </div>
   );

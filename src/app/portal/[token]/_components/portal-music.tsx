@@ -5,6 +5,7 @@
  * One part at a time (Holud, Wedding, Teaser…): listen, add, put in order, add a note.
  * Every change saves by itself. Sending shows the whole list first and warns about empty parts.
  */
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, ExternalLink, Loader2, Lock, Music2, Play, Plus, Send, X,
@@ -66,8 +67,9 @@ export function PortalMusic({ token, music, brand, onChanged }: { token: string;
           {sent ? t.see : music.counts.total ? t.change : t.open}
         </button>
       </div>
-      {open && <MusicSheet token={token} music={music} brand={brand}
-        onClose={() => { setOpen(false); onChanged(); }} />}
+      {/* On the page itself — inside the program card a transform would trap the full-screen sheet. */}
+      {open && createPortal(<MusicSheet token={token} music={music} brand={brand}
+        onClose={() => { setOpen(false); onChanged(); }} />, document.body)}
     </>
   );
 }

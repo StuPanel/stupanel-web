@@ -10,7 +10,7 @@
  * The view lives in the address (?v=…, ?p=<program>) so the phone's back button works.
  */
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Mail, MessageCircle, Phone, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -36,7 +36,6 @@ export default function ClientPortalPage({ params }: { params: Promise<{ token: 
 }
 
 function Portal({ token }: { token: string }) {
-  const router = useRouter();
   const search = useSearchParams();
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,14 +89,16 @@ function Portal({ token }: { token: string }) {
   const v = search.get("v") as View | null;
   const view: View | null = pid ? null : v && VIEWS.includes(v) ? v : "home";
 
+  // Same page, so change only the address (instant; Next keeps useSearchParams in step). Back still works.
   const go = useCallback((qs: string) => {
-    router.push(qs ? `?${qs}` : "?", { scroll: false });
+    window.history.pushState(null, "", qs ? `?${qs}` : window.location.pathname);
     window.scrollTo({ top: 0 });
-  }, [router]);
+  }, []);
   const goView = (to: View) => go(to === "home" ? "" : `v=${to}`);
   const openProgram = (id: string, part?: string) => go(`p=${id}${part ? `&open=${encodeURIComponent(part)}` : ""}`);
   function onTodo(t: Todo) {
     if (t.href) { window.location.href = t.href; return; }
+    if (t.view) { goView(t.view); return; }
     if (t.bookingId) openProgram(t.bookingId, t.part === "photos" && t.galleryId ? `photos:${t.galleryId}` : t.part);
   }
 
@@ -119,7 +120,7 @@ function Portal({ token }: { token: string }) {
   const chat = data.company.portalShowMessages !== false;
   const wa = data.company.phone ? waLink(data.company.phone, `Hi ${data.company.name}, `) : null;
   const program = pid ? data.bookings.find(b => b.id === pid) : undefined;
-  const afterChange = () => { loadExtras(); if (openPart && pid) router.replace(`?p=${pid}`, { scroll: false }); };
+  const afterChange = () => { loadExtras(); if (openPart && pid) window.history.replaceState(null, "", `?p=${pid}`); };
 
   return (
     <PublicShell studio={data.company} sub="Client portal" className="pb-28 sm:pb-8"

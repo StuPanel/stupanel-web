@@ -153,6 +153,8 @@ export type Todo = {
   key: string; kind: TodoKind; title: string; sub: string;
   /** Open this program (and this part of it), or go to a link. */
   bookingId?: string; part?: "photos" | "music" | "money"; galleryId?: string; href?: string;
+  /** Or a whole view (several quotes → Money). */
+  view?: "money";
   soon?: boolean;
 };
 
@@ -179,9 +181,12 @@ export function todosOf(d: PortalData, photos: ClientGalleryCard[], music: Clien
       sub: name.get(m.bookingId) ?? m.program, bookingId: m.bookingId, part: "music",
     });
   }
-  for (const q of d.quotes) {
-    if (!quoteOpen(q)) continue;
+  const quotes = d.quotes.filter(quoteOpen);
+  if (quotes.length === 1) {
+    const q = quotes[0];
     out.push({ key: `q${q.id}`, kind: "quote", title: "Look at your quote", sub: `${q.quoteNumber} · ${money(q.grandTotal, q.currency)}`, href: `/q/${q.publicToken}` });
+  } else if (quotes.length > 1) {
+    out.push({ key: "quotes", kind: "quote", title: `Look at your ${quotes.length} quotes`, sub: quotes.map(q => q.quoteNumber).slice(0, 3).join(", ") + (quotes.length > 3 ? "…" : ""), view: "money" });
   }
   for (const b of d.bookings) {
     const due = dueOf(b);

@@ -73,7 +73,8 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
   const [missing, setMissing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [portal, setPortal] = useState(false);
+  // ?portal=1 (the link in a client's "Forgot your code?" WhatsApp message) opens their portal code.
+  const [portal, setPortal] = useState(sp.get("portal") === "1");
   const [more, setMore] = useState(false);
   const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [payFor, setPayFor] = useState<Program | null>(null);

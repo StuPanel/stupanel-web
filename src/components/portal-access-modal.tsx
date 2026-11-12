@@ -8,12 +8,13 @@ import { askConfirm, notify } from "@/components/feedback";
 import { waLink } from "@/lib/portal-session";
 import { fmtDate } from "@/lib/format";
 
-type Status = { token: string; codeSetAt?: string | null; lastUsedAt?: string | null } | null;
+type Status = { token: string; codeSetAt?: string | null; lastUsedAt?: string | null; code?: string | null } | null;
 
 /**
  * Studio side of the client portal: create the link with an access code,
  * share both on WhatsApp, or reset the code (signs every device out).
- * The code is shown only right after it is created — it is stored hashed.
+ * The current code is shown (kept encrypted, only the studio sees it). Codes set before
+ * 12-NOV-2026 can't be shown — "New code" gives one that can.
  */
 export function PortalAccessModal({ client, onClose }: {
   client: { id: string; firstName: string; lastName?: string | null; phone?: string | null };
@@ -30,7 +31,7 @@ export function PortalAccessModal({ client, onClose }: {
   useEffect(() => {
     apiFetch(`${API}/client-portal/status/${client.id}`)
       .then(r => (r.ok ? r.json() : null))
-      .then(d => setStatus(d && d.token ? d : null))
+      .then(d => { setStatus(d && d.token ? d : null); if (d?.code) setCode(d.code); })
       .catch(() => setStatus(null));
   }, [client.id]);
 
@@ -148,13 +149,19 @@ export function PortalAccessModal({ client, onClose }: {
                         {copied === "code" ? <Check className="w-3.5 h-3.5 text-[#1F8A5B]" /> : <Copy className="w-3.5 h-3.5" />} Copy
                       </button>
                     </div>
-                    <p className="mt-1 text-xs text-[#6B6680]">Send it now — for safety it won&apos;t be shown again.</p>
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <p className="text-xs text-[#6B6680]">Set {status.codeSetAt ? fmtDate(status.codeSetAt) : "now"} · only your studio sees it</p>
+                      <button onClick={resetCode} disabled={busy}
+                        className="h-7 px-2.5 rounded-full text-xs font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA] flex items-center gap-1 flex-shrink-0">
+                        {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} New code
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <div className="mt-1 flex items-center justify-between gap-2">
-                    <p className="text-sm text-[#4A4658] flex items-center gap-1.5">
-                      <KeyRound className="w-4 h-4 text-[#5B3FD0]" />
-                      Set {status.codeSetAt ? fmtDate(status.codeSetAt) : ""}
+                    <p className="text-sm text-[#4A4658] flex items-start gap-1.5">
+                      <KeyRound className="w-4 h-4 text-[#5B3FD0] flex-shrink-0 mt-0.5" />
+                      <span>Set {status.codeSetAt ? fmtDate(status.codeSetAt) : ""} — this older code can&apos;t be shown. Make a new one to see it here.</span>
                     </p>
                     <button onClick={resetCode} disabled={busy}
                       className="h-8 px-3 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-xs font-semibold text-[#17151F] flex items-center gap-1.5">
@@ -181,7 +188,7 @@ export function PortalAccessModal({ client, onClose }: {
                 </button>
               </div>
               {!code && (
-                <p className="text-xs text-[#6B6680]">The message won&apos;t include the code. Use &quot;New code&quot; if the client lost it.</p>
+                <p className="text-xs text-[#6B6680]">The message won&apos;t include the code. Use &quot;New code&quot; to make one you can see and send.</p>
               )}
             </div>
           )}

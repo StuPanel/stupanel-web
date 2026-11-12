@@ -7,6 +7,7 @@
  * Before sending: the whole list per album, with a gentle warning if the number is off.
  * After sending you can still change until the studio starts the album.
  */
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, CalendarClock, Check, CheckCircle2, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
@@ -69,10 +70,10 @@ export function PortalPhotos({ token, galleries, brand, onChanged }: { token: st
           </div>
         );
       })}
-      {open && (
+      {/* On the page itself — inside the program card a transform would trap the full-screen chooser. */}
+      {open && createPortal(
         <Chooser token={token} galleryId={open} brand={brand}
-          onClose={() => { setOpen(null); onChanged(); }} />
-      )}
+          onClose={() => { setOpen(null); onChanged(); }} />, document.body)}
     </>
   );
 }

@@ -2,10 +2,11 @@
 
 import { apiFetch } from "@/lib/api";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus, Search, CreditCard, Loader2, AlertTriangle, MoreHorizontal,
-  Edit3, Trash2, Banknote, Smartphone, Receipt as ReceiptIcon,
+  Edit3, Trash2, Banknote, Clock, Smartphone, Receipt as ReceiptIcon,
   Building2, CheckCircle2, TrendingUp, Calendar, FileText, Wallet,
 } from "lucide-react";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard, Tile } from "@/components/ui/apple";
@@ -14,6 +15,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import { DuesView, type DueProgram } from "./_components/dues";
 import { AccountPicker } from "@/components/account-picker";
 import { API_URL as API } from "@/lib/api";
 
@@ -90,13 +93,15 @@ function today() { return localDateStr(); }
 // ─── Record Payment Drawer ────────────────────────────────────────────────
 
 function PaymentDrawer({
-  open, onClose, onSaved, editing, bookings,
+  open, onClose, onSaved, editing, bookings, preset,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   editing?: Payment | null;
   bookings: Booking[];
+  /** From Payments → Due: this program, its due amount as a final payment. */
+  preset?: { bookingId: string; amount: number } | null;
 }) {
   const isEdit = !!editing;
 
@@ -130,12 +135,14 @@ function PaymentDrawer({
           notes: editing.notes ?? "",
           walletId: editing.wallet?.id ?? "",
         });
+      } else if (preset) {
+        setForm({ ...blank, bookingId: preset.bookingId, amount: String(preset.amount), paymentType: "final" });
       } else {
         setForm(blank);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editing]);
+  }, [open, editing, preset]);
 
   function set(key: string) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -415,6 +422,10 @@ function StatsRow({ stats, currency = "BDT" }: { stats: Stats; currency?: string
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function PaymentsPage() {
+  return <Suspense fallback={<RowsSkeleton n={6} />}><Payments /></Suspense>;
+}
+
+function Payments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [total, setTotal] = useState(0);
@@ -427,6 +438,12 @@ export default function PaymentsPage() {
   const [drawer, setDrawer] = useState(false);
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
+  // Received (payments in) or Due (who still owes). Kept in the address: /payments?view=due
+  const params = useSearchParams();
+  const [view, setView] = useState<"received" | "due">(params.get("view") === "due" ? "due" : "received");
+  const [preset, setPreset] = useState<{ bookingId: string; amount: number } | null>(null);
+  const [duesKey, setDuesKey] = useState(0);
+  const { companyName } = useAuth();
 
   const LIMIT = 20;
 
@@ -469,20 +486,38 @@ export default function PaymentsPage() {
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
   useEffect(() => { setPage(1); }, [search, methodFilter]);
 
-  function openNew() { setEditTarget(null); setDrawer(true); }
-  function openEdit(p: Payment) { setEditTarget(p); setDrawer(true); }
-  function onSaved() { fetchPayments(); fetchBookings(); }
+  function openNew() { setEditTarget(null); setPreset(null); setDrawer(true); }
+  function openEdit(p: Payment) { setEditTarget(p); setPreset(null); setDrawer(true); }
+  function onSaved() { fetchPayments(); fetchBookings(); setDuesKey(k => k + 1); }
+  function recordFor(p: DueProgram) { setEditTarget(null); setPreset({ bookingId: p.id, amount: p.due }); setDrawer(true); }
+  function switchView(v: "received" | "due") {
+    setView(v);
+    window.history.replaceState(null, "", v === "due" ? "?view=due" : window.location.pathname);
+  }
 
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
     <div>
       <PageHeader icon={CreditCard} color="green" title="Payments"
-        sub={total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
-        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search payments" />
+        sub={view === "due" ? "Who still owes you money" : total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
+        <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder={view === "due" ? "Search client or program" : "Search payments"} />
         <MainButton icon={Plus} onClick={openNew}>Record payment</MainButton>
       </PageHeader>
 
+      <div role="tablist" aria-label="Payments" className="mb-6 inline-flex p-1 rounded-full bg-white/80 shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+        {([["received", "Received", Banknote], ["due", "Due", Clock]] as const).map(([id, label, Icon]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => switchView(id)}
+            className={cn("h-9 px-4 sm:px-5 rounded-full text-[14px] font-semibold inline-flex items-center gap-1.5 transition-colors",
+              view === id ? (id === "due" ? "bg-[#C2304F] text-white" : "bg-[#1F8A5B] text-white") : "text-[#4A4658] hover:text-[#17151F]")}>
+            <Icon className="w-4 h-4" />{label}
+          </button>
+        ))}
+      </div>
+
+      {view === "due" ? (
+        <DuesView search={search} refreshKey={duesKey} studioName={companyName} onRecord={recordFor} />
+      ) : (<>
       <StatsRow stats={stats} />
 
       <Chips label="Filter by method" value={methodFilter || "all"} onChange={v => setMethodFilter(v === "all" ? "" : v)}
@@ -504,14 +539,16 @@ export default function PaymentsPage() {
       )}
 
       <Pager page={page} pages={totalPages} onChange={setPage} />
+      </>)}
 
       {/* Drawers */}
       <PaymentDrawer
         open={drawer}
-        onClose={() => { setDrawer(false); setEditTarget(null); }}
+        onClose={() => { setDrawer(false); setEditTarget(null); setPreset(null); }}
         onSaved={onSaved}
         editing={editTarget}
         bookings={bookings}
+        preset={preset}
       />
       <DeleteDialog
         payment={deleteTarget}

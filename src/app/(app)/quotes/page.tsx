@@ -20,6 +20,7 @@ import { currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency
 import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 import { jumpToField } from "@/lib/jump-to-field";
+import { descLines } from "@/lib/desc-lines";
 import { QuoteForm, type QDay, type QLine, type QuoteForForm, type QuotePrefill } from "./_components/quote-form";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
@@ -254,7 +255,9 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
                     {(item.kind === "package" || item.isPackageBase) && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#5B3FD0] bg-[#EEE8FD] px-1.5 py-0.5 rounded-full">Package</span>}
                     {item.kind === "extra" && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#126B66] bg-[#E3F2F1] px-1.5 py-0.5 rounded-full">Extra</span>}
                   </p>
-                  {item.description && <p className="text-[12.5px] text-[#6B6680] mt-0.5">{item.description}</p>}
+                  {descLines(item.description).length > 1 ? (
+                    <ul className="mt-1 space-y-0.5">{descLines(item.description).map((d, i) => <li key={i} className="text-[12.5px] text-[#6B6680] flex items-start gap-1.5"><Check className="w-3.5 h-3.5 text-[#1F8A5B] mt-0.5 flex-shrink-0" />{d}</li>)}</ul>
+                  ) : item.description ? <p className="text-[12.5px] text-[#6B6680] mt-0.5">{item.description}</p> : null}
                   {!!item.days?.length && <p className="text-[12.5px] text-[#5B3FD0] mt-0.5">{item.days.map(id => dayNames.get(id)).filter(Boolean).join(" · ")}</p>}
                   <p className="text-[12.5px] text-[#8A8599] mt-0.5 tabular-nums">{item.qty} × {money(item.unitPrice)}</p>
                 </div>

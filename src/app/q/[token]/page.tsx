@@ -10,6 +10,7 @@ import { API_URL as API } from "@/lib/api";
 import { currencySymbol, fmtDate } from "@/lib/format";
 import { StudioLogo } from "@/components/studio-logo";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
+import { descLines } from "@/lib/desc-lines";
 
 interface QuoteItem { id: string; name: string; description?: string; qty: number; unitPrice: number; total: number; isPackageBase?: boolean; kind?: string; days?: string[]; }
 interface QuoteDay { id: string; eventType: string; date: string; location: string }
@@ -201,7 +202,9 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
                   <li key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_56px_110px_110px] gap-x-3 gap-y-0.5 px-4 py-3 text-[14px]">
                     <span className="min-w-0">
                       <span className="block font-semibold text-[#17151F]">{item.name}{item.kind === "extra" && <span className="ml-1.5 align-middle text-[11px] font-bold text-[#126B66] bg-[#E3F2F1] px-1.5 py-0.5 rounded-full">Extra</span>}</span>
-                      {item.description && <span className="block text-[12.5px] text-[#6B6680] mt-0.5 leading-relaxed">{item.description}</span>}
+                      {descLines(item.description).length > 1 ? (
+                        <span className="block mt-1 space-y-0.5">{descLines(item.description).map((d, i) => <span key={i} className="flex items-start gap-1.5 text-[12.5px] text-[#6B6680] leading-relaxed"><CheckCircle2 className="w-3.5 h-3.5 text-[#1F8A5B] mt-[3px] flex-shrink-0" />{d}</span>)}</span>
+                      ) : item.description ? <span className="block text-[12.5px] text-[#6B6680] mt-0.5 leading-relaxed">{item.description}</span> : null}
                       {!!item.days?.length && <span className="block text-[12.5px] text-[#5B3FD0] mt-0.5">{item.days.map(id => dayNames.get(id)).filter(Boolean).join(" · ")}</span>}
                       <span className="sm:hidden block text-[12.5px] text-[#6B6680] mt-0.5 tabular-nums">{item.qty} × {money(item.unitPrice)}</span>
                     </span>

@@ -137,9 +137,10 @@ export default function SchedulePage() {
                   {many && ev.studio && (
                     <span className="mt-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#5B3FD0] min-w-0">
                       <StudioLogo url={ev.studio.logoUrl} name={ev.studio.name} size={16} className="rounded-[5px]" />
-                      <span className="truncate">{ev.studio.name}{elsewhere ? " · switch studio to open" : ""}</span>
+                      <span className="truncate">{ev.studio.name}</span>
                     </span>
                   )}
+                  {elsewhere && <span className="block text-[11.5px] text-[#8A8599]">Switch studio to open</span>}
                   <span className="block text-xs text-[#6B6680] truncate">
                     {ev.clientName}{ev.eventLocation && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {ev.eventLocation}</>}
                     {ev.clientPhone && <> · <Phone className="inline w-3 h-3 -mt-0.5" /> {ev.clientPhone}</>}

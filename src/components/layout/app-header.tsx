@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth-context";
 import { Search, ShieldAlert, Camera, Users, FileText, X, Loader2 } from "lucide-react";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { StudioSwitcher } from "@/components/layout/studio-switcher";
 
 interface UserProfile {
   firstName: string;
@@ -34,7 +35,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, companyName, companyLogo } = useAuth();
 
   // Search state
   const [query, setQuery] = useState("");
@@ -166,10 +167,15 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         <div className="relative h-16 flex items-center justify-between gap-3 px-3 sm:px-4 lg:px-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile: brand */}
-            <Link href="/dashboard" className="lg:hidden flex items-center gap-2 min-w-0">
-              <BrandMark size={30} />
-              <span className="font-extrabold text-[16px] tracking-tight text-[#17151F] truncate">StuPanel</span>
-            </Link>
+            {/* Mobile: the studio (when the person has several), otherwise the brand */}
+            <div className="lg:hidden min-w-0">
+              <StudioSwitcher name={companyName} logo={companyLogo} bar fallback={
+                <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+                  <BrandMark size={30} />
+                  <span className="font-extrabold text-[16px] tracking-tight text-[#17151F] truncate">StuPanel</span>
+                </Link>
+              } />
+            </div>
 
             {/* Search box (desktop inline, mobile as a drop-down row) */}
             <div className={cn(

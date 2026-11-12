@@ -201,10 +201,14 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
       <div className="lg:ml-[272px] lg:mr-3 min-h-full flex flex-col">
         {/* Mobile top bar */}
         <div className="lg:hidden sticky top-0 z-20 bg-[#F5F3FA]/85 backdrop-blur-md flex items-center justify-between px-4 h-16">
-          <Link href="/member/dashboard" className="flex items-center gap-2">
-            <BrandMark size={30} />
-            <span className="font-extrabold text-[16px] tracking-tight text-[#17151F]">StuPanel</span>
-          </Link>
+          <div className="min-w-0 flex-1 mr-3">
+            <StudioSwitcher name="" bar fallback={
+              <Link href="/member/dashboard" className="flex items-center gap-2">
+                <BrandMark size={30} />
+                <span className="font-extrabold text-[16px] tracking-tight text-[#17151F]">StuPanel</span>
+              </Link>
+            } />
+          </div>
           <Link href="/member/profile" aria-label="My profile" className="rounded-full">
             <MemberPhoto url={profile?.avatarUrl} name={profile?.firstName} size={40} round />
           </Link>

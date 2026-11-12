@@ -17,6 +17,7 @@ export interface Member {
   id: string; memberId: string; username: string | null; email: string; memberType?: string;
   firstName: string; lastName?: string; phone?: string; bio?: string;
   memberRoles: string[]; isActive: boolean;
+  login?: import("./member-drawer").MemberLogin;
   payRate?: number | null; payRateType?: string | null;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> }[];

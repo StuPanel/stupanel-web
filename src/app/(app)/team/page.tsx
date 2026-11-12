@@ -8,13 +8,13 @@ import { Chips, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, SearchF
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Trash2, Edit3, MoreHorizontal, MessageCircle, KeyRound, UserCheck, UserX, Shield, Tag, Search } from "lucide-react";
+import { Plus, Trash2, Edit3, MoreHorizontal, MessageCircle, KeyRound, UserCheck, UserX, Shield, Tag, Search, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { Avatar } from "@/components/ui/profile-kit";
 import { WaitingCostsLink, useWaitingCosts } from "@/components/team-costs";
 import { offOn, todayStr } from "@/lib/member-prefs";
-import { DEFAULT_ROLES, DeleteDialog, MemberDrawer, ResetPassDialog, roleConfig, type Member } from "./_components/member-drawer";
+import { DEFAULT_ROLES, DeleteDialog, MemberDrawer, ResetPassDialog, resendInvite, roleConfig, type Member } from "./_components/member-drawer";
 import { useRouter } from "next/navigation";
 import { unitLabel } from "./_components/rate-card";
 import { formatCurrency } from "@/lib/format";
@@ -71,7 +71,9 @@ function ActionMenu({ member, onEdit, onReset, onToggle, onDelete }: {
         <div ref={menu} role="menu" style={{ top: pos.top, left: pos.left, width: 200, transform: pos.up ? "translateY(-100%)" : undefined }}
           className="fixed z-[80] bg-white rounded-[16px] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.14)] p-1">
           <button role="menuitem" onClick={() => act(onEdit)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit info</button>
-          {isOwner && member.memberType !== "freelancer" && <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
+          {isOwner && member.memberType !== "freelancer" && (member.login?.invitePending
+            ? <button role="menuitem" onClick={() => act(() => { resendInvite(member); })} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><Send className="w-4 h-4 text-[#6B6680]" />Send invite again</button>
+            : <button role="menuitem" onClick={() => act(onReset)} className={cn(item, "text-[#17151F] hover:bg-[#F5F3FA]")}><KeyRound className="w-4 h-4 text-[#6B6680]" />{member.login?.shared ? "Send reset link" : "Reset password"}</button>)}
           <button role="menuitem" onClick={() => act(onToggle)} className={cn(item, "hover:bg-[#F5F3FA]", member.isActive ? "text-[#823072]" : "text-[#1F8A5B]")}>
             {member.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
             {member.isActive ? "Deactivate" : "Activate"}
@@ -124,6 +126,7 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
           {m.rateRequestWaiting && <span className="text-[11px] font-bold text-[#823072] bg-[#F7E9F4] px-1.5 py-0.5 rounded-full whitespace-nowrap">Rate change asked</span>}
           {offOn(m.daysOff, [todayStr()]).length > 0 && <span className="text-[11px] font-bold text-[#7A4800] bg-[#FFF3E0] px-1.5 py-0.5 rounded-full whitespace-nowrap">Off today</span>}
           {!m.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Inactive</span>}
+          {m.login?.invitePending && <span className="text-[11px] font-bold text-[#9A5B00] bg-[#FFF3E0] px-1.5 py-0.5 rounded-full whitespace-nowrap">{m.login.inviteExpired ? "Invite expired" : "Invite sent"}</span>}
         </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
           {m.memberRoles.map(r => roleConfig(r, customRoles).label).join(", ") || "No role yet"}

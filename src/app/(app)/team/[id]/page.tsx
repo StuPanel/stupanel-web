@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDownLeft, ArrowLeft, CalendarDays, Camera, ChevronRight, Edit3, HandCoins, KeyRound, Loader2, Mail, MapPin, MessageCircle,
-  MoreHorizontal, Phone, Trash2, UserCheck, UserX, Wallet, AtSign,
+  MoreHorizontal, Phone, Send, Trash2, UserCheck, UserX, Wallet, AtSign,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { useAuth } from "@/context/auth-context";
 import { STATUS_CFG } from "../../programs/_components/constants";
 import { MONTHS, PayDrawer, role, type MemberPayment, type ProfileData } from "../_components/pay-drawer";
-import { DeleteDialog, MemberDrawer, ResetPassDialog } from "../_components/member-drawer";
+import { DeleteDialog, MemberDrawer, ResetPassDialog, resendInvite } from "../_components/member-drawer";
 import { SETUP_CATS, gearRents, unitLabel } from "../_components/rate-card";
 import { DaysOffList, PastRateRequests, PayoutView, RateRequestCard, waitingRequest } from "../_components/member-prefs-view";
 import { dayRange, todayStr, type MemberPrefs } from "@/lib/member-prefs";
@@ -191,6 +191,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                   {freelancer && <Chip tone="orchid">Freelancer</Chip>}
                   {!freelancer && (m as { role?: string }).role === "manager" && <Chip tone="violet">Manager</Chip>}
                   {m.isActive ? <Chip tone="green">Active</Chip> : <Chip tone="grey">Inactive</Chip>}
+                  {m.login?.invitePending && <Chip tone="amber">{m.login.inviteExpired ? "Invite expired" : "Invite sent"}</Chip>}
                 </div>
               </div>
             </div>
@@ -203,7 +204,9 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                 <>
                   <div role="menu" className={cn("absolute right-0 top-[76px] w-56", MENU_CLS)}>
                     <button role="menuitem" type="button" onClick={() => { setMore(false); setEditing(true); }} className={MENU_ITEM}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
-                    {isOwner && !freelancer && <button role="menuitem" type="button" onClick={() => { setMore(false); setResetting(true); }} className={MENU_ITEM}><KeyRound className="w-4 h-4 text-[#6B6680]" />Reset password</button>}
+                    {isOwner && !freelancer && (m.login?.invitePending
+                      ? <button role="menuitem" type="button" onClick={() => { setMore(false); resendInvite(m).then(ok => { if (ok) load(); }); }} className={MENU_ITEM}><Send className="w-4 h-4 text-[#6B6680]" />Send invite again</button>
+                      : <button role="menuitem" type="button" onClick={() => { setMore(false); setResetting(true); }} className={MENU_ITEM}><KeyRound className="w-4 h-4 text-[#6B6680]" />{m.login?.shared ? "Send reset link" : "Reset password"}</button>)}
                     <button role="menuitem" type="button" onClick={() => { setMore(false); toggleActive(); }} className={cn(MENU_ITEM, m.isActive ? "!text-[#823072]" : "!text-[#1F8A5B]")}>
                       {m.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}{m.isActive ? "Make inactive" : "Make active"}
                     </button>

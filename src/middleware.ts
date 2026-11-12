@@ -58,6 +58,8 @@ const PUBLIC_PREFIXES = [
   "/verify-email",
   "/auth/callback",
   "/complete-profile",
+  "/choose-studio",
+  "/invite/",
   "/portal",
   "/inv/",
   "/q/",

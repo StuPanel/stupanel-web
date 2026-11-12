@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { StudioBackdrop } from "@/components/studio-backdrop";
+import { StudioSwitcher } from "@/components/layout/studio-switcher";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -61,6 +62,10 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
             <X className="w-5 h-5 text-[#6B6680]" />
           </button>
         )}
+      </div>
+
+      <div className="px-3 pb-2">
+        <StudioSwitcher name="" sub="Your studio" />
       </div>
 
       {profile && (

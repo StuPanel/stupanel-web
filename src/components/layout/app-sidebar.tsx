@@ -14,7 +14,7 @@ import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
 import { API_URL as API } from "@/lib/api";
 import { canOpen } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
-import { StudioLogo } from "@/components/studio-logo";
+import { StudioSwitcher } from "@/components/layout/studio-switcher";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { AccountMenu } from "@/components/layout/account-menu";
 
@@ -146,15 +146,7 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
 
       {/* Studio identity */}
       <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
-        <div className={cn("flex items-center rounded-xl bg-[#F7F5FB] border border-[#F1EFF6]", wide ? "gap-2.5 p-2" : "p-1.5")}>
-          <StudioLogo url={companyLogo} name={companyName} size={32} className="rounded-lg" />
-          {wide && (
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#17151F] truncate leading-tight">{companyName || "Your studio"}</p>
-              <p className="text-xs text-[#6B6680] leading-tight mt-0.5">Studio workspace</p>
-            </div>
-          )}
-        </div>
+        <StudioSwitcher name={companyName} logo={companyLogo} sub="Studio workspace" compact={!wide} />
       </div>
 
       {/* Navigation */}

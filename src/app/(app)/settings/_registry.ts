@@ -184,6 +184,8 @@ export const ENTRIES: Entry[] = [
   { id: "n-sendInvoiceEmail", pane: "notifications", section: "Emails to clients", label: "Invoice sent", keywords: "client email" },
   { id: "n-sendPaymentReceipt", pane: "notifications", section: "Emails to clients", label: "Payment receipt", keywords: "client email money" },
   { id: "n-sendDeliveryReady", pane: "notifications", section: "Emails to clients", label: "Delivery ready", keywords: "client email photos" },
+  { id: "n-onAssigned", pane: "notifications", section: "Emails to your team", label: "Added to a program", keywords: "team member email assign schedule" },
+  { id: "n-onEditorAssigned", pane: "notifications", section: "Emails to your team", label: "New editing work", keywords: "team editor email assign deadline" },
 
   // My profile
   { id: "profile-info", pane: "profile", section: "Personal info", label: "Name and phone", keywords: "first last name mobile" },

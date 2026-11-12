@@ -69,11 +69,16 @@ export function PortalPane() {
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-type Prefs = { studio: Record<string, boolean>; client: Record<string, boolean> };
+type Prefs = { studio: Record<string, boolean>; client: Record<string, boolean>; team: Record<string, boolean> };
 const DEF: Prefs = {
   studio: { onNewBooking: true, onBookingConfirmed: true, onBookingCancelled: true, onPaymentReceived: true, onInvoicePaid: true, onNewClient: false, onDeliveryUploaded: false },
   client: { sendBookingConfirmation: true, sendInvoiceEmail: true, sendPaymentReceipt: true, sendDeliveryReady: true, sendQuoteEmail: true },
+  team: { onAssigned: true, onEditorAssigned: true },
 };
+const TEAM_ROWS = [
+  { key: "onAssigned", label: "Added to a program", hint: "Their days, shift and role, when you put them on a program" },
+  { key: "onEditorAssigned", label: "New editing work", hint: "What to deliver and the deadline, when you give them editing" },
+];
 const STUDIO_ROWS = [
   { key: "onNewBooking", label: "New program created" },
   { key: "onBookingConfirmed", label: "Program confirmed" },
@@ -94,8 +99,8 @@ const CLIENT_ROWS = [
 export function NotificationsPane() {
   const { data, patch } = useSettings();
   const raw = data.notificationPrefs ?? {};
-  const prefs: Prefs = { studio: { ...DEF.studio, ...(raw.studio ?? {}) }, client: { ...DEF.client, ...(raw.client ?? {}) } };
-  const toggle = (who: "studio" | "client", key: string, v: boolean) =>
+  const prefs: Prefs = { studio: { ...DEF.studio, ...(raw.studio ?? {}) }, client: { ...DEF.client, ...(raw.client ?? {}) }, team: { ...DEF.team, ...(raw.team ?? {}) } };
+  const toggle = (who: "studio" | "client" | "team", key: string, v: boolean) =>
     patch({ notificationPrefs: { ...prefs, [who]: { ...prefs[who], [key]: v } } });
 
   return (
@@ -104,6 +109,13 @@ export function NotificationsPane() {
         {STUDIO_ROWS.map(r => (
           <Row key={r.key} id={`n-${r.key}`} label={r.label}>
             <Switch label={r.label} on={prefs.studio[r.key]} onChange={v => toggle("studio", r.key, v)} />
+          </Row>
+        ))}
+      </Group>
+      <Group title="Emails to your team" note="Sent to team members who have an email address.">
+        {TEAM_ROWS.map(r => (
+          <Row key={r.key} id={`n-${r.key}`} label={r.label} hint={r.hint}>
+            <Switch label={r.label} on={prefs.team[r.key]} onChange={v => toggle("team", r.key, v)} />
           </Row>
         ))}
       </Group>

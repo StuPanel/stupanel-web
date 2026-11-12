@@ -10,6 +10,7 @@ import { FormDrawer } from "@/components/ui/form-kit";
 import { downloadIcs, googleCalendarUrl, type CalDay } from "@/lib/calendar";
 import { NextUp, Spinner, StatusBadge, daysUntil } from "../_components/kit";
 import Link from "next/link";
+import { StudioLogo } from "@/components/studio-logo";
 
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -20,7 +21,14 @@ interface Event {
   clientName: string; clientPhone: string; days: string[];
   /** The days I work on this program. */
   myDays?: { date: string; part: string; location: string; shifts: string[] }[];
+  /** Which studio (one login, many studios). */
+  studio?: Studio;
 }
+type Studio = { userId: string; name: string; logoUrl: string | null; current: boolean };
+
+/** The days I work on a program (yyyy-mm-dd). */
+const workDates = (e: Event) => (e.myDays?.length ? e.myDays.map(d => d.date) : e.days.length ? e.days : e.eventDate ? [e.eventDate] : [])
+  .map(d => String(d).slice(0, 10)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
 
 /** My work days on a program, as calendar entries (whole days). */
 function calDays(e: Event): CalDay[] {
@@ -48,11 +56,12 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const [cal, setCal] = useState<Event | null>(null);
+  const [studios, setStudios] = useState<Studio[]>([]);
 
   useEffect(() => {
     apiFetch(`${API}/member/schedule`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setEvents(d.events ?? []); })
+      .then(d => { if (d) { setEvents(d.events ?? []); setStudios(d.studios ?? []); } })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -71,11 +80,23 @@ export default function SchedulePage() {
   const nextDays = next ? daysUntil(next.eventDate) : null;
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const upcomingDays = events.filter(e => e.status !== "cancelled").flatMap(calDays).filter(d => d.date >= today);
+  const many = studios.length > 1;
+  // A day booked by two studios → show it on both.
+  const byDate = new Map<string, Set<string>>();
+  for (const e of events) {
+    if (e.status === "cancelled" || !e.studio) continue;
+    for (const d of workDates(e)) (byDate.get(d) ?? byDate.set(d, new Set()).get(d)!).add(e.studio.name);
+  }
+  const clashWith = (e: Event) => {
+    const names = new Set<string>();
+    for (const d of workDates(e)) for (const n of byDate.get(d) ?? []) if (n !== e.studio?.name) names.add(n);
+    return [...names];
+  };
   const softBtn = "h-10 px-4 rounded-full bg-white hover:bg-[#F5F3FA] text-[#17151F] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]";
 
   return (
     <div>
-      <PageHeader icon={CalendarDays} color="red" title="My schedule" sub="Where and when you work">
+      <PageHeader icon={CalendarDays} color="red" title="My schedule" sub={many ? `Your work from ${studios.length} studios — only you see this` : "Where and when you work"}>
         {upcomingDays.length > 0 && (
           <button type="button" onClick={() => downloadIcs(upcomingDays, "schedule", "My StuPanel schedule")} className={softBtn}
             title="Downloads a calendar file with all your coming work days. Open it to add them to your phone or computer calendar.">
@@ -85,8 +106,8 @@ export default function SchedulePage() {
       </PageHeader>
 
       {next && nextDays !== null && (
-        <NextUp days={nextDays} title={next.eventName || "Program"} href={`/member/programs/${next.id}`}
-          sub={`${next.clientName} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
+        <NextUp days={nextDays} title={next.eventName || "Program"} href={next.studio && !next.studio.current ? "/member/schedule" : `/member/programs/${next.id}`}
+          sub={`${many && next.studio ? `${next.studio.name} · ` : ""}${next.clientName} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
       )}
 
       <Chips label="Show" value={filter} onChange={setFilter}
@@ -99,20 +120,35 @@ export default function SchedulePage() {
           {list.map(ev => {
             const d = daysUntil(ev.eventDate);
             const open = d !== null && d >= 0 && ev.status !== "completed" && ev.status !== "cancelled";
+            const elsewhere = !!ev.studio && !ev.studio.current;
+            const clash = open ? clashWith(ev) : [];
+            const rowCls = "flex-1 min-w-0 flex items-start gap-3 pl-4 sm:pl-5 pr-2 py-3.5 transition-colors";
+            const Row = ({ children }: { children: React.ReactNode }) => elsewhere
+              ? <div className={rowCls} title={`Switch to ${ev.studio!.name} (studio name in the menu) to open this program`}>{children}</div>
+              : <Link href={`/member/programs/${ev.id}`} className={cn(rowCls, "hover:bg-[#F7F5FB]")}>{children}</Link>;
             return (
-              <div key={ev.id} className="flex items-stretch">
-              <Link href={`/member/programs/${ev.id}`} className="flex-1 min-w-0 flex items-start gap-3 pl-4 sm:pl-5 pr-2 py-3.5 hover:bg-[#F7F5FB] transition-colors">
+              <div key={`${ev.studio?.userId ?? ""}${ev.id}`} className="flex items-stretch">
+              <Row>
                 <DateBox date={ev.eventDate} />
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2">
                     <span className="text-[15px] font-semibold text-[#17151F] truncate">{ev.eventName || "Program"}</span>
                   </span>
+                  {many && ev.studio && (
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#5B3FD0] min-w-0">
+                      <StudioLogo url={ev.studio.logoUrl} name={ev.studio.name} size={16} className="rounded-[5px]" />
+                      <span className="truncate">{ev.studio.name}{elsewhere ? " · switch studio to open" : ""}</span>
+                    </span>
+                  )}
                   <span className="block text-xs text-[#6B6680] truncate">
                     {ev.clientName}{ev.eventLocation && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {ev.eventLocation}</>}
                     {ev.clientPhone && <> · <Phone className="inline w-3 h-3 -mt-0.5" /> {ev.clientPhone}</>}
                   </span>
                   {(ev.days.length > 1 || open) && (
                     <span className="mt-1.5 flex flex-wrap gap-1">
+                      {clash.length > 0 && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#FDECEF] text-[#C2304F]">Same day at {clash.join(", ")}</span>
+                      )}
                       {open && (
                         <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-bold",
                           d === 0 ? "bg-[#FDECEF] text-[#C2304F]" : d! <= 3 ? "bg-[#FBF2FA] text-[#823072]" : "bg-[#F5F3FA] text-[#4A4658]")}>
@@ -127,7 +163,7 @@ export default function SchedulePage() {
                   )}
                 </span>
                 <StatusBadge status={ev.status} />
-              </Link>
+              </Row>
               {calDays(ev).length > 0 && (
                 <button type="button" onClick={() => setCal(ev)} aria-label={`Add ${ev.eventName || "program"} to my calendar`} title="Add to my calendar"
                   className="w-12 flex-shrink-0 flex items-center justify-center text-[#6B6680] hover:bg-[#F7F5FB] hover:text-[#5B3FD0] transition-colors">

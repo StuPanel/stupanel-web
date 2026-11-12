@@ -26,6 +26,14 @@ export function saveSession(d: Session) {
   setAccessTokenCookie(d.accessToken);
 }
 
+/** Google sign-in leaves the page: keep where to go after it (only an invite link). */
+export function rememberAfterLogin(path: string | null) {
+  try { if (path?.startsWith("/invite/")) sessionStorage.setItem("after_login", path); else sessionStorage.removeItem("after_login"); } catch { /* ignore */ }
+}
+export function takeAfterLogin(): string | null {
+  try { const p = sessionStorage.getItem("after_login"); sessionStorage.removeItem("after_login"); return p?.startsWith("/invite/") ? p : null; } catch { return null; }
+}
+
 /** Where this session starts: member panel for staff, otherwise the studio app. */
 export function homeFor(d: Session, redirectTo?: string | null) {
   // An invite link the person came from always wins.

@@ -4,6 +4,7 @@ import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { setAccessTokenCookie } from "@/lib/auth-cookie";
+import { takeAfterLogin } from "@/lib/studio-session";
 
 function CallbackHandler() {
   const params = useSearchParams();
@@ -26,6 +27,10 @@ function CallbackHandler() {
     localStorage.setItem("access_token", token);
     localStorage.setItem("user_role", role);
     setAccessTokenCookie(token);
+
+    // Came from an invite link → back there to accept it.
+    const after = takeAfterLogin();
+    if (after) { window.location.href = after; return; }
 
     if (role === "staff") {
       window.location.href = "/member/dashboard";

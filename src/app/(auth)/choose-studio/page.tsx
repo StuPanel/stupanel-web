@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { StudioList } from "@/components/studio-list";
-import { enterSession, postPublic, type Session, type StudioCard } from "@/lib/studio-session";
+import { enterSession, postPublic, takeAfterLogin, type Session, type StudioCard } from "@/lib/studio-session";
 
 type TicketInfo = { studios: StudioCard[] };
 
@@ -32,7 +32,7 @@ function Chooser() {
     setBusy(s.userId); setError("");
     const r = await postPublic<Session>("/auth/choose-studio", { ticket, userId: s.userId });
     if (!r.ok) { setBusy(null); setError(r.error); return; }
-    enterSession(r.data);
+    enterSession(r.data, takeAfterLogin());
   }
 
   return (

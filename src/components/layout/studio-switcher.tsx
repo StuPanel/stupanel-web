@@ -24,11 +24,15 @@ function loadMine(fresh = false) {
   return cached;
 }
 
-export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
+export function StudioSwitcher({ name, logo, sub, compact, onOpen, bar, fallback }: {
   /** What the app already knows (shown at once, before the list loads). */
   name: string; logo?: string | null; sub?: string; compact?: boolean;
   /** e.g. close the phone menu */
   onOpen?: () => void;
+  /** Phone top bar: logo + name, no card. Shown only for someone in several studios (or with an invite). */
+  bar?: boolean;
+  /** What the top bar shows otherwise (the StuPanel brand). */
+  fallback?: React.ReactNode;
 }) {
   const [mine, setMine] = useState<Mine | null>(null);
   const [open, setOpen] = useState(false);
@@ -84,13 +88,27 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
     </span>
   );
 
-  if (!canOpen) return card;
+  const barView = (
+    <span className="flex items-center gap-2 min-w-0 text-left">
+      <span className="relative flex-shrink-0">
+        <StudioLogo url={shownLogo} name={shownName} size={32} className="rounded-[10px]" />
+        {invites > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#7D5CEF] ring-2 ring-white" aria-hidden />}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[15px] font-bold text-[#17151F] truncate leading-tight">{shownName}</span>
+        <span className="block text-[11.5px] text-[#6B6680] leading-tight">{invites > 0 ? `${invites} invite${invites > 1 ? "s" : ""} waiting` : "Switch studio"}</span>
+      </span>
+      <ChevronsUpDown className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+    </span>
+  );
+
+  if (!canOpen) return bar ? <>{fallback}</> : card;
 
   return (
     <>
       <button type="button" onClick={() => { onOpen?.(); setOpen(true); }} title={compact ? `${shownName} — switch studio` : undefined}
-        aria-haspopup="dialog" aria-label={`${shownName}. Switch studio`} className="w-full rounded-xl">
-        {card}
+        aria-haspopup="dialog" aria-label={`${shownName}. Switch studio`} className={bar ? "min-w-0 max-w-full rounded-xl" : "w-full rounded-xl"}>
+        {bar ? barView : card}
       </button>
       {open && mine && createPortal(
         <>

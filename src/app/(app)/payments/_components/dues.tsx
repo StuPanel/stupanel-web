@@ -8,12 +8,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, ExternalLink, MessageCircle, Plus, Search, Users, Wallet,
+  AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Copy, ExternalLink, MessageCircle, Plus, Search, Users, Wallet,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { waLink } from "@/lib/portal-session";
+import { dueReminderText, type PayTo } from "@/lib/due-reminder";
+import { notify } from "@/components/feedback";
 import { CARD_SHADOW, Chips, EmptyState, Initial, RowsSkeleton, StatCard } from "@/components/ui/apple";
 
 export type DueProgram = {
@@ -26,6 +28,7 @@ export type DueClient = {
 };
 type Dues = {
   currency: string;
+  payTo?: PayTo | null;
   totals: { due: number; overdue: number; upcoming: number; clients: number; programs: number };
   clients: DueClient[];
 };
@@ -90,7 +93,7 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
           ) : (
             <div className={cn("bg-white rounded-[20px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
               {list.map(c => (
-                <ClientDue key={c.id} c={c} m={m} studioName={studioName} open={open === c.id}
+                <ClientDue key={c.id} c={c} m={m} studioName={studioName} currency={cur} payTo={d.payTo} open={open === c.id}
                   onToggle={() => setOpen(o => (o === c.id ? null : c.id))} onRecord={onRecord} />
               ))}
             </div>
@@ -101,14 +104,16 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
   );
 }
 
-function ClientDue({ c, m, studioName, open, onToggle, onRecord }: {
-  c: DueClient; m: (n: number) => string; studioName: string; open: boolean;
+function ClientDue({ c, m, studioName, currency, payTo, open, onToggle, onRecord }: {
+  c: DueClient; m: (n: number) => string; studioName: string; currency?: string; payTo?: PayTo | null; open: boolean;
   onToggle: () => void; onRecord: (p: DueProgram) => void;
 }) {
   const due = c.programs.reduce((s, p) => s + p.due, 0);
   const overdue = c.programs.filter(p => p.overdue).reduce((s, p) => s + p.due, 0);
-  const lines = c.programs.map(p => `• ${p.name}${p.date ? ` (${fmtDate(p.date)})` : ""}: ${m(p.due)}`).join("\n");
-  const wa = waLink(c.phone, `Hi ${c.firstName}, this is a friendly reminder from ${studioName}. The amount still due is ${m(due)}:\n${lines}\nThank you!`);
+  // The reminder covers the programs shown (the filter decides: all, overdue or coming up).
+  const text = dueReminderText({ firstName: c.firstName, studio: studioName, currency, payTo, programs: c.programs });
+  const wa = waLink(c.phone, text);
+  const copy = () => navigator.clipboard.writeText(text).then(() => notify("Message copied"), () => notify("Couldn't copy", { error: true }));
 
   return (
     <div>
@@ -174,6 +179,10 @@ function ClientDue({ c, m, studioName, open, onToggle, onRecord }: {
                 <MessageCircle className="w-4 h-4" />Remind on WhatsApp
               </a>
             )}
+            <button type="button" onClick={copy}
+              className="h-9 px-3.5 rounded-full bg-white border border-[#E3DFEC] text-[#17151F] hover:bg-[#F5F3FA] text-[13px] font-semibold inline-flex items-center gap-1.5">
+              <Copy className="w-3.5 h-3.5" />Copy message
+            </button>
             <Link href={`/clients/${c.id}`}
               className="h-9 px-3.5 rounded-full bg-white border border-[#E3DFEC] text-[#17151F] hover:bg-[#F5F3FA] text-[13px] font-semibold inline-flex items-center gap-1.5">
               Open client

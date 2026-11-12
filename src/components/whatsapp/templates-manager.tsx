@@ -16,6 +16,7 @@ import { askConfirm } from "@/components/feedback";
 import { API_URL as API } from "@/lib/api";
 import { EditableSelect } from "@/components/ui/editable-select";
 import { jumpToField } from "@/lib/jump-to-field";
+import { DUE_CATEGORY, DUE_FIELDS } from "@/lib/due-reminder";
 
 
 const CATEGORIES: { key: string; label: string; color: string; tile: TileColor }[] = [
@@ -23,10 +24,11 @@ const CATEGORIES: { key: string; label: string; color: string; tile: TileColor }
   { key: "payment_reminder",     label: "Payment reminder",     color: "bg-[#FFF3E0] text-[#9A5B00]", tile: "orchid" },
   { key: "delivery_notification",label: "Delivery",             color: "bg-[#E3F2F1] text-[#126B66]", tile: "teal" },
   { key: "event_reminder",       label: "Event reminder",       color: "bg-[#E8F0FA] text-[#1F5C99]", tile: "blue" },
+  { key: DUE_CATEGORY,           label: "Due reminder (all programs)", color: "bg-[#FDECEF] text-[#C2304F]", tile: "red" },
   { key: "custom",               label: "Custom",               color: "bg-[#F1EFF6] text-[#4A4658]", tile: "green" },
 ];
 function catCfg(key: string) {
-  return CATEGORIES.find(c => c.key === key) ?? { key, label: key, color: CATEGORIES[4].color };
+  return CATEGORIES.find(c => c.key === key) ?? { key, label: key, color: CATEGORIES[CATEGORIES.length - 1].color };
 }
 
 const PLACEHOLDERS = [
@@ -43,6 +45,9 @@ const PLACEHOLDERS = [
   { key: "{{currency}}",      label: "Currency" },
   { key: "{{companyName}}",   label: "Studio name" },
 ];
+
+/** The due reminder (Payments → Due) is per client, so it has its own fields. */
+const fieldsFor = (category: string) => (category === DUE_CATEGORY ? DUE_FIELDS : PLACEHOLDERS);
 
 interface Template {
   id: string; name: string; category: string; body: string; isActive: boolean;
@@ -102,7 +107,7 @@ function TemplateForm({ initial, onSave, onCancel }: {
       <div>
         <span className="block text-[13px] font-semibold text-[#4A4658] mb-1.5">Message</span>
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {PLACEHOLDERS.map(p => (
+          {fieldsFor(category).map(p => (
             <button key={p.key} type="button" onMouseDown={e => e.preventDefault()} onClick={() => insertPlaceholder(p.key)}
               className="h-8 px-3 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1">
               <Plus className="w-3 h-3" />{p.label}
@@ -132,7 +137,7 @@ function Bubble({ body }: { body: string }) {
     <div className={cn("rounded-[18px] rounded-tl-[6px] bg-[#F0FAF4] px-4 py-3 text-[13.5px] text-[#17151F] leading-relaxed whitespace-pre-wrap max-h-[176px] overflow-hidden",
       (body.split("\n").length > 7 || body.length > 260) && "[mask-image:linear-gradient(to_bottom,#000_70%,transparent)]")}>
       {parts.map((p, i) => {
-        const ph = PLACEHOLDERS.find(x => x.key === p);
+        const ph = [...PLACEHOLDERS, ...DUE_FIELDS].find(x => x.key === p);
         return ph ? <span key={i} className="inline-block px-1.5 rounded-md bg-[#EEE8FD] text-[#5B3FD0] font-semibold text-[12.5px]">{ph.label}</span> : <span key={i}>{p}</span>;
       })}
     </div>

@@ -8,13 +8,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Copy, ExternalLink, MessageCircle, Plus, Search, Users, Wallet,
+  AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Copy, ExternalLink, PenLine, MessageCircle, Plus, Search, Users, Wallet,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { waLink } from "@/lib/portal-session";
-import { dueReminderText, type PayTo } from "@/lib/due-reminder";
+import { DUE_CATEGORY, dueReminderText, type PayTo } from "@/lib/due-reminder";
+import { DueTemplateEditor, type DueTemplate } from "./due-template";
 import { notify } from "@/components/feedback";
 import { CARD_SHADOW, Chips, EmptyState, Initial, RowsSkeleton, StatCard } from "@/components/ui/apple";
 
@@ -42,6 +43,15 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
+  // The studio's own reminder wording (WhatsApp template "due_reminder"); null = the default.
+  const [tpl, setTpl] = useState<DueTemplate>(null);
+  const [editingFor, setEditingFor] = useState<DueClient | null>(null);
+  useEffect(() => {
+    apiFetch(`${API}/wa-templates`).then(r => (r.ok ? r.json() : [])).then((list: { id: string; category: string; body: string; isActive: boolean }[]) => {
+      const t = (Array.isArray(list) ? list : []).find(x => x.category === DUE_CATEGORY && x.isActive);
+      setTpl(t ? { id: t.id, body: t.body } : null);
+    }).catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     apiFetch(`${API}/payments/dues`)
@@ -93,10 +103,14 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
           ) : (
             <div className={cn("bg-white rounded-[20px] overflow-hidden divide-y divide-[#EEEBF4]", CARD_SHADOW)}>
               {list.map(c => (
-                <ClientDue key={c.id} c={c} m={m} studioName={studioName} currency={cur} payTo={d.payTo} open={open === c.id}
-                  onToggle={() => setOpen(o => (o === c.id ? null : c.id))} onRecord={onRecord} />
+                <ClientDue key={c.id} c={c} m={m} studioName={studioName} currency={cur} payTo={d.payTo} template={tpl?.body} open={open === c.id}
+                  onToggle={() => setOpen(o => (o === c.id ? null : c.id))} onRecord={onRecord} onEditMessage={() => setEditingFor(c)} />
               ))}
             </div>
+          )}
+          {editingFor && (
+            <DueTemplateEditor template={tpl} clientName={editingFor.name} onSaved={setTpl} onClose={() => setEditingFor(null)}
+              preview={body => dueReminderText({ firstName: editingFor.firstName, clientName: editingFor.name, studio: studioName, currency: cur, payTo: d.payTo, programs: editingFor.programs, template: body })} />
           )}
         </>
       )}
@@ -104,14 +118,14 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
   );
 }
 
-function ClientDue({ c, m, studioName, currency, payTo, open, onToggle, onRecord }: {
-  c: DueClient; m: (n: number) => string; studioName: string; currency?: string; payTo?: PayTo | null; open: boolean;
-  onToggle: () => void; onRecord: (p: DueProgram) => void;
+function ClientDue({ c, m, studioName, currency, payTo, template, open, onToggle, onRecord, onEditMessage }: {
+  c: DueClient; m: (n: number) => string; studioName: string; currency?: string; payTo?: PayTo | null; template?: string | null; open: boolean;
+  onToggle: () => void; onRecord: (p: DueProgram) => void; onEditMessage: () => void;
 }) {
   const due = c.programs.reduce((s, p) => s + p.due, 0);
   const overdue = c.programs.filter(p => p.overdue).reduce((s, p) => s + p.due, 0);
   // The reminder covers the programs shown (the filter decides: all, overdue or coming up).
-  const text = dueReminderText({ firstName: c.firstName, studio: studioName, currency, payTo, programs: c.programs });
+  const text = dueReminderText({ firstName: c.firstName, clientName: c.name, studio: studioName, currency, payTo, programs: c.programs, template });
   const wa = waLink(c.phone, text);
   const copy = () => navigator.clipboard.writeText(text).then(() => notify("Message copied"), () => notify("Couldn't copy", { error: true }));
 
@@ -182,6 +196,10 @@ function ClientDue({ c, m, studioName, currency, payTo, open, onToggle, onRecord
             <button type="button" onClick={copy}
               className="h-9 px-3.5 rounded-full bg-white border border-[#E3DFEC] text-[#17151F] hover:bg-[#F5F3FA] text-[13px] font-semibold inline-flex items-center gap-1.5">
               <Copy className="w-3.5 h-3.5" />Copy message
+            </button>
+            <button type="button" onClick={onEditMessage}
+              className="h-9 px-3.5 rounded-full bg-white border border-[#E3DFEC] text-[#17151F] hover:bg-[#F5F3FA] text-[13px] font-semibold inline-flex items-center gap-1.5">
+              <PenLine className="w-3.5 h-3.5" />Edit message
             </button>
             <Link href={`/clients/${c.id}`}
               className="h-9 px-3.5 rounded-full bg-white border border-[#E3DFEC] text-[#17151F] hover:bg-[#F5F3FA] text-[13px] font-semibold inline-flex items-center gap-1.5">

@@ -20,6 +20,7 @@ export function NewPasswordStep({ currentPassword, onDone }: { currentPassword: 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (pass.length < 8) { setError("Use at least 8 characters."); return; }
+    if (!again) { setError("Type the same password again in the second box."); return; }
     if (pass !== again) { setError("The two passwords are not the same."); return; }
     if (pass === currentPassword) { setError("Choose a password different from the one the studio gave you."); return; }
     setBusy(true); setError("");
@@ -54,7 +55,7 @@ export function NewPasswordStep({ currentPassword, onDone }: { currentPassword: 
         </label>
         <label className="block">
           <span className="block text-sm font-medium text-[#33303F] mb-1.5">Type it again</span>
-          <input type={show ? "text" : "password"} value={again} onChange={e => setAgain(e.target.value)} autoComplete="new-password" className={inputCls} />
+          <input type={show ? "text" : "password"} value={again} onChange={e => setAgain(e.target.value)} autoComplete="new-password" placeholder="The same password again" className={inputCls} />
         </label>
         <button type="submit" disabled={busy}
           className="w-full h-11 rounded-lg bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70">

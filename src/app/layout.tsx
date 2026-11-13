@@ -80,9 +80,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The app is English only: stop phone browsers from auto-translating it (it garbled pages into other languages).
   return (
-    <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full`} suppressHydrationWarning>
+    <html lang="en" translate="no" className={`notranslate ${jakarta.variable} ${geistMono.variable} h-full`} suppressHydrationWarning>
       <head>
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: BACKDROP_BOOT }} />
       </head>
       <body className="h-full bg-background text-foreground antialiased" suppressHydrationWarning>

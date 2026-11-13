@@ -95,7 +95,7 @@ export function MyCosts({ bookingId, title = "Costs I paid", canAdd = true, onCh
   return (
     <Section title={title} action={bookingId && canAdd && list.length > 0 ? <button type="button" onClick={() => open()} className={linkBtn}><Plus className="w-3.5 h-3.5" />Add a cost</button> : undefined}>
       {list.length === 0 ? (
-        <Empty icon={ReceiptText} title="Paid something for this program?" text="Transport, food, rented gear… Add it here. When the studio approves, it is added to what they owe you.">
+        <Empty icon={ReceiptText} title="Paid something for this program?" text="Transport, food, rented gear… Add it here. When the studio approves, it is added to what is due to you.">
           {canAdd && <button type="button" onClick={() => open()} className={softBtn}><Plus className="w-4 h-4" />Add a cost</button>}
         </Empty>
       ) : (
@@ -191,7 +191,7 @@ export function MyCosts({ bookingId, title = "Costs I paid", canAdd = true, onCh
               )}
               <p className="text-[12px] text-[#6B6680] mt-2">Helps the studio approve faster. It is made small before upload.</p>
             </div>
-            <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">The studio checks it. When approved, it is added to your bill on this program and they owe it to you. You can change or delete it until then.</p>
+            <p className="px-1 mt-3 text-xs text-[#6B6680] leading-relaxed">The studio checks it. When approved, it is added to your bill on this program and it is due to you. You can change or delete it until then.</p>
           </>
         )}
       </FormDrawer>

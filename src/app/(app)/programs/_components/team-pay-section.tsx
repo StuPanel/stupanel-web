@@ -100,7 +100,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
         })}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAF9FC] text-xs">
           <span className="text-[#6B6680]">Total {formatCurrency(total, booking.currency)} · paid {formatCurrency(paid, booking.currency)}</span>
-          <span className={cn("font-bold", total - paid > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>Owe {formatCurrency(Math.max(0, total - paid), booking.currency)}</span>
+          <span className={cn("font-bold", total - paid > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>Due {formatCurrency(Math.max(0, total - paid), booking.currency)}</span>
         </div>
       </div>
       <PayMember booking={booking} entry={paying} onClose={() => setPaying(null)} onSaved={onSaved} />
@@ -128,7 +128,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
     const over = amount > due + 0.009;
     if (over && !(await askConfirm({
       title: "Pay more than the bill?",
-      message: `${entry!.memberName} is owed only ${formatCurrency(due, booking.currency)} on this program. You are paying ${formatCurrency(amount - due, booking.currency)} extra.`,
+      message: `Only ${formatCurrency(due, booking.currency)} is due to ${entry!.memberName} on this program. You are paying ${formatCurrency(amount - due, booking.currency)} extra.`,
       confirmLabel: "Pay anyway", cancelLabel: "Go back",
     }))) return;
     setSaving(true); setErr("");

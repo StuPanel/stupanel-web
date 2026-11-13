@@ -108,12 +108,12 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
     e.preventDefault();
     if (!(amt > 0)) { setError("Write how much you are paying."); jumpToField("amount"); return; }
     if (!walletId) { setError("Pick the account the money was paid from."); jumpToField("wallet"); return; }
-    if (!dues?.length) { setError("Nothing is owed on any program. Pay from the program instead."); return; }
+    if (!dues?.length) { setError("Nothing is due on any program. Pay from the program instead."); return; }
     if (Math.abs(splitSum - amt) > 0.009) { setError(`The programs add up to ${formatCurrency(splitSum)}, not ${formatCurrency(amt)}.`); return; }
     const over = amt > total + 0.009 || (dues ?? []).some(p => (split[p.id] ?? 0) > p.due + 0.009);
     if (over && !(await askConfirm({
-      title: "Pay more than owed?",
-      message: `${member.firstName} is owed ${formatCurrency(total)} in all. You are paying ${formatCurrency(Math.max(0, amt - total))} extra — it is added to the last program.`,
+      title: "Pay more than is due?",
+      message: `${member.firstName} has ${formatCurrency(total)} due in all. You are paying ${formatCurrency(Math.max(0, amt - total))} extra — it is added to the last program.`,
       confirmLabel: "Pay anyway", cancelLabel: "Go back",
     }))) return;
     setSaving(true); setError("");
@@ -133,7 +133,7 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
 
   return (
     <FormDrawer open onTop onClose={onClose} icon={HandCoins} color="green" title={`Pay ${member.firstName}`}
-      sub={dues === null ? "Loading…" : total > 0 ? `Owed now: ${formatCurrency(total)}` : "Nothing owed right now"}
+      sub={dues === null ? "Loading…" : total > 0 ? `Due now: ${formatCurrency(total)}` : "Nothing due right now"}
       footer={<>
         <button type="button" onClick={onClose} className="flex-1 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F] hover:bg-[#E4E0EC]">Cancel</button>
         <button type="submit" form="pay-form" disabled={saving || !dues}
@@ -155,7 +155,7 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
                 </div>
                 {dues && amt > total + 0.009 && (
                   <p role="alert" className="mt-2 text-[12px] font-medium text-[#823072] bg-[#FBF2FA] rounded-xl px-3 py-2">
-                    More than owed — {formatCurrency(amt - total)} extra. You&apos;ll be asked to confirm.
+                    More than due — {formatCurrency(amt - total)} extra. You&apos;ll be asked to confirm.
                   </p>
                 )}
               </div>

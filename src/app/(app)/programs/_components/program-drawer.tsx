@@ -29,7 +29,7 @@ import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
-import { DEFAULT_SHIFTS, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
+import { DEFAULT_SHIFTS, activeShifts, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
 type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
 type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: string }[] };
@@ -546,9 +546,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   };
   const parts = programType ? partsOf(programType) : [];
   const missingParts = parts.filter(n => !days.some(d => d.eventType.trim().toLowerCase() === n.toLowerCase()));
-  // A new day starts with the studio's ★ shifts (Settings → Programs → Shifts), or none — then you pick.
+  // A new day starts without a shift: you pick from the studio's shifts that are on (Settings → Programs → Shifts).
   const toShift = (s: StudioShift) => ({ id: uid(), label: s.name, start: s.start ?? undefined, end: s.end ?? undefined, assignments: [] });
-  const makeDay = (eventType: string, location = "", mapUrl?: string): EventDay => ({ id: uid(), eventType, date: "", location, mapUrl, shifts: studio.shifts.filter(s => s.isDefault).map(toShift) });
+  const makeDay = (eventType: string, location = "", mapUrl?: string): EventDay => ({ id: uid(), eventType, date: "", location, mapUrl, shifts: [] });
   const untouched = (ds: EventDay[]) => ds.every(d => !d.date && !d.location.trim() && d.shifts.every(x => x.assignments.length === 0));
 
   /**
@@ -890,7 +890,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                           ))}
                           <div className={cn("px-3 py-2.5 flex flex-wrap items-center gap-1.5", !d.shifts.length && "bg-[#FFF9EE]")}>
                             <span className={cn("text-[12px] mr-1", d.shifts.length ? "text-[#6B6680]" : "text-[#9A6412] font-semibold")}>{d.shifts.length ? "Add shift:" : "Choose this day's shift:"}</span>
-                            {studio.shifts.filter(p => !d.shifts.some(s => s.label.toLowerCase() === p.name.toLowerCase())).map(p => (
+                            {activeShifts(studio.shifts).filter(p => !d.shifts.some(s => s.label.toLowerCase() === p.name.toLowerCase())).map(p => (
                               <button key={p.id} type="button" onClick={() => addShift(d.id, p)}
                                 className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", d.shifts.length ? "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]" : "bg-white text-[#5B3FD0] shadow-[0_1px_2px_rgba(22,18,40,.08)] hover:bg-[#F5F3FA]")}>
                                 <Plus className="w-3 h-3" />{p.name}{timeRange(p.start, p.end) && <span className="font-normal text-[#8A8599]">· {timeRange(p.start, p.end)}</span>}

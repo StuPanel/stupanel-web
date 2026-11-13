@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowRight, Lock, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
+  AlertTriangle, ArrowRight, Clock, Lock, Calendar, Camera, Check, ChevronDown, Loader2, MapPin, Minus, Plus,
   Search, Store, Trash2, UserPlus, Users, Wallet, X, Zap, CalendarOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,12 +29,12 @@ import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
+import { DEFAULT_SHIFTS, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
 type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
 type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: string }[] };
-type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string };
+type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string; shifts: StudioShift[] };
 
-const SHIFT_PRESETS = ["Day", "Evening", "Night", "Full day"];
 const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const role = (id: string) => TEAM_ROLES.find(r => r.id === id) ?? { id, label: id.replace(/_/g, " "), icon: Camera, tile: "violet" };
 const fullName = (m?: { firstName: string; lastName?: string | null }) => m ? `${m.firstName} ${m.lastName ?? ""}`.trim() : "";
@@ -46,8 +46,7 @@ export const dayName = (v: string): string => (/^[a-z_]+$/.test(v) ? v.split("_"
 function normalizeDays(days: EventDay[] | undefined | null): EventDay[] {
   return (days ?? []).map(d => {
     const shifts = (d.shifts ?? []).map(s => ({ ...s, assignments: s.assignments ?? (s as unknown as { memberIds?: ShiftAssignment[] }).memberIds ?? [] }));
-    // Old days may have no shift at all — give them one so people can be added straight away.
-    return { ...d, shifts: shifts.length ? shifts : [{ id: uid(), label: "Day", assignments: [] }] };
+    return { ...d, shifts };
   });
 }
 
@@ -246,7 +245,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
     onClose();
   }
 
-  const allSlots = days.flatMap(d => d.shifts.map(s => ({ key: `${d.id}|${s.id}`, label: `${d.eventType || "Day"}${d.date ? ` · ${fmtDate(d.date)}` : ""} · ${s.label}` })));
+  const allSlots = days.flatMap(d => d.shifts.map(s => ({ key: `${d.id}|${s.id}`, label: `${d.eventType || "Day"}${d.date ? ` · ${fmtDate(d.date)}` : ""} · ${s.label}${timeRange(s.start, s.end) ? ` (${timeRange(s.start, s.end)})` : ""}` })));
 
   return (
     <FormDrawer open={open} onTop onClose={onClose} icon={Users} color="blue" title={editing ? "Edit person" : "Add a person"}
@@ -459,7 +458,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [notes, setNotes] = useState("");
   const [kept, setKept] = useState<CostEntry[]>([]);
   const [editors, setEditors] = useState<EditorDraft[]>([]);
-  const [studio, setStudio] = useState<StudioSetup>({ workTypes: [], shiftTemplates: [], studioRates: [], payMode: "per_shift" });
+  const [studio, setStudio] = useState<StudioSetup>({ workTypes: [], shiftTemplates: [], studioRates: [], payMode: "per_shift", shifts: DEFAULT_SHIFTS });
   const [team, setTeam] = useState<TeamMember[]>(teamMembers);
   const [busy, setBusy] = useState<Record<string, string[]>>({});
   const [assign, setAssign] = useState<{ open: boolean; start: SlotRef | null; editing: { slot: SlotRef; a: ShiftAssignment } | null }>({ open: false, start: null, editing: null });
@@ -476,6 +475,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null).then(d => d && setStudio({
       workTypes: (d.workTypes ?? []).filter((w: WorkType) => w.active), shiftTemplates: d.shiftTemplates ?? [],
       studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
+      shifts: Array.isArray(d.shifts) && d.shifts.length ? d.shifts : DEFAULT_SHIFTS,
     })).catch(() => {});
     apiFetch(`${API}/team`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setTeam(d)).catch(() => {});
     apiFetch(`${API}/packages`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setPkgs(d)).catch(() => {});
@@ -546,7 +546,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   };
   const parts = programType ? partsOf(programType) : [];
   const missingParts = parts.filter(n => !days.some(d => d.eventType.trim().toLowerCase() === n.toLowerCase()));
-  const makeDay = (eventType: string, location = ""): EventDay => ({ id: uid(), eventType, date: "", location, shifts: [{ id: uid(), label: studio.payMode === "per_shift" ? "Day" : "Full day", assignments: [] }] });
+  // A new day starts with the studio's ★ shifts (Settings → Programs → Shifts), or none — then you pick.
+  const toShift = (s: StudioShift) => ({ id: uid(), label: s.name, start: s.start ?? undefined, end: s.end ?? undefined, assignments: [] });
+  const makeDay = (eventType: string, location = "", mapUrl?: string): EventDay => ({ id: uid(), eventType, date: "", location, mapUrl, shifts: studio.shifts.filter(s => s.isDefault).map(toShift) });
   const untouched = (ds: EventDay[]) => ds.every(d => !d.date && !d.location.trim() && d.shifts.every(x => x.assignments.length === 0));
 
   /**
@@ -563,9 +565,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     const names = (p.eventTypesIncluded ?? []).map(dayName).filter(Boolean);
     if (!names.length) return;
     setDays(ds => {
-      if (untouched(ds)) return names.map(n => makeDay(n, ds[0]?.location ?? ""));
+      if (untouched(ds)) return names.map(n => makeDay(n, ds[0]?.location ?? "", ds[0]?.mapUrl));
       const have = new Set(ds.map(d => d.eventType.trim().toLowerCase()));
-      return [...ds, ...names.filter(n => !have.has(n.toLowerCase())).map(n => makeDay(n, ds[ds.length - 1]?.location ?? ""))];
+      return [...ds, ...names.filter(n => !have.has(n.toLowerCase())).map(n => makeDay(n, ds[ds.length - 1]?.location ?? "", ds[ds.length - 1]?.mapUrl))];
     });
   }
   /** Offered packages, plus the one this program already uses even if it is hidden now. */
@@ -580,7 +582,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // ── days & shifts ──
   const setDay = (id: string, p: Partial<EventDay>) => setDays(ds => ds.map(d => d.id === id ? { ...d, ...p } : d));
   const addDay = (eventType = "") => {
-    const day = makeDay(eventType, days[days.length - 1]?.location ?? "");
+    const day = makeDay(eventType, days[days.length - 1]?.location ?? "", days[days.length - 1]?.mapUrl);
     setDays(ds => [...ds, day]);
     flash(day.id);
   };
@@ -593,14 +595,18 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const addPart = (n: string) => {
     // Keep the type's order: put the part before the first later part that is already there.
     const order = parts.map(x => x.toLowerCase());
-    const day = makeDay(n, days[days.length - 1]?.location ?? "");
+    const day = makeDay(n, days[days.length - 1]?.location ?? "", days[days.length - 1]?.mapUrl);
     setDays(ds => {
       const at = ds.findIndex(d => order.indexOf(d.eventType.trim().toLowerCase()) > order.indexOf(n.toLowerCase()));
       return at < 0 ? [...ds, day] : [...ds.slice(0, at), day, ...ds.slice(at)];
     });
     flash(day.id);
   };
-  const addShift = (dayId: string, label: string) => setDays(ds => ds.map(d => d.id === dayId && !d.shifts.some(s => s.label === label) ? { ...d, shifts: [...d.shifts, { id: uid(), label, assignments: [] }] } : d));
+  const addShift = (dayId: string, s: StudioShift) => setDays(ds => ds.map(d => d.id === dayId && !d.shifts.some(x => x.label === s.name) ? { ...d, shifts: [...d.shifts, toShift(s)] } : d));
+  const setShift = (dayId: string, shiftId: string, p: Partial<{ start: string; end: string }>) =>
+    setDays(ds => ds.map(d => d.id !== dayId ? d : { ...d, shifts: d.shifts.map(s => s.id === shiftId ? { ...s, ...p } : s) }));
+  const [timeOpen, setTimeOpen] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState<string | null>(null);
   const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
   const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
   function savePerson(a: ShiftAssignment, slots: SlotRef[], replace?: { slot: SlotRef; a: ShiftAssignment }) {
@@ -800,16 +806,56 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
                             <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
                           </div>
+                          {/* Google Maps link for the team */}
+                          <div className="col-start-2 sm:col-start-2 sm:col-span-3">
+                            {mapOpen === d.id || (d.mapUrl && !isMapLink(d.mapUrl)) ? (
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <input value={d.mapUrl ?? ""} onChange={e => setDay(d.id, { mapUrl: e.target.value })} autoFocus={mapOpen === d.id} inputMode="url"
+                                    placeholder="Paste the Google Maps link of the venue" aria-label={`Day ${i + 1} Google Maps link`}
+                                    className={cn(inputCls, "h-10 text-sm flex-1", d.mapUrl && !isMapLink(d.mapUrl) && "ring-1 ring-[#C2304F]/40")} />
+                                  <button type="button" onClick={() => setMapOpen(null)} className="h-10 px-3 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0]">Done</button>
+                                </div>
+                                <p className={cn("mt-1 px-1 text-[11.5px]", d.mapUrl && !isMapLink(d.mapUrl) ? "text-[#C2304F]" : "text-[#6B6680]")}>
+                                  {d.mapUrl && !isMapLink(d.mapUrl) ? "That isn't a Google Maps link. In Google Maps: find the venue → Share → Copy link." : "In Google Maps: find the venue → Share → Copy link, then paste it here."}
+                                  {d.location.trim() && <> <a href={mapLink({ location: d.location })} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#5B3FD0] underline">Find “{d.location.trim()}” on Google Maps</a></>}
+                                </p>
+                              </div>
+                            ) : d.mapUrl ? (
+                              <span className="inline-flex items-center gap-1 flex-wrap text-[12.5px]">
+                                <a href={d.mapUrl} target="_blank" rel="noopener noreferrer" className="h-8 px-3 rounded-full bg-[#E9F5EE] text-[#1F8A5B] font-semibold inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />Map added — open</a>
+                                <button type="button" onClick={() => setMapOpen(d.id)} className="h-8 px-2.5 rounded-full text-[#6B6680] hover:bg-[#F5F3FA] font-semibold">Change</button>
+                                <button type="button" onClick={() => setDay(d.id, { mapUrl: "" })} className="h-8 px-2.5 rounded-full text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F] font-semibold">Remove</button>
+                              </span>
+                            ) : (
+                              <button type="button" onClick={() => setMapOpen(d.id)} className="h-8 px-3 rounded-full text-[12.5px] font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA] inline-flex items-center gap-1.5 -ml-1">
+                                <Plus className="w-3.5 h-3.5" />Google Maps link <span className="font-normal text-[#9893A8]">— the team can open it</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="divide-y divide-[#EEEBF4]">
                           {d.shifts.map(s => (
                             <div key={s.id} className="px-3 py-3">
-                              <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="text-[13px] font-bold text-[#4A4658]">{s.label}</span>
+                                <button type="button" onClick={() => setTimeOpen(o => o === s.id ? null : s.id)} aria-expanded={timeOpen === s.id}
+                                  className={cn("h-7 px-2.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", timeRange(s.start, s.end) ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#FFF4E0] text-[#9A6412]")}>
+                                  <Clock className="w-3 h-3" />{timeRange(s.start, s.end) || "Set time"}
+                                </button>
                                 <span className="text-xs text-[#9893A8]">{s.assignments.length ? `${s.assignments.length} on this shift` : "nobody yet"}</span>
                                 <span className="flex-1" />
-                                {d.shifts.length > 1 && <button type="button" onClick={() => removeShift(d.id, s.id)} aria-label={`Remove ${s.label} shift`} className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Minus className="w-3.5 h-3.5" /></button>}
+                                {(d.shifts.length > 1 || s.assignments.length === 0) && <button type="button" onClick={() => removeShift(d.id, s.id)} aria-label={`Remove ${s.label} shift`} className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Minus className="w-3.5 h-3.5" /></button>}
                               </div>
+                              {timeOpen === s.id && (
+                                <div className="mb-2.5 flex items-center gap-2 flex-wrap animate-in fade-in duration-150">
+                                  <input type="time" value={s.start ?? ""} onChange={e => setShift(d.id, s.id, { start: e.target.value })} aria-label={`${s.label} starts`} className={cn(inputCls, "h-10 w-[128px] text-sm")} />
+                                  <span className="text-[#9893A8]">–</span>
+                                  <input type="time" value={s.end ?? ""} onChange={e => setShift(d.id, s.id, { end: e.target.value })} aria-label={`${s.label} ends`} className={cn(inputCls, "h-10 w-[128px] text-sm")} />
+                                  <button type="button" onClick={() => setTimeOpen(null)} className="h-10 px-3 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0]">Done</button>
+                                  <span className="w-full px-1 text-[11.5px] text-[#6B6680]">Only for this program. The usual time is in Settings → Programs → Shifts.</span>
+                                </div>
+                              )}
                               <div className="flex flex-wrap gap-2">
                                 {s.assignments.map(a => {
                                   const m = team.find(t => t.id === a.id); const rc = role(a.role);
@@ -834,10 +880,13 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                               </div>
                             </div>
                           ))}
-                          <div className="px-3 py-2.5 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[12px] text-[#6B6680] mr-1">Add shift:</span>
-                            {SHIFT_PRESETS.filter(p => !d.shifts.some(s => s.label === p)).map(p => (
-                              <button key={p} type="button" onClick={() => addShift(d.id, p)} className="h-7 px-2.5 rounded-full bg-[#F5F3FA] text-[12px] font-semibold text-[#4A4658] hover:bg-[#EEEBF4] inline-flex items-center gap-1"><Plus className="w-3 h-3" />{p}</button>
+                          <div className={cn("px-3 py-2.5 flex flex-wrap items-center gap-1.5", !d.shifts.length && "bg-[#FFF9EE]")}>
+                            <span className={cn("text-[12px] mr-1", d.shifts.length ? "text-[#6B6680]" : "text-[#9A6412] font-semibold")}>{d.shifts.length ? "Add shift:" : "Choose this day's shift:"}</span>
+                            {studio.shifts.filter(p => !d.shifts.some(s => s.label.toLowerCase() === p.name.toLowerCase())).map(p => (
+                              <button key={p.id} type="button" onClick={() => addShift(d.id, p)}
+                                className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", d.shifts.length ? "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]" : "bg-white text-[#5B3FD0] shadow-[0_1px_2px_rgba(22,18,40,.08)] hover:bg-[#F5F3FA]")}>
+                                <Plus className="w-3 h-3" />{p.name}{timeRange(p.start, p.end) && <span className="font-normal text-[#8A8599]">· {timeRange(p.start, p.end)}</span>}
+                              </button>
                             ))}
                           </div>
                         </div>

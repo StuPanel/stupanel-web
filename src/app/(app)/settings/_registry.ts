@@ -50,7 +50,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     panes: [
       { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face" },
       { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye" },
-      { id: "bookings", title: "Programs", sub: "Defaults and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event" },
+      { id: "bookings", title: "Programs", sub: "Defaults, shifts and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
       { id: "watermark", title: "Watermark", sub: "Your mark on the photos clients choose from", icon: Stamp, color: C.red, keywords: "watermark logo copyright photo selection protect" },
@@ -154,6 +154,7 @@ export const ENTRIES: Entry[] = [
   { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status" },
   { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days" },
   { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund" },
+  { id: "shifts", pane: "bookings", section: "Shifts", label: "Shifts and their time", keywords: "shift time day evening night full day morning start end" },
   { id: "b-warnDoubleBooking", pane: "bookings", section: "Rules", label: "Warn about double booking", keywords: "same day clash conflict" },
   { id: "b-askBeforeConfirm", pane: "bookings", section: "Rules", label: "Ask before confirming", keywords: "confirm check" },
 

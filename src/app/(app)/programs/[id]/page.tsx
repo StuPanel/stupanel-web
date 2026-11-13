@@ -9,12 +9,13 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Edit3, FileText, HardDrive, Loader2, MapPin,
+  ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Clock, Edit3, FileText, HardDrive, Loader2, MapPin,
   MessageCircle, MoreHorizontal, Plus, RotateCcw, Trash2, User, Users, Wallet, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatCurrency, fmtDate } from "@/lib/format";
+import { isMapLink, timeRange } from "@/lib/shifts";
 import { DateBox, Tile } from "@/components/ui/apple";
 import { ProgramTeamCosts } from "@/components/team-costs";
 import { Chip, Empty, List, MENU_CLS, MENU_ITEM, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
@@ -193,8 +194,18 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
           <p className="text-[12.5px] text-[#6B6680] flex flex-wrap items-center gap-x-2 mt-0.5">
             <span>{day.date ? fmtDate(day.date) : "No date yet"}</span>
             {day.location && <span className="inline-flex items-center gap-0.5 min-w-0"><MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{day.location}</span></span>}
+            {isMapLink(day.mapUrl) && <a href={day.mapUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#1F8A5B] hover:underline">Map</a>}
             {!full && <span>· {people.length ? `${people.length} on the team` : "nobody yet"}</span>}
           </p>
+          {day.shifts.some(s => timeRange(s.start, s.end)) && (
+            <p className="mt-1 flex flex-wrap gap-1.5">
+              {day.shifts.map(s => (
+                <span key={s.id} className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-[#EEE8FD] text-[11.5px] font-semibold text-[#5B3FD0]">
+                  <Clock className="w-3 h-3" />{s.label}{timeRange(s.start, s.end) ? ` · ${timeRange(s.start, s.end)}` : ""}
+                </span>
+              ))}
+            </p>
+          )}
           {full && (people.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {people.map(({ a, shift }, k) => (

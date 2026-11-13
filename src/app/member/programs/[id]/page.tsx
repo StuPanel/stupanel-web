@@ -8,12 +8,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft, Camera, CalendarX, ExternalLink, HardDrive, Mail, MapPin, MessageCircle, Phone, Video, Wallet,
+  ArrowLeft, Camera, CalendarX, Clock, ExternalLink, HardDrive, Mail, MapPin, MessageCircle, Phone, Video, Wallet,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { waNumber } from "@/lib/phone";
+import { timeRange } from "@/lib/shifts";
 import { DateBox, Initial, Tile } from "@/components/ui/apple";
 import { CHIP, Chip, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, revealPanel, useTab } from "@/components/ui/profile-page";
 import { StatusBadge } from "../../_components/kit";
@@ -27,8 +28,8 @@ type ProgramHub = {
   eventName?: string;
   status: string;
   eventDays: {
-    id: string; eventType: string; date?: string; location?: string;
-    shifts?: { id: string; label: string; people: Person[] }[];
+    id: string; eventType: string; date?: string; location?: string; mapUrl?: string | null;
+    shifts?: { id: string; label: string; start?: string | null; end?: string | null; people: Person[] }[];
   }[];
   currency?: string;
   myPay?: {
@@ -194,6 +195,9 @@ export default function ProgramHubPage() {
                   {days.map(day => {
                     const shifts = (day.shifts ?? []).filter(s => s.people.length);
                     const mine = shifts.some(s => s.people.some(p => p.isMe));
+                    // My time that day (or the whole day's when I'm not on it)
+                    const timed = (mine ? shifts.filter(s => s.people.some(p => p.isMe)) : shifts).filter(s => s.start);
+                    const when = timed.length ? timeRange(timed[0].start, timed[timed.length - 1].end) : "";
                     return (
                       <div key={day.id} className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
@@ -204,12 +208,23 @@ export default function ProgramHubPage() {
                               <span className="flex-shrink-0">{day.date ? fmtDate(day.date) : "Date not set"}</span>
                               {day.location && <><span>·</span><MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{day.location}</span></>}
                             </p>
+                            {when && (
+                              <p className="mt-1 text-[13px] font-semibold text-[#5B3FD0] flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{mine ? "Your time: " : ""}{when}</p>
+                            )}
                           </div>
                           {mine && <Chip tone="violet">You work</Chip>}
                         </div>
+                        {day.mapUrl && (
+                          <a href={day.mapUrl} target="_blank" rel="noopener noreferrer"
+                            className="mt-3 sm:ml-[60px] h-10 px-4 rounded-full bg-[#E9F5EE] hover:bg-[#DDF0E4] text-[#1F8A5B] text-[13px] font-semibold inline-flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4" />Open in Google Maps
+                          </a>
+                        )}
                         {shifts.map(sh => (
                           <div key={sh.id} className="mt-3 sm:pl-[60px]">
-                            {(day.shifts ?? []).length > 1 && <p className="text-[12px] font-semibold text-[#6B6680] mb-1.5">{sh.label}</p>}
+                            {((day.shifts ?? []).length > 1 || timeRange(sh.start, sh.end)) && (
+                              <p className="text-[12px] font-semibold text-[#6B6680] mb-1.5">{sh.label}{timeRange(sh.start, sh.end) && <span className="font-normal"> · {timeRange(sh.start, sh.end)}</span>}</p>
+                            )}
                             <ul className="rounded-[14px] bg-[#F7F5FB] divide-y divide-white">
                               {sh.people.map((pp, k) => {
                                 const extra = [pp.setup ? SETUP_LABEL[pp.setup] ?? pp.setup : "", pp.gear.join(", ")].filter(Boolean).join(" · ");

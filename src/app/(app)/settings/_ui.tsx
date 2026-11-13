@@ -10,6 +10,7 @@ import { createContext, useContext, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
+import type { StudioShift } from "@/lib/shifts";
 
 // ─── Save context ─────────────────────────────────────────────────────────────
 export type SaveState = "idle" | "saving" | "saved" | "error";
@@ -27,6 +28,8 @@ export type StudioSettings = {
   features: { photoSelection: boolean; musicSelection: boolean; albumTracking: boolean; faceRecognition: boolean };
   workTypes: WorkType[];
   shiftTemplates: ShiftTemplate[];
+  /** The studio's shifts with their usual time (older servers: missing). */
+  shifts?: StudioShift[];
   teamPay: { mode: "per_shift" | "per_program" };
   booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean };
   delivery: { lockWhenDue: boolean; managerCanUnlock: boolean };

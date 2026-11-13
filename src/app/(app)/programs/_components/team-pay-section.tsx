@@ -67,7 +67,7 @@ export function TeamPaySection({ booking, onSaved }: { booking: Booking; onSaved
                       </button>
                     )}
                   </>
-                ) : bill > 0 ? (
+                ) : bill > 0 || p > 0 ? (
                   <>
                     {extra > 0.009
                       ? <span className="text-xs font-semibold text-[#823072] bg-[#FBF2FA] px-2 py-1 rounded-full tabular-nums">Paid {formatCurrency(extra, booking.currency)} extra</span>

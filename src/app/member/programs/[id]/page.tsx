@@ -294,7 +294,7 @@ export default function ProgramHubPage() {
 
               <Section title="Payments I got" action={<Link href="/member/earnings" className={linkBtn}>All my earnings</Link>}>
                 {pay.payments.length === 0 ? (
-                  <Empty icon={Wallet} title="No payment yet" text={pay.due > 0 ? `The studio still owes you ${money(pay.due)} for this program.` : "Nothing is due for this program."} />
+                  <Empty icon={Wallet} title="No payment yet" text={pay.due > 0 ? `Due to you: ${money(pay.due)} for this program.` : "Nothing is due for this program."} />
                 ) : (
                   <List>
                     {pay.payments.map(p => (

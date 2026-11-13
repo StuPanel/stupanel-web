@@ -960,7 +960,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                               <div className="flex flex-wrap gap-2 pt-1">
                                 <button type="button" onClick={() => addLine(e.memberId!, "extra")} className="h-8 px-3 rounded-full bg-[#E9F5EF] text-[#1F8A5B] text-[12px] font-semibold inline-flex items-center gap-1"><Plus className="w-3 h-3" />Extra</button>
                                 <button type="button" onClick={() => addLine(e.memberId!, "deduction")} className="h-8 px-3 rounded-full bg-[#FDECEF] text-[#C2304F] text-[12px] font-semibold inline-flex items-center gap-1"><Minus className="w-3 h-3" />Cut</button>
-                                {(e.paidAmount ?? 0) > 0 && <span className="ml-auto text-xs text-[#6B6680] self-center">Paid {formatCurrency(e.paidAmount ?? 0)} · owes {formatCurrency(Math.max(0, e.totalBill - (e.paidAmount ?? 0)))}</span>}
+                                {(e.paidAmount ?? 0) > 0 && <span className="ml-auto text-xs text-[#6B6680] self-center">Paid {formatCurrency(e.paidAmount ?? 0)} · due {formatCurrency(Math.max(0, e.totalBill - (e.paidAmount ?? 0)))}</span>}
                               </div>
                             </div>
                           )}

@@ -168,7 +168,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     if (done && due > 0.009)
       todos.push({ tone: "red", icon: Wallet, title: `Balance due: ${formatCurrency(due, b.currency)}`, sub: "Delivered, but not fully paid", run: () => setPaymentOpen(true) });
     if ((done || b.status === "ready_for_delivery") && teamOwed > 0.009)
-      todos.push({ tone: "amber", icon: Users, title: `Team is owed ${formatCurrency(teamOwed, b.currency)}`, sub: "Pay the people who worked on this program", run: () => setTab("team") });
+      todos.push({ tone: "amber", icon: Users, title: `Team pay due: ${formatCurrency(teamOwed, b.currency)}`, sub: "Pay the people who worked on this program", run: () => setTab("team") });
   }
   const order = { red: 0, violet: 1, amber: 2 } as const;
   todos.sort((x, y) => order[x.tone] - order[y.tone]);
@@ -370,7 +370,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                 {[
                   { label: "Contract", value: net, cls: "text-[#17151F]" },
                   { label: "Paid", value: paid, cls: "text-[#1F8A5B]" },
-                  { label: "Owes", value: due, cls: due > 0 ? "text-[#C2304F]" : "text-[#17151F]" },
+                  { label: "Due", value: due, cls: due > 0 ? "text-[#C2304F]" : "text-[#17151F]" },
                 ].map(x => (
                   <div key={x.label} className={cn(card, "!rounded-[18px] px-3 sm:px-4 py-3 min-w-0")}>
                     <p className="text-[12px] font-semibold text-[#6B6680]">{x.label}</p>

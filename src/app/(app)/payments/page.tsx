@@ -500,7 +500,7 @@ function Payments() {
   return (
     <div>
       <PageHeader icon={CreditCard} color="green" title="Payments"
-        sub={view === "due" ? "Who still owes you money" : total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
+        sub={view === "due" ? "Clients with money due" : total ? `${total} payment${total === 1 ? "" : "s"}` : "Money you received"}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder={view === "due" ? "Search client or program" : "Search payments"} />
         <MainButton icon={Plus} onClick={openNew}>Record payment</MainButton>
       </PageHeader>

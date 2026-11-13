@@ -90,7 +90,7 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
       </div>
 
       {t.clients === 0 ? (
-        <EmptyState icon={CheckCircle2} title="Nobody owes you money" text="Every booked program is fully paid." />
+        <EmptyState icon={CheckCircle2} title="No dues" text="Every booked program is fully paid." />
       ) : (
         <>
           <Chips<Filter> label="Show" value={filter} onChange={setFilter} options={[

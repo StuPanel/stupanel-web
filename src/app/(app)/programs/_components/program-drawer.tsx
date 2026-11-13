@@ -839,7 +839,15 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             <div key={s.id} className="px-3 py-3">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="text-[13px] font-bold text-[#4A4658]">{s.label}</span>
-                                <button type="button" onClick={() => setTimeOpen(o => o === s.id ? null : s.id)} aria-expanded={timeOpen === s.id}
+                                <button type="button" aria-expanded={timeOpen === s.id}
+                                  onClick={() => {
+                                    // No time yet (older program): start from the studio's usual time for this shift.
+                                    if (!s.start && !s.end) {
+                                      const usual = studio.shifts.find(x => x.name.toLowerCase() === s.label.toLowerCase());
+                                      if (usual?.start || usual?.end) setShift(d.id, s.id, { start: usual.start ?? "", end: usual.end ?? "" });
+                                    }
+                                    setTimeOpen(o => o === s.id ? null : s.id);
+                                  }}
                                   className={cn("h-7 px-2.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", timeRange(s.start, s.end) ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#FFF4E0] text-[#9A6412]")}>
                                   <Clock className="w-3 h-3" />{timeRange(s.start, s.end) || "Set time"}
                                 </button>

@@ -39,8 +39,6 @@ export default function SalaryPage() {
   const [q, setQ] = useState("");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ memberId: "", month: now.getMonth() + 1, year: now.getFullYear(), baseSalary: "", programBonus: "", deductions: "0", notes: "" });
-  const [calcLoading, setCalcLoading] = useState(false);
-  const [bonusBreakdown, setBonusBreakdown] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [paying, setPaying] = useState<SalarySlip | null>(null);
@@ -64,18 +62,6 @@ export default function SalaryPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); } }, [toast]);
-
-  async function calcBonus() {
-    if (!form.memberId) return;
-    setCalcLoading(true);
-    const r = await apiFetch(`${API}/salary/calc-bonus?memberId=${form.memberId}&month=${form.month}&year=${form.year}`, { headers: { "Content-Type": "application/json" } });
-    if (r.ok) {
-      const d = await r.json();
-      setForm(p => ({ ...p, programBonus: String(d.bonus) }));
-      setBonusBreakdown(d.breakdown ?? []);
-    }
-    setCalcLoading(false);
-  }
 
   async function save() {
     if (!form.memberId) return;
@@ -144,7 +130,7 @@ export default function SalaryPage() {
 
       <PageHeader icon={HeaderIcon} color="green" title="Salary" sub={<>Salary slips and payments for your team</>}>
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder="Search team member" />
-        <MainButton icon={Plus} onClick={() => { setBonusBreakdown([]); setModal(true); }}>New slip</MainButton>
+        <MainButton icon={Plus} onClick={() => setModal(true)}>New slip</MainButton>
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-7">
@@ -161,8 +147,8 @@ export default function SalaryPage() {
       {loading ? (
         <RowsSkeleton n={4} />
       ) : slips.length === 0 ? (
-        <EmptyState icon={Banknote} title="No salary slips yet" text="Make a slip for a team member — base pay, program bonus and deductions."
-          action={<MainButton icon={Plus} onClick={() => { setBonusBreakdown([]); setModal(true); }}>New slip</MainButton>} />
+        <EmptyState icon={Banknote} title="No salary slips yet" text="Make a slip for a team member — monthly pay, bonus and deductions. Program pay is paid from each program."
+          action={<MainButton icon={Plus} onClick={() => setModal(true)}>New slip</MainButton>} />
       ) : slips.filter(s => matches(q, `${s.teamMember?.firstName ?? ""} ${s.teamMember?.lastName ?? ""}`, s.notes)).length === 0 ? (
         <EmptyState icon={Banknote} title={`No slips match "${q}"`} text="Try another name." />
       ) : (
@@ -287,26 +273,10 @@ export default function SalaryPage() {
                   className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide">Program Bonus</label>
-                  <button onClick={calcBonus} disabled={!form.memberId || calcLoading}
-                    className="flex items-center gap-1 text-xs text-[#7D5CEF] hover:text-[#5B3FD0] font-medium disabled:opacity-50">
-                    {calcLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    Auto-calculate
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Bonus</label>
                 <input type="number" value={form.programBonus} onChange={set("programBonus")} placeholder="0"
                   className="w-full h-11 px-3 rounded-xl border border-[#E4E0EC] text-sm focus:outline-none focus:border-indigo-400" />
-                {bonusBreakdown.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {bonusBreakdown.map((b, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs bg-[#F2F7FC] px-3 py-1.5 rounded-lg">
-                        <span className="text-[#1F5C99] truncate">{b.eventName}</span>
-                        <span className="font-bold text-[#174A7C] ml-2 flex-shrink-0">{formatCurrency(Math.round(b.amount))}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <p className="text-xs text-[#8A8599] mt-1.5">Festival or other extra pay. Pay for programs is not added here — pay it from the program (Team pay).</p>
               </div>
               <div>
                 <label className="text-xs font-semibold text-[#4A4658] uppercase tracking-wide block mb-1.5">Deductions</label>

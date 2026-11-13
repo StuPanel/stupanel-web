@@ -200,7 +200,7 @@ export function OnlinePane() {
 
   return (
     <>
-      <Group title="Social profiles" note="Shown on client pages and at the bottom of quotes. Your website is in General.">
+      <Group title="Social profiles" note="Shown at the bottom of the client portal and of quotes, with your website (set in General).">
         {SOCIAL.map(s => (
           <Row key={s.key} id={s.key} label={s.label}>
             <TextField label={s.label} type="url" value={data[s.key] ?? ""} placeholder={s.ph} onCommit={v => patch({ [s.key]: v })} />
@@ -208,7 +208,7 @@ export function OnlinePane() {
         ))}
       </Group>
 
-      <Group title="Other links" note="For example your portfolio or a booking form.">
+      <Group title="Other links" note="For example your portfolio or a booking form. Shown next to your social profiles.">
         <div id="set-otherLinks" className="sp-set-row scroll-mt-28">
           {links.map((l, i) => (
             <div key={i} className="px-4 sm:px-5 py-3 flex flex-col sm:flex-row gap-2 sm:items-center border-b border-[#EEEBF4]">

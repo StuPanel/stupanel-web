@@ -17,6 +17,7 @@ import { API_URL as API } from "@/lib/api";
 import { BRAND } from "@/lib/brand";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
+import { StudioLinks } from "@/components/public/studio-links";
 import type { ClientGalleryCard } from "@/lib/photos";
 import type { ClientMusic } from "@/lib/music";
 import { portalHeaders, clearPortalSession, waLink } from "@/lib/portal-session";
@@ -173,6 +174,7 @@ function Portal({ token }: { token: string }) {
           <button type="button" onClick={() => goView("programs")} className="mt-4 h-10 px-5 rounded-full bg-[#17151F] text-white text-sm font-semibold">All programs</button>
         </div>
       ))}
+      <StudioLinks studio={data.company} className="mt-6" />
     </PublicShell>
   );
 }

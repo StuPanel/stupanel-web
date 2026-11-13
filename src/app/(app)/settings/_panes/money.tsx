@@ -7,7 +7,8 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { SearchPill, matches } from "@/components/list-ui";
 import { cn } from "@/lib/utils";
-import { Group, NumberField, Row, TextArea, TextField, useSettings } from "../_ui";
+import { Group, NumberField, Row, Switch, TextArea, TextField, useSettings } from "../_ui";
+import { withDefaults, type InvoiceDesign } from "@/components/invoice-doc/design";
 import { CURRENCY_OPTIONS, fmtMoney } from "@/lib/format";
 import { jumpToField } from "@/lib/jump-to-field";
 
@@ -104,18 +105,37 @@ export function InvoicesPane() {
 
 // ─── Tax ──────────────────────────────────────────────────────────────────────
 export function TaxPane() {
-  const { data, patch } = useSettings();
-  const pct = Number(data.defaultTaxPercent ?? 0);
-  const label = data.taxLabel || "Tax";
+  // One tax setting for the whole studio — the same one the Invoice designer shows (invoiceDesign.vat).
+  const [d, setD] = useState<InvoiceDesign | null>(null);
+  useEffect(() => {
+    apiFetch(`${API}/studio-invoices/design`).then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(x => setD(withDefaults(x.design)))
+      .catch(() => notify("Couldn't load the tax setting.", { error: true }));
+  }, []);
+  if (!d) return <Group title="Tax"><p className="px-4 sm:px-5 py-4 text-sm text-[#8A8599]">Loading…</p></Group>;
+  const vat = d.vat;
+  const save = async (v: InvoiceDesign["vat"]) => {
+    const next = { ...d, vat: v };
+    setD(next);
+    const r = await apiFetch(`${API}/studio-invoices/design`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design: next }) }).catch(() => null);
+    if (!r?.ok) notify("Couldn't save. Please try again.", { error: true });
+  };
+  const pct = vat.on ? vat.percent : 0;
+  const label = vat.label || "VAT";
   const sub = 50000, tax = (sub * pct) / 100;
   return (
     <>
-      <Group title="Tax" note={pct === 0 ? "No tax is added. Set a rate to add it to new quotes and invoices." : `${pct}% ${label} is added to the subtotal of new quotes and invoices.`}>
-        <Row id="taxLabel" label="Tax name" hint="Shown on documents, like VAT or GST">
-          <TextField label="Tax name" value={data.taxLabel ?? "VAT"} maxLength={20} align="right" onCommit={v => patch({ taxLabel: v })} />
+      <Group title="Tax" note={pct === 0
+        ? "No tax is added. Turn it on to add it to every program, its invoice, and new quotes and invoices."
+        : `${pct}% ${label} is added to every program and its invoice, and filled in on new quotes and hand-made invoices.`}>
+        <Row id="taxOn" label="Add tax" hint="Programs that still have money due get the new total too">
+          <Switch label="Add tax" on={vat.on} onChange={v => save({ ...vat, on: v })} />
         </Row>
-        <Row id="defaultTaxPercent" label="Tax rate">
-          <NumberField label="Tax rate" value={pct} min={0} max={30} step={0.5} suffix="%" onCommit={v => patch({ defaultTaxPercent: v })} />
+        <Row id="taxLabel" label="Tax name" hint="Shown on documents, like VAT or GST" disabled={!vat.on}>
+          <fieldset disabled={!vat.on} className="contents"><TextField label="Tax name" value={vat.label} maxLength={20} align="right" onCommit={v => save({ ...vat, label: v || "VAT" })} /></fieldset>
+        </Row>
+        <Row id="defaultTaxPercent" label="Tax rate" disabled={!vat.on}>
+          <fieldset disabled={!vat.on} className="contents"><NumberField label="Tax rate" value={vat.percent} min={0} max={50} step={0.5} suffix="%" onCommit={v => save({ ...vat, percent: v })} /></fieldset>
         </Row>
       </Group>
       <Group title="Example">

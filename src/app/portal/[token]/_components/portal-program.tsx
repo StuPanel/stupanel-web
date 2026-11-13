@@ -70,11 +70,13 @@ export function ProgramCard({ b, todos, brand, onOpen }: { b: PortalBooking; tod
 // ─── The program page ────────────────────────────────────────────────────────
 
 export function ProgramPage({
-  b, token, brand, studio, todos, invoices, payments, contracts, photos, music, open, onBack, onChanged, onTodo,
+  b, token, brand, studio, todos, invoices, payments, contracts, photos, music, open, policy, onBack, onChanged, onTodo,
 }: {
   b: PortalBooking; token: string; brand: string; studio: Studio; todos: Todo[];
   invoices: PortalInvoice[]; payments: PortalPayment[]; contracts: PortalContract[];
   photos: ClientGalleryCard[]; music?: ClientMusic;
+  /** The studio's cancellation policy (Settings → Programs). */
+  policy?: string | null;
   /** Open this part straight away (from the to-do list): "photos:<galleryId>" or "music". */
   open?: string;
   onBack: () => void; onChanged: () => void; onTodo: (t: Todo) => void;
@@ -212,6 +214,12 @@ export function ProgramPage({
               </div>
             )}
           </div>
+        </Section>
+      )}
+
+      {policy?.trim() && (
+        <Section title="Cancellation policy" icon={FileSignature} color="ink">
+          <p className="px-4 sm:px-5 pb-5 text-[13.5px] text-[#4A4658] leading-relaxed whitespace-pre-line">{policy.trim()}</p>
         </Section>
       )}
     </div>

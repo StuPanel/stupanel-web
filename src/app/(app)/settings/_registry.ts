@@ -41,7 +41,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "quotes", title: "Quotations", sub: "Filled in for every new quotation", icon: FileText, color: C.deep, keywords: "quote" },
       { id: "invoices", title: "Invoices", sub: "Invoice designer and due date", icon: Receipt, color: C.orchid, keywords: "invoice" },
       { id: "numbering", title: "Numbering", sub: "Codes and numbers for programs, invoices, quotes, receipts and agreements", icon: Hash, color: C.ink, keywords: "number prefix code serial id PRG INV QT RCT AGR" },
-      { id: "tax", title: "Tax", sub: "Tax added to quotes and invoices", icon: Percent, color: C.red, keywords: "vat" },
+      { id: "tax", title: "Tax", sub: "Tax added to programs, quotes and invoices", icon: Percent, color: C.red, keywords: "vat" },
       { id: "catalog", title: "Service Catalog", sub: "Ready-made services for quick invoice lines", icon: BookOpen, color: C.teal, keywords: "services price" },
     ],
   },
@@ -50,7 +50,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     panes: [
       { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face" },
       { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye" },
-      { id: "bookings", title: "Programs", sub: "Defaults, shifts and rules for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
+      { id: "bookings", title: "Programs", sub: "Shifts, rules and cancellation policy for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
       { id: "watermark", title: "Watermark", sub: "Your mark on the photos clients choose from", icon: Stamp, color: C.red, keywords: "watermark logo copyright photo selection protect" },
@@ -144,6 +144,7 @@ export const ENTRIES: Entry[] = [
   { id: "num-agreement", pane: "numbering", section: "Agreements", label: "Agreement code", keywords: "number AGR contract" },
 
   // Tax
+  { id: "taxOn", pane: "tax", section: "Tax", label: "Add tax", keywords: "vat gst on off" },
   { id: "taxLabel", pane: "tax", section: "Tax", label: "Tax name", keywords: "vat gst label" },
   { id: "defaultTaxPercent", pane: "tax", section: "Tax", label: "Tax rate", keywords: "percent vat" },
 
@@ -151,8 +152,6 @@ export const ENTRIES: Entry[] = [
   { id: "catalog-list", pane: "catalog", section: "Services", label: "Services list", keywords: "add service price package" },
 
   // Bookings / programs
-  { id: "defaultBookingStatus", pane: "bookings", section: "New programs", label: "Starting status", keywords: "inquiry confirmed status" },
-  { id: "bookingReminderDays", pane: "bookings", section: "New programs", label: "Reminder before event", keywords: "remind alert days" },
   { id: "defaultCancellationPolicy", pane: "bookings", section: "Cancellation", label: "Cancellation policy", keywords: "cancel refund" },
   { id: "shifts", pane: "bookings", section: "Shifts", label: "Shifts and their time", keywords: "shift time day evening night full day morning start end" },
   { id: "b-warnDoubleBooking", pane: "bookings", section: "Rules", label: "Warn about double booking", keywords: "same day clash conflict" },
@@ -175,7 +174,7 @@ export const ENTRIES: Entry[] = [
   { id: "n-onDeliveryUploaded", pane: "notifications", section: "Emails to you", label: "Delivery files uploaded" },
   { id: "er-team", pane: "notifications", section: "Program reminders", label: "Remind the team", keywords: "event program reminder tomorrow team staff" },
   { id: "er-client", pane: "notifications", section: "Program reminders", label: "Remind the client", keywords: "event program reminder tomorrow client" },
-  { id: "er-days", pane: "notifications", section: "Program reminders", label: "How early (days before)", keywords: "event reminder days" },
+  { id: "er-days", pane: "notifications", section: "Program reminders", label: "How early (days before)", keywords: "event reminder days remind alert before" },
   { id: "pr-enabled", pane: "notifications", section: "Payment reminders", label: "Remind clients about due payments", keywords: "payment reminder due baki" },
   { id: "pr-daysBefore", pane: "notifications", section: "Payment reminders", label: "Reminder before the program", keywords: "payment reminder days" },
   { id: "pr-afterEveryDays", pane: "notifications", section: "Payment reminders", label: "Reminder after the program, every", keywords: "payment reminder days" },

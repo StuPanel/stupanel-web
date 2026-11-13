@@ -380,8 +380,9 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
     apiFetch(`${API}/clients?limit=200`).then(r => r.json()).then(d => setClients(d.data ?? []));
     apiFetch(`${API}/bookings?limit=200`).then(r => r.json()).then(d => setBookings(d.data ?? []));
     apiFetch(`${API}/companies/me`).then(r => r.json()).then(d => {
-      if (d.taxLabel) setTaxLabel(d.taxLabel);
-      if (d.defaultTaxPercent) setTaxPercent(Number(d.defaultTaxPercent));
+      // The studio's one tax setting (Settings → Tax).
+      const vat = d.invoiceDesign?.vat;
+      if (vat?.on && Number(vat.percent) > 0) { setTaxPercent(Number(vat.percent)); if (vat.label) setTaxLabel(vat.label); }
       if (d.defaultTerms) setTerms(d.defaultTerms);
       if (d.currency) setCurrency(d.currency);
       if (d.invoiceDueDays) {

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { formatCurrency, fmtDate } from "@/lib/format";
+import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { isMapLink, timeRange } from "@/lib/shifts";
 import { DateBox, Tile } from "@/components/ui/apple";
 import { ProgramTeamCosts } from "@/components/team-costs";
@@ -64,6 +64,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const [packages, setPackages] = useState<Package[]>([]);
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const [musicOn, setMusicOn] = useState(false);
+  const [askBeforeConfirm, setAskBeforeConfirm] = useState(false);
   const [more, setMore] = useState(false);
   const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [statusBusy, setStatusBusy] = useState(false);
@@ -88,6 +89,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null)).then(d => {
       if (!d) return;
       setMusicOn(!!d.features?.musicSelection);
+      setAskBeforeConfirm(!!d.booking?.askBeforeConfirm);
       setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name])));
     }).catch(() => {});
   }, [load]);
@@ -132,10 +134,24 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const next = step >= 0 && step < STATUS_PIPELINE.length - 1 ? STATUS_PIPELINE[step + 1] : null;
   async function setStatus(s: string) {
     if (s === b!.status || statusBusy) return;
+    const label = STATUS_CFG[s]?.label ?? s;
+    // Settings → Programs → "Ask before confirming".
+    if (s === "confirmed" && askBeforeConfirm && !(await askConfirm({
+      title: "Mark this program Confirmed?", message: "The client is told their program is confirmed, if that email is on in Settings → Notifications.", confirmLabel: "Mark confirmed",
+    }))) return;
+    // Work that comes after the program, on a program that hasn't happened yet — most likely a slip.
+    const first = days.find(d => d.date)?.date?.slice(0, 10) ?? b!.eventDate?.slice(0, 10);
+    if (first && first > localDateStr() && ["editing", "ready_for_delivery", "delivered", "completed"].includes(s) && !(await askConfirm({
+      title: "This program hasn't happened yet", message: `Its date is ${fmtDate(first)}. Mark it ${label} anyway?`, confirmLabel: `Mark ${label}`,
+    }))) return;
     setStatusBusy(true);
     try {
       const r = await apiFetch(`${API}/bookings/${id}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
-      if (r.ok) { notify(`Marked ${STATUS_CFG[s]?.label ?? s}`); await load(); } else notify("Couldn't change the status. Please try again.", { error: true });
+      if (r.ok) { notify(`Marked ${label}`); await load(); }
+      else {
+        const d = await r.json().catch(() => ({}));
+        notify((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't change the status. Please try again.", { error: true });
+      }
     } finally { setStatusBusy(false); }
   }
   async function cancelProgram() {

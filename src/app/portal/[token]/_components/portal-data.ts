@@ -61,6 +61,7 @@ export interface PortalData {
     portalWelcomeMessage?: string; bkashNumber?: string | null; nagadNumber?: string | null;
     portalShowQuotes?: boolean; portalShowInvoices?: boolean;
     portalShowPayments?: boolean; portalShowMessages?: boolean;
+    defaultCancellationPolicy?: string | null;
   };
   bookings: PortalBooking[];
   quotes: PortalQuote[];

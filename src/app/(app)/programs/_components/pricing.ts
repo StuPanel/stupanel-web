@@ -138,6 +138,7 @@ export function buildBill(opts: {
             id: existing?.id ?? before?.id ?? lid(), key, kind: "gear_rent", auto: true, label: `Rent · ${listed?.name ?? g.name}`,
             qty: q, unit: rent.unit, unitPrice: rent.price, amount: Math.round(rent.price * q),
             note: [
+              `${q} ${(UNIT_WORD[rent.unit] ?? ["", ""])[q === 1 ? 0 : 1]}`.trim(),
               `used by ${[...users].filter(Boolean).join(", ")}`,
               !listed ? "no longer on their gear list" : rent.price > 0 ? "" : "no rent set — type the amount",
             ].filter(Boolean).join(" · "),
@@ -184,7 +185,9 @@ export function buildBill(opts: {
 
   // Merge with kept entries: keep paid amounts, manual lines and typed-over amounts
   const entries: CostEntry[] = [];
-  const ids = new Set<string>([...lines.keys(), ...keep.filter(e => e.memberId && (e.lines ?? []).some(l => !l.auto)).map(e => e.memberId!)]);
+  // Kept too: people with lines typed by hand, and anyone already paid on this program — their payment
+  // must not disappear when their work or gear is taken off it (they then show as paid more than their bill).
+  const ids = new Set<string>([...lines.keys(), ...keep.filter(e => e.memberId && ((e.lines ?? []).some(l => !l.auto) || Number(e.paidAmount ?? 0) > 0)).map(e => e.memberId!)]);
   for (const memberId of ids) {
     const old = keep.find(e => e.memberId === memberId);
     const autoLines = (lines.get(memberId) ?? []).map(l => {

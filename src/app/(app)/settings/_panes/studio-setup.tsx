@@ -275,7 +275,7 @@ function DeliveryRules() {
       <Row id="d-lockWhenDue" label="Lock delivery while money is due" hint="Clients can't download their photos and videos until the program is fully paid">
         <Switch label="Lock delivery while money is due" on={d.lockWhenDue} onChange={v => patchStudio("delivery", { ...d, lockWhenDue: v })} />
       </Row>
-      <Row id="d-managerCanUnlock" label="Managers can unlock" hint="A manager can open delivery for one program, for example when the client promised to pay" disabled={!d.lockWhenDue}>
+      <Row id="d-managerCanUnlock" label="Managers can unlock" hint="The owner can always open delivery for one program (program → Delivery), for example when the client promised to pay. Turn this on to let managers do it too." disabled={!d.lockWhenDue}>
         <Switch label="Managers can unlock" on={d.managerCanUnlock} disabled={!d.lockWhenDue}
           onChange={v => patchStudio("delivery", { ...d, managerCanUnlock: v })} />
       </Row>

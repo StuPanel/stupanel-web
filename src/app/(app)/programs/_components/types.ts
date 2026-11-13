@@ -122,6 +122,8 @@ export interface CostEntry {
 
 export interface Booking {
   id: string;
+  /** The studio opened delivery for the client although money is due. */
+  deliveryUnlocked?: boolean;
   bookingNumber: string;
   eventName?: string;
   eventDate?: string;

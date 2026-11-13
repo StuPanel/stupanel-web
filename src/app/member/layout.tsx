@@ -1,5 +1,6 @@
 "use client";
 
+import { IdleSignOut } from "@/components/idle-sign-out";
 import { useEffect, useState } from "react";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { StudioBackdrop } from "@/components/studio-backdrop";
@@ -184,6 +185,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-full sp-shell">
+      <IdleSignOut />
       <div className="sp-scene" aria-hidden="true" />
       <StudioBackdrop />
       {/* Desktop floating sidebar */}

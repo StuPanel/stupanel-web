@@ -5,12 +5,13 @@
  * Left: what it is + quick actions, where it stands (status), and the money at a glance.
  * Right: what to do next, then tabs — Overview, Money, Team, Editing, Delivery, Documents.
  */
+import { useAuth } from "@/context/auth-context";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Clock, Edit3, FileText, HardDrive, Loader2, MapPin,
-  MessageCircle, MoreHorizontal, Plus, RotateCcw, Trash2, User, Users, Wallet, XCircle,
+  Lock, LockOpen, MessageCircle, MoreHorizontal, Plus, RotateCcw, Trash2, User, Users, Wallet, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,10 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const [musicOn, setMusicOn] = useState(false);
   const [askBeforeConfirm, setAskBeforeConfirm] = useState(false);
+  // Settings → Delivery: files stay locked for the client while money is due; who may open one program.
+  const [lockRule, setLockRule] = useState({ lock: false, managerCan: false });
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const { user } = useAuth();
   const [more, setMore] = useState(false);
   const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [statusBusy, setStatusBusy] = useState(false);
@@ -90,6 +95,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
       if (!d) return;
       setMusicOn(!!d.features?.musicSelection);
       setAskBeforeConfirm(!!d.booking?.askBeforeConfirm);
+      setLockRule({ lock: d.delivery?.lockWhenDue !== false, managerCan: !!d.delivery?.managerCanUnlock });
       setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name])));
     }).catch(() => {});
   }, [load]);
@@ -132,6 +138,23 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
   const step = STATUS_PIPELINE.indexOf(b.status);
   const next = step >= 0 && step < STATUS_PIPELINE.length - 1 ? STATUS_PIPELINE[step + 1] : null;
+  async function setUnlocked(unlocked: boolean) {
+    if (unlocked && !(await askConfirm({
+      title: "Unlock delivery for this client?", confirmLabel: "Unlock",
+      message: `They will be able to open and download their files although ${formatCurrency(due, b!.currency)} is still due. You can lock it again any time.`,
+    }))) return;
+    setUnlockBusy(true);
+    try {
+      const r = await apiFetch(`${API}/bookings/${id}/delivery-unlock`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unlocked }) });
+      if (r.ok) { notify(unlocked ? "Delivery unlocked for this client" : "Delivery locked again"); await load(); }
+      else {
+        const d = await r.json().catch(() => ({}));
+        notify(d.message === "NO_ACCESS" || !d.message ? "Couldn't change it. Please try again." : d.message, { error: true });
+      }
+    } catch { notify("Couldn't change it. Please try again.", { error: true }); }
+    finally { setUnlockBusy(false); }
+  }
+
   async function setStatus(s: string) {
     if (s === b!.status || statusBusy) return;
     const label = STATUS_CFG[s]?.label ?? s;
@@ -459,6 +482,32 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
             <Section>
               <div className={cn(card, "p-3 space-y-3")}>
                 <DeliveryOverview booking={b} />
+                {lockRule.lock && due > 0.009 && !["cancelled", "refunded"].includes(b.status) && (() => {
+                  const open = !!b.deliveryUnlocked;
+                  const may = user?.role !== "manager" || lockRule.managerCan;
+                  return (
+                    <div className={cn("rounded-[16px] px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3", open ? "bg-[#E7F5EE]" : "bg-[#FBF2FA]")}>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-[14px] font-bold inline-flex items-center gap-1.5", open ? "text-[#17633F]" : "text-[#7A2A6C]")}>
+                          {open ? <LockOpen className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                          {open ? "Open for the client" : "Locked for the client"}
+                        </p>
+                        <p className="mt-0.5 text-[13px] text-[#4A4658]">
+                          {open ? `The client can open the files although ${formatCurrency(due, b.currency)} is still due.`
+                            : `${formatCurrency(due, b.currency)} is still due, so the client can't open the files yet.`}
+                          {!may && " Only the studio owner can change this."}
+                        </p>
+                      </div>
+                      {may && (
+                        <button type="button" disabled={unlockBusy} onClick={() => setUnlocked(!open)}
+                          className={cn("h-10 px-4 rounded-full text-sm font-semibold flex-shrink-0 disabled:opacity-60",
+                            open ? "bg-white text-[#17151F] border border-[#E4E0EC]" : "bg-[#17151F] text-white")}>
+                          {open ? "Lock again" : "Unlock for this client"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 <button type="button" onClick={() => setDeliveryOpen(true)} className="w-full h-11 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-sm font-semibold">Manage delivery</button>
               </div>
             </Section>

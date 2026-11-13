@@ -9,8 +9,9 @@ import { Group, Row, Select, SoonRow, TextField, useSettings } from "../_ui";
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 const SESSION = [
+  { value: 0, label: "Never (default)" },
   { value: 30, label: "30 minutes" }, { value: 60, label: "1 hour" }, { value: 120, label: "2 hours" },
-  { value: 240, label: "4 hours" }, { value: 480, label: "8 hours (recommended)" }, { value: 1440, label: "1 day" },
+  { value: 240, label: "4 hours" }, { value: 480, label: "8 hours" }, { value: 1440, label: "1 day" },
   { value: 10080, label: "1 week" },
 ];
 
@@ -18,13 +19,13 @@ export function SecurityPane() {
   const { data, patch } = useSettings();
   return (
     <>
-      <Group title="Sign-in" note="The sign-out time applies to everyone in your team.">
-        <Row id="resetEmail" label="Password reset email" hint="Gets a note when a team member resets their password">
+      <Group title="Sign-in" note="Never = nobody is signed out for not using StuPanel. Pick a time and anyone in your team who doesn't use it for that long is signed out on that device.">
+        <Row id="resetEmail" label="Password reset email" hint="Gets a note when someone in your team resets their password with Forgot password">
           <TextField label="Password reset email" type="email" value={data.resetEmail ?? data.email ?? ""} placeholder="admin@yourstudio.com"
             onCommit={v => patch({ resetEmail: v })} />
         </Row>
         <Row id="sessionTimeoutMinutes" label="Sign out after inactivity">
-          <Select label="Sign out after inactivity" value={Number(data.sessionTimeoutMinutes ?? 480)} options={SESSION}
+          <Select label="Sign out after inactivity" value={Number(data.sessionTimeoutMinutes ?? 0)} options={SESSION}
             onChange={v => patch({ sessionTimeoutMinutes: v })} />
         </Row>
       </Group>

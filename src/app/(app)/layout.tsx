@@ -12,6 +12,7 @@ import { BillingBanner } from "@/components/billing/billing-banner";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { IdleSignOut } from "@/components/idle-sign-out";
 import { StudioBackdrop } from "@/components/studio-backdrop";
 import { canOpen, homeFor } from "@/lib/access";
 import { useBackClose } from "@/lib/back-stack";
@@ -222,9 +223,16 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Signs out after the studio's idle time (Settings → Security); nothing when it is "Never". */
+function IdleGuard() {
+  const { user, ready } = useAuth();
+  return <IdleSignOut minutes={ready && user ? Number(user.company?.sessionTimeoutMinutes) || 0 : null} />;
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
+      <IdleGuard />
       <AppLayoutInner>{children}</AppLayoutInner>
     </AuthProvider>
   );

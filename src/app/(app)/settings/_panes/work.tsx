@@ -1,33 +1,16 @@
 "use client";
 
 import { ProgramRulesGroup, ShiftsGroup } from "./studio-setup";
-import { Group, NumberField, Row, Select, Switch, TextArea, useSettings } from "../_ui";
+import { Group, NumberField, Row, Switch, TextArea, useSettings } from "../_ui";
 
-// ─── Programs (booking defaults) ─────────────────────────────────────────────
-const STATUSES = [
-  { value: "inquiry", label: "Inquiry" },
-  { value: "quote_sent", label: "Quote sent" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "advance_received", label: "Advance received" },
-];
-
+// ─── Programs ────────────────────────────────────────────────────────────────
 export function BookingsPane() {
   const { data, patch } = useSettings();
   return (
     <>
-      <Group title="New programs">
-        <Row id="defaultBookingStatus" label="Starting status" hint="Used when you don't pick a status yourself">
-          <Select label="Starting status" value={data.defaultBookingStatus ?? "inquiry"} options={STATUSES}
-            onChange={v => patch({ defaultBookingStatus: v })} />
-        </Row>
-        <Row id="bookingReminderDays" label="Reminder before event" hint="Program reminder emails go this many days before each program day (turn them on in Notifications)">
-          <NumberField label="Reminder before event" value={Number(data.bookingReminderDays ?? 3)} min={1} max={90} suffix="days"
-            onCommit={v => patch({ bookingReminderDays: v })} />
-        </Row>
-      </Group>
       <ShiftsGroup />
       <ProgramRulesGroup />
-      <Group title="Cancellation" note="Added to every new program. Clients can read it in their portal.">
+      <Group title="Cancellation" note="Clients can read it on each program in their portal. Leave empty to show nothing.">
         <Row id="defaultCancellationPolicy" label="Cancellation policy" stack>
           <TextArea label="Cancellation policy" rows={4} value={data.defaultCancellationPolicy ?? ""}
             placeholder={"e.g.\n1. Cancelling within 7 days of the event keeps the advance.\n2. One free date change with 14 days notice."}

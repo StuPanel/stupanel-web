@@ -104,6 +104,9 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
         if (d.defaultTerms) setTerms(d.defaultTerms);
         if (d.defaultValidityDays) { const dt = new Date(); dt.setDate(dt.getDate() + Number(d.defaultValidityDays)); setValidUntil(localDateStr(dt)); }
         if (d.defaultAdvancePercent) setAdvancePct(Number(d.defaultAdvancePercent));
+        // The studio's one tax setting (Settings → Tax).
+        const vat = d.invoiceDesign?.vat;
+        if (vat?.on && Number(vat.percent) > 0) setTaxPercent(String(vat.percent));
       }).catch(() => {});
     }
   }, [isEdit, typeText, initialType]);

@@ -164,6 +164,7 @@ function Portal({ token }: { token: string }) {
           payments={data.company.portalShowPayments !== false ? data.payments.filter(p => p.bookingId === program.id) : []}
           contracts={(data.contracts ?? []).filter(c => c.bookingId === program.id)}
           photos={photos.filter(g => g.bookingId === program.id)} music={music.find(m => m.bookingId === program.id)}
+          policy={data.company.defaultCancellationPolicy}
           open={openPart} onBack={() => goView("programs")} onChanged={afterChange} onTodo={onTodo} />
       ) : (
         <div className={cn("bg-white rounded-[22px] p-7 text-center", CARD_SHADOW)}>

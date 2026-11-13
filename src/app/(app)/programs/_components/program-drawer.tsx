@@ -464,6 +464,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [assign, setAssign] = useState<{ open: boolean; start: SlotRef | null; editing: { slot: SlotRef; a: ShiftAssignment } | null }>({ open: false, start: null, editing: null });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Settings → Programs → "Warn about double booking": other programs on the same dates.
+  const [warnClash, setWarnClash] = useState(false);
+  const [clashes, setClashes] = useState<{ date: string; names: string[] }[]>([]);
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
 
@@ -472,11 +475,15 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // Fresh team (with prices + gear) and studio settings each time it opens
   useEffect(() => {
     if (!open) return;
-    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null).then(d => d && setStudio({
-      workTypes: (d.workTypes ?? []).filter((w: WorkType) => w.active), shiftTemplates: d.shiftTemplates ?? [],
-      studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
-      shifts: Array.isArray(d.shifts) && d.shifts.length ? d.shifts : DEFAULT_SHIFTS,
-    })).catch(() => {});
+    apiFetch(`${API}/companies/settings`).then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      setStudio({
+        workTypes: (d.workTypes ?? []).filter((w: WorkType) => w.active), shiftTemplates: d.shiftTemplates ?? [],
+        studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
+        shifts: Array.isArray(d.shifts) && d.shifts.length ? d.shifts : DEFAULT_SHIFTS,
+      });
+      setWarnClash(d.booking?.warnDoubleBooking !== false);
+    }).catch(() => {});
     // VAT the studio charges on programs (Settings → Invoice design) — the invoice adds the same.
     apiFetch(`${API}/companies/me`).then(r => r.ok ? r.json() : null).then(d => {
       const v = d?.invoiceDesign?.vat;
@@ -653,6 +660,19 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const profit = net - teamCost - otherCosts;
   const people = new Set(days.flatMap(d => d.shifts.flatMap(s => s.assignments.map(a => a.id)))).size;
   const datedDays = days.filter(d => d.date).sort((a, b) => a.date.localeCompare(b.date));
+  const dateKey = [...new Set(datedDays.map(d => d.date.slice(0, 10)))].join(",");
+  const ownId = initialBooking?.id;
+  useEffect(() => {
+    if (!open || !warnClash || !dateKey) { setClashes([]); return; }
+    let live = true;
+    apiFetch(`${API}/leads/availability?dates=${dateKey}`).then(r => (r.ok ? r.json() : null)).then(d => {
+      if (!live || !d) return;
+      setClashes((d.dates ?? []).map((x: { date: string; programs: { id: string; name: string }[] }) => ({
+        date: x.date, names: (x.programs ?? []).filter(p => p.id !== ownId).map(p => p.name),
+      })).filter((x: { names: string[] }) => x.names.length));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [open, warnClash, dateKey, ownId]);
 
   const step1 = !!client || (clientMode === "new" && !!newClient.firstName.trim() && !!newClient.phone.trim());
   const step2 = !!eventName.trim();
@@ -794,6 +814,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
               <Section n={3} title="Days & team" sub="Each day, its shifts, and who works them" done={step3 && people > 0} name="days"
                 right={days.length > 0 ? <button type="button" onClick={() => addDay()} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Plus className="w-3.5 h-3.5" />Day</button> : undefined}>
+                {clashes.length > 0 && (
+                  <div role="status" className="mb-3 px-4 py-3 rounded-[14px] bg-[#FBF2FA] text-[#7A2A6C] text-[13px]">
+                    <p className="font-semibold">You already have a program on {clashes.length === 1 ? "this date" : "these dates"}</p>
+                    {clashes.map(c => <p key={c.date} className="mt-0.5">{fmtDate(c.date)} — {c.names.join(", ")}</p>)}
+                  </div>
+                )}
                 {days.length === 0 && (
                   <Card className="p-5 text-center">
                     <Calendar className="w-7 h-7 text-[#A29DB3] mx-auto" />

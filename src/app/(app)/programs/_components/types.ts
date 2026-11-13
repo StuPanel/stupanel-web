@@ -53,6 +53,9 @@ export interface ShiftAssignment {
 export interface Shift {
   id: string;
   label: string;
+  /** Time for this program (HH:MM), filled from the studio's shift and changeable. */
+  start?: string;
+  end?: string;
   assignments: ShiftAssignment[];
 }
 
@@ -63,6 +66,8 @@ export interface EventDay {
   eventType: string;
   date: string;
   location: string;
+  /** Google Maps link for the venue (optional). */
+  mapUrl?: string;
   shifts: Shift[];
 }
 

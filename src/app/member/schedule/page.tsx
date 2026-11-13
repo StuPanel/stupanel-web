@@ -20,7 +20,7 @@ interface Event {
   eventDate?: string; eventLocation?: string; status: string;
   clientName: string; clientPhone: string; days: string[];
   /** The days I work on this program. */
-  myDays?: { date: string; part: string; location: string; shifts: string[] }[];
+  myDays?: { date: string; part: string; location: string; shifts: string[]; start?: string | null; mapUrl?: string | null }[];
   /** Which studio (one login, many studios). */
   studio?: Studio;
 }
@@ -44,6 +44,13 @@ function calDays(e: Event): CalDay[] {
     details: [who, d.shifts.length ? `Shift: ${d.shifts.join(", ")}` : "", link].filter(Boolean).join("\n"),
   }));
 }
+
+/** My shift on the next day I work (e.g. "Evening (5:00 PM – 10:00 PM)"). */
+const nextShift = (e: Event) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const d = (e.myDays ?? []).filter(x => x.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  return d?.shifts.join(", ") ?? "";
+};
 
 const isOpen = (e: Event, now: Date) => {
   if (!e.eventDate) return false;
@@ -145,10 +152,13 @@ export default function SchedulePage() {
                     {ev.clientName}{ev.eventLocation && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {ev.eventLocation}</>}
                     {ev.clientPhone && <> · <Phone className="inline w-3 h-3 -mt-0.5" /> {ev.clientPhone}</>}
                   </span>
-                  {(ev.days.length > 1 || open) && (
+                  {(ev.days.length > 1 || open || nextShift(ev)) && (
                     <span className="mt-1.5 flex flex-wrap gap-1">
                       {clash.length > 0 && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#FDECEF] text-[#C2304F]">Same day at {clash.join(", ")}</span>
+                      )}
+                      {open && nextShift(ev) && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#EEE8FD] text-[#5B3FD0]">{nextShift(ev)}</span>
                       )}
                       {open && (
                         <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-bold",

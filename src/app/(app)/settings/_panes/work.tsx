@@ -1,6 +1,6 @@
 "use client";
 
-import { ProgramRulesGroup } from "./studio-setup";
+import { ProgramRulesGroup, ShiftsGroup } from "./studio-setup";
 import { Group, NumberField, Row, Select, Switch, TextArea, useSettings } from "../_ui";
 
 // ─── Programs (booking defaults) ─────────────────────────────────────────────
@@ -25,6 +25,7 @@ export function BookingsPane() {
             onCommit={v => patch({ bookingReminderDays: v })} />
         </Row>
       </Group>
+      <ShiftsGroup />
       <ProgramRulesGroup />
       <Group title="Cancellation" note="Added to every new program. Clients can read it in their portal.">
         <Row id="defaultCancellationPolicy" label="Cancellation policy" stack>

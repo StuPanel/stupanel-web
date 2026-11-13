@@ -116,6 +116,9 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
   const [emailInfo, setEmailInfo] = useState<{ email: string; hasAccount: boolean; inThisStudio: boolean } | null>(null);
   const login = editing?.login;
   const lockedLogin = !!(login?.shared || login?.invitePending);
+  // An open invite's email can be corrected (typo): saving sends a fresh invite to the new address.
+  const emailLocked = !!login?.shared && !login?.invitePending;
+  const emailFixed = !!(login?.invitePending && editing?.email && form.email.trim().toLowerCase() !== editing.email.toLowerCase());
 
   // Does this email already use StuPanel (another studio)? Then it can only be an invite.
   useEffect(() => {
@@ -247,7 +250,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
       };
       const body = isEdit
         ? { ...base, username: freelancer || lockedLogin ? undefined : (form.username || undefined),
-            ...(lockedLogin ? { email: undefined } : {}),
+            ...(emailLocked ? { email: undefined } : {}),
             // The member edits their own gear too — tell the server what we loaded, so their changes since are kept.
             setupSeen: (editing?.setup ?? []).map(g => g.id).filter(Boolean) }
         : freelancer
@@ -357,10 +360,12 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
             {id => <input id={id} className={inputCls} type="tel" inputMode="tel" placeholder="Phone number" value={form.phone} onChange={set("phone")} />}
           </Field>
           <Field label="Email" hint={lockedLogin
-              ? login?.shared ? "Their own StuPanel login — only they can change it." : "Waiting for them to accept the invite."
+              ? login?.invitePending
+                ? emailFixed ? `When you save, a new invite goes to ${form.email.trim() || "the new email"} — the old link stops working.` : "Wrong email? Fix it here and save — a new invite goes to the right address."
+                : "Their own StuPanel login — only they can change it."
               : known?.hasAccount ? "Already uses StuPanel — they'll get an invite and keep their own login."
               : isStaff && !isEdit ? "Best way: they get an invite to choose their own password." : "Optional — they get program reminder emails here."}>
-            {id => <input id={id} className={cn(inputCls, lockedLogin && "opacity-60")} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} disabled={lockedLogin} />}
+            {id => <input id={id} className={cn(inputCls, emailLocked && "opacity-60", emailFixed && "ring-2 ring-[#7D5CEF]/40")} type="email" inputMode="email" placeholder="name@email.com" value={form.email} onChange={set("email")} disabled={emailLocked} />}
           </Field>
         </FormGroup>
 

@@ -28,7 +28,7 @@ import { EVENT_TYPES, fmtDate, uid } from "./constants";
 import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
-import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, ShiftAssignment, SetupMode, TeamMember } from "./types";
+import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, Shift, ShiftAssignment, SetupMode, TeamMember } from "./types";
 import { DEFAULT_SHIFTS, activeShifts, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
 type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
@@ -699,6 +699,26 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [mapOpen, setMapOpen] = useState<string | null>(null);
   const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
   const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
+  /**
+   * "Same team as Holud": for a shift with nobody yet, the team of another day to copy in one press.
+   * Looks at the day just before first, then the other days. In that day: the shift with the same
+   * name, or its only shift that has people.
+   */
+  function teamSource(dayId: string, shift: Shift): { day: string; shift: string; people: ShiftAssignment[] } | null {
+    const i = days.findIndex(d => d.id === dayId);
+    if (i < 0 || shift.assignments.length) return null;
+    const order = [...days.slice(0, i).reverse(), ...days.slice(i + 1)];
+    for (const d of order) {
+      const withPeople = d.shifts.filter(s => s.assignments.length);
+      const src = withPeople.find(s => s.label.trim().toLowerCase() === shift.label.trim().toLowerCase()) ?? (withPeople.length === 1 ? withPeople[0] : null);
+      if (src) return { day: d.eventType?.trim() || `Day ${days.indexOf(d) + 1}`, shift: src.label, people: src.assignments };
+    }
+    return null;
+  }
+  /** Put that team on this shift: same people, roles, gear and so the same prices. */
+  const copyTeam = (slot: SlotRef, people: ShiftAssignment[]) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : {
+    ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: people.map(a => JSON.parse(JSON.stringify(a)) as ShiftAssignment) }),
+  }));
   function savePerson(a: ShiftAssignment, slots: SlotRef[], replace?: { slot: SlotRef; a: ShiftAssignment }) {
     setDays(ds => ds.map(d => ({ ...d, shifts: d.shifts.map(s => {
       let list = s.assignments;
@@ -1001,6 +1021,19 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                                   className="h-11 px-4 rounded-full border border-dashed border-[#C9C2DA] text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 hover:bg-[#F5F3FA]">
                                   <Plus className="w-4 h-4" />Add person
                                 </button>
+                                {(() => {
+                                  const src = teamSource(d.id, s);
+                                  if (!src) return null;
+                                  const sameShift = src.shift.trim().toLowerCase() === s.label.trim().toLowerCase();
+                                  return (
+                                    <button type="button" onClick={() => copyTeam({ dayId: d.id, shiftId: s.id }, src.people)}
+                                      title={`${src.people.length} ${src.people.length === 1 ? "person" : "people"} from ${src.day} · ${src.shift}`}
+                                      className="h-11 px-4 rounded-full bg-[#EEE8FD] text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5 hover:bg-[#E4DBFC] max-w-full">
+                                      <Users className="w-4 h-4 flex-shrink-0" />
+                                      <span className="truncate">Same team as {src.day}{sameShift ? "" : ` · ${src.shift}`} ({src.people.length})</span>
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             </div>
                           ))}

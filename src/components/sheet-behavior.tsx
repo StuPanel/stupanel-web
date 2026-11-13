@@ -7,10 +7,14 @@
  *  - On phones the drawer is a bottom sheet: drag its top down to close.
  *  - The page behind doesn't scroll while one is open.
  *  - The phone's Back button closes the top one (instead of leaving the page).
+ *  - A form someone typed in asks before it closes ("Discard your changes?") — Back, Esc, the dimmed
+ *    area, dragging down, the ✕ and Cancel. Typing marks the drawer (data-sp-dirty); a success
+ *    toast clears the mark. A drawer that asks by itself carries data-sp-own-guard (new program).
  * Every drawer already closes when its backdrop is clicked, so we close by clicking the backdrop.
  */
 import { useEffect } from "react";
 import { pushLayer } from "@/lib/back-stack";
+import { askLeave } from "@/components/feedback";
 
 const CLOSE_MS = 230;
 const reduced = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -58,9 +62,27 @@ function backdropOf(drawer: HTMLElement): HTMLElement | null {
   return topBackdrop();
 }
 
+/** Someone typed in this drawer and nothing was saved since (and the drawer doesn't ask by itself). */
+const hasUnsaved = (d: HTMLElement | null) => !!d && d.dataset.spDirty === "1" && !d.hasAttribute("data-sp-own-guard");
+let asking = false;
+/** Ask once; true = go ahead and close. */
+async function mayLeave(drawer: HTMLElement | null): Promise<boolean> {
+  if (!hasUnsaved(drawer)) return true;
+  if (asking) return false;
+  asking = true;
+  try {
+    if ((await askLeave()) !== "discard") return false;
+    drawer!.removeAttribute("data-sp-dirty");
+    return true;
+  } finally { asking = false; }
+}
+
 /** Play the closing animation, then let the drawer's own handler close it. */
 function closeAnimated(backdrop: HTMLElement) {
   const drawer = drawerOf(backdrop);
+  // The drawer asks by itself and has something to ask about: no slide-away before its question.
+  if (drawer?.getAttribute("data-sp-own-guard") === "dirty") { backdrop.click(); return; }
+  if (hasUnsaved(drawer)) { mayLeave(drawer).then(ok => { if (ok && backdrop.isConnected) closeAnimated(backdrop); }); return; }
   if (reduced()) { backdrop.click(); return; }
   backdrop.classList.add("sp-closing");
   drawer?.classList.add("sp-closing");
@@ -87,9 +109,29 @@ export function SheetBehavior() {
       closeAnimated(b);
     };
 
+    // Typing in a drawer marks it as having unsaved work (search boxes don't count).
+    const onInput = (e: Event) => {
+      if (!e.isTrusted) return;
+      const t = e.target as HTMLElement | null;
+      const d = t?.closest?.<HTMLElement>(".sp-drawer");
+      if (!d || !t) return;
+      const el = t as HTMLInputElement;
+      if (el.type === "search" || el.getAttribute("role") === "searchbox" || /^search/i.test(el.placeholder ?? "") || t.closest("[data-sp-noguard]")) return;
+      d.dataset.spDirty = "1";
+    };
+
     // Tapping the dimmed area: animate first, then close.
     const onClick = (e: MouseEvent) => {
       if (!e.isTrusted) return;
+      // ✕ and Cancel of a form with unsaved typing: ask first, then press it for real.
+      const btn = (e.target as HTMLElement | null)?.closest?.<HTMLElement>("button");
+      const own = btn?.closest<HTMLElement>(".sp-drawer") ?? null;
+      if (btn && hasUnsaved(own) && (btn.getAttribute("aria-label") === "Close" || btn.textContent?.trim() === "Cancel")) {
+        e.stopPropagation();
+        e.preventDefault();
+        mayLeave(own).then(ok => { if (ok && btn.isConnected) btn.click(); });
+        return;
+      }
       const t = e.target as HTMLElement | null;
       if (!t || !t.classList?.contains("sp-backdrop") || t.classList.contains("sp-closing")) return;
       e.stopPropagation();
@@ -163,6 +205,8 @@ export function SheetBehavior() {
     mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 
     window.addEventListener("keydown", onKey);
+    window.addEventListener("input", onInput, true);
+    window.addEventListener("change", onInput, true);
     window.addEventListener("click", onClick, true);
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -172,6 +216,8 @@ export function SheetBehavior() {
       mo.disconnect(); cancelAnimationFrame(raf);
       document.documentElement.classList.remove("sp-locked");
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("input", onInput, true);
+      window.removeEventListener("change", onInput, true);
       window.removeEventListener("click", onClick, true);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);

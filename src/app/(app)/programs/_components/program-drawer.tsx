@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { formatCurrency, fmtMoney, currencySymbol, currencyPad, getStudioCurrency } from "@/lib/format";
-import { askConfirm, notify } from "@/components/feedback";
+import { askConfirm, askLeave, notify } from "@/components/feedback";
 import { jumpToField } from "@/lib/jump-to-field";
 import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
@@ -434,13 +434,15 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
 /** A new program started from a lead: event, dates, place and price filled in. */
 export type ProgramDraft = { eventName?: string; dates?: string[]; location?: string; total?: number; notes?: string };
 
-export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient, initialDraft }: {
+export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, initialBooking, initialClient, initialDraft, resume }: {
   open: boolean; onClose: () => void; onSaved: () => void;
   packages: Package[]; teamMembers: TeamMember[];
   initialBooking?: Booking | null;
   /** Start a new program for this client. */
   initialClient?: Client | null;
   initialDraft?: ProgramDraft | null;
+  /** New program: open straight into the unfinished one kept on the server (no question). */
+  resume?: boolean;
 }) {
   const isEdit = !!initialBooking;
   const [client, setClient] = useState<Client | null>(null);
@@ -470,6 +472,66 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
 
+  // ── Unsaved work ──
+  // The form as text. `base` is the form at the person's first touch, so anything filled in by
+  // the app before that (the program being edited, a draft, a lead) doesn't count as a change.
+  const snapshot = useMemo(
+    () => JSON.stringify({ client, clientMode, newClient, programType, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept }),
+    [client, clientMode, newClient, programType, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept],
+  );
+  const [base, setBase] = useState<string | null>(null);
+  /** A draft brought its own name: the automatic "Rina's wedding" name must not replace it (it can run just after). */
+  const draftNamed = useRef(false);
+  const dirty = base !== null && base !== snapshot;
+  const touch = () => { if (base === null) setBase(snapshot); };
+  /** The draft write in flight, so a discard can wait for it and not be undone by it. */
+  const draftWrite = useRef<Promise<boolean>>(Promise.resolve(true));
+  function saveDraft(text: string): Promise<boolean> {
+    draftWrite.current = draftWrite.current.then(() =>
+      apiFetch(`${API}/drafts/program`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: JSON.parse(text) }) })
+        .then(r => r.ok).catch(() => false));
+    return draftWrite.current;
+  }
+  async function dropDraft() {
+    await draftWrite.current;
+    await apiFetch(`${API}/drafts/program`, { method: "DELETE" }).catch(() => null);
+  }
+  // A new program is kept as a draft while it is being typed (on the server, so it is there on any device).
+  useEffect(() => {
+    if (!open || isEdit || !dirty) return;
+    const id = setTimeout(() => { saveDraft(snapshot); }, 1200);
+    return () => clearTimeout(id);
+  }, [open, isEdit, dirty, snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Back, ✕, Cancel, the dimmed area: ask before unsaved work is lost. */
+  async function requestClose() {
+    if (saving) return;
+    if (!dirty) { onClose(); return; }
+    const answer = await askLeave(isEdit ? undefined : { draft: true, what: "program" });
+    if (answer === "stay") return;
+    if (!isEdit) {
+      if (answer === "draft") {
+        if (!(await saveDraft(snapshot))) { notify("Couldn't save the draft. Check your connection and try again.", { error: true }); return; }
+        notify("Saved as a draft");
+      } else await dropDraft();
+    }
+    onClose();
+  }
+
+  /** Put a kept draft back into the form. */
+  function applyDraft(d: Record<string, unknown>) {
+    const o = d as Partial<{
+      client: Client | null; clientMode: "search" | "new"; newClient: ClientFormData; programType: string; eventName: string; nameTouched: boolean;
+      packageId: string; days: EventDay[]; advanceWallet: string; money: typeof money; notes: string; editors: EditorDraft[]; kept: CostEntry[];
+    }>;
+    setClient(o.client ?? null); setClientMode(o.clientMode === "new" ? "new" : "search"); setNewClient({ ...blankClientForm, ...(o.newClient ?? {}) });
+    draftNamed.current = !!o.nameTouched;
+    setProgramType(o.programType ?? ""); setEventName(o.eventName ?? ""); setNameTouched(!!o.nameTouched); setPackageId(o.packageId ?? "");
+    setDays(normalizeDays(o.days)); setAdvanceWallet(o.advanceWallet ?? "");
+    setMoney(m => ({ ...m, ...(o.money ?? {}) })); setNotes(o.notes ?? "");
+    setEditors(Array.isArray(o.editors) ? o.editors : []); setKept(Array.isArray(o.kept) ? o.kept : []);
+  }
+
   useEffect(() => { setTeam(teamMembers); }, [teamMembers]);
 
   // Fresh team (with prices + gear) and studio settings each time it opens
@@ -497,7 +559,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // Fill the form
   useEffect(() => {
     if (!open) return;
-    setError(""); setUnlocked(false); setClientMode("search"); setNewClient(blankClientForm); setOpenBill(null);
+    setError(""); setUnlocked(false); setClientMode("search"); setNewClient(blankClientForm); setOpenBill(null); setBase(null);
+    draftNamed.current = false;
+    let alive = true;
     if (isEdit && initialBooking) {
       const b = initialBooking;
       const d = normalizeDays(b.eventDays);
@@ -520,7 +584,19 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
       setKept([]); setEditors([]); setNotes(dr?.notes ?? "");
       setMoney({ total: dr?.total ? String(dr.total) : "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
+      // An unfinished program kept earlier: carry on with it, or start a new one.
+      apiFetch(`${API}/drafts/program`).then(r => (r.ok ? r.json() : null)).then(async d => {
+        if (!alive || !d?.data) return;
+        const name = String(d.data.eventName || "").trim() || [d.data.client?.firstName, d.data.client?.lastName].filter(Boolean).join(" ") || "No name yet";
+        const when = d.updatedAt ? `${fmtDate(d.updatedAt)}, ${new Date(d.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
+        if (!resume && !(await askConfirm({
+          title: "Continue your unfinished program?", message: `${name}${when ? ` — saved ${when}` : ""}.\nStarting a new one replaces it once you begin typing.`,
+          confirmLabel: "Continue", cancelLabel: "Start new",
+        }))) return;
+        if (alive) applyDraft(d.data);
+      }).catch(() => {});
     }
+    return () => { alive = false; };
   }, [open, initialBooking, initialClient, initialDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Who is busy on each date
@@ -542,7 +618,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const clientName = client ? fullName(client) : fullName({ firstName: newClient.firstName, lastName: newClient.lastName });
   // Suggest a name until the user types one
   useEffect(() => {
-    if (nameTouched) return;
+    if (nameTouched || draftNamed.current) return;
     const first = clientName.split(" ")[0];
     setEventName(first && typeName ? `${first}'s ${typeName.replace(/^(Muslim|Sanatani|Hindu) /, "")}` : first ? `${first}'s program` : "");
   }, [clientName, typeName, nameTouched]);
@@ -730,6 +806,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const id = isEdit ? initialBooking!.id : d.id;
       if (id) await apiFetch(`${API}/bookings/${id}/editors`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ editors }) }).catch(() => {});
       notify(isEdit ? "Program saved" : "Program created");
+      if (!isEdit) await dropDraft(); // it is a real program now
       onSaved(); onClose();
     } catch { setError("Something went wrong. Please try again."); }
     finally { setSaving(false); }
@@ -768,15 +845,16 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
   return (
     <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Edit program" : "New program"} className="sp-drawer z-50 sm:max-w-[1100px] flex flex-col bg-[#F5F3FA]">
+      <div className="sp-backdrop z-40" onClick={requestClose} />
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Edit program" : "New program"} className="sp-drawer z-50 sm:max-w-[1100px] flex flex-col bg-[#F5F3FA]"
+        data-sp-own-guard={dirty ? "dirty" : ""} onPointerDownCapture={touch} onKeyDownCapture={touch}>
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           <Tile icon={Camera} color="deep" size={40} />
           <div className="flex-1 min-w-0">
             <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit program" : "New program"}</h2>
             <p className="text-[13px] text-[#6B6680] truncate">{isEdit ? initialBooking?.bookingNumber : "Fill top to bottom — everything adds up on the right."}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={requestClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-6">
@@ -1094,7 +1172,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
           <div className="hidden sm:block flex-1 min-w-0">
             <p className="text-xs text-[#6B6680]">Client due <strong className="text-[#17151F]">{formatCurrency(Math.max(0, due))}</strong> · Profit <strong className={profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]"}>{formatCurrency(profit)}</strong></p>
           </div>
-          <button type="button" onClick={onClose} className="flex-1 sm:flex-none sm:w-32 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F]">Cancel</button>
+          <button type="button" onClick={requestClose} className="flex-1 sm:flex-none sm:w-32 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F]">Cancel</button>
           <button type="button" onClick={submit} disabled={saving}
             className="flex-[1.4] sm:flex-none sm:w-52 h-12 rounded-full bg-[#7D5CEF] hover:bg-[#6C4BE0] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><Wallet className="w-4 h-4" />{isEdit ? "Save changes" : "Create program"}</>}

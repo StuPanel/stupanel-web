@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Search, CalendarDays, Camera } from "lucide-react";
+import { Plus, Search, CalendarDays, Camera, FilePen } from "lucide-react";
+import { askConfirm, notify } from "@/components/feedback";
+import { Tile } from "@/components/ui/apple";
 import { Chips, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { apiFetch } from "@/lib/api";
+import { fmtDate } from "@/lib/format";
 import { API_URL as API } from "@/lib/api";
 import { STATUS_CFG } from "./_components/constants";
 
@@ -38,6 +41,25 @@ export default function ProgramsPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [newForClient, setNewForClient] = useState<Client | null>(null);
   const [newDraft, setNewDraft] = useState<ProgramDraft | null>(null);
+  // The unfinished new program this person left (kept on the server).
+  const [unfinished, setUnfinished] = useState<{ name: string; when: string } | null>(null);
+  const [resume, setResume] = useState(false);
+  const loadUnfinished = useCallback(() => {
+    apiFetch(`${API}/drafts/program`).then(r => (r.ok ? r.json() : null)).then(d => {
+      if (!d?.data) { setUnfinished(null); return; }
+      const name = String(d.data.eventName || "").trim() || [d.data.client?.firstName, d.data.client?.lastName].filter(Boolean).join(" ") || "No name yet";
+      const when = d.updatedAt ? `${fmtDate(d.updatedAt)}, ${new Date(d.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
+      setUnfinished({ name, when });
+    }).catch(() => {});
+  }, []);
+  // On arrival and each time the New program form closes.
+  useEffect(() => { if (!newOpen) loadUnfinished(); }, [newOpen, loadUnfinished]);
+  async function deleteUnfinished() {
+    if (!(await askConfirm({ title: "Delete this unfinished program?", message: "What you filled in will be gone.", confirmLabel: "Delete", danger: true }))) return;
+    const r = await apiFetch(`${API}/drafts/program`, { method: "DELETE" }).catch(() => null);
+    if (r?.ok) { setUnfinished(null); notify("Unfinished program deleted"); }
+    else notify("Couldn't delete it. Please try again.", { error: true });
+  }
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
 
@@ -120,6 +142,20 @@ export default function ProgramsPage() {
           ]} />
       )}
 
+      {unfinished && !newOpen && (
+        <div className="sp-card rounded-[20px] mb-4 px-4 py-3.5 flex flex-wrap items-center gap-3">
+          <Tile icon={FilePen} color="orchid" size={36} />
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[14px] font-bold text-[#17151F] truncate">Unfinished program · {unfinished.name}</p>
+            <p className="text-[12.5px] text-[#6B6680]">{unfinished.when ? `Saved ${unfinished.when}. ` : ""}Not a program yet — finish it to add it.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={deleteUnfinished} className="h-10 px-4 rounded-full bg-[#F1EFF6] text-[14px] font-semibold text-[#4A4658]">Delete</button>
+            <button type="button" onClick={() => { setResume(true); setNewOpen(true); }} className="h-10 px-5 rounded-full bg-[#7D5CEF] text-white text-[14px] font-semibold">Continue</button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <RowsSkeleton n={6} />
       ) : bookings.length === 0 ? (
@@ -142,8 +178,8 @@ export default function ProgramsPage() {
 
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
-      <ProgramDrawer open={newOpen} onClose={() => { setNewOpen(false); setNewForClient(null); setNewDraft(null); }} onSaved={fetchAll} packages={packages} teamMembers={teamMembers}
-        initialClient={newForClient} initialDraft={newDraft} />
+      <ProgramDrawer open={newOpen} onClose={() => { setNewOpen(false); setNewForClient(null); setNewDraft(null); setResume(false); }} onSaved={fetchAll} packages={packages} teamMembers={teamMembers}
+        initialClient={newForClient} initialDraft={newDraft} resume={resume} />
       <ProgramDrawer
         open={!!editTarget}
         onClose={() => setEditTarget(null)}

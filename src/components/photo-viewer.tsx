@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { useBackClose } from "@/lib/back-stack";
 import { cn } from "@/lib/utils";
 
 export function PhotoViewer({ count, index, onIndex, onClose, src, preload, title, sub, footer, top, onKey, onDoubleTap, hint }: {
@@ -26,6 +27,8 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, preload, titl
   const [dx, setDx] = useState(0);
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
   const drag = useRef(0);
+  // Phone Back closes the photo, not the page
+  useBackClose(true, onClose);
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
   const [burst, setBurst] = useState(0);
   const doubleTap = useCallback(() => {

@@ -4,7 +4,7 @@
  * Settings that live in companies.settings (GET/PATCH /companies/settings):
  * features, work types, shift templates, team pay and delivery rules.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronRight, Clock, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -287,7 +287,9 @@ function DeliveryRules() {
 /** Programs pane: the studio's shifts — name, usual time, on/off. Off shifts aren't offered anywhere; old programs keep theirs. */
 export function ShiftsGroup() {
   const { studio, patchStudio } = useSettings();
-  const saved = (studio?.shifts ?? DEFAULT_SHIFTS).map(s => ({ ...s, active: s.active !== false }));
+  // Same array until the settings change (a new one each render would loop useSynced).
+  const list = studio?.shifts;
+  const saved = useMemo(() => (list ?? DEFAULT_SHIFTS).map(s => ({ ...s, active: s.active !== false })), [list]);
   const [rows, setRows] = useSynced<StudioShift[]>(saved);
   const [adding, setAdding] = useState("");
   if (!studio) return null;

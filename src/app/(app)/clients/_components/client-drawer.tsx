@@ -202,13 +202,20 @@ export function DeleteDialog({
   async function doDelete() {
     setLoading(true);
     try {
-      await apiFetch(`${API}/clients/${client!.id}`, {
+      const r = await apiFetch(`${API}/clients/${client!.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
+      if (!r.ok) {
+        // e.g. the client still has programs — say so instead of pretending it worked
+        const d = await r.json().catch(() => ({}));
+        notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't delete this client. Please try again.", { error: true });
+        onClose();
+        return;
+      }
       onDeleted();
       onClose();
-    } catch { /* silent */ }
+    } catch { notify("Couldn't delete this client. Please check your internet and try again.", { error: true }); }
     finally { setLoading(false); }
   }
 
@@ -222,7 +229,7 @@ export function DeleteDialog({
           </div>
           <h3 className="font-extrabold text-[#17151F] text-lg">Delete this client?</h3>
           <p className="text-[#6B6680] text-sm mt-2">
-            <span className="font-semibold text-[#33303F]">{fullName(client)}</span> and all related data will be deleted.
+            <span className="font-semibold text-[#33303F]">{fullName(client)}</span> will be removed from your client list. A client who still has programs or invoices can&apos;t be deleted — delete those first.
           </p>
           <div className="flex gap-3 mt-6">
             <button type="button" onClick={onClose} className="flex-1 h-11 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Cancel</button>

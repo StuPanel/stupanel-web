@@ -38,6 +38,8 @@ let seq = 0;
 export function notify(text: string, opts?: { error?: boolean }) {
   const t = { id: ++seq, text, error: !!opts?.error };
   if (t.error) jumpToField(undefined, { toMessage: false }); // an empty required field in the open form, if any
+  // Something was saved: the open forms have nothing unsaved any more (see sheet-behavior.tsx).
+  else if (typeof document !== "undefined") document.querySelectorAll<HTMLElement>(".sp-drawer[data-sp-dirty]").forEach(d => d.removeAttribute("data-sp-dirty"));
   if (pushToast) pushToast(t);
   else if (typeof window !== "undefined") window.alert(text); // host not mounted yet
 }
@@ -46,6 +48,28 @@ export function askConfirm(opts: Omit<Ask, "resolve" | "extraLabel">): Promise<b
   return new Promise((resolve) => {
     if (pushAsk) pushAsk({ ...opts, resolve: (v) => resolve(v === true) });
     else resolve(typeof window !== "undefined" ? window.confirm(opts.message) : false);
+  });
+}
+
+/**
+ * Closing a form that has unsaved typing. "stay" = keep editing.
+ * With `draft` there is a third way out: keep it as a draft (new program).
+ */
+export function askLeave(opts?: { draft?: boolean; what?: string }): Promise<"stay" | "draft" | "discard"> {
+  return new Promise((resolve) => {
+    if (!pushAsk) { resolve(typeof window !== "undefined" && window.confirm("Discard what you typed?") ? "discard" : "stay"); return; }
+    if (opts?.draft) pushAsk({
+      title: `This ${opts.what ?? "form"} isn't saved yet`,
+      message: "Keep it as a draft and finish it later, or discard it.",
+      cancelLabel: "Keep editing", confirmLabel: "Save as draft", extraLabel: "Discard",
+      resolve: (v) => resolve(v === true ? "draft" : v === "extra" ? "discard" : "stay"),
+    });
+    else pushAsk({
+      title: "Discard your changes?",
+      message: "What you typed here isn't saved yet.",
+      cancelLabel: "Keep editing", confirmLabel: "Discard", danger: true,
+      resolve: (v) => resolve(v === true ? "discard" : "stay"),
+    });
   });
 }
 

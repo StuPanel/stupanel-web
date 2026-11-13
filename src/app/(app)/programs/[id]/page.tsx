@@ -310,7 +310,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
           {/* Money at a glance */}
           {(net > 0 || paid > 0) && <div className={cn(card, "p-5")}>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{due > 0 ? "Client owes" : "Money"}</p>
+              <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{due > 0 ? "Client due" : "Money"}</p>
               <p className="text-[12.5px] text-[#6B6680]">Profit <span className={cn("font-bold tabular-nums", profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]")}>{formatCurrency(profit, b.currency)}</span></p>
             </div>
             <p className={cn("text-[30px] font-extrabold tracking-[-0.02em] tabular-nums leading-tight mt-0.5", due > 0 ? "text-[#C2304F]" : "text-[#17151F]")}>

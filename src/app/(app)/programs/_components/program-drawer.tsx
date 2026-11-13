@@ -997,7 +997,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
         <div className="px-4 sm:px-5 py-4 bg-white/80 backdrop-blur border-t border-[#EEEBF4] flex items-center gap-3">
           <div className="hidden sm:block flex-1 min-w-0">
-            <p className="text-xs text-[#6B6680]">Client owes <strong className="text-[#17151F]">{formatCurrency(Math.max(0, due))}</strong> · Profit <strong className={profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]"}>{formatCurrency(profit)}</strong></p>
+            <p className="text-xs text-[#6B6680]">Client due <strong className="text-[#17151F]">{formatCurrency(Math.max(0, due))}</strong> · Profit <strong className={profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]"}>{formatCurrency(profit)}</strong></p>
           </div>
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none sm:w-32 h-12 rounded-full bg-[#EEEBF4] text-[15px] font-semibold text-[#17151F]">Cancel</button>
           <button type="button" onClick={submit} disabled={saving}

@@ -384,11 +384,11 @@ main .bg-white.rounded-xl.border, main .bg-white.rounded-2xl.border { border-rad
 
 
 /* ─── Backdrop + glass (Settings → Appearance) ───────────────────────────────
-   html[data-backdrop] picks the scene. Default = violet. "plain" = no glass. */
-:root, html[data-backdrop="violet"] {
+   html[data-backdrop] picks the scene. Default = Golden Hour (Faisal, 2026-11-13). "plain" = no glass. */
+:root, html[data-backdrop="golden"] { --sp-base: #FAF4EB; --sp-glow-a: rgba(245, 165, 50, .48); --sp-glow-b: rgba(232, 92, 120, .40); --sp-glow-c: rgba(255, 228, 190, .95); }
+html[data-backdrop="violet"] {
   --sp-base: #F1EEFA; --sp-glow-a: rgba(132, 98, 245, .50); --sp-glow-b: rgba(255, 146, 120, .46); --sp-glow-c: rgba(214, 198, 255, .95);
 }
-html[data-backdrop="golden"] { --sp-base: #FAF4EB; --sp-glow-a: rgba(245, 165, 50, .48); --sp-glow-b: rgba(232, 92, 120, .40); --sp-glow-c: rgba(255, 228, 190, .95); }
 html[data-backdrop="mehendi"] { --sp-base: #F1F6EC; --sp-glow-a: rgba(80, 158, 76, .44); --sp-glow-b: rgba(240, 186, 30, .44); --sp-glow-c: rgba(214, 238, 200, .95); }
 html[data-backdrop="lagoon"] { --sp-base: #ECF4F6; --sp-glow-a: rgba(26, 150, 140, .42); --sp-glow-b: rgba(64, 116, 214, .40); --sp-glow-c: rgba(200, 232, 238, .95); }
 html[data-backdrop="plain"] { --sp-base: #F5F3FA; --sp-glow-a: transparent; --sp-glow-b: transparent; --sp-glow-c: transparent; }

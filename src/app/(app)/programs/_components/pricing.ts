@@ -188,8 +188,11 @@ export function buildBill(opts: {
   for (const memberId of ids) {
     const old = keep.find(e => e.memberId === memberId);
     const autoLines = (lines.get(memberId) ?? []).map(l => {
-      const prev = old?.lines?.find(o => o.key === l.key && o.edited);
-      return prev ? { ...l, amount: prev.amount, edited: true } : l;
+      // Same line as before keeps its id, so a box being typed in isn't rebuilt (phone keyboard closing).
+      const same = l.key ? old?.lines?.find(o => o.key === l.key) : undefined;
+      const prev = same?.edited ? same : undefined;
+      const line = same ? { ...l, id: same.id } : l;
+      return prev ? { ...line, amount: prev.amount, edited: true } : line;
     });
     const manual = (old?.lines ?? []).filter(l => !l.auto);
     const all = [...autoLines, ...manual];

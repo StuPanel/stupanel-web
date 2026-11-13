@@ -13,7 +13,7 @@ import { amountInWords } from "./words";
 export interface DocStudio {
   name: string; logoUrl?: string | null; phone?: string | null; email?: string | null;
   address?: string | null; city?: string | null; website?: string | null;
-  bankName?: string | null; bankBranch?: string | null; bankAccountName?: string | null; bankAccountNumber?: string | null;
+  bankName?: string | null; bankBranch?: string | null; bankAccountName?: string | null; bankAccountNumber?: string | null; bankRoutingNumber?: string | null;
   bkashNumber?: string | null; nagadNumber?: string | null; rocketNumber?: string | null;
 }
 export interface DocData {
@@ -258,7 +258,7 @@ export function InvoiceDocument({ data, design, className, style }: { data: DocD
     s.bkashNumber && `bKash: ${s.bkashNumber}`,
     s.nagadNumber && `Nagad: ${s.nagadNumber}`,
     s.rocketNumber && `Rocket: ${s.rocketNumber}`,
-    s.bankAccountNumber && `${s.bankName ?? "Bank"}${s.bankBranch ? `, ${s.bankBranch}` : ""} — A/C ${s.bankAccountNumber}${s.bankAccountName ? ` (${s.bankAccountName})` : ""}`,
+    s.bankAccountNumber && `${s.bankName ?? "Bank"}${s.bankBranch ? `, ${s.bankBranch}` : ""} — A/C ${s.bankAccountNumber}${s.bankAccountName ? ` (${s.bankAccountName})` : ""}${s.bankRoutingNumber ? ` · Routing ${s.bankRoutingNumber}` : ""}`,
   ].filter(Boolean) as string[];
   const paymentInfo = !isReceipt && payLines.length > 0 && box("How to pay", <div style={{ fontSize: fs, lineHeight: 1.6 }}>{payLines.map((l, i) => <div key={i}>{l}</div>)}</div>);
   const terms = data.terms && box("Terms & conditions", <div style={{ fontSize: fs - 1, color: soft, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{data.terms}</div>);

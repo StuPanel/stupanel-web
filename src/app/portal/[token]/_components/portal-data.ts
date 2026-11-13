@@ -62,6 +62,8 @@ export interface PortalData {
     portalShowQuotes?: boolean; portalShowInvoices?: boolean;
     portalShowPayments?: boolean; portalShowMessages?: boolean;
     defaultCancellationPolicy?: string | null;
+    website?: string | null; facebookUrl?: string | null; instagramUrl?: string | null; youtubeUrl?: string | null; tiktokUrl?: string | null;
+    otherLinks?: { label?: string; url?: string }[] | null;
   };
   bookings: PortalBooking[];
   quotes: PortalQuote[];

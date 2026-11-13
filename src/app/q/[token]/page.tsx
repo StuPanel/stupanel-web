@@ -1,5 +1,6 @@
 "use client";
 
+import { StudioLinks, type StudioLinkFields } from "@/components/public/studio-links";
 import { useState, useEffect, use } from "react";
 import {
   CheckCircle2, XCircle, Printer, Loader2, AlertTriangle,
@@ -22,7 +23,7 @@ interface Quote {
   items: QuoteItem[];
   client: { firstName: string; lastName?: string; phone?: string; email?: string };
   program?: { name: string; category?: string };
-  company: { name: string; email?: string; phone?: string; address?: string; logoUrl?: string; currency: string };
+  company: { name: string; email?: string; phone?: string; address?: string; logoUrl?: string; currency: string } & StudioLinkFields;
   acceptedAt?: string; rejectedAt?: string;
 }
 
@@ -252,6 +253,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
           <footer className="px-6 sm:px-10 py-5 border-t border-[#E9E5F1] bg-[#FBFAFD] rounded-b-[22px] print:bg-white text-center">
             <p className="text-[12.5px] text-[#6B6680]">Thank you for considering <span className="font-semibold text-[#17151F]">{quote.company.name}</span>.</p>
             <p className="text-[12px] text-[#9893A8] mt-1 tabular-nums">{quote.quoteNumber} · version {quote.version}</p>
+            <StudioLinks studio={quote.company} className="mt-3" />
           </footer>
         </article>
 

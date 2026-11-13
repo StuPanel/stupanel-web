@@ -22,6 +22,7 @@ export interface InvoiceCompany {
   invoiceFooter?: string;
   bankName?: string;
   bankBranch?: string;
+  bankRoutingNumber?: string;
   bankAccountName?: string;
   bankAccountNumber?: string;
   bkashNumber?: string;
@@ -262,6 +263,7 @@ export function InvoicePreview({ data }: { data: InvoicePreviewData }) {
                     <p style={{ margin: 0 }}>{company.bankName}{company.bankBranch ? ` · ${company.bankBranch}` : ""}</p>
                     {company.bankAccountName   && <p style={{ margin: 0 }}>Account: {company.bankAccountName}</p>}
                     {company.bankAccountNumber && <p style={{ margin: 0, fontFamily: "monospace" }}>No: {company.bankAccountNumber}</p>}
+                    {company.bankRoutingNumber && <p style={{ margin: 0, fontFamily: "monospace" }}>Routing: {company.bankRoutingNumber}</p>}
                   </div>
                 )}
                 {(company.bkashNumber || company.nagadNumber) && (

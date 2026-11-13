@@ -454,7 +454,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       invoiceShowSignature: companyData?.invoiceShowSignature,
       invoiceSignatureText: companyData?.invoiceSignatureText,
       invoiceFooter: companyData?.invoiceFooter,
-      bankName: companyData?.bankName, bankBranch: companyData?.bankBranch,
+      bankName: companyData?.bankName, bankBranch: companyData?.bankBranch, bankRoutingNumber: companyData?.bankRoutingNumber,
       bankAccountName: companyData?.bankAccountName,
       bankAccountNumber: companyData?.bankAccountNumber,
       bkashNumber: companyData?.bkashNumber, nagadNumber: companyData?.nagadNumber,

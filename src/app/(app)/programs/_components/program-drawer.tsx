@@ -477,6 +477,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       studioRates: d.studioRates ?? [], payMode: d.teamPay?.mode ?? "per_shift",
       shifts: Array.isArray(d.shifts) && d.shifts.length ? d.shifts : DEFAULT_SHIFTS,
     })).catch(() => {});
+    // VAT the studio charges on programs (Settings → Invoice design) — the invoice adds the same.
+    apiFetch(`${API}/companies/me`).then(r => r.ok ? r.json() : null).then(d => {
+      const v = d?.invoiceDesign?.vat;
+      const pct = v?.on ? Number(v.percent) || 0 : 0;
+      setVat(pct > 0 && pct <= 100 ? { pct, label: v.label || "VAT" } : null);
+    }).catch(() => {});
     apiFetch(`${API}/team`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setTeam(d)).catch(() => {});
     apiFetch(`${API}/packages`).then(r => r.ok ? r.json() : null).then(d => Array.isArray(d) && setPkgs(d)).catch(() => {});
   }, [open]);
@@ -606,6 +612,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const setShift = (dayId: string, shiftId: string, p: Partial<{ start: string; end: string }>) =>
     setDays(ds => ds.map(d => d.id !== dayId ? d : { ...d, shifts: d.shifts.map(s => s.id === shiftId ? { ...s, ...p } : s) }));
   const [timeOpen, setTimeOpen] = useState<string | null>(null);
+  const [vat, setVat] = useState<{ pct: number; label: string } | null>(null);
   const [mapOpen, setMapOpen] = useState<string | null>(null);
   const removeShift = (dayId: string, shiftId: string) => setDays(ds => ds.map(d => d.id === dayId ? { ...d, shifts: d.shifts.filter(s => s.id !== shiftId) } : d));
   const removePerson = (slot: SlotRef, a: ShiftAssignment) => setDays(ds => ds.map(d => d.id !== slot.dayId ? d : { ...d, shifts: d.shifts.map(s => s.id !== slot.shiftId ? s : { ...s, assignments: s.assignments.filter(x => !(x.id === a.id && x.role === a.role)) }) }));
@@ -632,8 +639,11 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // ── totals ──
   const total = num(money.total), discount = num(money.discount), advance = num(money.advance);
   const net = total - discount;
+  // What the client pays = total − discount + VAT (same sum as the server and the invoice). Profit leaves VAT out.
+  const tax = vat ? Math.round(Math.max(0, net) * vat.pct) / 100 : 0;
+  const payable = Math.round((Math.max(0, net) + tax) * 100) / 100;
   const paidSoFar = isEdit ? Number(initialBooking?.paidAmount ?? 0) : advance;
-  const due = net - paidSoFar;
+  const due = payable - paidSoFar;
   // A finished program's team bill is locked: show what was saved, unless the owner unlocks it.
   const billLocked = isEdit && BILL_LOCKED_STATUSES.includes(initialBooking?.status ?? "") && !unlocked;
   const entries = billLocked ? kept : bill.entries;
@@ -657,7 +667,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     if (!days.length) return stop("Add at least one day.", "days");
     if (!step3) { const d = days.find(x => !x.date); return stop("Every day needs a date.", d ? `day-date-${d.id}` : "days"); }
     if (!step4) return stop("Write the contract amount.", "total");
-    if (!isEdit && advance > net) return stop("Advance can't be more than the total.", "advance");
+    if (!isEdit && advance > payable) return stop("Advance can't be more than the total.", "advance");
     // Someone works for ৳0 because no price is set for this kind of work or program type.
     if (!billLocked) {
       const zero = bill.entries.filter(e => e.memberId && (e.lines ?? []).some(l => l.kind === "work" && !Number(l.amount)));
@@ -722,6 +732,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       <div className="mt-4 space-y-1.5 text-sm">
         <Row l="Contract" v={formatCurrency(total)} />
         {discount > 0 && <Row l="Discount" v={`− ${formatCurrency(discount)}`} />}
+        {vat && tax > 0 && <Row l={`${vat.label} ${vat.pct}%`} v={`+ ${formatCurrency(tax)}`} />}
+        {vat && tax > 0 && <Row l="Client pays" v={formatCurrency(payable)} />}
         <Row l={isEdit ? "Paid so far" : "Advance"} v={formatCurrency(paidSoFar)} />
         <Row l="Balance due" v={formatCurrency(Math.max(0, due))} strong tone={due > 0 ? "red" : "green"} />
       </div>
@@ -959,7 +971,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                       )}</Field>
                     ) : (
                       <div className="px-4 py-3.5 flex flex-col justify-center">
-                        <p className="text-[13px] font-semibold text-[#4A4658]">Balance due</p>
+                        <p className="text-[13px] font-semibold text-[#4A4658]">Balance due{vat && tax > 0 && <span className="font-normal text-[#8A8599]"> · with {vat.label} {formatCurrency(tax)}</span>}</p>
                         <p className={cn("text-xl font-extrabold tabular-nums", due > 0 ? "text-[#C2304F]" : "text-[#1F8A5B]")}>{formatCurrency(Math.max(0, due))}</p>
                       </div>
                     )}

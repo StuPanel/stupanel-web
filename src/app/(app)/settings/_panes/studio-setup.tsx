@@ -298,7 +298,7 @@ export function ShiftsGroup() {
   };
   const edit = (i: number, p: Partial<StudioShift>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
   const commit = () => { if (JSON.stringify(rows) !== JSON.stringify(saved)) save(rows); };
-  const timeCls = "h-10 w-[112px] rounded-full bg-[#F5F3FA] px-3 text-sm text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
+  const timeCls = "h-10 w-[132px] rounded-full bg-[#F5F3FA] px-3 text-sm text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
 
   return (
     <Group title="Shifts" note={<>Your shifts and their usual time. When you add a program day you pick its shifts, and the time is filled in (you can change it for that program). The team sees the time on their program. <Star className="inline w-3 h-3 -mt-0.5 fill-[#E8A33D] text-[#E8A33D]" /> = a new day starts with this shift.</>}>

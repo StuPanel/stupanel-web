@@ -7,8 +7,8 @@
 export type BackdropKey = "violet" | "golden" | "mehendi" | "lagoon" | "plain";
 
 export const BACKDROPS: { key: BackdropKey; name: string; sub: string; base: string; a: string; b: string }[] = [
+  { key: "golden", name: "Golden Hour", sub: "Warm like an evening shoot — the default", base: "#FBF6EE", a: "#F8C77A", b: "#F3A0B0" },
   { key: "violet", name: "StuPanel Violet", sub: "Our violet with a rosy glow", base: "#F4F1FB", a: "#B9A5FB", b: "#FFC2B3" },
-  { key: "golden", name: "Golden Hour", sub: "Warm like an evening shoot", base: "#FBF6EE", a: "#F8C77A", b: "#F3A0B0" },
   { key: "mehendi", name: "Mehendi", sub: "Fresh green and marigold", base: "#F3F7EF", a: "#9CCB8F", b: "#F6D36B" },
   { key: "lagoon", name: "Lagoon", sub: "Calm teal and blue", base: "#EEF5F7", a: "#86CFC7", b: "#9DB9E8" },
   { key: "plain", name: "Plain", sub: "Simple, no glass", base: "#F5F3FA", a: "#F5F3FA", b: "#F5F3FA" },
@@ -27,8 +27,11 @@ export function getLocalBackdrop(): BackdropKey | null {
   return null;
 }
 
+/** The look when nobody has chosen one: the login pages, a new studio, a new device. */
+export const DEFAULT_BACKDROP: BackdropKey = "golden";
+
 export function getBackdrop(): BackdropKey {
-  return getLocalBackdrop() ?? "violet";
+  return getLocalBackdrop() ?? DEFAULT_BACKDROP;
 }
 
 /**

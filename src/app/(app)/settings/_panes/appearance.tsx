@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BACKDROPS, getBackdrop, setBackdrop, type BackdropKey } from "@/lib/backdrop";
+import { BACKDROPS, DEFAULT_BACKDROP, getBackdrop, setBackdrop, type BackdropKey } from "@/lib/backdrop";
 import { useAuth } from "@/context/auth-context";
 import { Group, useSettings } from "../_ui";
 
@@ -25,7 +25,7 @@ export function AppearancePane() {
   const { studio, patchStudio } = useSettings();
   const { user } = useAuth();
   const owner = user?.role === "owner";
-  const [current, setCurrent] = useState<BackdropKey>("violet");
+  const [current, setCurrent] = useState<BackdropKey>(DEFAULT_BACKDROP);
   const [saving, setSaving] = useState(false);
   const saved = studio?.appearance?.backdrop ?? null;
   // The studio's choice once it is known; until then what this device shows.

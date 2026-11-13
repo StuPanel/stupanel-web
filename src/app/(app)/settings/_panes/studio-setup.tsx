@@ -5,7 +5,7 @@
  * features, work types, shift templates, team pay and delivery rules.
  */
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronRight, Clock, Loader2, Plus, Star, Tag, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Clock, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { Tile, type TileColor } from "@/components/ui/apple";
@@ -284,10 +284,10 @@ function DeliveryRules() {
 }
 
 // ─── Pieces used inside other panes ───────────────────────────────────────────
-/** Programs pane: the studio's shifts — name and usual time, and which ones a new day starts with. */
+/** Programs pane: the studio's shifts — name, usual time, on/off. Off shifts aren't offered anywhere; old programs keep theirs. */
 export function ShiftsGroup() {
   const { studio, patchStudio } = useSettings();
-  const saved = studio?.shifts ?? DEFAULT_SHIFTS;
+  const saved = (studio?.shifts ?? DEFAULT_SHIFTS).map(s => ({ ...s, active: s.active !== false }));
   const [rows, setRows] = useSynced<StudioShift[]>(saved);
   const [adding, setAdding] = useState("");
   if (!studio) return null;
@@ -298,29 +298,31 @@ export function ShiftsGroup() {
   };
   const edit = (i: number, p: Partial<StudioShift>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
   const commit = () => { if (JSON.stringify(rows) !== JSON.stringify(saved)) save(rows); };
-  const timeCls = "h-10 w-[132px] rounded-full bg-[#F5F3FA] px-3 text-sm text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
+  const onCount = rows.filter(r => r.active).length;
+  const timeCls = "h-10 w-[132px] rounded-full bg-[#F5F3FA] px-3 text-sm text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 disabled:opacity-60";
 
   return (
-    <Group title="Shifts" note={<>Your shifts and their usual time. When you add a program day you pick its shifts, and the time is filled in (you can change it for that program). The team sees the time on their program. <Star className="inline w-3 h-3 -mt-0.5 fill-[#E8A33D] text-[#E8A33D]" /> = a new day starts with this shift.</>}>
+    <Group title="Shifts" note="Turn a shift off and it isn't offered anywhere — not in new programs, not when you add a shift to a day. Turn it on and it's back everywhere. Programs that already have it keep it. The time is filled in when you pick a shift for a day (you can change it for that program), and the team sees it.">
       <div id="set-shifts" className="sp-set-row scroll-mt-28 divide-y divide-[#EEEBF4]">
+        <div className="px-4 sm:px-5 py-2.5 flex items-center gap-2 bg-[#FAF9FC] text-[12px] text-[#6B6680]">
+          <Clock className="w-3.5 h-3.5" />
+          <span><strong className="text-[#17151F]">{onCount} on</strong>{rows.length - onCount > 0 && <> · {rows.length - onCount} off</>} — the ones that are on can be picked for a program day.</span>
+        </div>
         {rows.map((r, i) => (
-          <div key={r.id} className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2">
+          <div key={r.id} className={cn("px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2 transition-colors", !r.active && "bg-[#FAF9FC]")}>
+            <Switch label={`${r.name} ${r.active ? "on" : "off"}`} on={r.active}
+              disabled={r.active && onCount < 2}
+              onChange={v => save(rows.map((x, j) => (j === i ? { ...x, active: v } : x)))} />
             <input aria-label="Shift name" value={r.name} maxLength={30} onChange={e => edit(i, { name: e.target.value })} onBlur={commit}
-              className="flex-1 min-w-[140px] h-10 rounded-full bg-[#F5F3FA] px-4 text-sm font-semibold text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
-            <span className="inline-flex items-center gap-1.5">
+              className={cn("flex-1 min-w-[120px] h-10 rounded-full bg-[#F5F3FA] px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40", r.active ? "text-[#17151F]" : "text-[#9893A8] line-through decoration-[#C9C2DA]")} />
+            <span className={cn("inline-flex items-center gap-1.5", !r.active && "opacity-60")}>
               <input type="time" aria-label={`${r.name} starts`} value={r.start ?? ""} onChange={e => edit(i, { start: e.target.value || null })} onBlur={commit} className={timeCls} />
               <span className="text-[#9893A8] text-sm">–</span>
               <input type="time" aria-label={`${r.name} ends`} value={r.end ?? ""} onChange={e => edit(i, { end: e.target.value || null })} onBlur={commit} className={timeCls} />
             </span>
-            <button type="button" aria-pressed={r.isDefault} title={r.isDefault ? "New days start with this shift" : "Start new days with this shift"}
-              aria-label={`${r.name}: start new days with this shift`}
-              onClick={() => save(rows.map((x, j) => (j === i ? { ...x, isDefault: !x.isDefault } : x)))}
-              className={cn("w-10 h-10 rounded-full flex items-center justify-center", r.isDefault ? "bg-[#FFF4E0]" : "hover:bg-[#F5F3FA]")}>
-              <Star className={cn("w-4 h-4", r.isDefault ? "fill-[#E8A33D] text-[#E8A33D]" : "text-[#A29DB3]")} />
-            </button>
-            <button type="button" aria-label={`Remove ${r.name}`} disabled={rows.length < 2}
+            <button type="button" aria-label={`Remove ${r.name}`} disabled={rows.length < 2 || (r.active && onCount < 2)}
               onClick={async () => {
-                if (await askConfirm({ title: `Remove "${r.name}"?`, message: "Programs that already have this shift keep it.", confirmLabel: "Remove", danger: true }))
+                if (await askConfirm({ title: `Remove "${r.name}"?`, message: "Programs that already have this shift keep it. To hide it for a while, turn it off instead.", confirmLabel: "Remove", danger: true }))
                   save(rows.filter((_, j) => j !== i));
               }}
               className="w-10 h-10 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F] disabled:opacity-30">
@@ -331,9 +333,9 @@ export function ShiftsGroup() {
         <form className="px-4 sm:px-5 py-3 flex items-center gap-3"
           onSubmit={e => {
             e.preventDefault(); const n = adding.trim(); if (!n) return;
-            save([...rows, { id: newId(), name: n, start: null, end: null, isDefault: false }]).then(() => setAdding(""));
+            save([...rows, { id: newId(), name: n, start: null, end: null, active: true }]).then(() => setAdding(""));
           }}>
-          <input aria-label="New shift" value={adding} onChange={e => setAdding(e.target.value)} placeholder="Add a shift, e.g. Morning, Gaye Holud night" maxLength={30}
+          <input aria-label="New shift" value={adding} onChange={e => setAdding(e.target.value)} placeholder="Add a shift, e.g. Morning, Holud night" maxLength={30}
             className="flex-1 h-10 rounded-full bg-[#F5F3FA] px-4 text-sm text-[#17151F] placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
           <button type="submit" disabled={!adding.trim() || rows.length >= 12}
             className="h-10 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">
@@ -341,9 +343,6 @@ export function ShiftsGroup() {
           </button>
         </form>
       </div>
-      {rows.every(r => !r.isDefault) && (
-        <p className="px-4 sm:px-5 py-3 text-xs text-[#6B6680] flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />No ★ shift: a new day starts empty and you choose its shifts.</p>
-      )}
     </Group>
   );
 }

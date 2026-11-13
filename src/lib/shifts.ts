@@ -1,15 +1,19 @@
 /**
- * Studio shifts (Settings → Programs → Shifts) and how a shift's time and a venue's map link
+ * Studio shifts (Settings → Programs → Shifts, each on or off) and how a shift's time and a venue's map link
  * are shown. The same rules as the API (bookings/team-assign.ts).
  */
-export type StudioShift = { id: string; name: string; start: string | null; end: string | null; isDefault: boolean };
+/** `active: false` = turned off in Settings: not offered anywhere (older saved shifts have no flag = on). */
+export type StudioShift = { id: string; name: string; start: string | null; end: string | null; active: boolean };
+
+/** The shifts a studio can pick now. */
+export const activeShifts = (list: StudioShift[]) => list.filter(s => s.active !== false);
 
 /** Used until the studio's own list loads (same as the server defaults). */
 export const DEFAULT_SHIFTS: StudioShift[] = [
-  { id: "day", name: "Day", start: "11:00", end: "16:00", isDefault: false },
-  { id: "evening", name: "Evening", start: "17:00", end: "22:00", isDefault: false },
-  { id: "night", name: "Night", start: "20:00", end: "01:00", isDefault: false },
-  { id: "full-day", name: "Full day", start: "10:00", end: "22:00", isDefault: false },
+  { id: "day", name: "Day", start: "11:00", end: "16:00", active: true },
+  { id: "evening", name: "Evening", start: "17:00", end: "22:00", active: true },
+  { id: "night", name: "Night", start: "20:00", end: "01:00", active: true },
+  { id: "full-day", name: "Full day", start: "10:00", end: "22:00", active: true },
 ];
 
 /** "17:00" → "5:00 PM" */

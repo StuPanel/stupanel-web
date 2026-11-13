@@ -113,6 +113,11 @@ function LoginForm() {
         <p className="text-[#6B6680] mt-1 text-sm">Sign in to your StuPanel account</p>
       </div>
 
+      {!error && searchParams.get("reason") === "idle" && (
+        <div role="status" className="mb-5 px-4 py-3 rounded-lg bg-[#F4F0FE] border border-[#DDD3FA] text-[#4A2FB3] text-sm">
+          You were signed out because StuPanel wasn&apos;t used for a while. Sign in to continue.
+        </div>
+      )}
       {error && (
         <div className="mb-5 px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">
           {error}

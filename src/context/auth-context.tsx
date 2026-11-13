@@ -16,7 +16,7 @@ export interface UserProfile {
   impersonatedBy?: string | null;
   /** Manager only: areas the owner allowed. */
   permissions?: string[];
-  company: { name: string };
+  company: { name: string; sessionTimeoutMinutes?: number };
 }
 
 interface AuthContextValue {

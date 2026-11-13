@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { StudioBackdrop } from "@/components/studio-backdrop";
 import { canOpen, homeFor } from "@/lib/access";
+import { useBackClose } from "@/lib/back-stack";
 
 // Mobile bottom tab bar — labels always visible; "More" opens the full menu.
 const mobileTabs = [
@@ -98,6 +99,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, ready, emailVerified } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Phone Back closes the menu
+  useBackClose(menuOpen, () => setMenuOpen(false));
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 

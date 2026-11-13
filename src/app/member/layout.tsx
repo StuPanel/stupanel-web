@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import { Tile, type TileColor } from "@/components/ui/apple";
+import { useBackClose } from "@/lib/back-stack";
 
 // Same look as the studio app sidebar: each page has its own coloured tile.
 const navGroups: { title: string; items: { label: string; href: string; icon: React.ElementType; color: TileColor }[] }[] = [
@@ -137,6 +138,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Phone Back closes the menu
+  useBackClose(menuOpen, () => setMenuOpen(false));
   const [chatUnread, setChatUnread] = useState(0);
 
   useEffect(() => {

@@ -6,9 +6,11 @@
  *  - Closing plays a short animation (slide away + fade) instead of vanishing.
  *  - On phones the drawer is a bottom sheet: drag its top down to close.
  *  - The page behind doesn't scroll while one is open.
+ *  - The phone's Back button closes the top one (instead of leaving the page).
  * Every drawer already closes when its backdrop is clicked, so we close by clicking the backdrop.
  */
 import { useEffect } from "react";
+import { pushLayer } from "@/lib/back-stack";
 
 const CLOSE_MS = 230;
 const reduced = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -138,16 +140,27 @@ export function SheetBehavior() {
       window.setTimeout(() => { el.classList.remove("sp-dragging"); el.style.transition = ""; }, 260);
     };
 
+    // Back button: one history step per open backdrop
+    const steps = new Map<HTMLElement, () => void>();
+    const syncBack = () => {
+      for (const [b, done] of steps) if (!b.isConnected) { steps.delete(b); done(); }
+      document.querySelectorAll<HTMLElement>(".sp-backdrop:not(.sp-closing)").forEach(b => {
+        if (steps.has(b)) return;
+        steps.set(b, pushLayer(() => { steps.delete(b); if (b.isConnected) closeAnimated(b); }));
+      });
+    };
+
     // Lock page scroll while any drawer is open
     let raf = 0;
     const sync = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         document.documentElement.classList.toggle("sp-locked", !!document.querySelector(".sp-drawer"));
+        syncBack();
       });
     };
     const mo = new MutationObserver(sync);
-    mo.observe(document.body, { childList: true, subtree: true });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("click", onClick, true);

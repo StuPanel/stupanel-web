@@ -64,6 +64,16 @@ export default function SettingsPage() {
   const contentRef = useRef<HTMLDivElement>(null);
   const params = useSearchParams();
 
+  // Phone Back from a pane returns to the list.
+  useEffect(() => {
+    const onPop = () => {
+      const id = new URLSearchParams(window.location.search).get("pane");
+      if (id && paneById(id)) { setPane(id as PaneId); setMobileOpen(true); } else setMobileOpen(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // Links like /settings?pane=profile open that pane, also when Settings is already open.
   useEffect(() => {
     const id = params.get("pane");
@@ -145,7 +155,11 @@ export default function SettingsPage() {
   const openPane = useCallback((id: PaneId, rowId?: string) => {
     setPane(id);
     setMobileOpen(true);
-    window.history.replaceState({}, "", `${window.location.pathname}?pane=${id}`);
+    const url = `${window.location.pathname}?pane=${id}`;
+    // Phone, from the list: a real step, so Back returns to the list (not out of Settings).
+    const phoneList = window.matchMedia("(max-width: 767px)").matches && !new URLSearchParams(window.location.search).get("pane");
+    if (phoneList) window.history.pushState({ ...(window.history.state ?? {}), spPane: id }, "", url);
+    else window.history.replaceState(window.history.state, "", url);
     if (!rowId) { contentRef.current?.scrollIntoView({ block: "start" }); window.scrollTo({ top: 0 }); return; }
     // Wait for the pane to render, then scroll to the setting and flash it.
     setTimeout(() => {
@@ -304,7 +318,10 @@ export default function SettingsPage() {
         <div ref={contentRef} className={cn("min-w-0 w-full scroll-mt-24", !mobileOpen && "hidden md:block")}>
           <div key={pane} className="sp-pane-in">
             <PaneHeader icon={current.icon} color={current.color} title={current.title} sub={current.sub}
-              onBack={() => { setMobileOpen(false); window.history.replaceState({}, "", window.location.pathname); }} />
+              onBack={() => {
+                if (window.history.state?.spPane) { window.history.back(); return; }
+                setMobileOpen(false); window.history.replaceState(window.history.state, "", window.location.pathname);
+              }} />
             <View />
           </div>
         </div>

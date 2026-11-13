@@ -5,23 +5,19 @@
  * The session is already saved, so the change goes through the normal profile route.
  */
 import { useState } from "react";
-import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { inputCls } from "@/components/ui/form-kit";
-import { cn } from "@/lib/utils";
+import { CreatePassword, MIN_PASSWORD } from "@/components/create-password";
 
 export function NewPasswordStep({ currentPassword, onDone }: { currentPassword: string; onDone: () => void }) {
   const [pass, setPass] = useState("");
-  const [again, setAgain] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (pass.length < 8) { setError("Use at least 8 characters."); return; }
-    if (!again) { setError("Type the same password again in the second box."); return; }
-    if (pass !== again) { setError("The two passwords are not the same."); return; }
+    if (pass.length < MIN_PASSWORD) { setError(`Your password needs at least ${MIN_PASSWORD} characters.`); return; }
     if (pass === currentPassword) { setError("Choose a password different from the one the studio gave you."); return; }
     setBusy(true); setError("");
     try {
@@ -43,22 +39,10 @@ export function NewPasswordStep({ currentPassword, onDone }: { currentPassword: 
         <p className="text-[#6B6680] mt-1 text-sm">Your studio set the password you used. Choose one only you know — you&apos;ll use it from now on.</p>
       </div>
       {error && <div role="alert" className="mb-4 px-4 py-3 rounded-lg bg-[#FEF5F7] border border-[#F6CFD8] text-[#C2304F] text-sm">{error}</div>}
-      <form onSubmit={save} className="space-y-4" noValidate>
-        <label className="block">
-          <span className="block text-sm font-medium text-[#33303F] mb-1.5">New password</span>
-          <span className="relative block">
-            <input type={show ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)} autoFocus autoComplete="new-password"
-              placeholder="At least 8 characters" className={cn(inputCls, "pr-10")} />
-            <button type="button" onClick={() => setShow(v => !v)} aria-label={show ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-          </span>
-        </label>
-        <label className="block">
-          <span className="block text-sm font-medium text-[#33303F] mb-1.5">Type it again</span>
-          <input type={show ? "text" : "password"} value={again} onChange={e => setAgain(e.target.value)} autoComplete="new-password" placeholder="The same password again" className={inputCls} />
-        </label>
-        <button type="submit" disabled={busy}
-          className="w-full h-11 rounded-lg bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70">
+      <form onSubmit={save} noValidate>
+        <CreatePassword value={pass} onChange={v => { setPass(v); if (error) setError(""); }} show={show} onShow={setShow} label="Your new password" />
+        <button type="submit" disabled={busy || pass.length < MIN_PASSWORD}
+          className="mt-6 w-full h-[52px] rounded-[14px] bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(125,92,239,.3)] disabled:opacity-50 disabled:shadow-none">
           {busy && <Loader2 className="w-4 h-4 animate-spin" />}Save and continue
         </button>
       </form>

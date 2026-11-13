@@ -7,9 +7,9 @@
  */
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Eye, EyeOff, Loader2, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Mail, XCircle } from "lucide-react";
 import { StudioLogo } from "@/components/studio-logo";
-import { inputCls } from "@/components/ui/form-kit";
+import { CreatePassword, MIN_PASSWORD } from "@/components/create-password";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { enterSession, postPublic, type Session } from "@/lib/studio-session";
 import { clearAccessTokenCookie } from "@/lib/auth-cookie";
@@ -28,7 +28,6 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const [busy, setBusy] = useState<"" | "accept" | "decline">("");
   const [declined, setDeclined] = useState(false);
   const [pass, setPass] = useState("");
-  const [again, setAgain] = useState("");
   const [show, setShow] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -56,9 +55,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
   async function acceptNew(e: React.FormEvent) {
     e.preventDefault();
-    if (pass.length < 8) { setFormError("Use at least 8 characters."); return; }
-    if (!again) { setFormError("Type the same password again in the second box."); return; }
-    if (pass !== again) { setFormError("The two passwords are not the same."); return; }
+    if (pass.length < MIN_PASSWORD) { setFormError(`Your password needs at least ${MIN_PASSWORD} characters.`); return; }
     setBusy("accept"); setFormError("");
     const r = await postPublic<Session>(`/auth/invites/${encodeURIComponent(token)}/accept`, { password: pass });
     if (r.ok) { enterSession(r.data); return; }
@@ -96,7 +93,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <StudioLogo url={info.studio.logoUrl} name={info.studio.name} size={56} className="rounded-[16px] mb-4" />
         <h2 className="text-2xl font-bold text-[#17151F]">Join {info.studio.name}</h2>
         <p className="text-[#6B6680] mt-1 text-sm">
-          {info.invitedBy ? `${info.invitedBy} invited you` : "You're invited"} to their team on StuPanel as <span className="font-semibold text-[#33303F]">{info.email}</span>.
+          {info.invitedBy ? `${info.invitedBy} added you` : "You've been added"} to the {info.studio.name} team on StuPanel.
         </p>
       </div>
 
@@ -123,31 +120,29 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           )}
         </>
       ) : (
-        <form onSubmit={acceptNew} className="space-y-4" noValidate>
-          <p className="text-[13.5px] text-[#4A4658]">Hi {info.firstName}! Choose a password to accept. You&apos;ll sign in with <b>{info.email}</b>.</p>
-          <label className="block">
-            <span className="block text-sm font-medium text-[#33303F] mb-1.5">Password</span>
-            <span className="relative block">
-              <input type={show ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)} autoComplete="new-password" autoFocus
-                placeholder="At least 8 characters" className={cn(inputCls, "pr-10")} />
-              <button type="button" onClick={() => setShow(v => !v)} aria-label={show ? "Hide password" : "Show password"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-            </span>
-          </label>
-          <label className="block">
-            <span className="block text-sm font-medium text-[#33303F] mb-1.5">Type it again</span>
-            <input type={show ? "text" : "password"} value={again} onChange={e => setAgain(e.target.value)} autoComplete="new-password" placeholder="The same password again" className={inputCls} />
-          </label>
-          <button type="submit" disabled={!!busy}
-            className="w-full h-11 rounded-lg bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 disabled:opacity-70">
-            {busy === "accept" && <Loader2 className="w-4 h-4 animate-spin" />}Accept and join
+        <form onSubmit={acceptNew} noValidate>
+          {/* Who you are and how you'll sign in */}
+          <div className="rounded-[16px] bg-[#F7F4FE] border border-[#E4DCFB] p-4 mb-5">
+            <p className="text-[15px] font-semibold text-[#17151F]">Hi {info.firstName}! 👋</p>
+            <p className="mt-1 text-[13.5px] text-[#4A4658] leading-relaxed">To join, just create a password. You&apos;ll sign in with this email and that password:</p>
+            <p className="mt-2.5 inline-flex items-center gap-2 max-w-full h-9 px-3 rounded-full bg-white text-[13.5px] font-semibold text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.06)]">
+              <Mail className="w-4 h-4 text-[#7D5CEF] flex-shrink-0" /><span className="truncate">{info.email}</span>
+            </p>
+          </div>
+
+          <CreatePassword value={pass} onChange={v => { setPass(v); if (formError) setFormError(""); }} show={show} onShow={setShow} />
+
+          <button type="submit" disabled={!!busy || pass.length < MIN_PASSWORD}
+            className="mt-6 w-full h-[52px] rounded-[14px] bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(125,92,239,.3)] disabled:opacity-50 disabled:shadow-none transition-opacity">
+            {busy === "accept" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}Join {info.studio.name}{busy !== "accept" && <ArrowRight className="w-4 h-4" />}
           </button>
+          <p className="mt-3 text-center text-[12.5px] text-[#6B6680]">Write the password down somewhere safe — you&apos;ll need it next time.</p>
         </form>
       )}
 
       <button type="button" onClick={decline} disabled={!!busy}
-        className="mt-4 w-full h-10 rounded-lg text-sm font-semibold text-[#6B6680] hover:text-[#C2304F] hover:bg-[#FDECEF] inline-flex items-center justify-center gap-2 disabled:opacity-60">
-        {busy === "decline" && <Loader2 className="w-4 h-4 animate-spin" />}Decline invite
+        className="mt-5 w-full h-10 rounded-lg text-[13px] font-medium text-[#8A8599] hover:text-[#C2304F] hover:bg-[#FDECEF] inline-flex items-center justify-center gap-2 disabled:opacity-60">
+        {busy === "decline" && <Loader2 className="w-4 h-4 animate-spin" />}Not for you? Decline this invite
       </button>
     </div>
   );

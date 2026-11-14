@@ -46,6 +46,11 @@ export interface ShiftAssignment {
   setup?: SetupMode;
   /** For "other": which gear and whose (ownerId = member id or "studio"). */
   gear?: { ownerId: string; itemId?: string; name: string }[];
+  /**
+   * Who pays the rent of a team member's gear used here. The studio always pays the owner on the team bill;
+   * "member" = the studio takes the same amount off this person's pay on this program.
+   */
+  rentPaidBy?: "studio" | "member";
   /** For "rented": shop, item, amount; who paid (studio, or the member → refunded on their bill). */
   rental?: { vendor: string; item: string; amount: number; paidBy: "studio" | "member" };
 }

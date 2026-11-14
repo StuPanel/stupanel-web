@@ -15,8 +15,9 @@ import { FormDrawer } from "@/components/ui/form-kit";
 import { Empty, List, Row, Section, linkBtn, softBtn } from "@/components/ui/profile-page";
 import { SetupEditor, gearRents, setupToItems, type SetupItem } from "@/app/(app)/team/_components/rate-card";
 import { Spinner } from "../_components/kit";
-import { GearRow, RatePrice, rateSub, roleInfo, type MyRates } from "../_components/rates";
+import { RatePrice, rateSub, roleInfo, type MyRates } from "../_components/rates";
 import { RateRequestSection } from "../_components/prefs";
+import { MyGearCards } from "../_components/my-gear";
 import type { MemberPrefs } from "@/lib/member-prefs";
 
 export default function MyRatesPage() {
@@ -26,6 +27,8 @@ export default function MyRatesPage() {
   const [items, setItems] = useState<SetupItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [prefs, setPrefs] = useState<MemberPrefs | null>(null);
+  /** Goes up after the gear list is saved, so the gear cards read it again. */
+  const [gearVer, setGearVer] = useState(0);
 
   useEffect(() => {
     apiFetch(`${API}/member/rates`)
@@ -55,6 +58,7 @@ export default function MyRatesPage() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(Array.isArray(d?.message) ? d.message[0] : d?.message || "Couldn't save your gear", { error: true }); return; }
       setData(prev => (prev ? { ...prev, setup: d.setup ?? [] } : prev));
+      setGearVer(v => v + 1);
       setEditing(false);
       notify("Gear saved");
     } catch { notify("Couldn't save — check your internet", { error: true }); }
@@ -93,11 +97,11 @@ export default function MyRatesPage() {
               <button type="button" onClick={openEditor} className={softBtn}><Package className="w-4 h-4" />Add my gear</button>
             </Empty>
           ) : (
-            <List>{data.setup.map(g => <GearRow key={g.id} g={g} />)}</List>
+            <MyGearCards categories={Object.fromEntries(data.setup.map(g => [g.id, g.category]))} reloadKey={gearVer} />
           )}
           {data.setup.length > 0 && (
             <p className={cn("text-[12.5px] px-1 mt-2", waiting ? "text-[#7A4800]" : "text-[#6B6680]")}>
-              {waiting ? `${waiting} item${waiting > 1 ? "s" : ""} ha${waiting > 1 ? "ve" : "s"} no rent yet — the studio sets the rent price.` : "The studio sets the rent price for each item."}
+              {waiting ? `${waiting} item${waiting > 1 ? "s" : ""} ha${waiting > 1 ? "ve" : "s"} no rent yet — the studio sets the rent price. Ask for a price change below.` : "The studio sets the rent price for each item — ask for a change below."}
             </p>
           )}
         </Section>

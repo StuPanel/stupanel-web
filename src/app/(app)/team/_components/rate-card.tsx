@@ -268,9 +268,9 @@ function Money({ value, onChange, label, title, sub, accent, hint }: { value: st
 
 // ─── Setup (own gear) ───────────────────────────────────────────────────────
 export const SETUP_CATS: { v: string; l: string; icon: React.ElementType; tile: TileColor; ph: string }[] = [
-  { v: "camera", l: "Cameras", icon: Camera, tile: "blue", ph: "e.g. Sony A7 IV" },
-  { v: "lens", l: "Lenses", icon: Aperture, tile: "deep", ph: "e.g. 24-70mm f/2.8" },
-  { v: "light", l: "Lights", icon: Lightbulb, tile: "orchid", ph: "e.g. Godox SL60 ×2" },
+  { v: "camera", l: "Cameras (with lens)", icon: Camera, tile: "blue", ph: "e.g. Sony A7 IV with 24-70" },
+  { v: "lens", l: "Extra lenses", icon: Aperture, tile: "deep", ph: "e.g. 70-200mm f/2.8" },
+  { v: "light", l: "Light setups", icon: Lightbulb, tile: "orchid", ph: "e.g. Godox SL60 ×2 with stands" },
   { v: "gimbal", l: "Gimbal / stabilizer", icon: Video, tile: "teal", ph: "e.g. DJI RS 3" },
   { v: "drone", l: "Drones", icon: Navigation, tile: "green", ph: "e.g. DJI Mini 4 Pro" },
   { v: "audio", l: "Audio", icon: Mic, tile: "red", ph: "e.g. Rode Wireless GO" },

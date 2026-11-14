@@ -232,7 +232,7 @@ function DateBoard() {
                 {g.service.length > 0 && <Count n={g.service.length} label="in service" tone="off" />}
                 {g.withOwner.length > 0 && <Count n={g.withOwner.length} label="only with its owner" tone="plain" />}
               </div>
-              {g.free.length > 0 && <Part label="Free">{g.free.map(x => <Line key={x.key} tone="free" title={x.name} sub={x.owner === "Studio" ? "Studio" : `${x.owner}'s — others can use it`} />)}</Part>}
+              {g.free.length > 0 && <Part label="Free">{g.free.map(x => <Line key={x.key} tone="free" title={x.name} sub={x.owner === "Studio" ? "Studio" : `${x.owner}'s — can be rented`} />)}</Part>}
               {g.out.length > 0 && <Part label="Out">{g.out.map(x => <Line key={x.key} tone="out" title={x.name} sub={<>{x.owner === "Studio" ? "Studio" : `${x.owner}'s`} · used by {x.usedBy}<br />{x.where.map(w => `${placeText(w)} — ${shiftText(w)}`).join("; ")}</>} />)}</Part>}
               {g.service.length > 0 && <Part label="In service">{g.service.map(x => <Line key={x.key} tone="off" title={x.name} sub={x.owner === "Studio" ? "Studio" : `${x.owner}'s`} />)}</Part>}
               {g.withOwner.length > 0 && <Part label="Only with its owner">{g.withOwner.map(x => <Line key={x.key} tone="plain" title={x.name} sub={`${x.owner}'s — comes when ${x.owner} works${x.ownerOut ? " (out now with other gear)" : ""}`} />)}</Part>}
@@ -240,7 +240,7 @@ function DateBoard() {
           ); })}
         </div>
       )}
-      {anyGear && <p className="px-1 text-xs text-[#6B6680] leading-relaxed mb-6">Counted from the shifts of your programs. A person who works with their own setup takes all of their own gear. Gear rented from a shop is not counted. A member&apos;s gear is free for others only when “Others can use it” is on.</p>}
+      {anyGear && <p className="px-1 text-xs text-[#6B6680] leading-relaxed mb-6">Counted from the shifts of your programs. A person who works with their own setup takes all of their own gear. Gear rented from a shop is not counted. A member&apos;s gear is free for others only when its owner allows renting it — and renting it is never free: the rent goes to the owner on the team bill.</p>}
     </div>
   );
 }
@@ -288,7 +288,7 @@ function AllGear({ reg, onOpen, onAdd }: { reg: Register | null; onOpen: (u: Uni
               <Tile icon={c.icon} color={c.color} size={40} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{u.name}</span>
-                <span className="block text-[12.5px] text-[#6B6680] truncate">{c.name} · {u.ownerId === "studio" ? "Studio" : `${u.ownerName}'s${u.lend ? " · others can use it" : ""}`}</span>
+                <span className="block text-[12.5px] text-[#6B6680] truncate">{c.name} · {u.ownerId === "studio" ? "Studio" : `${u.ownerName}'s${u.lend ? " · can be rented" : ""}`}</span>
                 <span className={cn("block text-[12.5px] truncate mt-0.5", u.outToday ? "font-semibold text-[#1F5C99]" : "text-[#6B6680]")}>
                   {u.outToday && u.next ? `Out today — ${u.next.usedBy}, ${u.next.name || u.next.number}` : u.next ? `Next: ${shortDate(u.next.date)} — ${u.next.usedBy}, ${u.next.name || u.next.number}` : u.timesOut ? `Went out ${u.timesOut} time${u.timesOut === 1 ? "" : "s"} · nothing coming up` : "Not used on a program yet"}
                 </span>
@@ -379,7 +379,7 @@ function GearDrawer({ unit, onClose, onSaved }: { unit?: Unit; onClose: () => vo
             <p className="text-[15px] font-semibold text-[#17151F]">{unit!.name}</p>
             <p className="text-[13px] text-[#6B6680] mt-0.5">{KIND[unit!.kind].name}{rent ? ` · Rent ${rent}` : " · No rent set"}</p>
           </div>
-          <SwitchRow label="Others can use it" hint={`On: counted as free for the studio when ${unit!.ownerName} is not out with it. Off: it only comes when ${unit!.ownerName} works.`} on={lend} onChange={setLend} />
+          <SwitchRow label="Can be rented to others" hint={`On: other members can take it for rent (the rent goes to ${unit!.ownerName}) — counted as free when ${unit!.ownerName} is not out with it. Off: it only comes when ${unit!.ownerName} works. ${unit!.ownerName} can change this too.`} on={lend} onChange={setLend} />
           <Field label="What is inside (optional)">
             {id => <textarea id={id} value={inside} onChange={e => setInside(e.target.value)} rows={2} maxLength={200} placeholder="e.g. body, 24-70 lens, 2 batteries" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}
           </Field>

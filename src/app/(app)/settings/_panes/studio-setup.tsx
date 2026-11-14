@@ -283,6 +283,46 @@ function DeliveryRules() {
   );
 }
 
+// ─── Music: which song lists the studio and its clients see ───────────────────
+export function MusicPane() {
+  return <NeedStudio><MusicRules /></NeedStudio>;
+}
+type MusicMode = "off" | "me" | "clients";
+const MUSIC_MODES: { value: MusicMode; label: string }[] = [{ value: "off", label: "Off" }, { value: "me", label: "Only for me" }, { value: "clients", label: "Suggest to clients" }];
+function MusicRules() {
+  const { studio, patchStudio } = useSettings();
+  const m = studio!.music ?? { picks: "clients" as MusicMode, community: "me" as MusicMode, fromClients: "me" as MusicMode, share: true, outsideLimit: 10, hidden: [] };
+  const set = (p: Partial<typeof m>) => patchStudio("music", { ...m, ...p });
+  const anyForClients = m.picks === "clients" || m.community === "clients" || m.fromClients === "clients";
+  const source = (id: string, key: "picks" | "community" | "fromClients", label: string, hint: string) => (
+    <Row id={id} label={label} hint={hint} stack>
+      <Segmented<MusicMode> label={label} value={m[key]} options={MUSIC_MODES} onChange={v => set({ [key]: v } as Partial<typeof m>)} />
+    </Row>
+  );
+  return (
+    <>
+      <Group title="Song lists" note="Your own songs (Music Library → My songs) are always suggested to your clients first. “Only for me” shows a list in your Music Library so you can add what you like; “Suggest to clients” also offers its songs to clients when they choose music.">
+        {source("mu-picks", "picks", "StuPanel picks", "Songs chosen by StuPanel for each kind of video")}
+        {source("mu-community", "community", "Popular in studios", "What other studios use — your country first. No studio is named.")}
+        {source("mu-clients", "fromClients", "From my clients", "Songs your own clients brought (pasted a YouTube link) when they chose music")}
+        <Row id="mu-limit" label="Outside songs for each video" hint="How many songs from these lists a client sees for one video, after your own songs" disabled={!anyForClients}>
+          <Segmented<string> label="Outside songs for each video" value={String(m.outsideLimit)} onChange={v => set({ outsideLimit: Number(v) })}
+            options={[5, 10, 20, 30].map(n => ({ value: String(n), label: String(n) }))} />
+        </Row>
+      </Group>
+      <Group title="Sharing" note="Shared: only the song (its YouTube link and name) and its tags. Never your studio's name, your own tags, or anything about your clients and programs.">
+        <Row id="mu-share" label="Share my songs with other studios" hint="Your songs count in “Popular in studios”. Turn off to keep your whole library to yourself — you still see the other lists. One song can be kept private in Music Library → Edit tags.">
+          <Switch label="Share my songs with other studios" on={m.share} onChange={v => set({ share: v })} />
+        </Row>
+        <Row id="mu-hidden" label="Hidden songs" hint={m.hidden.length ? `${m.hidden.length} song${m.hidden.length === 1 ? "" : "s"} you chose not to see in these lists` : "Songs you hide in the Music Library are listed here"} disabled={!m.hidden.length}>
+          <button type="button" disabled={!m.hidden.length} onClick={() => set({ hidden: [] })}
+            className="h-9 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#17151F] disabled:opacity-45">Show them again</button>
+        </Row>
+      </Group>
+    </>
+  );
+}
+
 // ─── Pieces used inside other panes ───────────────────────────────────────────
 /** Programs pane: the studio's shifts — name, usual time, on/off. Off shifts aren't offered anywhere; old programs keep theirs. */
 export function ShiftsGroup() {

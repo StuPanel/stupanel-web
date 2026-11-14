@@ -12,14 +12,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portalMusicApi, type SelectApi } from "@/lib/select-api";
-import { embedUrl, type ClientMusic, type MusicPick, type MusicSong } from "@/lib/music";
+import { EMPTY_CATALOG, embedUrl, searchSongs, type ClientMusic, type MusicPick, type MusicSong } from "@/lib/music";
 
 const T = {
     card: "Choose your music", cardSub: "Tell us the songs you want in your videos", open: "Choose songs", see: "See your songs", change: "Change songs",
     done: (a: number, b: number) => `${a} of ${b} parts done`, sent: "Sent to the studio", sentOn: (d: string) => `Sent on ${d}`,
     yours: "Your choices", upTo: (n: number) => `Up to ${n} songs. The first one is your first choice.`, none: "No song yet. Add one from below.",
     note: "Note for the editor (optional) — e.g. start from 1:20", own: "Add your own song", ownHint: "Open the song on YouTube → Share → Copy link → paste here",
-    paste: "Paste a YouTube link", add: "Add", ideas: "Suggested by the studio", studioPick: "Studio pick", added: "Added", listen: "Listen",
+    paste: "Paste a YouTube link", add: "Add", ideas: "Suggested by the studio", studioPick: "Studio pick", srcPicks: "Popular choice", srcCommunity: "Popular with other couples", srcClients: "Chosen by other clients", findIdea: "Search these songs", noIdea: "No song with that name here. You can paste your own YouTube link above.", added: "Added", listen: "Listen",
     full: (n: number) => `You already chose ${n} songs for this part. Remove one to add another.`, dup: "This song is already in this part.",
     saving: "Saving…", saved: "Saved", notSaved: "Not saved — check your internet", next: "Next part", back: "Back", review: "Review & send",
     reviewTitle: "Check your songs", reviewSub: "This is what the studio will get.", empty: "No song chosen — the studio will pick one", warn: (l: string) => `You have not chosen a song for: ${l}. You can still send — the studio will choose for those.`,
@@ -87,6 +87,8 @@ function MusicSheet({ api, music, brand, onClose }: {
   const [step, setStep] = useState(0); // parts.length = review
   const [playing, setPlaying] = useState<string | null>(null);
   const [link, setLink] = useState("");
+  /** Search inside the suggestions of the part that is open. */
+  const [find, setFind] = useState("");
   const [adding, setAdding] = useState(false);
   const [msg, setMsg] = useState("");
   const [save, setSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -178,6 +180,7 @@ function MusicSheet({ api, music, brand, onClose }: {
   }
 
   const ideas = (music.ideas[part.key] ?? []).filter(s => !list.some(x => x.youtubeId === s.youtubeId));
+  const shownIdeas = find.trim() ? searchSongs(ideas, find, EMPTY_CATALOG).map(h => h.song) : ideas;
 
   // a plain function (not a component) so typing a note never loses focus
   const songRow = (s: MusicPick, i: number) => (
@@ -314,13 +317,18 @@ function MusicSheet({ api, music, brand, onClose }: {
                   {ideas.length > 0 && (
                     <div className="mt-4">
                       <h3 className="text-sm font-bold text-[#17151F] mb-2">{t.ideas}</h3>
+                      {ideas.length > 6 && (
+                        <input value={find} onChange={e => setFind(e.target.value)} type="search" placeholder={t.findIdea} aria-label={t.findIdea}
+                          className="w-full h-11 px-4 mb-2 rounded-full bg-white border border-[#F1EFF6] text-[14px] outline-none focus:border-[#7D5CEF] [&::-webkit-search-cancel-button]:hidden" />
+                      )}
+                      {find && shownIdeas.length === 0 && <p className="text-[13px] text-[#6B6680] px-1 py-2">{t.noIdea}</p>}
                       <ul className="space-y-2">
-                        {ideas.map(s => (
+                        {shownIdeas.map(s => (
                           <li key={s.youtubeId} className="rounded-2xl bg-white border border-[#F1EFF6] p-2.5 flex items-center gap-2.5">
                             <Thumb song={s} label={t.listen} playing={playing === s.youtubeId} onPlay={() => setPlaying(p => (p === s.youtubeId ? null : s.youtubeId))} />
                             <div className="min-w-0 flex-1">
                               <p className="text-[13.5px] font-semibold text-[#17151F] leading-snug line-clamp-2">{s.title}</p>
-                              <p className="text-xs text-[#6B6680] truncate">{s.pick ? t.studioPick : s.channel}</p>
+                              <p className="text-xs text-[#6B6680] truncate">{s.pick ? t.studioPick : s.src === "picks" ? t.srcPicks : s.src === "community" ? t.srcCommunity : s.src === "clients" ? t.srcClients : s.channel}</p>
                             </div>
                             <a href={s.url} target="_blank" rel="noreferrer" aria-label={t.youtube} className="w-9 h-9 rounded-full flex items-center justify-center text-[#8A8599] hover:bg-[#F1EFF6] flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>
                             <button type="button" onClick={() => addSong(s, "studio")} aria-label={`${t.add}: ${s.title}`} className="w-10 h-10 rounded-full text-white flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand }}><Plus className="w-5 h-5" /></button>

@@ -2,7 +2,7 @@
 
 /**
  * After the client has chosen: get the photos out and the album going.
- *  • Copy to Google Drive — the chosen originals into album / "Most important" / "Chosen" folders
+ *  • Copy to Google Drive — the chosen originals into "Album selection / Selected / album / folder" with a name list
  *  • Sort on this computer — same folders, made next to the originals on the studio's PC
  *  • Album designer — a team member gets the album as work
  *  • Family link — a view-only page for the family
@@ -56,8 +56,7 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
   const cancel = useRef({ cancelled: false });
 
   const picked = useMemo(() => g.photos.filter(p => isPicked(p.m)), [g.photos]);
-  const onDrive = picked.filter(p => p.src === "raw" || p.src === "delivery").length;
-  const fromPc = picked.length - onDrive;
+  const onDrive = picked.filter(p => p.d).length;
 
   const load = useCallback(async () => {
     const r = await apiFetch(`${API}/photo-selection/${g.id}/handoff`).catch(() => null);
@@ -114,7 +113,7 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {/* Drive */}
         <Card icon={CloudUpload} color="green" title="Copy to Google Drive" dim={none || onDrive === 0}
-          sub={`Album folders with "Most important" and "Chosen" inside, next to the program's raw files. Originals stay as they are.`}>
+          sub={`Into "Album selection → Selected" in the program's Drive folder: the album, then Holud, Wedding… with a text list of the file names. Originals stay as they are.`}>
           {d?.state === "running" ? (
             <>
               <div className="flex justify-between text-[12.5px] text-[#4A4658]"><span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" />Copying {d.done} / {d.total}</span><span className="text-[#6B6680]">You can leave</span></div>
@@ -138,7 +137,6 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
               </button>
             </>
           )}
-          {fromPc > 0 && <p className="text-[12px] text-[#6B6680]">{fromPc} chosen photo{fromPc === 1 ? " was" : "s were"} added from a computer — use &quot;Sort on this computer&quot; for {fromPc === 1 ? "it" : "them"}.</p>}
         </Card>
 
         {/* This computer */}
@@ -200,7 +198,7 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
 
         {/* Family */}
         <Card icon={Users} color="blue" title="Family link"
-          sub="A page the family can open to see the photos — with your watermark, no download, nothing to change.">
+          sub="A page the family can open to see the photos. They can&apos;t change anything.">
           {h?.share ? (
             <>
               <div className="flex items-center gap-2 rounded-full bg-[#F5F3FA] p-1 pl-3">

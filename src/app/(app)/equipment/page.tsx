@@ -235,7 +235,7 @@ function DateBoard() {
               {g.free.length > 0 && <Part label="Free">{g.free.map(x => <Line key={x.key} tone="free" title={x.name} sub={x.owner === "Studio" ? "Studio" : `${x.owner}'s — can be rented`} />)}</Part>}
               {g.out.length > 0 && <Part label="Out">{g.out.map(x => <Line key={x.key} tone="out" title={x.name} sub={<>{x.owner === "Studio" ? "Studio" : `${x.owner}'s`} · used by {x.usedBy}<br />{x.where.map(w => `${placeText(w)} — ${shiftText(w)}`).join("; ")}</>} />)}</Part>}
               {g.service.length > 0 && <Part label="In service">{g.service.map(x => <Line key={x.key} tone="off" title={x.name} sub={x.owner === "Studio" ? "Studio" : `${x.owner}'s`} />)}</Part>}
-              {g.withOwner.length > 0 && <Part label="Only with its owner">{g.withOwner.map(x => <Line key={x.key} tone="plain" title={x.name} sub={`${x.owner}'s — comes when ${x.owner} works${x.ownerOut ? " (out now with other gear)" : ""}`} />)}</Part>}
+              {g.withOwner.length > 0 && <Part label="Only with its owner">{g.withOwner.map(x => <Line key={x.key} tone="plain" title={x.name} sub={`${x.owner}'s — comes when ${x.owner} works${x.ownerOut ? " — on this date they work with other gear, so this stays home" : ""}`} />)}</Part>}
             </section>
           ); })}
         </div>

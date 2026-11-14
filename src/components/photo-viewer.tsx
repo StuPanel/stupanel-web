@@ -65,7 +65,7 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbA
   /** Extra keys (e.g. S = select). Return true when handled. */
   onKey?: (e: KeyboardEvent) => boolean;
   /** Double-tap / double-click on the photo (a check pops up). Without it, double-tap zooms. */
-  onDoubleTap?: () => void;
+  onDoubleTap?: () => boolean | void;
   /** A short tip shown for a moment when the viewer opens. */
   hint?: string;
 }) {
@@ -144,7 +144,8 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbA
 
   const doubleTap = useCallback((px: number, py: number) => {
     if (onDoubleTap) {
-      onDoubleTap();
+      // The page says no (e.g. the album is full): no check mark, so nobody thinks it was chosen.
+      if (onDoubleTap() === false) return;
       setBurst(b => b + 1);
       navigator.vibrate?.(15);
     } else if (z.current.s > 1) { z.current = { s: 1, x: 0, y: 0 }; applyZoom(240); }

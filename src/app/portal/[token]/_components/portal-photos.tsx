@@ -35,7 +35,10 @@ const T = {
     hi: (n: string) => (n ? `Hi ${n},` : "Hello,"), coverLabel: "Choose your album photos", start: "Start choosing", goOn: "Continue choosing", look: "See your photos",
     coverPhotos: (n: number) => `${n} photos`, coverPick: (l: string) => `Choose ${l}`, coverSoFar: (n: number, of: number) => `${n} chosen so far · ${of} photos`,
     coverSaved: "Your choices save by themselves. Stop any time and come back later — on this phone or another.",
-    chosenOf: (of: number) => `of ${of} chosen`, coverDefault: "your photos are ready. Pick the ones you want in your album.",
+    chosenOf: (of: number) => `of ${of} chosen`,
+    fullTitle: (n: number) => `You have already chosen ${n} photos`, fullText: (n: number) => `Your album has room for ${n}, so this photo was not added. To choose it, first take out one of your ${n}. Or send your choice to the studio now.`,
+    fullDoneTitle: (n: number) => `All ${n} photos chosen`, fullDoneText: "Your album is complete. Have a last look and send it to the studio — you can still change it until they start the album.",
+    fullShort: "complete", fullChange: "Change my chosen photos", fullSee: (n: number) => `See my ${n} photos`, fullKeep: "Keep looking", coverDefault: "your photos are ready. Pick the ones you want in your album.",
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -132,6 +135,9 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const [hintSeen, setHintSeen] = useState(false);
   /** The welcome screen: shown when the page opens, gone after "Start". */
   const [intro, setIntro] = useState<"show" | "leaving" | "gone">("show");
+  /** The album is full: "blocked" = they tried one more, "done" = they just chose the last one that fits. */
+  const [full, setFull] = useState<{ album: string; max: number; why: "blocked" | "done" } | null>(null);
+  const toldFull = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     try {
@@ -170,7 +176,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
       if (d.refused?.length) {
         const ids = new Set(d.refused.map((x: { id: string }) => x.id));
         setG(x => (x ? { ...x, photos: x.photos.map(p => (ids.has(p.id) ? { ...p, m: null } : p)) } : x));
-        say(t.full(d.refused[0].album, d.refused[0].max));
+        setFull({ album: d.refused[0].album, max: d.refused[0].max, why: "blocked" });
       }
       if (Array.isArray(d.albums)) setG(x => (x ? { ...x, albums: x.albums.map(a => ({ ...a, picked: d.albums.find((y: { id: string; picked: number }) => y.id === a.id)?.picked ?? a.picked })) } : x));
       setSave("saved");
@@ -249,29 +255,34 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     }, 60);
   }
 
-  function mark(p: GPhoto, m: Mark) {
-    if (!g || locked) return;
+  /** Returns false when the photo could not be chosen (the album is full). */
+  function mark(p: GPhoto, m: Mark): boolean {
+    if (!g || locked) return false;
     const next: Mark | null = p.m === m ? null : m;
     const a = albums.find(x => x.id === p.a);
     if (a && isPicked(next) && !isPicked(p.m) && a.maxPicks !== null) {
       const n = pickedIn(a.id);
-      if (n >= a.maxPicks && !a.allowExtra) { say(t.full(a.name, a.maxPicks)); navigator.vibrate?.(40); return; }
+      // Full: say it in the middle of the screen — a small line at the bottom is easy to miss.
+      if (n >= a.maxPicks && !a.allowExtra) { setFull({ album: a.name, max: a.maxPicks, why: "blocked" }); navigator.vibrate?.([30, 60, 30]); return false; }
       if (n >= a.maxPicks && a.allowExtra) say(t.extra(a.name, a.maxPicks));
+      // The last one that fits: tell them the album is complete and offer to send it.
+      if (n + 1 === a.maxPicks && !a.allowExtra && !toldFull.current.has(a.id)) { toldFull.current.add(a.id); setTimeout(() => setFull({ album: a.name, max: a.maxPicks!, why: "done" }), 650); }
     }
     setG(x => (x ? { ...x, photos: x.photos.map(y => (y.id === p.id ? { ...y, m: next } : y)) } : x));
     queue.current.set(p.id, { ...(queue.current.get(p.id) ?? { id: p.id }), mark: next });
     schedule();
+    return true;
   }
-  /** Double-tap: choose it (never un-chooses — that's what the ✓ button is for). */
-  function quickChoose(p: GPhoto) {
-    if (!g || locked) return;
-    if (!isPicked(p.m)) mark(p, "selected");
+  /** Double-tap: choose it (never un-chooses — that's what the ✓ button is for). False = it was not chosen. */
+  function quickChoose(p: GPhoto): boolean {
+    if (!g || locked) return false;
+    return isPicked(p.m) ? true : mark(p, "selected");
   }
   function onCellTap(p: GPhoto, i: number) {
     if (tap.current?.id === p.id) {
       clearTimeout(tap.current.timer); tap.current = null;
       if (locked) { setView(i); return; }
-      quickChoose(p);
+      if (!quickChoose(p)) return;
       setGridBurst(b => ({ id: p.id, n: (b?.n ?? 0) + 1 }));
       navigator.vibrate?.(15);
       return;
@@ -531,7 +542,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                 const pr = albumProgress(current, pickedIn(current.id));
                 return (
                   <>
-                    <p className="text-[13px] font-semibold text-[#17151F] truncate">{current.name}: <span className="tabular-nums">{pr.text}</span></p>
+                    <p className="text-[13px] font-semibold text-[#17151F] truncate">{current.name}: <span className="tabular-nums">{pr.text}</span>{pr.full && !pr.over && <span className="ml-1.5 text-[#1F8A5B]">· {t.fullShort}</span>}</p>
                     <div className="h-1.5 rounded-full bg-[#F1EFF6] mt-1.5 overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", pr.over ? "bg-[#C2304F]" : pr.okRange ? "bg-[#1F8A5B]" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} /></div>
                   </>
                 );
@@ -549,7 +560,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
       {/* Welcome screen */}
       {g && intro !== "gone" && !thanks && (() => {
-        const cover = g.photos.find(p => p.hl) ?? g.photos[0];
+        const cover = g.cover ? { d: g.cover } : g.photos.find(p => p.hl) ?? g.photos[0];
         const one = albums.length === 1 ? albums[0] : null;
         const date = g.program?.date ? new Date(g.program.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "";
         const go = () => { setIntro("leaving"); setTimeout(() => setIntro("gone"), 380); };
@@ -594,6 +605,26 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           </div>
         );
       })()}
+
+      {/* The album is full — in the middle of the screen, above the open photo too */}
+      {full && (
+        <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center p-4 bg-black/55 backdrop-blur-sm sp-fade-in" role="alertdialog" aria-modal="true" aria-labelledby="sp-full-title" onClick={() => setFull(null)}>
+          <div className="w-full max-w-sm bg-white rounded-[28px] p-6 text-center shadow-2xl sp-pop-in mb-[env(safe-area-inset-bottom)]" onClick={e => e.stopPropagation()}>
+            <span className={cn("w-16 h-16 mx-auto rounded-full flex items-center justify-center", full.why === "done" ? "bg-[#E2F4EA] text-[#1F8A5B]" : "bg-[#FDECEF] text-[#C2304F]")}>
+              {full.why === "done" ? <CheckCircle2 className="w-9 h-9" /> : <Lock className="w-8 h-8" />}
+            </span>
+            <h2 id="sp-full-title" className="mt-4 text-[21px] leading-tight font-extrabold tracking-[-0.01em] text-[#17151F]">{full.why === "done" ? t.fullDoneTitle(full.max) : t.fullTitle(full.max)}</h2>
+            <p className="mt-2 text-[14.5px] leading-relaxed text-[#4A4658]">{full.why === "done" ? t.fullDoneText : t.fullText(full.max)}</p>
+            <button type="button" onClick={() => { const big = view !== null; setFull(null); setView(null); void flush(); /* the closing photo steps Back once — open the sheet after it */ setTimeout(() => setReviewing(true), big ? 400 : 0); }}
+              className="mt-5 w-full py-3.5 rounded-full text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-md" style={{ backgroundColor: brand }}>
+              <Send className="w-4 h-4" />{t.review}
+            </button>
+            <button type="button" onClick={() => { setFull(null); setView(null); setFolder(null); setFilter("picked"); mainRef.current?.scrollTo({ top: 0 }); }}
+              className="mt-2 w-full py-3 rounded-full bg-[#F5F3FA] text-[#17151F] text-[14.5px] font-semibold">{full.why === "done" ? t.fullSee(full.max) : t.fullChange}</button>
+            <button type="button" onClick={() => setFull(null)} className="mt-1 w-full py-2.5 text-[13.5px] font-semibold text-[#6B6680]">{t.fullKeep}</button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[90] max-w-[92vw] px-4 py-2.5 rounded-2xl bg-[#17151F] text-white text-[13.5px] shadow-xl sp-pop-in">{toast}</div>}

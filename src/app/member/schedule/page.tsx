@@ -11,6 +11,8 @@ import { downloadIcs, googleCalendarUrl, type CalDay } from "@/lib/calendar";
 import { NextUp, Spinner, StatusBadge, daysUntil } from "../_components/kit";
 import Link from "next/link";
 import { StudioLogo } from "@/components/studio-logo";
+import { EntryRow, MonthCalendar, type CalEntry } from "@/components/month-calendar";
+import { timeRange } from "@/lib/shifts";
 
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -52,6 +54,31 @@ const nextShift = (e: Event) => {
   return d?.shifts.join(", ") ?? "";
 };
 
+const STATUS_DOT: Record<string, [string, string]> = {
+  confirmed: ["bg-[#7D5CEF]", "bg-[#EEE8FD] text-[#5B3FD0]"], advance_received: ["bg-[#5B3FD0]", "bg-[#EEE8FD] text-[#5B3FD0]"],
+  in_progress: ["bg-[#126B66]", "bg-[#E0F2F1] text-[#126B66]"], editing: ["bg-[#1F5C99]", "bg-[#E6F0FB] text-[#1F5C99]"],
+  completed: ["bg-[#1F8A5B]", "bg-[#EEEDF2] text-[#4A4658]"], delivered: ["bg-[#4A4658]", "bg-[#EEEDF2] text-[#4A4658]"],
+};
+
+/** Only the days I work, one entry each (with my shift and the place). Cancelled programs are left out. */
+function myEntries(events: Event[], many: boolean): CalEntry[] {
+  return events.filter(e => e.status !== "cancelled" && e.status !== "refunded").flatMap(e => {
+    const [dot, chip] = STATUS_DOT[e.status] ?? ["bg-[#7D5CEF]", "bg-[#EEE8FD] text-[#5B3FD0]"];
+    const name = e.eventName || "Program";
+    const elsewhere = !!e.studio && !e.studio.current;
+    // A program with days where I am on no shift (I edit it) has no work day for me on the calendar.
+    const mine = e.myDays?.length ? e.myDays
+      : e.days.length ? []
+      : e.eventDate ? [{ date: String(e.eventDate), part: "", location: e.eventLocation ?? "", shifts: [] as string[], start: null }] : [];
+    return mine.filter(d => /^\d{4}-\d{2}-\d{2}/.test(d.date)).map((d, i) => ({
+      key: `${e.studio?.userId ?? ""}${e.id}-${i}`, date: d.date.slice(0, 10), dot, chip,
+      title: d.part && d.part.toLowerCase() !== name.toLowerCase() ? `${name} · ${d.part}` : name,
+      sub: [many && e.studio ? e.studio.name : "", d.shifts.join(", ") || (d.start ? timeRange(d.start, null) : ""), d.location || e.eventLocation, e.clientName].filter(Boolean).join(" · "),
+      href: elsewhere ? undefined : `/member/programs/${e.id}`,
+    }));
+  });
+}
+
 const isOpen = (e: Event, now: Date) => {
   if (!e.eventDate) return false;
   const dt = new Date(e.eventDate); dt.setHours(0, 0, 0, 0);
@@ -64,6 +91,8 @@ export default function SchedulePage() {
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const [cal, setCal] = useState<Event | null>(null);
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [view, setView] = useState<"calendar" | "list">("calendar");
+  const [ym, setYm] = useState(() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; });
 
   useEffect(() => {
     apiFetch(`${API}/member/schedule`)
@@ -117,6 +146,22 @@ export default function SchedulePage() {
           sub={`${many && next.studio ? `${next.studio.name} · ` : ""}${next.clientName} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
       )}
 
+      <Chips label="View" value={view} onChange={setView}
+        options={[{ value: "calendar", label: "Calendar" }, { value: "list", label: "List", count: events.length }]} />
+
+      {view === "calendar" ? (() => {
+        const entries = myEntries(events, many);
+        const key = `${ym.y}-${String(ym.m + 1).padStart(2, "0")}`;
+        const month = entries.filter(e => e.date.startsWith(key)).sort((a, b) => a.date.localeCompare(b.date));
+        return (
+          <>
+            <MonthCalendar year={ym.y} month={ym.m} onMonth={(y, m) => setYm({ y, m })} entries={entries} />
+            {month.length === 0
+              ? <EmptyState icon={CalendarDays} title="No work this month" text="Only the days you work show here. Swipe to another month." />
+              : <Group title="My work days this month">{month.map(e => <EntryRow key={e.key} e={e} withDate />)}</Group>}
+          </>
+        );
+      })() : <>
       <Chips label="Show" value={filter} onChange={setFilter}
         options={[{ value: "upcoming", label: "Coming up" }, { value: "all", label: "All", count: events.length }]} />
 
@@ -186,6 +231,7 @@ export default function SchedulePage() {
           })}
         </Group>
       ))}
+      </>}
 
       <FormDrawer open={!!cal} onClose={() => setCal(null)} icon={CalendarPlus} color="red" title="Add to my calendar" sub={cal?.eventName || "Program"}
         footer={<button type="button" onClick={() => setCal(null)} className="flex-1 h-12 rounded-full bg-[#F1EFF6] hover:bg-[#E9E6F0] text-[#17151F] text-[15px] font-semibold">Close</button>}>

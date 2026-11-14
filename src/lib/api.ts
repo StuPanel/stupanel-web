@@ -10,7 +10,11 @@ export const READ_ONLY_EVENT = "stupanel:read-only";
 
 function notifyIfReadOnly(res: Response) {
   res.clone().json()
-    .then((b) => { if (b?.message === "SUBSCRIPTION_READ_ONLY") window.dispatchEvent(new Event(READ_ONLY_EVENT)); })
+    .then((b) => {
+      if (b?.message === "SUBSCRIPTION_READ_ONLY") window.dispatchEvent(new Event(READ_ONLY_EVENT));
+      // The studio is being deleted: its owner can only use the page for that.
+      if (b?.message === "STUDIO_BEING_DELETED" && !window.location.pathname.startsWith("/studio-closed")) window.location.href = "/studio-closed";
+    })
     .catch(() => {});
 }
 

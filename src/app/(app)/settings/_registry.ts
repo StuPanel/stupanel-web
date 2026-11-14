@@ -6,7 +6,7 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2,
+  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2, Database,
 } from "lucide-react";
 
 export type PaneId =
@@ -14,7 +14,7 @@ export type PaneId =
   | "payment" | "quotes" | "invoices" | "numbering" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery" | "music"
   | "bookings" | "portal" | "notifications" | "whatsapp"
-  | "profile" | "appearance" | "security" | "integrations";
+  | "profile" | "appearance" | "security" | "integrations" | "data";
 
 export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
 export type Entry = { id: string; pane: PaneId; section: string; label: string; keywords?: string };
@@ -66,6 +66,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — the same for your whole studio", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look team member panel" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password" },
       { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw" },
+      { id: "data", title: "Your data", sub: "Download everything as Excel, or delete the studio", icon: Database, color: C.red, keywords: "export excel download backup delete close remove account studio data" },
     ],
   },
 ];
@@ -204,6 +205,8 @@ export const ENTRIES: Entry[] = [
   { id: "drive-accounts", pane: "integrations", section: "Accounts", label: "Google Drive accounts", keywords: "connect gmail storage delivery" },
   { id: "drive-add", pane: "integrations", section: "Accounts", label: "Add Google Drive account", keywords: "connect" },
   { id: "raw-drive", pane: "integrations", section: "Raw files", label: "Raw files account", keywords: "raw camera backup" },
+  { id: "export", pane: "data", section: "Download", label: "Download all your data", keywords: "export excel xlsx backup" },
+  { id: "deleteStudio", pane: "data", section: "Danger zone", label: "Delete this studio", keywords: "delete remove close account" },
 ];
 
 /** Case-insensitive; every word typed must appear somewhere in the entry. Best matches first. */

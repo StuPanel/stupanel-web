@@ -105,14 +105,16 @@ export default function SchedulePage() {
   if (loading) return <Spinner />;
 
   const now = new Date(); now.setHours(0, 0, 0, 0);
-  const shown = filter === "upcoming" ? events.filter(e => isOpen(e, now)) : events;
+  const byDay = (a: Event, b: Event) => String(a.eventDate ?? "9999").localeCompare(String(b.eventDate ?? "9999"));
+  const shown = (filter === "upcoming" ? events.filter(e => isOpen(e, now)) : [...events]).sort(byDay);
   const groups: Record<string, Event[]> = {};
   for (const e of shown) {
     const dt = e.eventDate ? new Date(e.eventDate) : null;
     const key = dt && !isNaN(dt.getTime()) ? `${MONTHS_LONG[dt.getMonth()]} ${dt.getFullYear()}` : "No date";
     (groups[key] ??= []).push(e);
   }
-  const next = events.find(e => isOpen(e, now));
+  // The soonest coming program across all studios (the list comes grouped by studio).
+  const next = events.filter(e => isOpen(e, now)).sort(byDay)[0];
   const nextDays = next ? daysUntil(next.eventDate) : null;
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const upcomingDays = events.filter(e => e.status !== "cancelled").flatMap(calDays).filter(d => d.date >= today);

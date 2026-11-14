@@ -26,6 +26,7 @@ export default function MemberChatPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState("");
+  const [studio, setStudio] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -33,6 +34,8 @@ export default function MemberChatPage() {
   useEffect(() => {
     const token = localStorage.getItem("access_token") ?? "";
     try { setMyId(JSON.parse(atob(token.split(".")[1])).sub); } catch {}
+    // Which studio this chat goes to (a member can work for more than one).
+    apiFetch(`${API}/auth/me`).then(r => (r.ok ? r.json() : null)).then(d => setStudio(d?.company?.name ?? "")).catch(() => {});
   }, []);
 
   const load = useCallback(async (withSpinner = false) => {
@@ -85,7 +88,7 @@ export default function MemberChatPage() {
           <Shield className="w-4 h-4 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-[#17151F] text-[15px]">Studio</p>
+          <p className="font-bold text-[#17151F] text-[15px] truncate">{studio || "Studio"}</p>
           <p className="text-xs text-[#6B6680]">Message the studio owner</p>
         </div>
       </div>

@@ -10,13 +10,13 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, CalendarClock, Check, CheckCircle2, Eye, FolderOpen, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
+  ArrowLeft, ArrowRight, CalendarClock, Check, CheckCircle2, Eye, FolderOpen, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portalPhotoApi, type SelectApi } from "@/lib/select-api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { useSeen } from "./use-seen";
-import { albumProgress, drivePhoto, foldersOf, isPicked, thumbOf, timeLeft, viewOf, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
+import { albumProgress, drivePhoto, foldersOf, isPicked, thumbOf, timeLeft, viewOf, zoomOf, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
 const T = {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
@@ -32,6 +32,10 @@ const T = {
     seen: (n: number, of: number) => `Seen ${n} of ${of} photos`, seenAll: (n: number) => `You've seen all ${n} photos`,
     resume: "Continue where you left off", resumeSub: (i: number, n: number, a: string) => `Photo ${i} of ${n}${a ? ` · ${a}` : ""}`, resumeGo: "Continue", dismiss: "Dismiss",
     folders: "Folders", allFolders: "All", otherPhotos: "Other photos",
+    hi: (n: string) => (n ? `Hi ${n},` : "Hello,"), coverLabel: "Choose your album photos", start: "Start choosing", goOn: "Continue choosing", look: "See your photos",
+    coverPhotos: (n: number) => `${n} photos`, coverPick: (l: string) => `Choose ${l}`, coverSoFar: (n: number, of: number) => `${n} chosen so far · ${of} photos`,
+    coverSaved: "Your choices save by themselves. Stop any time and come back later — on this phone or another.",
+    chosenOf: (of: number) => `of ${of} chosen`, coverDefault: "your photos are ready. Pick the ones you want in your album.",
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -126,6 +130,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const [gridBurst, setGridBurst] = useState<{ id: string; n: number } | null>(null);
   /** The viewer's tip shows the first time only. */
   const [hintSeen, setHintSeen] = useState(false);
+  /** The welcome screen: shown when the page opens, gone after "Start". */
+  const [intro, setIntro] = useState<"show" | "leaving" | "gone">("show");
 
   const load = useCallback(async () => {
     try {
@@ -329,7 +335,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           <button key={b.m} type="button" disabled={locked} aria-pressed={p.m === b.m} aria-label={b.label}
             onClick={e => { e.stopPropagation(); mark(p, b.m); }}
             className={cn("rounded-full flex items-center justify-center gap-1.5 font-semibold transition-all active:scale-90 disabled:opacity-60",
-              big ? "h-12 px-4 text-[14px] flex-1" : "w-8 h-8",
+              big ? "h-12 px-2.5 text-[13.5px] flex-1 whitespace-nowrap" : "w-8 h-8",
               p.m === b.m ? b.on : big ? "bg-white/10 text-white hover:bg-white/20" : on ? "bg-[#1F8A5B]/90 text-white" : "bg-white/85 text-[#33303F] backdrop-blur hover:bg-white")}>
             <b.I className={big ? "w-5 h-5" : "w-4 h-4"} fill={b.m === "important" && p.m === "important" ? "currentColor" : "none"} strokeWidth={2.4} />
             {big && <span>{b.label}</span>}
@@ -352,6 +358,16 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             </p>
           </div>
           {left && <span className={cn("hidden sm:inline-flex h-8 px-3 rounded-full text-[12.5px] font-semibold items-center gap-1", left.soon ? "bg-[#FEF5F7] text-[#C2304F]" : "bg-[#F1EFF6] text-[#4A4658]")}><CalendarClock className="w-3.5 h-3.5" />{left.text}</span>}
+          {/* How many are chosen, always in view */}
+          {g && (
+            <span className="flex-shrink-0 h-10 pl-2 pr-3.5 rounded-full bg-[#F0FAF4] inline-flex items-center gap-2" role="status" aria-label={`${totalPicked} ${t.chosenOf(g.photos.length)}`}>
+              <span className="w-6 h-6 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>
+              <span className="leading-none">
+                <span key={totalPicked} className="sp-count text-[17px] font-extrabold text-[#14613F] tabular-nums">{totalPicked}</span>
+                <span className="block text-[10.5px] font-semibold text-[#3E8062] mt-0.5 whitespace-nowrap">{t.chosenOf(g.photos.length)}</span>
+              </span>
+            </span>
+          )}
         </div>
       </header>
 
@@ -478,7 +494,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                   <div key={p.id} id={`ph-${p.id}`} data-pid={p.id} style={flash === p.id ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : undefined}
                     className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
                     isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
-                    <button type="button" onClick={() => onCellTap(p, i)} aria-label={p.n} className="absolute inset-0 [touch-action:manipulation]">
+                    <button type="button" onClick={() => onCellTap(p, i)} aria-label={p.n}
+                      className={cn("absolute inset-0 [touch-action:manipulation] transition-transform duration-200 ease-out", isPicked(p.m) && "scale-[.9] rounded-lg overflow-hidden")}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" draggable={false} referrerPolicy="no-referrer" onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
                     </button>
@@ -530,6 +547,54 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
         </div>
       )}
 
+      {/* Welcome screen */}
+      {g && intro !== "gone" && !thanks && (() => {
+        const cover = g.photos.find(p => p.hl) ?? g.photos[0];
+        const one = albums.length === 1 ? albums[0] : null;
+        const date = g.program?.date ? new Date(g.program.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "";
+        const go = () => { setIntro("leaving"); setTimeout(() => setIntro("gone"), 380); };
+        return (
+          <div className={cn("absolute inset-0 z-[70] bg-[#0E0C14] text-white overflow-hidden transition-opacity duration-300", intro === "leaving" && "opacity-0 pointer-events-none")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {cover && <img src={viewOf(cover)} alt="" referrerPolicy="no-referrer" draggable={false} onContextMenu={e => e.preventDefault()} className="sp-cover absolute inset-0 w-full h-full object-cover" />}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/10 to-black/85" />
+            <div className="relative h-full max-w-xl mx-auto px-6 flex flex-col pt-[max(20px,env(safe-area-inset-top))] pb-[max(24px,env(safe-area-inset-bottom))]">
+              <div className="flex items-center gap-2.5 sp-rise">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {g.studioLogo ? <img src={g.studioLogo} alt="" className="w-10 h-10 rounded-full object-cover bg-white" />
+                  : <span className="w-10 h-10 rounded-full bg-white/15 backdrop-blur flex items-center justify-center text-[15px] font-bold">{g.studio.slice(0, 1)}</span>}
+                <span className="text-[14px] font-semibold tracking-wide">{g.studio}</span>
+                {onClose && <button type="button" onClick={close} aria-label={t.close} className="ml-auto w-10 h-10 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><X className="w-5 h-5" /></button>}
+              </div>
+              <div className="mt-auto">
+                <p className="sp-rise text-[11.5px] font-bold uppercase tracking-[0.22em] text-white/75" style={{ animationDelay: "80ms" }}>{t.coverLabel}</p>
+                <h1 className="sp-rise mt-2 text-[34px] sm:text-[44px] leading-[1.05] font-extrabold tracking-[-0.02em]" style={{ animationDelay: "140ms" }}>{g.program?.name || g.title}</h1>
+                {date && <p className="sp-rise mt-2 text-[14px] text-white/75" style={{ animationDelay: "180ms" }}>{date}</p>}
+                <div className="sp-rise mt-5 flex flex-wrap gap-2" style={{ animationDelay: "240ms" }}>
+                  <span className="h-8 px-3 rounded-full bg-white/15 backdrop-blur text-[13px] font-semibold inline-flex items-center gap-1.5"><Images className="w-3.5 h-3.5" />{t.coverPhotos(g.photos.length)}</span>
+                  {one?.limit && <span className="h-8 px-3 rounded-full bg-white/15 backdrop-blur text-[13px] font-semibold inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} />{t.coverPick(one.limit)}</span>}
+                  {left && <span className={cn("h-8 px-3 rounded-full backdrop-blur text-[13px] font-semibold inline-flex items-center gap-1.5", left.soon ? "bg-[#C2304F]/85" : "bg-white/15")}><CalendarClock className="w-3.5 h-3.5" />{left.text}</span>}
+                </div>
+                <p className="sp-rise mt-5 text-[15px] leading-relaxed text-white/90" style={{ animationDelay: "300ms" }}>
+                  <span className="font-bold">{t.hi(g.clientName ?? "")}</span> {g.welcome || t.coverDefault}
+                </p>
+                {totalPicked > 0 && (
+                  <div className="sp-rise mt-4" style={{ animationDelay: "340ms" }}>
+                    <p className="text-[13px] font-semibold text-[#9AE6BD] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />{t.coverSoFar(totalPicked, g.photos.length)}</p>
+                    <div className="mt-2 h-1.5 rounded-full bg-white/20 overflow-hidden"><div className="h-full rounded-full bg-[#4ADE80]" style={{ width: `${Math.min(100, one?.maxPicks ? (totalPicked / one.maxPicks) * 100 : (totalPicked / Math.max(1, g.photos.length)) * 100)}%` }} /></div>
+                  </div>
+                )}
+                <button type="button" onClick={go}
+                  className="sp-rise mt-6 w-full h-14 rounded-full bg-white text-[#17151F] text-[16px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_18px_40px_-12px_rgba(0,0,0,.6)] active:scale-[.98] transition-transform" style={{ animationDelay: "400ms" }}>
+                  {locked ? t.look : totalPicked ? t.goOn : t.start}<ArrowRight className="w-5 h-5" />
+                </button>
+                {!locked && <p className="sp-rise mt-3 text-center text-[12.5px] leading-snug text-white/70" style={{ animationDelay: "460ms" }}>{t.coverSaved}</p>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Toast */}
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[90] max-w-[92vw] px-4 py-2.5 rounded-2xl bg-[#17151F] text-white text-[13.5px] shadow-xl sp-pop-in">{toast}</div>}
 
@@ -537,8 +602,10 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
       {g && vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => { setView(null); setHintSeen(true); }}
           src={viewOf(vp)}
+          srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
           title={`${view + 1} ${t.of} ${shown.length}`} sub={[albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
+          top={<span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{totalPicked}</span></span>}
           onDoubleTap={locked ? undefined : () => quickChoose(vp)}
           hint={!locked && !hintSeen ? t.viewHint : undefined}
           onKey={e => {

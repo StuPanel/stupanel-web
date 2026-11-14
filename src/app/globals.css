@@ -518,3 +518,11 @@ html:not([data-backdrop="plain"]) .sp-shell main :where([class~="bg-white"]):whe
 .sp-burst { animation: sp-burst .8s ease-out forwards; pointer-events: none; }
 @keyframes sp-hint { 0%, 80% { opacity: 1 } 100% { opacity: 0 } }
 .sp-hint { animation: sp-hint 3.2s ease-out forwards; pointer-events: none; }
+/* Client photo chooser: the count pops when it changes; the welcome screen's text rises in. */
+@keyframes sp-count { 0% { transform: scale(1.4) } 100% { transform: scale(1) } }
+.sp-count { display: inline-block; animation: sp-count .38s cubic-bezier(.2, .8, .2, 1); }
+@keyframes sp-rise { from { opacity: 0; transform: translateY(22px) } to { opacity: 1; transform: none } }
+.sp-rise { animation: sp-rise .7s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes sp-cover { from { transform: scale(1.08) } to { transform: scale(1) } }
+.sp-cover { animation: sp-cover 1.6s cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .sp-count, .sp-rise, .sp-cover { animation: none; } }

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { CARD_SHADOW, Chips } from "@/components/ui/apple";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 import { PhotoViewer } from "@/components/photo-viewer";
-import { foldersOf, thumbOf, viewOf, type SharedGallery } from "@/lib/photos";
+import { foldersOf, thumbOf, viewOf, zoomOf, type SharedGallery } from "@/lib/photos";
 
 type Filter = "all" | "chosen" | "highlights" | `a:${string}` | `f:${string}`;
 
@@ -86,6 +86,7 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
       {vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => setView(null)}
           src={viewOf(vp)}
+          srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
           title={`${view + 1} of ${shown.length}`} sub={[g.albums.find(a => a.id === vp.a)?.name, vp.f].filter(Boolean).join(" · ")}
           footer={vp.c ? <p className="text-center text-[13px] text-white/85 inline-flex items-center justify-center gap-1.5 w-full"><Heart className="w-4 h-4 text-[#FF8FA6]" fill="currentColor" />Chosen by {g.client}</p> : undefined} />

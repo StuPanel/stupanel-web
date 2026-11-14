@@ -308,7 +308,7 @@ function PickForm({ tags, start, onClose, onSave }: { tags: { EVENTS: FullTag[];
               setBusy(true);
               try {
                 await onSave(merging ? { url, mergeInto, isPick: false }
-                  : { url, isPick: true, blocked: false, mergeInto: null, events, videos, moods, language: language[0] ?? null, altNames, countries: countries.split(",").map(c => c.trim()).filter(Boolean) });
+                  : { url, isNew: !start.url && !start.youtubeId, isPick: true, blocked: false, mergeInto: null, events, videos, moods, language: language[0] ?? null, altNames, countries: countries.split(",").map(c => c.trim()).filter(Boolean) });
               } finally { setBusy(false); }
             }}
             className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, ImagePlus, Images, Link2, Loader2,
+  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, Image as ImageIcon, ImagePlus, Images, Link2, Loader2,
   MessageSquareText, MoreHorizontal, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -177,6 +177,14 @@ export default function GalleryPage() {
     if (!r?.ok) { notify("Couldn't save", { error: true }); return; }
     setG(x => x ? { ...x, photos: x.photos.map(p => (ids.includes(p.id) ? { ...p, ...(body.highlight !== undefined ? { hl: body.highlight } : {}), ...(body.albumId ? { a: body.albumId } : {}), ...(body.folder !== undefined ? { f: body.folder || null } : {}) } : p)) } : x);
     if (body.albumId) load();
+  }
+  /** The photo the client sees on the welcome screen (null = the first highlight, else the first photo). */
+  async function setCover(photoId: string | null) {
+    const r = await apiFetch(`${API}/photo-selection/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coverPhotoId: photoId }) }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (!r?.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save", { error: true }); return; }
+    setG(d);
+    notify(photoId ? "This is the cover photo now — the client sees it first" : "Cover photo removed — the first highlight is used");
   }
   async function removePhotos(ids: string[]) {
     if (!(await askConfirm({ title: `Remove ${ids.length} photo${ids.length > 1 ? "s" : ""}?`, message: "They leave this selection only — your photos on Google Drive are not touched.", confirmLabel: "Remove", danger: true }))) return;
@@ -458,7 +466,10 @@ export default function GalleryPage() {
                   </span>
                 )}
                 <span className="absolute left-1.5 top-1.5 flex gap-1"><MarkBadge m={p.m} />{p.no && <span className="w-6 h-6 rounded-full bg-white/95 text-[#5B3FD0] flex items-center justify-center shadow" title={p.no}><StickyNote className="w-3.5 h-3.5" /></span>}</span>
-                {p.hl && <span className="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white/95 text-[#9E3A8C] flex items-center justify-center shadow" title="Highlight"><Star className="w-3.5 h-3.5" fill="currentColor" /></span>}
+                <span className="absolute right-1.5 top-1.5 flex gap-1">
+                  {g.coverPhotoId === p.id && <span className="h-6 px-2 rounded-full bg-[#17151F]/85 text-white text-[11px] font-bold inline-flex items-center gap-1 shadow" title="Cover photo — the client sees it first"><ImageIcon className="w-3 h-3" />Cover</span>}
+                  {p.hl && <span className="w-6 h-6 rounded-full bg-white/95 text-[#9E3A8C] flex items-center justify-center shadow" title="Highlight"><Star className="w-3.5 h-3.5" fill="currentColor" /></span>}
+                </span>
                 {selecting && <span className={cn("absolute right-1.5 bottom-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white/80 border-white")}>{on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}</span>}
                 {size !== "s" && p.t && <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 pt-5 bg-gradient-to-t from-black/55 to-transparent text-white text-[11.5px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity">{p.n}</span>}
               </button>
@@ -503,11 +514,15 @@ export default function GalleryPage() {
             <div className="max-w-2xl mx-auto flex flex-col gap-2">
               {vp.no && <p className="text-[14px] bg-white/10 rounded-[14px] px-3.5 py-2.5"><StickyNote className="w-4 h-4 inline mr-1.5 -mt-0.5" />“{vp.no}”</p>}
               <div className="flex items-center gap-2">
-                <span className="flex-1 inline-flex items-center gap-2 text-[13px] text-white/80">
+                <span className="flex-1 min-w-0 inline-flex items-center gap-2 text-[13px] text-white/80 [&>*]:flex-shrink-0 overflow-hidden whitespace-nowrap">
                   <MarkBadge m={vp.m} />{vp.m === "important" ? "Most important" : vp.m === "selected" ? "Chosen by the client" : vp.m === "rejected" ? "Not wanted" : "Not chosen"}
                 </span>
                 <button type="button" onClick={() => patchPhotos([vp.id], { highlight: !vp.hl })} className={cn("h-10 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5", vp.hl ? "bg-white text-[#9E3A8C]" : "bg-white/10 hover:bg-white/20")}>
-                  <Star className="w-4 h-4" fill={vp.hl ? "currentColor" : "none"} />Highlight
+                  <Star className="w-4 h-4" fill={vp.hl ? "currentColor" : "none"} /><span className="hidden sm:inline">Highlight</span>
+                </button>
+                <button type="button" onClick={() => setCover(g.coverPhotoId === vp.id ? null : vp.id)} title="The photo the client sees first when they open the link"
+                  className={cn("h-10 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5", g.coverPhotoId === vp.id ? "bg-white text-[#17151F]" : "bg-white/10 hover:bg-white/20")}>
+                  <ImageIcon className="w-4 h-4" />{g.coverPhotoId === vp.id ? "Cover photo" : "Set as cover"}
                 </button>
                 <button type="button" onClick={() => removePhotos([vp.id])} aria-label="Remove photo" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#C2304F] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
               </div>

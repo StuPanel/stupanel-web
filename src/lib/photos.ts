@@ -45,6 +45,8 @@ export type GalleryDetail = {
   albums: Album[]; counts: Counts; photos: GPhoto[];
   /** What the client has done so far, also before sending */
   activity?: { opens: number; lastOpenAt: string | null; lastPickAt: string | null };
+  /** The photo on the client's welcome screen (null = chosen by itself) */
+  coverPhotoId?: string | null;
 };
 
 export type ClientGalleryCard = {
@@ -58,7 +60,9 @@ export type ClientGallery = {
   clientNote: string | null; submittedAt: string | null; takenAt: string | null; reopenRequestedAt: string | null;
   studio: string; canChange: boolean; lockedWhy: string;
   /** For the welcome screen */
-  studioLogo?: string | null; clientName?: string; program?: { name: string | null; date: string | null };
+  studioLogo?: string | null; clientName?: string;
+  /** Drive file of the cover photo the studio chose (null = the first highlight, else the first photo) */
+  cover?: string | null; program?: { name: string | null; date: string | null };
   albums: Album[]; photos: GPhoto[];
 };
 

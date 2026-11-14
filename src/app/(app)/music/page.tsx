@@ -290,6 +290,47 @@ function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[];
   );
 }
 
+/** Ask StuPanel to add a tag for every studio. Until it is added the studio keeps it as its own tag. */
+function SuggestTag({ onOwn }: { onOwn: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<"event" | "video">("event");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function send() {
+    const n = name.trim().replace(/\s+/g, " ");
+    if (n.length < 2 || busy) return;
+    setBusy(true);
+    try {
+      const r = await apiFetch(`${API}/music/tags/suggest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, name: n }) });
+      if (!r.ok) { notify(await err(r), { error: true }); return; }
+      const d = await r.json();
+      if (d.exists && !d.tag.hidden) notify(`That is already in the list as “${d.tag.name}” — tick it above (it may be under More).`);
+      else { onOwn(n); notify(d.exists ? "StuPanel is not offering that tag right now. It is saved as your own tag." : "Sent to StuPanel. Until it is added for everyone, it is saved as your own tag."); }
+      setName(""); setOpen(false);
+    } finally { setBusy(false); }
+  }
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)} className="self-start text-[13px] font-semibold text-[#5B3FD0] hover:underline">Missing an event or a kind of video? Suggest a tag for every studio</button>
+  );
+  return (
+    <div className="rounded-2xl bg-[#F8F6FC] p-3 space-y-2.5">
+      <p className="text-[13px] font-semibold text-[#17151F]">Suggest a tag for every studio</p>
+      <div className="inline-flex p-1 rounded-full bg-white" role="group" aria-label="Kind of tag">
+        {([["event", "Event"], ["video", "Kind of video"]] as const).map(([id, label]) => (
+          <button key={id} type="button" aria-pressed={kind === id} onClick={() => setKind(id)} className={cn("h-8 px-3.5 rounded-full text-[13px] font-semibold", kind === id ? "bg-[#17151F] text-white" : "text-[#4A4658]")}>{label}</button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void send(); } }} maxLength={40} autoFocus
+          placeholder={kind === "event" ? "e.g. Cake cutting" : "e.g. Drone film"} aria-label="Name of the tag" className={inputCls} />
+        <button type="button" onClick={() => void send()} disabled={busy || name.trim().length < 2} className="h-11 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold disabled:opacity-50 inline-flex items-center gap-1.5 flex-shrink-0">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Send</button>
+      </div>
+      <p className="text-[12px] text-[#6B6780]">StuPanel looks at it and adds it for all studios if it fits. Your studio&apos;s name is not shown to anyone.</p>
+      <button type="button" onClick={() => setOpen(false)} className="text-[13px] font-semibold text-[#6B6780] hover:underline">Cancel</button>
+    </div>
+  );
+}
+
 function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }: {
   cat: TagCatalog; songs: LibrarySong[]; song?: LibrarySong; url?: string;
   /** A song from outside the library: its tags are ticked to start with. */
@@ -417,6 +458,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
           <input value={newOwn} onChange={e => setNewOwn(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addOwn(); } }} maxLength={60} placeholder="New tag of your own" aria-label="New tag of your own" className={inputCls} />
           <button type="button" onClick={addOwn} disabled={!newOwn.trim()} className="h-11 px-4 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold disabled:opacity-50 inline-flex items-center gap-1 flex-shrink-0"><Plus className="w-4 h-4" />Add</button>
         </div>
+        <SuggestTag onOwn={t => setOwn(o => (o.some(x => x.toLowerCase() === t.toLowerCase()) ? o : [...o, t]))} />
       </FormGroup>
       <FormGroup title="More">
         <Field label="Other names (optional)" hint="Words people may search this song by — another spelling, the name in your language">

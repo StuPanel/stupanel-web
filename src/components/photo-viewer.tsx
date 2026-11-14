@@ -71,7 +71,7 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, preload, titl
   }, []);
 
   useEffect(() => {
-    for (const u of preload ?? []) { const i = new Image(); i.src = u; }
+    for (const u of preload ?? []) { if (!u) continue; const i = new Image(); i.referrerPolicy = "no-referrer"; i.src = u; }
   }, [preload]);
 
   const onTouchStart = (e: React.TouchEvent) => { const t = e.touches[0]; start.current = { x: t.clientX, y: t.clientY, t: Date.now() }; };
@@ -114,7 +114,7 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, preload, titl
       <div className="relative flex-1 min-h-0 select-none [touch-action:pan-y_pinch-zoom]" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         onDoubleClick={onDoubleTap ? doubleTap : undefined}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img key={src} src={src} alt={title} draggable={false} onLoad={() => setLoaded(src)} onContextMenu={e => e.preventDefault()}
+        <img key={src} src={src} alt={title} draggable={false} referrerPolicy="no-referrer" onLoad={() => setLoaded(src)} onContextMenu={e => e.preventDefault()}
           className={cn("absolute inset-0 m-auto max-w-full max-h-full object-contain transition-opacity duration-200", loaded === src ? "opacity-100" : "opacity-0")}
           style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? "none" : undefined }} />
         {burst > 0 && (

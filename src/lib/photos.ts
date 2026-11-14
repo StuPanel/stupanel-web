@@ -1,7 +1,6 @@
 /**
  * Photo selection (albums): shared types and helpers for the studio pages and the client portal.
  */
-import { API_URL as API } from "@/lib/api";
 
 export type Mark = "selected" | "important" | "rejected";
 export const PICKED: Mark[] = ["selected", "important"];
@@ -11,8 +10,12 @@ export const isPicked = (m?: Mark | null) => m === "selected" || m === "importan
 export type GPhoto = {
   id: string; a: string; n: string; w: number | null; h: number | null;
   m: Mark | null; no: string | null; hl: boolean;
+  /** Folder inside the album ("Holud", "Wedding"); null = none */
+  f: string | null;
+  /** The file on Google Drive (the picture is loaded straight from Google) */
+  d: string | null;
   /** studio only */
-  st?: "uploading" | "pending" | "processing" | "ready" | "failed"; err?: string | null; src?: string; t?: boolean;
+  st?: "pending" | "processing" | "ready" | "failed"; err?: string | null; src?: string; t?: boolean;
 };
 
 export type Album = {
@@ -21,7 +24,6 @@ export type Album = {
 };
 
 export type GalleryStatus = "preparing" | "open" | "submitted" | "taken" | "closed";
-export type Img = { e: number; s: string };
 
 export type GalleryCard = {
   id: string; title: string; status: GalleryStatus; deadline: string | null; submittedAt: string | null; takenAt: string | null;
@@ -35,12 +37,12 @@ export type GalleryCard = {
 export type Counts = { total: number; ready: number; failed: number; working: number; picked: number; important: number; rejected: number };
 
 export type GalleryDetail = {
-  id: string; title: string; status: GalleryStatus; deadline: string | null; watermark: boolean; allowNotes: boolean; welcome: string | null;
+  id: string; title: string; status: GalleryStatus; deadline: string | null; allowNotes: boolean; welcome: string | null;
   clientNote: string | null; submittedAt: string | null; changedAfterSubmitAt: string | null; takenAt: string | null;
   reopenRequestedAt: string | null; reopenReason: string | null; createdAt: string; updatedAt: string;
   program: { id: string; name: string; number: string; date: string | null };
   client: { id: string; name: string; firstName: string; lastName: string | null; phone: string | null; email: string | null };
-  albums: Album[]; counts: Counts; watermarkOn: boolean; img: Img; photos: GPhoto[];
+  albums: Album[]; counts: Counts; photos: GPhoto[];
 };
 
 export type ClientGalleryCard = {
@@ -53,15 +55,34 @@ export type ClientGallery = {
   id: string; title: string; status: GalleryStatus; deadline: string | null; welcome: string | null; allowNotes: boolean;
   clientNote: string | null; submittedAt: string | null; takenAt: string | null; reopenRequestedAt: string | null;
   studio: string; canChange: boolean; lockedWhy: string;
-  albums: Album[]; img: Img; photos: GPhoto[];
+  albums: Album[]; photos: GPhoto[];
 };
 
-/** Picture link for a photo: t = small (grid), v = big (viewer, watermarked), m = clean (studio only). */
-export function photoUrl(galleryId: string, photoId: string, size: "t" | "v" | "m", img: Img) {
-  return `${API}/public/photo-selection/img/${galleryId}/${photoId}/${size}?e=${img.e}&s=${img.s}`;
+/**
+ * Picture link for a photo: it comes straight from Google Drive at the width asked
+ * (Google makes the size; we keep no copy). The file is open "to anyone with the link".
+ */
+export const THUMB_W = 480;
+export const VIEW_W = 1600;
+export const drivePhoto = (driveFileId: string, width: number = THUMB_W) => `https://lh3.googleusercontent.com/d/${driveFileId}=w${width}`;
+/** Small (grid) and big (opened) links of a photo; "" while it is not ready. */
+export const thumbOf = (p: { d: string | null }) => (p.d ? drivePhoto(p.d, THUMB_W) : "");
+export const viewOf = (p: { d: string | null }) => (p.d ? drivePhoto(p.d, VIEW_W) : "");
+
+/** The folders inside an album, in the order the photos come (photos without one are last, as ""). */
+export function foldersOf(photos: { a: string; f: string | null }[], albumId?: string) {
+  const names: string[] = [];
+  let loose = false;
+  for (const p of photos) {
+    if (albumId && p.a !== albumId) continue;
+    if (!p.f) { loose = true; continue; }
+    if (!names.includes(p.f)) names.push(p.f);
+  }
+  return names.length && loose ? [...names, ""] : names;
 }
-/** The API sends cover links without the API address. */
-export const apiUrl = (path: string) => `${API}${path}`;
+
+/** Where uploads from a phone or computer go inside the program's Drive folder. */
+export const UPLOAD_PATH = "Album selection/Photos to choose";
 
 export const STATUS_LABEL: Record<GalleryStatus, string> = {
   preparing: "Getting ready", open: "Client is choosing", submitted: "Client sent", taken: "Album started", closed: "Closed",
@@ -99,14 +120,20 @@ export function albumProgress(a: { minPicks: number | null; maxPicks: number | n
   return { under, over, full, pct, okRange, text: a.limit ? `${picked} / ${a.limit}` : `${picked}` };
 }
 
-/** File names, one per line — paste into Lightroom's search or a text file. */
+/** File names, one per line — paste into Lightroom's search or a text file. Grouped by album, then folder. */
 export function namesList(photos: GPhoto[], albums: { id: string; name: string }[], which: "picked" | "important" = "picked", byAlbum = true) {
   const keep = photos.filter(p => (which === "important" ? p.m === "important" : isPicked(p.m)));
   if (!byAlbum) return keep.map(p => p.n).join("\n");
   return albums
     .map(a => ({ a, list: keep.filter(p => p.a === a.id) }))
     .filter(x => x.list.length)
-    .map(x => `${x.a.name} (${x.list.length})\n${x.list.map(p => p.n).join("\n")}`)
+    .map(x => {
+      const folders = foldersOf(x.list);
+      const body = folders.length
+        ? folders.map(f => { const l = x.list.filter(p => (p.f ?? "") === f); return `-- ${f || "Other photos"} (${l.length}) --\n${l.map(p => p.n).join("\n")}`; }).join("\n\n")
+        : x.list.map(p => p.n).join("\n");
+      return `${x.a.name} (${x.list.length})\n${body}`;
+    })
     .join("\n\n");
 }
 
@@ -114,35 +141,16 @@ export function namesList(photos: GPhoto[], albums: { id: string; name: string }
 export function namesCsv(photos: GPhoto[], albums: { id: string; name: string }[]) {
   const name = new Map(albums.map(a => [a.id, a.name]));
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-  const rows = photos.filter(p => p.m).map(p => [name.get(p.a) ?? "", p.n, p.m === "important" ? "Important" : p.m === "selected" ? "Selected" : "Rejected", p.no ?? ""].map(esc).join(","));
-  return ["Album,File,Mark,Note", ...rows].join("\n");
+  const rows = photos.filter(p => p.m).map(p => [name.get(p.a) ?? "", p.f ?? "", p.n, p.m === "important" ? "Important" : p.m === "selected" ? "Selected" : "Rejected", p.no ?? ""].map(esc).join(","));
+  return ["Album,Folder,File,Mark,Note", ...rows].join("\n");
 }
 
-// ─── Making the small copy in the browser (uploads) ──────────────────────────
+// ─── Uploads from a phone or computer (they go to the program's Drive folder) ─
 
-export const UPLOAD_PX = 1600;
 const OK_TYPES = /^image\/(jpeg|png|webp|heic|heif)$/i;
 const RAW_EXT = /\.(cr2|cr3|nef|nrw|arw|srf|sr2|raf|rw2|orf|dng|pef|x3f|srw|3fr|iiq)$/i;
 export const isRawName = (n: string) => RAW_EXT.test(n);
-export const canUpload = (f: File) => OK_TYPES.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name);
-
-/** A 1600px JPEG of the photo, turned the right way up. Throws if the browser cannot read it. */
-export async function makeUploadCopy(file: File): Promise<{ blob: Blob; width: number; height: number }> {
-  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
-  const scale = Math.min(1, UPLOAD_PX / Math.max(bmp.width, bmp.height));
-  const w = Math.max(1, Math.round(bmp.width * scale));
-  const h = Math.max(1, Math.round(bmp.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("no canvas");
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bmp, 0, 0, w, h);
-  bmp.close();
-  const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, "image/jpeg", 0.86));
-  if (!blob) throw new Error("no blob");
-  return { blob, width: w, height: h };
-}
+export const canUpload = (f: File) => OK_TYPES.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name);
 
 /** Group files picked as folders by their folder name ("Wedding/IMG_1.jpg" → "Wedding"). Loose files → "". */
 export function byFolder(files: File[]) {
@@ -157,42 +165,11 @@ export function byFolder(files: File[]) {
   return map;
 }
 
-// ─── Watermark ───────────────────────────────────────────────────────────────
-
-export type WmPosition = "tl" | "tc" | "tr" | "ml" | "c" | "mr" | "bl" | "bc" | "br" | "tile";
-export type Watermark = {
-  enabled: boolean; kind: "text" | "logo"; text: string; font: string; color: string; shadow: boolean;
-  logoSource: "studio" | "custom"; logoTint: "original" | "white" | "black";
-  imageKey: string | null; imageW: number; imageH: number; imageUrl?: string | null;
-  position: WmPosition; size: number; opacity: number; margin: number; rotation: number; gap: number; version: number;
-  studioName?: string;
-};
-export const WM_FONTS = ["Plus Jakarta Sans", "Playfair Display", "Great Vibes", "Montserrat", "Cormorant Garamond", "Hind Siliguri"];
-
-/** Same maths as the server: where the mark sits on a W×H photo. */
-export function placeMark(W: number, H: number, wm: Pick<Watermark, "size" | "margin" | "position">, ratio: number) {
-  let w = Math.max(1, Math.round((W * wm.size) / 100));
-  let h = Math.max(1, Math.round(w / (ratio || 1)));
-  const m = Math.round((Math.min(W, H) * wm.margin) / 100);
-  const maxW = Math.max(1, W - 2 * m), maxH = Math.max(1, H - 2 * m);
-  if (w > maxW) { h = Math.max(1, Math.round((h * maxW) / w)); w = maxW; }
-  if (h > maxH) { w = Math.max(1, Math.round((w * maxH) / h)); h = maxH; }
-  const p = wm.position;
-  const col = ["tl", "ml", "bl"].includes(p) ? 0 : ["tr", "mr", "br"].includes(p) ? 2 : 1;
-  const row = ["tl", "tc", "tr"].includes(p) ? 0 : ["bl", "bc", "br"].includes(p) ? 2 : 1;
-  return {
-    left: col === 0 ? m : col === 2 ? W - m - w : Math.round((W - w) / 2),
-    top: row === 0 ? m : row === 2 ? H - m - h : Math.round((H - h) / 2),
-    width: w, height: h,
-  };
-}
-
 // ─── After the client has chosen (phase 2–3) ─────────────────────────────────
 
 export type DriveCopy = {
   state: "running" | "done" | "failed";
   total: number; done: number; copied: number; skipped: number; failed: number;
-  /** chosen photos that came from a computer (not on Drive) */
   notOnDrive: number;
   startedAt: string; finishedAt?: string; error?: string;
   folders: { email: string; url: string }[];
@@ -215,6 +192,5 @@ export type SharedGallery = {
   client: string;
   event: { name: string | null; date: string | null };
   albums: { id: string; name: string }[];
-  img: Img;
-  photos: { id: string; a: string; w: number | null; h: number | null; hl: boolean; c: boolean }[];
+  photos: { id: string; a: string; w: number | null; h: number | null; hl: boolean; f: string | null; d: string | null; c: boolean }[];
 };

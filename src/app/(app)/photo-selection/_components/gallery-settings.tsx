@@ -1,8 +1,7 @@
 "use client";
 
-/** Settings of one photo selection: name, time to choose, albums and limits, notes, watermark, a message for the client. */
+/** Settings of one photo selection: name, time to choose, albums and limits, notes, a message for the client. */
 import { useState } from "react";
-import Link from "next/link";
 import { Loader2, Plus, Settings2, Trash2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -17,7 +16,6 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
   const [title, setTitle] = useState(g.title);
   const [deadline, setDeadline] = useState(toLocal(g.deadline));
   const [allowNotes, setAllowNotes] = useState(g.allowNotes);
-  const [watermark, setWatermark] = useState(g.watermark);
   const [welcome, setWelcome] = useState(g.welcome ?? "");
   const [rows, setRows] = useState<Row[]>(g.albums.map(a => ({ id: a.id, name: a.name, min: a.minPicks?.toString() ?? "", max: a.maxPicks?.toString() ?? "", allowExtra: !!a.allowExtra, total: a.total })));
   const [saving, setSaving] = useState(false);
@@ -39,7 +37,7 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
       const fail = async (r: Response) => { const d = await r.json().catch(() => ({})); throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save"); };
       const r = await j("", "PATCH", {
         title: title.trim(), deadline: deadline ? new Date(`${deadline}T23:59:00`).toISOString() : null,
-        allowNotes, watermark, welcome: welcome.trim() || null,
+        allowNotes, welcome: welcome.trim() || null,
       });
       if (!r.ok) await fail(r);
       let order = 0;
@@ -125,12 +123,10 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
 
       <FormGroup title="For the client">
         <SwitchRow label="Notes on photos" hint="The client can write a note on a photo (e.g. “make this brighter”)" on={allowNotes} onChange={setAllowNotes} />
-        <SwitchRow label="Watermark" hint="Your studio watermark on the photos they see" on={watermark} onChange={setWatermark} />
         <Field label="Message on top (optional)" hint="e.g. Pick your favourite 80 for the wedding album. Tap ♥ on the ones you love most.">
           {id => <textarea id={id} value={welcome} maxLength={2000} rows={3} onChange={e => setWelcome(e.target.value)} className={cn(inputCls, "h-auto py-2.5 resize-none")} />}
         </Field>
       </FormGroup>
-      <p className="px-1 text-[12.5px] text-[#6B6680]">The watermark&apos;s look is set for the whole studio in <Link href="/settings?pane=watermark" className="font-semibold text-[#5B3FD0] hover:underline">Settings → Watermark</Link>.</p>
     </FormDrawer>
   );
 }

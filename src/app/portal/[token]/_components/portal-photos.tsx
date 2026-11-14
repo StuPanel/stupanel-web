@@ -10,13 +10,13 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, CalendarClock, Check, CheckCircle2, Eye, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
+  ArrowLeft, CalendarClock, Check, CheckCircle2, Eye, FolderOpen, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portalPhotoApi, type SelectApi } from "@/lib/select-api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { useSeen } from "./use-seen";
-import { albumProgress, apiUrl, isPicked, photoUrl, timeLeft, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
+import { albumProgress, drivePhoto, foldersOf, isPicked, thumbOf, timeLeft, viewOf, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
 const T = {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
@@ -31,6 +31,7 @@ const T = {
     lockedTaken: "Your album has started — your choice is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
     seen: (n: number, of: number) => `Seen ${n} of ${of} photos`, seenAll: (n: number) => `You've seen all ${n} photos`,
     resume: "Continue where you left off", resumeSub: (i: number, n: number, a: string) => `Photo ${i} of ${n}${a ? ` · ${a}` : ""}`, resumeGo: "Continue", dismiss: "Dismiss",
+    folders: "Folders", allFolders: "All", otherPhotos: "Other photos",
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -55,7 +56,7 @@ export function PortalPhotos({ token, galleries, brand, onChanged, autoOpen }: {
               <div className="grid grid-cols-4 gap-0.5">
                 {g.covers.slice(0, 4).map((c, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={apiUrl(c)} alt="" loading="lazy" className="block w-full h-20 object-cover" />
+                  <img key={i} src={drivePhoto(c)} alt="" loading="lazy" referrerPolicy="no-referrer" className="block w-full h-20 object-cover" />
                 ))}
               </div>
             )}
@@ -99,6 +100,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const [g, setG] = useState<ClientGallery | null>(null);
   const [failed, setFailed] = useState(false);
   const [album, setAlbum] = useState<string>("");
+  /** Folder inside the album (Holud, Wedding…): null = all of them, "" = photos without a folder */
+  const [folderPick, setFolder] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [view, setView] = useState<number | null>(null);
   const [save, setSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -184,9 +187,13 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const current = albums.find(a => a.id === album) ?? albums[0];
   const pickedIn = useCallback((aid: string) => (g?.photos ?? []).filter(p => p.a === aid && isPicked(p.m)).length, [g?.photos]);
   const inAlbum = useMemo(() => (g?.photos ?? []).filter(p => !current || p.a === current.id), [g?.photos, current]);
-  const shown = useMemo(() => inAlbum.filter(p =>
-    filter === "all" ? true : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inAlbum, filter]);
-  const highlights = useMemo(() => inAlbum.filter(p => p.hl), [inAlbum]);
+  const folders = useMemo(() => foldersOf(inAlbum), [inAlbum]);
+  // A folder that is not in this album (any more) counts as "all".
+  const folder = folderPick !== null && folders.includes(folderPick) ? folderPick : null;
+  const inFolder = useMemo(() => (folder === null ? inAlbum : inAlbum.filter(p => (p.f ?? "") === folder)), [inAlbum, folder]);
+  const shown = useMemo(() => inFolder.filter(p =>
+    filter === "all" ? true : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inFolder, filter]);
+  const highlights = useMemo(() => inFolder.filter(p => p.hl), [inFolder]);
   const locked = !g?.canChange;
   const { isSeen, version, resume, clearResume, markSeen, setLast } = useSeen(g?.id);
   const seenIn = useMemo(() => inAlbum.filter(p => p.m || isSeen(p.id)).length,
@@ -228,7 +235,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   function goResume() {
     if (!resumeAt) return;
     moved.current = true;
-    setAlbum(resumeAt.photo.a); setFilter("all"); clearResume();
+    setAlbum(resumeAt.photo.a); setFolder(null); setFilter("all"); clearResume();
     setTimeout(() => {
       document.getElementById(`ph-${resumeAt.photo.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
       setFlash(resumeAt.photo.id);
@@ -303,11 +310,11 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     setLast({ a: vp.a, p: vp.id });
   }, [vp, markSeen, setLast]);
   const filters: { id: Filter; label: string; n: number }[] = [
-    { id: "all", label: t.all, n: inAlbum.length },
-    { id: "unseen", label: t.unseen, n: inAlbum.filter(p => !p.m).length },
-    { id: "picked", label: t.picked, n: inAlbum.filter(p => isPicked(p.m)).length },
-    { id: "important", label: t.important, n: inAlbum.filter(p => p.m === "important").length },
-    { id: "rejected", label: t.rejected, n: inAlbum.filter(p => p.m === "rejected").length },
+    { id: "all", label: t.all, n: inFolder.length },
+    { id: "unseen", label: t.unseen, n: inFolder.filter(p => !p.m).length },
+    { id: "picked", label: t.picked, n: inFolder.filter(p => isPicked(p.m)).length },
+    { id: "important", label: t.important, n: inFolder.filter(p => p.m === "important").length },
+    { id: "rejected", label: t.rejected, n: inFolder.filter(p => p.m === "rejected").length },
   ];
 
   const markButtons = (p: GPhoto, big = false) => (
@@ -375,7 +382,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                   const pr = albumProgress(a, n);
                   const on = current?.id === a.id;
                   return (
-                    <button key={a.id} type="button" role="tab" aria-selected={on} onClick={() => { setAlbum(a.id); setFilter("all"); }}
+                    <button key={a.id} type="button" role="tab" aria-selected={on} onClick={() => { setAlbum(a.id); setFolder(null); setFilter("all"); }}
                       className={cn("flex-shrink-0 min-w-[140px] rounded-2xl px-4 py-2.5 text-left transition-all", on ? "text-white shadow-md" : "bg-white text-[#17151F]")}
                       style={on ? { backgroundColor: brand } : undefined}>
                       <span className="flex items-center justify-between gap-3">
@@ -391,6 +398,25 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
               </div>
             )}
 
+            {/* Folders inside the album (Holud, Wedding…): one album, one count for all of them */}
+            {folders.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto -mx-3 px-3 pb-2 mt-1 [scrollbar-width:none]" role="tablist" aria-label={t.folders}>
+                {[null, ...folders].map(f => {
+                  const list = f === null ? inAlbum : inAlbum.filter(p => (p.f ?? "") === f);
+                  const on = folder === f;
+                  return (
+                    <button key={f ?? "*"} type="button" role="tab" aria-selected={on} onClick={() => { setFolder(f); setView(null); mainRef.current?.scrollTo({ top: 0 }); }}
+                      className={cn("flex-shrink-0 h-11 pl-3.5 pr-4 rounded-2xl text-left inline-flex items-center gap-2 transition-all", on ? "text-white shadow-md" : "bg-white text-[#17151F]")}
+                      style={on ? { backgroundColor: brand } : undefined}>
+                      {f === null ? <Images className="w-4 h-4 flex-shrink-0" /> : <FolderOpen className="w-4 h-4 flex-shrink-0" />}
+                      <span className="text-[13.5px] font-bold whitespace-nowrap">{f === null ? t.allFolders : f || t.otherPhotos}</span>
+                      <span className={cn("text-[12px] font-semibold tabular-nums", on ? "text-white/80" : "text-[#8A8599]")}>{list.filter(p => isPicked(p.m)).length}/{list.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Highlights */}
             {highlights.length > 0 && filter === "all" && (
               <div className="mt-2 mb-3">
@@ -399,7 +425,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                   {highlights.slice(0, 12).map(p => (
                     <button key={p.id} type="button" onClick={() => setView(shown.indexOf(p))} className="relative flex-shrink-0 w-36 h-24 sm:w-48 sm:h-32 rounded-2xl overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" className="w-full h-full object-cover" onContextMenu={e => e.preventDefault()} />
+                      <img src={thumbOf(p)} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover" onContextMenu={e => e.preventDefault()} />
                       {isPicked(p.m) && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>}
                     </button>
                   ))}
@@ -411,7 +437,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             {resumeAt && (
               <div className="mt-1 mb-3 rounded-2xl bg-white p-2.5 pr-3 shadow-sm flex items-center gap-3 sp-pop-in">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl(g.id, resumeAt.photo.id, "t", g.img)} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" onContextMenu={e => e.preventDefault()} />
+                <img src={thumbOf(resumeAt.photo)} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" onContextMenu={e => e.preventDefault()} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-bold text-[#17151F] truncate">{t.resume}</p>
                   <p className="text-[12.5px] text-[#6B6680] truncate">{t.resumeSub(resumeAt.i + 1, resumeAt.n, albums.length > 1 ? resumeAt.album : "")}</p>
@@ -454,7 +480,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                     isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
                     <button type="button" onClick={() => onCellTap(p, i)} aria-label={p.n} className="absolute inset-0 [touch-action:manipulation]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" loading="lazy" decoding="async" draggable={false} onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
+                      <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" draggable={false} referrerPolicy="no-referrer" onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
                     </button>
                     {gridBurst?.id === p.id && (
                       <span key={gridBurst.n} className="sp-burst absolute left-1/2 top-1/2 -ml-8 -mt-8 w-16 h-16 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center shadow-xl" aria-hidden>
@@ -510,9 +536,9 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
       {/* Viewer */}
       {g && vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => { setView(null); setHintSeen(true); }}
-          src={photoUrl(g.id, vp.id, "v", g.img)}
-          preload={[shown[view + 1], shown[view + 2], shown[view - 1]].filter(Boolean).map(p => photoUrl(g.id, p!.id, "v", g.img))}
-          title={`${view + 1} ${t.of} ${shown.length}`} sub={albums.find(a => a.id === vp.a)?.name}
+          src={viewOf(vp)}
+          preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
+          title={`${view + 1} ${t.of} ${shown.length}`} sub={[albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
           onDoubleTap={locked ? undefined : () => quickChoose(vp)}
           hint={!locked && !hintSeen ? t.viewHint : undefined}
           onKey={e => {
@@ -571,7 +597,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                       <div className="flex gap-1 mt-3 overflow-x-auto [scrollbar-width:none]">
                         {list.slice(0, 20).map(p => (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img key={p.id} src={photoUrl(g.id, p.id, "t", g.img)} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                          <img key={p.id} src={thumbOf(p)} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
                         ))}
                         {list.length > 20 && <span className="w-14 h-14 rounded-lg bg-[#F1EFF6] text-[#6B6680] text-[12px] font-semibold flex items-center justify-center flex-shrink-0">+{list.length - 20}</span>}
                       </div>

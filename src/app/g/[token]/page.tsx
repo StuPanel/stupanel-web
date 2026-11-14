@@ -2,7 +2,7 @@
 
 /**
  * View-only photos for the family (photo selection → Family link).
- * Watermarked previews, no download and nothing to change. Shows the couple's
+ * The photos come straight from Google Drive; nothing can be changed here. Shows the couple's
  * picks once they have sent them.
  */
 import { use, useEffect, useMemo, useState } from "react";
@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 import { CARD_SHADOW, Chips } from "@/components/ui/apple";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 import { PhotoViewer } from "@/components/photo-viewer";
-import { photoUrl, type SharedGallery } from "@/lib/photos";
+import { foldersOf, thumbOf, viewOf, type SharedGallery } from "@/lib/photos";
 
-type Filter = "all" | "chosen" | "highlights" | `a:${string}`;
+type Filter = "all" | "chosen" | "highlights" | `a:${string}` | `f:${string}`;
 
 export default function FamilyGalleryPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -33,7 +33,7 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
   const chosen = g?.photos.filter(p => p.c).length ?? 0;
   const highlights = g?.photos.filter(p => p.hl).length ?? 0;
   const shown = useMemo(() => (g?.photos ?? []).filter(p =>
-    filter === "all" ? true : filter === "chosen" ? p.c : filter === "highlights" ? p.hl : p.a === filter.slice(2)), [g, filter]);
+    filter === "all" ? true : filter === "chosen" ? p.c : filter === "highlights" ? p.hl : filter.startsWith("f:") ? (p.f ?? "") === filter.slice(2) : p.a === filter.slice(2)), [g, filter]);
 
   if (err) return <PublicMessage icon={ImageOff} tone="red" title="Photos not found" text={err} />;
   if (!g) return <PublicLoading />;
@@ -43,6 +43,7 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
     ...(chosen ? [{ value: "chosen" as Filter, label: `Chosen by ${g.client}`, count: chosen }] : []),
     ...(highlights ? [{ value: "highlights" as Filter, label: "Highlights", count: highlights }] : []),
     ...(g.albums.length > 1 ? g.albums.map(a => ({ value: `a:${a.id}` as Filter, label: a.name, count: g.photos.filter(p => p.a === a.id).length })) : []),
+    ...foldersOf(g.photos).map(f => ({ value: `f:${f}` as Filter, label: f || "Other photos", count: g.photos.filter(p => (p.f ?? "") === f).length })),
   ];
   const vp = view !== null ? shown[view] : null;
   const date = g.event.date ? new Date(g.event.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "";
@@ -54,7 +55,7 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
         <h1 className="text-[26px] sm:text-[32px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{g.event.name || g.title}</h1>
         <p className="mt-1 text-[13.5px] text-[#6B6680]">{[date, `${g.photos.length} photos`].filter(Boolean).join(" · ")}</p>
         <p className={cn("mt-3 inline-flex items-center gap-2 bg-white rounded-full px-3.5 py-2 text-[12.5px] text-[#4A4658]", CARD_SHADOW)}>
-          <Lock className="w-3.5 h-3.5 text-[#6B6680]" />Preview copies to look at — the studio delivers the final photos.
+          <Lock className="w-3.5 h-3.5 text-[#6B6680]" />Photos to look at — the studio delivers the final ones.
         </p>
       </section>
 
@@ -71,7 +72,7 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
             <button key={p.id} type="button" onClick={() => setView(i)} aria-label={`Photo ${i + 1}`}
               className="relative aspect-square rounded-[12px] overflow-hidden bg-[#EEEBF4] group [content-visibility:auto] [contain-intrinsic-size:160px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" loading="lazy" decoding="async" draggable={false}
+              <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" draggable={false} referrerPolicy="no-referrer"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04] select-none" />
               <span className="absolute left-1.5 top-1.5 flex gap-1">
                 {p.c && <span className="w-6 h-6 rounded-full bg-white/95 text-[#C2304F] flex items-center justify-center shadow" title={`Chosen by ${g.client}`}><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
@@ -84,9 +85,9 @@ export default function FamilyGalleryPage({ params }: { params: Promise<{ token:
 
       {vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => setView(null)}
-          src={photoUrl(g.id, vp.id, "v", g.img)}
-          preload={[shown[view + 1], shown[view + 2], shown[view - 1]].filter(Boolean).map(p => photoUrl(g.id, p!.id, "v", g.img))}
-          title={`${view + 1} of ${shown.length}`} sub={g.albums.find(a => a.id === vp.a)?.name}
+          src={viewOf(vp)}
+          preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
+          title={`${view + 1} of ${shown.length}`} sub={[g.albums.find(a => a.id === vp.a)?.name, vp.f].filter(Boolean).join(" · ")}
           footer={vp.c ? <p className="text-center text-[13px] text-white/85 inline-flex items-center justify-center gap-1.5 w-full"><Heart className="w-4 h-4 text-[#FF8FA6]" fill="currentColor" />Chosen by {g.client}</p> : undefined} />
       )}
     </PublicShell>

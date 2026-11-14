@@ -2,14 +2,14 @@
 
 /**
  * One photo selection — the studio's workspace.
- * Steps on top (add photos → albums → previews ready → send), then the albums and every photo
+ * Steps on top (add photos → albums → photos ready → send), then the albums (with their folders) and every photo
  * with the client's marks. Filters, a viewer, and ways to take the choice out (file names, CSV).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Heart, ImagePlus, Images, Link2, Loader2,
+  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, FolderOpen, Heart, ImagePlus, Images, Link2, Loader2,
   MessageSquareText, MoreHorizontal, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -21,10 +21,10 @@ import { PortalAccessModal } from "@/components/portal-access-modal";
 import { SelectLinkModal } from "@/components/select-link-modal";
 import { PhotoViewer } from "@/components/photo-viewer";
 import {
-  albumProgress, isPicked, namesCsv, namesList, photoUrl, STATUS_LABEL, STATUS_STYLE, timeLeft,
+  albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeLeft, viewOf,
   type GalleryDetail, type GPhoto,
 } from "@/lib/photos";
-import { AddPhotos, uploadPhotos, type UploadState } from "../_components/add-photos";
+import { AddPhotos } from "../_components/add-photos";
 import { GallerySettings } from "../_components/gallery-settings";
 import { HandoffPanel } from "../_components/handoff";
 
@@ -49,6 +49,8 @@ export default function GalleryPage() {
   const [g, setG] = useState<GalleryDetail | null>(null);
   const [missing, setMissing] = useState(false);
   const [album, setAlbum] = useState<string>("all");
+  /** Folder inside the album: null = all of them, "" = photos without a folder */
+  const [folderPick, setFolder] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [size, setSize] = useState<keyof typeof SIZES>("m");
   const [view, setView] = useState<number | null>(null);
@@ -61,7 +63,6 @@ export default function GalleryPage() {
   const [link, setLink] = useState<{ url: string } | null | undefined>(undefined);
   const [menu, setMenu] = useState<"copy" | "more" | null>(null);
   const [busy, setBusy] = useState(false);
-  const [upload, setUpload] = useState<UploadState | null>(null);
   const lastReady = useRef(0);
 
   const load = useCallback(async () => {
@@ -71,8 +72,8 @@ export default function GalleryPage() {
   }, [id]);
   useEffect(() => { load(); }, [load]);
 
-  // While previews are being made: watch the numbers, refresh the photos now and then
-  const working = (g?.counts.working ?? 0) > 0 || !!upload?.running;
+  // While photos are being got ready: watch the numbers, refresh the photos now and then
+  const working = (g?.counts.working ?? 0) > 0;
   useEffect(() => {
     if (!working) return;
     let n = 0;
@@ -82,18 +83,20 @@ export default function GalleryPage() {
       if (!r?.ok) return;
       const p = await r.json();
       setG(x => (x ? { ...x, counts: { ...x.counts, total: p.total, ready: p.ready, failed: p.failed, working: p.working } } : x));
-      // New previews show up every few seconds; a big gallery is reloaded less often
+      // Ready photos show up every few seconds; a big gallery is reloaded less often
       const every = p.total > 1500 ? 4 : 2;
-      if ((p.working === 0 && !upload?.running) || (p.ready > lastReady.current && n % every === 0)) load();
+      if (p.working === 0 || (p.ready > lastReady.current && n % every === 0)) load();
     }, 3000);
     return () => clearInterval(t);
-  }, [working, id, load, upload?.running]);
+  }, [working, id, load]);
 
   const albumName = useMemo(() => new Map((g?.albums ?? []).map(a => [a.id, a.name])), [g?.albums]);
+  const folders = useMemo(() => foldersOf(g?.photos ?? [], album === "all" ? undefined : album), [g?.photos, album]);
+  const folder = folderPick !== null && folders.includes(folderPick) ? folderPick : null;
   const shown = useMemo(() => (g?.photos ?? []).filter(p =>
-    (album === "all" || p.a === album) &&
+    (album === "all" || p.a === album) && (folder === null || (p.f ?? "") === folder) &&
     (filter === "all" ? true : filter === "picked" ? isPicked(p.m) : filter === "important" ? p.m === "important" : filter === "rejected" ? p.m === "rejected"
-      : filter === "none" ? !p.m : filter === "notes" ? !!p.no : filter === "highlight" ? p.hl : p.st === "failed")), [g?.photos, album, filter]);
+      : filter === "none" ? !p.m : filter === "notes" ? !!p.no : filter === "highlight" ? p.hl : p.st === "failed")), [g?.photos, album, folder, filter]);
 
   const act = async (action: "send" | "take" | "reopen" | "close", clear?: boolean) => {
     setBusy(true);
@@ -108,7 +111,7 @@ export default function GalleryPage() {
 
   async function send() {
     if (!g) return;
-    if (g.counts.working && !(await askConfirm({ title: "Some previews are still being made", message: `${g.counts.working} photos are not ready yet. The client sees them as soon as they are. Send now?`, confirmLabel: "Send now" }))) return;
+    if (g.counts.working && !(await askConfirm({ title: "Some photos are still getting ready", message: `${g.counts.working} photos are not ready yet. The client sees them as soon as they are. Send now?`, confirmLabel: "Send now" }))) return;
     if (await act("send")) { notify("Sent — share it with the client"); openShare(); }
   }
   // The direct link (no code) for this selection lives with the handoff state.
@@ -148,20 +151,20 @@ export default function GalleryPage() {
   }
   async function remove() {
     setMenu(null);
-    if (!g || !(await askConfirm({ title: "Delete this photo selection?", message: `${g.counts.total} previews and the client's choices are deleted. Your original photos (Drive / computer) are not touched.`, confirmLabel: "Delete", danger: true }))) return;
+    if (!g || !(await askConfirm({ title: "Delete this photo selection?", message: `The ${g.counts.total} photos leave this selection and the client's choices are deleted. Your photos on Google Drive are not touched.`, confirmLabel: "Delete", danger: true }))) return;
     const r = await apiFetch(`${API}/photo-selection/${id}`, { method: "DELETE" }).catch(() => null);
     if (!r?.ok) { notify("Couldn't delete", { error: true }); return; }
     notify("Deleted"); router.push("/photo-selection");
   }
 
-  async function patchPhotos(ids: string[], body: { highlight?: boolean; albumId?: string }) {
+  async function patchPhotos(ids: string[], body: { highlight?: boolean; albumId?: string; folder?: string }) {
     const r = await apiFetch(`${API}/photo-selection/${id}/photos`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, ...body }) }).catch(() => null);
     if (!r?.ok) { notify("Couldn't save", { error: true }); return; }
-    setG(x => x ? { ...x, photos: x.photos.map(p => (ids.includes(p.id) ? { ...p, ...(body.highlight !== undefined ? { hl: body.highlight } : {}), ...(body.albumId ? { a: body.albumId } : {}) } : p)) } : x);
+    setG(x => x ? { ...x, photos: x.photos.map(p => (ids.includes(p.id) ? { ...p, ...(body.highlight !== undefined ? { hl: body.highlight } : {}), ...(body.albumId ? { a: body.albumId } : {}), ...(body.folder !== undefined ? { f: body.folder || null } : {}) } : p)) } : x);
     if (body.albumId) load();
   }
   async function removePhotos(ids: string[]) {
-    if (!(await askConfirm({ title: `Remove ${ids.length} photo${ids.length > 1 ? "s" : ""}?`, message: "Only the preview here is removed — your original is not touched.", confirmLabel: "Remove", danger: true }))) return;
+    if (!(await askConfirm({ title: `Remove ${ids.length} photo${ids.length > 1 ? "s" : ""}?`, message: "They leave this selection only — your photos on Google Drive are not touched.", confirmLabel: "Remove", danger: true }))) return;
     const r = await apiFetch(`${API}/photo-selection/${id}/photos/remove`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => null);
     if (!r?.ok) { notify("Couldn't remove", { error: true }); return; }
     setSel(new Set()); setView(null); notify("Removed"); load();
@@ -187,14 +190,6 @@ export default function GalleryPage() {
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
-  function startUpload(groups: { albumId?: string; albumName?: string; files: File[] }[]) {
-    uploadPhotos(id, groups, s => setUpload(s)).then(s => {
-      load();
-      notify(s.failed ? `${s.done} uploaded, ${s.failed} didn't` : `${s.done} photos uploaded — previews are being made`, { error: s.failed > 0 && !s.done });
-      setTimeout(() => setUpload(u => (u && !u.running ? null : u)), 6000);
-    });
-  }
-
   if (missing) return (
     <div className="max-w-md mx-auto text-center py-20">
       <p className="text-[17px] font-bold text-[#17151F]">This photo selection is not here</p>
@@ -212,7 +207,7 @@ export default function GalleryPage() {
   const steps = [
     { label: "Add photos", done: g.counts.total > 0 },
     { label: "Albums & limits", done: g.albums.length > 0 && g.albums.some(a => a.maxPicks !== null || a.minPicks !== null) },
-    { label: "Previews ready", done: g.counts.ready > 0 && g.counts.working === 0 },
+    { label: "Photos ready", done: g.counts.ready > 0 && g.counts.working === 0 },
     { label: "Send to client", done: g.status !== "preparing" },
   ];
   const vp = view !== null ? shown[view] : null;
@@ -297,24 +292,13 @@ export default function GalleryPage() {
 
       {g.status !== "preparing" && <HandoffPanel g={g} />}
 
-      {/* Making previews / uploads */}
+      {/* Getting photos ready */}
       {(working || g.counts.failed > 0) && (
         <div className={cn("bg-white rounded-[18px] p-4 mb-4", CARD_SHADOW)}>
-          {upload && (upload.running || upload.done + upload.failed > 0) && (
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-[13px] mb-1.5">
-                <span className="font-semibold text-[#17151F] inline-flex items-center gap-1.5">{upload.running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Uploading {upload.done + upload.failed} / {upload.total}</span>
-                <span className="text-[#6B6680] truncate max-w-[50%]">{upload.current}</span>
-              </div>
-              <div className="h-2 rounded-full bg-[#F5F3FA] overflow-hidden"><div className="h-full bg-[#7D5CEF] transition-[width] duration-300" style={{ width: `${upload.total ? ((upload.done + upload.failed) / upload.total) * 100 : 0}%` }} /></div>
-              {upload.notes.map((n, i) => <p key={i} className="text-[12.5px] text-[#C2304F] mt-1.5">{n}</p>)}
-              {upload.running && <p className="text-[12px] text-[#6B6680] mt-1.5">Keep this page open until the upload finishes.</p>}
-            </div>
-          )}
           {g.counts.working > 0 && (
             <div>
               <div className="flex items-center justify-between text-[13px] mb-1.5">
-                <span className="font-semibold text-[#17151F] inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" />Making previews {g.counts.ready} / {g.counts.total}</span>
+                <span className="font-semibold text-[#17151F] inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" />Getting photos ready {g.counts.ready} / {g.counts.total}</span>
                 <span className="text-[#6B6680]">You can leave — it goes on by itself</span>
               </div>
               <div className="h-2 rounded-full bg-[#F5F3FA] overflow-hidden"><div className="h-full bg-[#1F8A5B] transition-[width] duration-700" style={{ width: `${g.counts.total ? (g.counts.ready / g.counts.total) * 100 : 0}%` }} /></div>
@@ -323,7 +307,7 @@ export default function GalleryPage() {
           {g.counts.failed > 0 && (
             <div className="flex items-center gap-3 mt-3 text-[13px]">
               <TriangleAlert className="w-4 h-4 text-[#C2304F]" />
-              <span className="flex-1 text-[#6E1C2D]">{g.counts.failed} photo{g.counts.failed > 1 ? "s" : ""} could not be read.</span>
+              <span className="flex-1 text-[#6E1C2D]">{g.counts.failed} photo{g.counts.failed > 1 ? "s" : ""} can&apos;t be shown.</span>
               <button type="button" onClick={() => { setFilter("problems"); setAlbum("all"); }} className="h-8 px-3 rounded-full bg-[#F5F3FA] text-[12.5px] font-semibold text-[#4A4658]">Show</button>
               <button type="button" onClick={retry} className="h-8 px-3 rounded-full bg-[#17151F] text-white text-[12.5px] font-semibold">Try again</button>
             </div>
@@ -357,6 +341,24 @@ export default function GalleryPage() {
         })}
       </div>
 
+      {/* Folders inside the album */}
+      {folders.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-2 mb-1 [scrollbar-width:none]" role="tablist" aria-label="Folders">
+          {[null, ...folders].map(f => {
+            const n = g.photos.filter(p => (album === "all" || p.a === album) && (f === null || (p.f ?? "") === f));
+            const on = folder === f;
+            return (
+              <button key={f ?? "*"} type="button" role="tab" aria-selected={on} onClick={() => setFolder(f)}
+                className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors",
+                  on ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
+                {f !== null && <FolderOpen className="w-3.5 h-3.5" />}{f === null ? "All folders" : f || "Other photos"}
+                <span className={cn("text-[12px] tabular-nums", on ? "text-white/70" : "text-[#A29DB3]")}>{n.filter(p => isPicked(p.m)).length}/{n.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] flex-1 min-w-0">
@@ -383,7 +385,7 @@ export default function GalleryPage() {
                 <div className="absolute right-0 top-[calc(100%+6px)] z-40 w-72 bg-white rounded-[16px] p-1.5 shadow-[0_12px_40px_rgba(22,18,40,.18)] border border-[#EEEBF4] sp-pop-in">
                   <button type="button" onClick={() => copy("picked")} className="w-full px-3 py-2.5 rounded-[10px] text-left hover:bg-[#F5F3FA] flex gap-2.5"><Copy className="w-4 h-4 mt-0.5 text-[#5B3FD0]" /><span><span className="block text-[14px] font-semibold text-[#17151F]">Copy chosen file names</span><span className="block text-[12px] text-[#6B6680]">{album === "all" ? "By album" : albumName.get(album)} — paste in Lightroom or a note</span></span></button>
                   <button type="button" onClick={() => copy("important")} className="w-full px-3 py-2.5 rounded-[10px] text-left hover:bg-[#F5F3FA] flex gap-2.5"><Heart className="w-4 h-4 mt-0.5 text-[#C2304F]" /><span><span className="block text-[14px] font-semibold text-[#17151F]">Copy “most important” only</span></span></button>
-                  <button type="button" onClick={csv} className="w-full px-3 py-2.5 rounded-[10px] text-left hover:bg-[#F5F3FA] flex gap-2.5"><Download className="w-4 h-4 mt-0.5 text-[#1F8A5B]" /><span><span className="block text-[14px] font-semibold text-[#17151F]">Download list (Excel)</span><span className="block text-[12px] text-[#6B6680]">Album, file, mark and note</span></span></button>
+                  <button type="button" onClick={csv} className="w-full px-3 py-2.5 rounded-[10px] text-left hover:bg-[#F5F3FA] flex gap-2.5"><Download className="w-4 h-4 mt-0.5 text-[#1F8A5B]" /><span><span className="block text-[14px] font-semibold text-[#17151F]">Download list (Excel)</span><span className="block text-[12px] text-[#6B6680]">Album, folder, file, mark and note</span></span></button>
                 </div>
               </>
             )}
@@ -396,7 +398,7 @@ export default function GalleryPage() {
         <div className={cn("bg-white rounded-[22px] p-10 text-center", CARD_SHADOW)}>
           <span className="w-16 h-16 mx-auto rounded-[20px] bg-[#FDECEF] text-[#C2304F] flex items-center justify-center"><Images className="w-7 h-7" /></span>
           <p className="text-[17px] font-bold text-[#17151F] mt-4">Add the photos</p>
-          <p className="text-[14px] text-[#6B6680] mt-1 max-w-md mx-auto">From the program&apos;s raw files or delivery on Drive, or from this computer. Each folder can be its own album.</p>
+          <p className="text-[14px] text-[#6B6680] mt-1 max-w-md mx-auto">From the program&apos;s raw files or delivery on Google Drive, or from your phone or computer. Folders like Holud, Wedding and Reception all go into one album.</p>
           <button type="button" onClick={() => setAdding(true)} className="mt-5 h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />Add photos</button>
         </div>
       ) : shown.length === 0 ? (
@@ -413,11 +415,11 @@ export default function GalleryPage() {
                 aria-label={p.n}>
                 {p.t ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrl(g.id, p.id, "t", g.img)} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                  <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
                 ) : (
                   <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#A29DB3] p-2 text-center">
                     {p.st === "failed" ? <TriangleAlert className="w-5 h-5 text-[#C2304F]" /> : <Loader2 className="w-5 h-5 animate-spin" />}
-                    <span className="text-[11.5px] leading-tight line-clamp-2">{p.st === "failed" ? p.err || "Could not read" : p.n}</span>
+                    <span className="text-[11.5px] leading-tight line-clamp-2">{p.st === "failed" ? p.err || "Can't be shown" : p.n}</span>
                   </span>
                 )}
                 <span className="absolute left-1.5 top-1.5 flex gap-1"><MarkBadge m={p.m} />{p.no && <span className="w-6 h-6 rounded-full bg-white/95 text-[#5B3FD0] flex items-center justify-center shadow" title={p.no}><StickyNote className="w-3.5 h-3.5" /></span>}</span>
@@ -438,8 +440,16 @@ export default function GalleryPage() {
           {g.albums.length > 1 && (
             <select defaultValue="" onChange={e => { if (e.target.value) patchPhotos([...sel], { albumId: e.target.value }); e.target.value = ""; }} aria-label="Move to album"
               className="h-9 px-3 rounded-full bg-white/10 text-[13px] font-semibold outline-none">
-              <option value="" disabled>Move to…</option>
+              <option value="" disabled>Album…</option>
               {g.albums.map(a => <option key={a.id} value={a.id} className="text-[#17151F]">{a.name}</option>)}
+            </select>
+          )}
+          {folders.length > 0 && (
+            <select defaultValue="" onChange={e => { if (e.target.value) patchPhotos([...sel], { folder: e.target.value === "-" ? "" : e.target.value }); e.target.value = ""; }} aria-label="Move to folder"
+              className="h-9 px-3 rounded-full bg-white/10 text-[13px] font-semibold outline-none max-w-[130px]">
+              <option value="" disabled>Folder…</option>
+              {folders.filter(Boolean).map(f => <option key={f} value={f} className="text-[#17151F]">{f}</option>)}
+              <option value="-" className="text-[#17151F]">No folder</option>
             </select>
           )}
           <button type="button" onClick={() => removePhotos([...sel])} className="h-9 px-3 rounded-full bg-[#C2304F] text-[13px] font-semibold inline-flex items-center gap-1.5"><Trash2 className="w-4 h-4" />Remove</button>
@@ -449,9 +459,9 @@ export default function GalleryPage() {
       {/* Viewer */}
       {vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => setView(null)}
-          src={photoUrl(g.id, vp.id, "v", g.img)}
-          preload={[shown[view + 1], shown[view + 2], shown[view - 1]].filter(Boolean).filter(p => p!.t).map(p => photoUrl(g.id, p!.id, "v", g.img))}
-          title={vp.n} sub={albumName.get(vp.a)}
+          src={viewOf(vp)}
+          preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).filter(p => p!.t).map(p => viewOf(p!))}
+          title={vp.n} sub={[albumName.get(vp.a), vp.f].filter(Boolean).join(" · ")}
           onKey={e => { if (e.key.toLowerCase() === "h") { patchPhotos([vp.id], { highlight: !vp.hl }); return true; } return false; }}
           footer={
             <div className="max-w-2xl mx-auto flex flex-col gap-2">
@@ -469,7 +479,7 @@ export default function GalleryPage() {
           } />
       )}
 
-      {adding && <AddPhotos galleryId={g.id} programId={g.program.id} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} onUpload={startUpload} />}
+      {adding && <AddPhotos galleryId={g.id} programId={g.program.id} programName={g.program.name} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} />}
       {settings && <GallerySettings g={g} onClose={() => setSettings(false)} onSaved={load} />}
       {sharing && (
         <SelectLinkModal title="Share photo selection" what="this photo selection" client={g.client} link={link}

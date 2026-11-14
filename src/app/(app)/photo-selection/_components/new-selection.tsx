@@ -72,11 +72,6 @@ export function NewSelection({ onClose, onCreated, programId }: { onClose: () =>
 
   function pick(b: Program) {
     setProgram(b);
-    // Suggest one album per day of the program (Holud, Wedding…) when it has more than one
-    const days = [...new Set((b.eventDays ?? []).map(d => d.eventType).filter(Boolean) as string[])];
-    if (days.length > 1 && albums.length === 1 && albums[0].name === "Album" && !albums[0].max) {
-      setAlbums(days.slice(0, 6).map(d => ({ key: key(), name: d, min: "", max: "", allowExtra: false })));
-    }
   }
 
   const clientName = (b?: Program | null) => (b?.client ? `${b.client.firstName} ${b.client.lastName ?? ""}`.trim() : "");
@@ -157,7 +152,7 @@ export function NewSelection({ onClose, onCreated, programId }: { onClose: () =>
         )}
       </Step>
 
-      <Step n={2} title="Albums" sub="How many photos go in each? Leave empty for no limit." done={!!program && albumsOk}>
+      <Step n={2} title="Albums" sub="Usually one album: Holud, Wedding and Reception go inside it as folders when you add the photos. How many photos should it have? Leave empty for no limit." done={!!program && albumsOk}>
         <div className="grid grid-cols-[minmax(0,1fr)_64px_64px_32px] gap-2 px-1 mb-1.5 text-[12px] font-semibold text-[#6B6680]">
           <span>Album</span><span className="text-center">Fewest</span><span className="text-center">Most</span><span />
         </div>

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, FolderOpen, Heart, ImagePlus, Images, Link2, Loader2,
+  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, ImagePlus, Images, Link2, Loader2,
   MessageSquareText, MoreHorizontal, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -21,7 +21,7 @@ import { PortalAccessModal } from "@/components/portal-access-modal";
 import { SelectLinkModal } from "@/components/select-link-modal";
 import { PhotoViewer } from "@/components/photo-viewer";
 import {
-  albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeLeft, viewOf,
+  albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeAgo, timeLeft, viewOf, zoomOf,
   type GalleryDetail, type GPhoto,
 } from "@/lib/photos";
 import { AddPhotos, syncUploads } from "../_components/add-photos";
@@ -305,6 +305,26 @@ export default function GalleryPage() {
         <div className="mb-4 rounded-[18px] bg-white p-4 flex items-start gap-3"><MessageSquareText className="w-5 h-5 text-[#5B3FD0] flex-shrink-0 mt-0.5" /><p className="text-[14px] text-[#17151F]">“{g.clientNote}”</p></div>
       )}
 
+      {/* What the client has done so far — also before they send */}
+      {(g.status === "open" || g.status === "submitted") && g.activity && (
+        <div className={cn("mb-4 rounded-[18px] bg-white px-4 py-3 flex items-center gap-3 flex-wrap", CARD_SHADOW)}>
+          <span className={cn("w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0", g.activity.opens ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#A29DB3]")}><Eye className="w-4 h-4" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-semibold text-[#17151F]">
+              {g.activity.opens
+                ? `${g.client.firstName} opened it ${g.activity.opens} time${g.activity.opens === 1 ? "" : "s"} · last ${timeAgo(g.activity.lastOpenAt)}`
+                : `${g.client.firstName} has not opened it yet`}
+            </p>
+            <p className="text-[12.5px] text-[#6B6680]">
+              {g.counts.picked
+                ? `${g.counts.picked} of ${g.counts.ready} chosen so far${g.activity.lastPickAt ? ` · last choice ${timeAgo(g.activity.lastPickAt)}` : ""}${g.status === "open" ? " · not sent yet" : ""}`
+                : g.activity.opens ? "Nothing chosen yet" : "You see here when they open the link and how many they have chosen."}
+            </p>
+          </div>
+          <button type="button" onClick={load} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5 flex-shrink-0"><RefreshCw className="w-3.5 h-3.5" />Refresh</button>
+        </div>
+      )}
+
       {g.status !== "preparing" && <HandoffPanel g={g} />}
 
       {/* Getting photos ready */}
@@ -475,6 +495,7 @@ export default function GalleryPage() {
       {vp && view !== null && (
         <PhotoViewer count={shown.length} index={view} onIndex={setView} onClose={() => setView(null)}
           src={viewOf(vp)}
+          srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).filter(p => p!.t).map(p => viewOf(p!))}
           title={vp.n} sub={[albumName.get(vp.a), vp.f].filter(Boolean).join(" · ")}
           onKey={e => { if (e.key.toLowerCase() === "h") { patchPhotos([vp.id], { highlight: !vp.hl }); return true; } return false; }}

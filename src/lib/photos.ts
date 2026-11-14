@@ -43,6 +43,8 @@ export type GalleryDetail = {
   program: { id: string; name: string; number: string; date: string | null };
   client: { id: string; name: string; firstName: string; lastName: string | null; phone: string | null; email: string | null };
   albums: Album[]; counts: Counts; photos: GPhoto[];
+  /** What the client has done so far, also before sending */
+  activity?: { opens: number; lastOpenAt: string | null; lastPickAt: string | null };
 };
 
 export type ClientGalleryCard = {
@@ -55,6 +57,8 @@ export type ClientGallery = {
   id: string; title: string; status: GalleryStatus; deadline: string | null; welcome: string | null; allowNotes: boolean;
   clientNote: string | null; submittedAt: string | null; takenAt: string | null; reopenRequestedAt: string | null;
   studio: string; canChange: boolean; lockedWhy: string;
+  /** For the welcome screen */
+  studioLogo?: string | null; clientName?: string; program?: { name: string | null; date: string | null };
   albums: Album[]; photos: GPhoto[];
 };
 
@@ -68,6 +72,9 @@ export const drivePhoto = (driveFileId: string, width: number = THUMB_W) => `htt
 /** Small (grid) and big (opened) links of a photo; "" while it is not ready. */
 export const thumbOf = (p: { d: string | null }) => (p.d ? drivePhoto(p.d, THUMB_W) : "");
 export const viewOf = (p: { d: string | null }) => (p.d ? drivePhoto(p.d, VIEW_W) : "");
+/** A sharper copy, loaded only when someone zooms in. */
+export const ZOOM_W = 2560;
+export const zoomOf = (p: { d: string | null }) => (p.d ? drivePhoto(p.d, ZOOM_W) : "");
 
 /** The folders inside an album, in the order the photos come (photos without one are last, as ""). */
 export function foldersOf(photos: { a: string; f: string | null }[], albumId?: string) {
@@ -95,6 +102,18 @@ export const STATUS_STYLE: Record<GalleryStatus, string> = {
   taken: "bg-[#E6EEF8] text-[#1F5C99]",
   closed: "bg-[#F5F3FA] text-[#A29DB3]",
 };
+
+/** "just now", "12 min ago", "3 hours ago", "2 days ago" */
+export function timeAgo(iso: string | null | undefined, now = Date.now()) {
+  if (!iso) return "";
+  const m = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  if (m < 2) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
+}
 
 /** "3 days left", "Ends today", "Ended" */
 export function timeLeft(deadline: string | null, now = Date.now()) {

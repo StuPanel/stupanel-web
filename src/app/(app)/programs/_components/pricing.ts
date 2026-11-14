@@ -79,6 +79,8 @@ export function buildBill(opts: {
     lines.get(memberId)!.push(line);
   };
   let rentedFromOutside = 0;
+  /** Rent the user pays (taken off their bill): per user + gear, the units already charged. */
+  const charged = new Map<string, { userId: string; ownerName: string; name: string; price: number; unit: string; shifts: number; days: Set<string>; program: boolean }>();
 
   for (const [memberId, works] of byMember) {
     const m = team.find(t => t.id === memberId);
@@ -145,6 +147,14 @@ export function buildBill(opts: {
             days: [...dayIds], shifts: shiftsUsed, users: [...users],
           };
           if (existing) Object.assign(existing, line); else add(g.ownerId, line);
+          // The person who used it pays: the owner still gets the rent from the studio, and the studio takes
+          // the same rent off the user's pay — so the studio itself pays nothing for it.
+          if (w.a.rentPaidBy === "member" && rent.price > 0 && memberId !== g.ownerId) {
+            const ck = `${memberId}|${g.ownerId}|${g.itemId}`;
+            const c = charged.get(ck) ?? { userId: memberId, ownerName, name: listed?.name ?? g.name, price: rent.price, unit: rent.unit, shifts: 0, days: new Set<string>(), program: false };
+            c.shifts += 1; c.days.add(w.day.id); c.program = true; c.price = rent.price; c.unit = rent.unit;
+            charged.set(ck, c);
+          }
         }
       }
       // Rented from outside
@@ -163,6 +173,23 @@ export function buildBill(opts: {
         }
       }
     }
+  }
+
+  // Rent paid by the person who used the gear: one deduction line per user + gear.
+  // Per day / per program rent is charged once to the first person who pays it, so the cut is never more than the rent.
+  const dayTaken = new Map<string, Set<string>>(); const programTaken = new Set<string>();
+  for (const [ck, c] of charged) {
+    const gearKey = ck.split("|").slice(1).join("|");
+    let q = 0;
+    if (c.unit === "per_shift") q = c.shifts;
+    else if (c.unit === "per_day") { const taken = dayTaken.get(gearKey) ?? new Set<string>(); for (const d of c.days) if (!taken.has(d)) { taken.add(d); q += 1; } dayTaken.set(gearKey, taken); }
+    else if (!programTaken.has(gearKey)) { programTaken.add(gearKey); q = 1; }
+    if (q <= 0) continue;
+    add(c.userId, {
+      id: lid(), key: `rentcut|${gearKey}`, kind: "deduction", auto: true, label: `Gear rent · ${c.name}`,
+      qty: q, unit: c.unit, unitPrice: c.price, amount: Math.round(c.price * q),
+      note: `${q} ${(UNIT_WORD[c.unit] ?? ["", ""])[q === 1 ? 0 : 1]} · ${c.ownerName}'s gear — the studio pays ${c.ownerName} and takes it from this pay`,
+    });
   }
 
   // Editing work: one line each, priced per program (or the first price they have for that work)

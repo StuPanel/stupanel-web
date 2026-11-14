@@ -189,6 +189,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
   const [setup, setSetup] = useState<SetupMode>("own");
   const [gear, setGear] = useState<{ ownerId: string; itemId?: string; name: string }[]>([]);
   const [studioGear, setStudioGear] = useState("");
+  const [rentPaidBy, setRentPaidBy] = useState<"studio" | "member">("studio");
   const [rental, setRental] = useState({ vendor: "", item: "", amount: "", paidBy: "studio" as "studio" | "member" });
   const [slots, setSlots] = useState<string[]>([]);
   const [q, setQ] = useState("");
@@ -202,6 +203,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
     setGear((a?.gear ?? []).filter(g => g.ownerId !== "studio" || !!g.itemId));
     setStudioGear((a?.gear ?? []).find(g => g.ownerId === "studio" && !g.itemId)?.name ?? "");
     setRental(a?.rental ? { ...a.rental, amount: String(a.rental.amount || "") } : { vendor: "", item: "", amount: "", paidBy: "studio" });
+    setRentPaidBy(a?.rentPaidBy ?? "studio");
     const s = editing?.slot ?? start;
     setSlots(s ? [`${s.dayId}|${s.shiftId}`] : []);
     setQ(""); setFl({ open: false, name: "", phone: "", saving: false, err: "" });
@@ -249,7 +251,10 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
   function save() {
     if (!memberId || !roleId || !slots.length) return;
     const a: ShiftAssignment = { id: memberId, role: roleId, setup };
-    if (setup === "other") a.gear = [...gear, ...(studioGear.trim() ? [{ ownerId: "studio", name: studioGear.trim() }] : [])];
+    if (setup === "other") {
+      a.gear = [...gear, ...(studioGear.trim() ? [{ ownerId: "studio", name: studioGear.trim() }] : [])];
+      if (rentPaidBy === "member" && gear.some(g => g.ownerId !== "studio")) a.rentPaidBy = "member";
+    }
     if (setup === "rented") a.rental = { vendor: rental.vendor.trim(), item: rental.item.trim(), amount: num(rental.amount), paidBy: rental.paidBy };
     onSave(a, slots.map(s => { const [dayId, shiftId] = s.split("|"); return { dayId, shiftId }; }), editing ?? undefined);
     onClose();
@@ -405,6 +410,21 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                     </div>
                   );
                 })()}
+                {gear.some(g => g.ownerId !== "studio") && member && (
+                  <div className="rounded-[14px] bg-[#F5F3FA] p-3">
+                    <p className="text-[12px] font-bold text-[#4A4658] mb-2">Who pays the rent?</p>
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Who pays the rent">
+                      {([["studio", "The studio", "A cost of this program"], ["member", member.firstName, "Taken from their pay here"]] as const).map(([v, l, d]) => (
+                        <button key={v} type="button" role="radio" aria-checked={rentPaidBy === v} onClick={() => setRentPaidBy(v)}
+                          className={cn("p-2.5 rounded-[12px] text-left", rentPaidBy === v ? "bg-white ring-2 ring-[#7D5CEF]" : "bg-white/60 hover:bg-white")}>
+                          <span className="block text-[13px] font-bold text-[#17151F] truncate">{l}</span>
+                          <span className="block text-[11.5px] text-[#6B6680] leading-snug">{d}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11.5px] text-[#6B6680] mt-2 leading-snug">The owner always gets the rent from the studio on the team bill. If {member.firstName} pays, the same amount is taken off {member.firstName}&apos;s pay on this program.</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[12px] font-bold text-[#4A4658] mb-1.5">Studio gear <span className="font-medium text-[#6B6680]">— no rent</span></p>
                   {(check?.studioGear.length ?? 0) > 0 && (

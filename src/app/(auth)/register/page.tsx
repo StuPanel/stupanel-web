@@ -83,6 +83,11 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    // The browser's saved-login fill can put the email into the first box (the studio name).
+    if (form.companyName.includes("@") || form.companyName.trim().toLowerCase() === form.email.trim().toLowerCase()) {
+      setError("The studio name looks like an email. Type your studio's name, e.g. Golden Frame Studio.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"}/auth/register`, {
@@ -126,7 +131,7 @@ export default function RegisterPage() {
           <div className="relative">
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input id="companyName" placeholder="e.g. Golden Frame Studio"
-              value={form.companyName} onChange={set("companyName")}
+              value={form.companyName} onChange={set("companyName")} autoComplete="organization" name="organization"
               className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" required />
           </div>
         </div>
@@ -138,14 +143,14 @@ export default function RegisterPage() {
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
               <Input id="firstName" placeholder="First name"
-                value={form.firstName} onChange={set("firstName")}
+                value={form.firstName} onChange={set("firstName")} autoComplete="given-name"
                 className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" required />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="lastName" className="text-[#33303F] text-sm font-medium">Last Name</Label>
             <Input id="lastName" placeholder="Last name"
-              value={form.lastName} onChange={set("lastName")}
+              value={form.lastName} onChange={set("lastName")} autoComplete="family-name"
               className="h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" required />
           </div>
         </div>
@@ -156,7 +161,7 @@ export default function RegisterPage() {
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8599]" />
             <Input id="email" type="email" placeholder="you@studio.com"
-              value={form.email} onChange={set("email")}
+              value={form.email} onChange={set("email")} autoComplete="email" name="email"
               className="pl-10 h-11 bg-white border-[#E4E0EC] focus:border-indigo-400" required />
           </div>
         </div>

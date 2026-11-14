@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
+import { StudioDeletionsTab } from "../_components/studio-deletions";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -461,7 +462,8 @@ const ACCESS_COLOR: Record<string, string> = {
 
 export default function AdminStudiosPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "deleting" | "archived">("active");
+  const [deletingCount, setDeletingCount] = useState<number | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -488,6 +490,13 @@ export default function AdminStudiosPage() {
   }, [router, search, status]);
 
   useEffect(() => { load(); }, []);
+  // How many studios are waiting to be deleted, for the tab label.
+  useEffect(() => {
+    fetch(`${API}/admin/studios/deletions`, { headers: authH() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setDeletingCount((d.waiting ?? []).length))
+      .catch(() => {});
+  }, []);
 
   async function toggleSuspend(studio: any) {
     setActionLoading(studio.id);
@@ -514,17 +523,20 @@ export default function AdminStudiosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1 w-fit">
-        {([["active", "Active Studios"], ["archived", "Archived"]] as const).map(([key, label]) => (
+      <div className="flex gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1 w-fit max-w-full overflow-x-auto">
+        {([["active", "Active Studios"], ["deleting", "Being deleted"], ["archived", "Archived"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setActiveTab(key)}
-            className={cn("px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
+            className={cn("px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1.5",
               activeTab === key ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200")}>
             {label}
+            {key === "deleting" && !!deletingCount && (
+              <span className="text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-red-500/80 text-white inline-flex items-center justify-center">{deletingCount}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {activeTab === "archived" ? <ArchivedTab /> : (
+      {activeTab === "deleting" ? <StudioDeletionsTab onCount={setDeletingCount} /> : activeTab === "archived" ? <ArchivedTab /> : (
         <>
           {/* Filters */}
           <div className="flex gap-3 flex-wrap">
@@ -576,6 +588,12 @@ export default function AdminStudiosPage() {
                               <Link href={`/admin/studios/${studio.id}`} className="font-medium text-white hover:text-indigo-300 hover:underline">{studio.name}</Link>
                               <p className="text-xs text-slate-500">/{studio.slug}</p>
                             </div>
+                            {studio.deletionScheduledFor && (
+                              <button type="button" onClick={() => setActiveTab("deleting")}
+                                className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-red-900/40 text-red-300 border border-red-800 font-semibold whitespace-nowrap">
+                                <Trash2 className="w-2.5 h-2.5" />Deleted on {fmtDate(studio.deletionScheduledFor)}
+                              </button>
+                            )}
                             {isOwnStudio && (
                               <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold whitespace-nowrap">
                                 Platform Owner

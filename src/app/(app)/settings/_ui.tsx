@@ -6,7 +6,7 @@
  * controls. Changes save on their own — toggles and pickers right away,
  * text when you leave the field.
  */
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
@@ -156,6 +156,34 @@ export function useSynced<T>(value: T): [T, (v: T) => void] {
   if (value !== prev) { setPrev(value); setV(value); }
   return [v, setV];
 }
+/**
+ * Saves typed text on its own: 1.2 s after typing stops, and if the field goes away
+ * (page change, tab closed) before it lost focus. Leaving the field still saves at once.
+ */
+function useAutoCommit(v: string, value: string, onCommit: (v: string) => void, clean: (v: string) => string = (x) => x) {
+  const sent = useRef(value);
+  const latest = useRef({ v, value, onCommit, clean });
+  useEffect(() => { latest.current = { v, value, onCommit, clean }; });
+  useEffect(() => { sent.current = value; }, [value]);
+  const commit = useCallback(() => {
+    const { v: cur, value: saved, onCommit: send, clean: fix } = latest.current;
+    const next = fix(cur);
+    if (next !== saved && next !== sent.current) { sent.current = next; send(next); }
+  }, []);
+  useEffect(() => {
+    if (clean(v) === value) return;
+    const t = setTimeout(commit, 1200);
+    return () => clearTimeout(t);
+  }, [v, value, commit, clean]);
+  useEffect(() => {
+    const flush = () => commit();
+    window.addEventListener("pagehide", flush);
+    return () => { window.removeEventListener("pagehide", flush); flush(); };
+  }, [commit]);
+  return commit;
+}
+const trimText = (x: string) => x.trim();
+
 const fieldBase =
   "h-10 rounded-full bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 transition-shadow";
 
@@ -179,16 +207,13 @@ export function Select<T extends string | number>({ value, options, onChange, la
   );
 }
 
-/** Text that saves when you leave the field (or press Enter). */
+/** Text that saves when you leave the field, press Enter, or stop typing for a moment. */
 export function TextField({ value, onCommit, label, placeholder, type = "text", wide, maxLength, mono, align = "left" }: {
   value: string; onCommit: (v: string) => void; label: string; placeholder?: string;
   type?: string; wide?: boolean; maxLength?: number; mono?: boolean; align?: "left" | "right";
 }) {
   const [v, setV] = useSynced(value);
-  function commit() {
-    const next = v.trim();
-    if (next !== value) onCommit(next);
-  }
+  const commit = useAutoCommit(v, value, onCommit, trimText);
   return (
     <input aria-label={label} type={type} value={v} placeholder={placeholder} maxLength={maxLength}
       onChange={e => setV(e.target.value)} onBlur={commit}
@@ -224,11 +249,12 @@ export function TextArea({ value, onCommit, label, placeholder, rows = 4, maxLen
   value: string; onCommit: (v: string) => void; label: string; placeholder?: string; rows?: number; maxLength?: number; mono?: boolean;
 }) {
   const [v, setV] = useSynced(value);
+  const commit = useAutoCommit(v, value, onCommit);
   return (
     <div>
       <textarea aria-label={label} value={v} rows={rows} placeholder={placeholder} maxLength={maxLength}
         onChange={e => setV(e.target.value)}
-        onBlur={() => { if (v !== value) onCommit(v); }}
+        onBlur={commit}
         className={cn("w-full px-4 py-3 rounded-[16px] bg-[#F5F3FA] text-sm text-[#17151F] placeholder:text-[#9893A8] leading-relaxed",
           "focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 resize-y")} />
       {maxLength && <p className="text-xs text-[#6B6680] text-right mt-1 tabular-nums">{v.length}/{maxLength}</p>}

@@ -24,7 +24,8 @@ import {
   albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeLeft, viewOf,
   type GalleryDetail, type GPhoto,
 } from "@/lib/photos";
-import { AddPhotos } from "../_components/add-photos";
+import { AddPhotos, syncUploads } from "../_components/add-photos";
+import { uploadStore } from "@/lib/upload-store";
 import { GallerySettings } from "../_components/gallery-settings";
 import { HandoffPanel } from "../_components/handoff";
 
@@ -71,6 +72,20 @@ export default function GalleryPage() {
     if (r?.ok) { const d: GalleryDetail = await r.json(); setG(d); lastReady.current = d.counts.ready; }
   }, [id]);
   useEffect(() => { load(); }, [load]);
+
+  // Photos uploaded to the program's Drive folder that are not here yet (a reloaded tab, an upload continued
+  // later, another device): bring them in when the page opens, and every 20 s while this program is uploading.
+  const sync = useCallback(async () => { if (await syncUploads(id)) load(); }, [id, load]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void sync(); }, [sync]);
+  const programId = g?.program.id;
+  const [uploading, setUploading] = useState(false);
+  useEffect(() => uploadStore.subscribe(list => setUploading(!!programId && list.some(u => u.bookingId === programId && !u.done && !u.error && !u.cancelled))), [programId]);
+  useEffect(() => {
+    if (!uploading) return;
+    const t = setInterval(() => void sync(), 20000);
+    return () => { clearInterval(t); void sync(); };
+  }, [uploading, sync]);
 
   // While photos are being got ready: watch the numbers, refresh the photos now and then
   const working = (g?.counts.working ?? 0) > 0;

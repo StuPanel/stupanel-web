@@ -16,7 +16,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { PortalAccessModal } from "@/components/portal-access-modal";
 import { SelectLinkModal } from "@/components/select-link-modal";
 import { inputCls } from "@/components/ui/form-kit";
-import { musicAsText, type LibrarySong, type MusicPart, type MusicSelection, type MusicSuggestion } from "@/lib/music";
+import { musicAsText, partSlug, type LibrarySong, type MusicPart, type MusicSelection, type MusicSuggestion, type MusicTag } from "@/lib/music";
 import type { Booking } from "./types";
 
 type Client = { id: string; firstName: string; lastName?: string | null; phone?: string | null };
@@ -27,6 +27,9 @@ const err = async (r: Response) => { const d = await r.json().catch(() => ({}));
 export function MusicSection({ booking }: { booking: Booking }) {
   const [sel, setSel] = useState<MusicSelection | null>(null);
   const [defaults, setDefaults] = useState<MusicPart[]>([]);
+  /** The program's days (with the shared event each name means) and the kinds of video — for the parts builder. */
+  const [days, setDays] = useState<{ name: string; event?: string }[]>([]);
+  const [videoKinds, setVideoKinds] = useState<MusicTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [setup, setSetup] = useState(false);
   const [parts, setParts] = useState<MusicPart[]>([]);
@@ -44,7 +47,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
   /** The studio's own music tags (e.g. Outdoor trailer) — offered as parts too. */
   const [ownTags, setOwnTags] = useState<string[]>([]);
   useEffect(() => {
-    apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null)).then(d => setOwnTags(Array.isArray(d?.musicTags) ? d.musicTags : [])).catch(() => {});
+    apiFetch(`${API}/music/tags`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) { setVideoKinds(d.videos ?? []); setOwnTags(Array.isArray(d.own) ? d.own : []); } }).catch(() => {});
   }, []);
 
   const client = (booking as unknown as { client?: Client }).client;
@@ -53,7 +56,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
   const load = useCallback(async () => {
     try {
       const r = await apiFetch(`${API}/music/booking/${booking.id}`);
-      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); setShareLink(d.link ?? null); }
+      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); setDays(d.days ?? []); setShareLink(d.link ?? null); }
     } finally { setLoading(false); }
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
@@ -146,23 +149,56 @@ export function MusicSection({ booking }: { booking: Booking }) {
   if (setup) {
     return (
       <div className="rounded-[16px] bg-[#F5F3FA] p-4 space-y-3">
-        <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-2"><Music2 className="w-4 h-4 text-[#9E3A8C]" />Which parts need music?</p>
-        <div className="flex flex-wrap gap-1.5">
-          {parts.map(p => (
-            <span key={p.key} className={cn(chip, "bg-white text-[#17151F] pr-1.5")}>
-              {p.label}
-              <button type="button" aria-label={`Remove ${p.label}`} onClick={() => setParts(parts.filter(x => x.key !== p.key))} className="w-5 h-5 rounded-full hover:bg-[#EEEBF4] flex items-center justify-center text-[#6B6680]"><X className="w-3 h-3" /></button>
-            </span>
-          ))}
-          {defaults.filter(d => !parts.some(p => p.key === d.key)).map(d => (
-            <button key={d.key} type="button" onClick={() => setParts([...parts, d])} className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#6B6680]")}><Plus className="w-3 h-3" />{d.label}</button>
-          ))}
-          {ownTags.filter(t => ![...parts, ...defaults].some(p => p.label.toLowerCase() === t.toLowerCase())).map(t => (
-            <button key={`tag-${t}`} type="button" onClick={() => setParts([...parts, { key: `custom-${Date.now()}-${t.length}`, label: t, kind: "custom" }])} className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#6B6680]")}><Plus className="w-3 h-3" />{t}</button>
-          ))}
+        <div>
+          <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-2"><Music2 className="w-4 h-4 text-[#9E3A8C]" />Which videos need music?</p>
+          <p className="text-[12.5px] text-[#6B6680] mt-0.5">Tick the videos you will make. The client only has to open each one and choose songs for it.</p>
         </div>
+        {/* One row per day, then the whole program: tick the kinds of video */}
+        <div className="space-y-2">
+          {[...days.map(d => ({ day: d as { name: string; event?: string } | null })), { day: null }].map(({ day }) => {
+            const key = (video: string | null) => `p-${day ? partSlug(day.name) : "all"}-${video ?? "any"}`;
+            const has = (video: string | null) => parts.some(p => p.key === key(video));
+            const toggle = (video: string | null, name: string) => {
+              const k = key(video);
+              if (has(video)) { setParts(parts.filter(p => p.key !== k)); return; }
+              const label = [day?.name, name].filter(Boolean).join(" · ").slice(0, 60);
+              setParts([...parts, { key: k, label, kind: day && video ? "custom" : day ? "day" : "video", ...(day?.event ? { event: day.event } : {}), ...(video ? { video } : {}) }]);
+            };
+            const n = parts.filter(p => p.key.startsWith(`p-${day ? partSlug(day.name) : "all"}-`)).length;
+            return (
+              <div key={day?.name ?? "*"} className="rounded-[14px] bg-white p-3">
+                <p className="text-[13px] font-bold text-[#17151F] mb-2 flex items-center gap-2">{day ? day.name : days.length ? "For the whole program" : "Videos"}
+                  {n > 0 && <span className="h-5 px-1.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11px] font-bold inline-flex items-center">{n}</span>}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {day && (
+                    <button type="button" aria-pressed={has(null)} onClick={() => toggle(null, "")} title="One choice of songs for this day, whatever the video"
+                      className={cn(chip, has(null) ? "bg-[#7D5CEF] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>{has(null) && <Check className="w-3 h-3" strokeWidth={3} />}Any video</button>
+                  )}
+                  {videoKinds.map(v => (
+                    <button key={v.id} type="button" aria-pressed={has(v.id)} onClick={() => toggle(v.id, v.name)}
+                      className={cn(chip, has(v.id) ? "bg-[#7D5CEF] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>{has(v.id) && <Check className="w-3 h-3" strokeWidth={3} />}{v.name}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Parts made by hand (and older ones) */}
+        {(parts.some(p => !p.key.startsWith("p-")) || ownTags.length > 0) && (
+          <div className="flex flex-wrap gap-1.5">
+            {parts.filter(p => !p.key.startsWith("p-")).map(p => (
+              <span key={p.key} className={cn(chip, "bg-white text-[#17151F] pr-1.5")}>
+                {p.label}
+                <button type="button" aria-label={`Remove ${p.label}`} onClick={() => setParts(parts.filter(x => x.key !== p.key))} className="w-5 h-5 rounded-full hover:bg-[#EEEBF4] flex items-center justify-center text-[#6B6680]"><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+            {ownTags.filter(t => !parts.some(p => p.label.toLowerCase() === t.toLowerCase())).map(t => (
+              <button key={`tag-${t}`} type="button" onClick={() => setParts([...parts, { key: `custom-${Date.now()}-${t.length}`, label: t, kind: "custom" }])} className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#6B6680]")}><Plus className="w-3 h-3" />{t}</button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2">
-          <input value={newPart} onChange={e => setNewPart(e.target.value)} placeholder="Add another part — e.g. Entry song, Reel" aria-label="New part name" maxLength={60}
+          <input value={newPart} onChange={e => setNewPart(e.target.value)} placeholder="Something else — e.g. Bride entry, Cake cutting" aria-label="New part name" maxLength={60}
             onKeyDown={e => { if (e.key === "Enter" && newPart.trim()) { setParts([...parts, { key: `custom-${Date.now()}`, label: newPart.trim(), kind: "custom" }]); setNewPart(""); } }}
             className={cn(inputCls, "h-10 bg-white")} />
           <button type="button" disabled={!newPart.trim()} onClick={() => { setParts([...parts, { key: `custom-${Date.now()}`, label: newPart.trim(), kind: "custom" }]); setNewPart(""); }}

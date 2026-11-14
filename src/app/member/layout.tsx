@@ -217,7 +217,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
         <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-0 pt-1 lg:pt-6 pb-28 lg:pb-8">
           <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">{children}</div>
-          <FloatingUploadPanel lift />
+          <FloatingUploadPanel />
         </main>
 
         {/* Mobile bottom tab bar */}

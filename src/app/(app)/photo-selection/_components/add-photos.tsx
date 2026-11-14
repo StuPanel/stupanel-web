@@ -36,45 +36,49 @@ const NEW = "__new__";
 const errText = (d: { message?: string | string[] }, fallback: string) => (Array.isArray(d.message) ? d.message[0] : d.message || fallback);
 
 /**
- * Send photos from this phone or computer to the program's Drive folder and put them in the album.
+ * Ask the server to bring in the photos that are in the program's Drive upload folder but not in the selection yet.
+ * The Drive folder is the truth, so a reloaded tab or an upload continued later loses nothing.
+ */
+export async function syncUploads(galleryId: string): Promise<number> {
+  const r = await apiFetch(`${API}/photo-selection/${galleryId}/uploads/sync`, { method: "POST" }).catch(() => null);
+  const d = r?.ok ? await r.json().catch(() => ({})) : {};
+  return Number(d.added) || 0;
+}
+
+/**
+ * Send photos from this phone or computer to the program's Drive folder; they are put in the album as they arrive.
  * The upload goes on in the corner of the screen (it can be paused and continues after a break).
  */
 export async function uploadToSelection(opts: {
-  galleryId: string; programId: string; programName?: string; albumId: string;
+  galleryId: string; programId: string; programName?: string;
   groups: { folder: string; files: File[] }[]; onAdded: () => void;
 }) {
   let started = 0;
+  // Catch up a few seconds after files arrive (and at least every 20 s while they keep coming).
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let first = 0;
+  const run = async () => { timer = undefined; first = 0; if (await syncUploads(opts.galleryId)) opts.onAdded(); };
+  const soon = () => {
+    const now = Date.now();
+    if (!first) first = now;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void run(), now - first > 20000 ? 0 : 3000);
+  };
   for (const g of opts.groups) {
     const folder = cleanFolder(g.folder);
     const files = g.files.filter(canUpload);
     if (!files.length) continue;
     const path = folder ? `${UPLOAD_PATH}/${folder}` : UPLOAD_PATH;
-    let waiting: string[] = [];
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const flush = async () => {
-      const ids = waiting; waiting = [];
-      if (!ids.length) return;
-      const r = await apiFetch(`${API}/photo-selection/${opts.galleryId}/uploads/done`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ albumId: opts.albumId, folder, fileIds: ids }),
-      }).catch(() => null);
-      if (r?.ok) opts.onAdded();
-      else notify("Some uploaded photos could not be added — add them from “Raw files”", { error: true });
-    };
-    const add = (id: string) => {
-      waiting.push(id);
-      if (timer) clearTimeout(timer);
-      if (waiting.length >= 20) void flush(); else timer = setTimeout(() => void flush(), 2500);
-    };
-    // A photo that is already in the Drive folder is not sent again — it is just added.
+    // A photo that is already in the Drive folder is not sent again — the catch-up adds it.
     const check = await checkDuplicates({ files, bookingId: opts.programId, folderFor: () => path, kind: "raw" }).catch(() => null);
     const plan = check ? applyDuplicateChoice(check, "skip") : { files, plans: undefined };
-    if (check) for (const old of check.same.values()) add(old.id);
     started += plan.files.length;
     uploadToDrive({
       kind: "raw", files: plan.files, bookingId: opts.programId, bookingName: opts.programName,
-      folderFor: () => path, plans: plan.plans, onDone: f => add(f.id),
+      folderFor: () => path, plans: plan.plans, onDone: soon,
     });
   }
+  soon();
   return started;
 }
 
@@ -141,10 +145,13 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
     try {
       const album = await albumId();
       if (!album) return;
-      const n = await uploadToSelection({
-        galleryId, programId, programName, albumId: album, onAdded,
-        groups: [...groups].map(([folder, list]) => ({ folder: nameOf(folder), files: list })),
-      });
+      const list = [...groups].map(([folder, files]) => ({ folder: cleanFolder(nameOf(folder)), files }));
+      // Tell the server which album these folders belong to; the photos are put there as they arrive on Drive.
+      const t = await apiFetch(`${API}/photo-selection/${galleryId}/uploads/target`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ albumId: album, folders: [...new Set(list.map(g => g.folder))] }),
+      }).catch(() => null);
+      if (!t?.ok) { notify("Upload could not start — check your internet", { error: true }); return; }
+      const n = await uploadToSelection({ galleryId, programId, programName, onAdded, groups: list });
       notify(n ? `Uploading ${n} photo${n === 1 ? "" : "s"} to your Google Drive` : "These photos are already on Drive — adding them");
       onAdded(); onClose();
     } catch (e) {

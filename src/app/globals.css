@@ -218,6 +218,9 @@
    it used to sit outside any layer and silently overrode every one of them. */
 @layer base {
   *, ::before, ::after { border-color: rgb(var(--border)); }
+  /* A long name with no spaces (an email used as a studio name) breaks instead of
+     pushing the page sideways on a phone. Only breaks when it would not fit. */
+  h1, h2, h3 { overflow-wrap: anywhere; }
 }
 
 body {

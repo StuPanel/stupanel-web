@@ -21,6 +21,7 @@ import { NumberingPane } from "./_panes/numbering";
 import { BookingsPane, NotificationsPane, PortalPane } from "./_panes/work";
 import { IntegrationsPane, SecurityPane } from "./_panes/account";
 import { AppearancePane } from "./_panes/appearance";
+import { DataPane } from "./_panes/data";
 import { MyProfile } from "@/components/account/my-profile";
 import { WhatsAppTemplates } from "@/components/whatsapp/templates-manager";
 import { DeliveryRulesPane, FeaturesPane, MusicPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
@@ -31,7 +32,7 @@ const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane, music: MusicPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   whatsapp: () => <WhatsAppTemplates embedded />,
-  profile: () => <MyProfile embedded />, appearance: AppearancePane, security: SecurityPane, integrations: IntegrationsPane,
+  profile: () => <MyProfile embedded />, appearance: AppearancePane, security: SecurityPane, integrations: IntegrationsPane, data: DataPane,
 };
 
 // Old links used ?tab=… — keep them working.

@@ -6,13 +6,13 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook,
+  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
   | "payment" | "quotes" | "invoices" | "numbering" | "tax" | "catalog"
-  | "features" | "worktypes" | "team" | "delivery"
+  | "features" | "worktypes" | "team" | "delivery" | "music"
   | "bookings" | "portal" | "notifications" | "whatsapp"
   | "profile" | "appearance" | "security" | "integrations";
 
@@ -53,6 +53,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "bookings", title: "Programs", sub: "Shifts, rules and cancellation policy for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
       { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
+      { id: "music", title: "Music", sub: "Which song lists you and your clients see, and sharing with other studios", icon: Music2, color: C.orchid, keywords: "music song library community stupanel picks share suggest clients popular" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal" },
       { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert payment reminder" },
       { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms" },
@@ -101,6 +102,12 @@ export const ENTRIES: Entry[] = [
 
   // Delivery
   { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid" },
+  { id: "mu-picks", pane: "music", section: "Song lists", label: "StuPanel picks", keywords: "stupanel songs suggest" },
+  { id: "mu-community", pane: "music", section: "Song lists", label: "Popular in studios", keywords: "community other studios popular" },
+  { id: "mu-clients", pane: "music", section: "Song lists", label: "From my clients", keywords: "client songs pasted" },
+  { id: "mu-limit", pane: "music", section: "Song lists", label: "Outside songs for each video", keywords: "limit how many" },
+  { id: "mu-share", pane: "music", section: "Sharing", label: "Share my songs with other studios", keywords: "share community private" },
+  { id: "mu-hidden", pane: "music", section: "Sharing", label: "Hidden songs", keywords: "hide hidden bring back" },
   { id: "d-managerCanUnlock", pane: "delivery", section: "Payment", label: "Managers can unlock", keywords: "manager unlock" },
 
   // Branding

@@ -36,6 +36,8 @@ export type StudioSettings = {
   paymentReminders: { enabled: boolean; daysBefore: number; afterEveryDays: number; maxAfter: number };
   eventReminders: { team: boolean; client: boolean };
   studioRates: { roleId: string; rateType: string; rate: number; withSetup?: number; workType?: string; label?: string }[];
+  /** Music library: which outside lists the studio and its clients see (older servers: missing). */
+  music?: { picks: "off" | "me" | "clients"; community: "off" | "me" | "clients"; fromClients: "off" | "me" | "clients"; share: boolean; outsideLimit: number; hidden: string[] };
   /** The backdrop for the whole studio (null = not chosen yet). */
   appearance?: { backdrop: "violet" | "golden" | "mehendi" | "lagoon" | "plain" | null };
   /** Codes and starting numbers for programs, quotes, receipts and agreements (the invoice code is invoicePrefix). */

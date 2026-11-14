@@ -25,6 +25,20 @@ export type LibrarySong = MusicSong & {
   events: string[]; videos: string[]; moods: string[]; language: string | null;
   altNames: string | null; shared: boolean;
 };
+/** A song from outside the studio's library: a StuPanel pick, a community song, or one its clients brought. */
+export type OutsideSong = MusicSong & {
+  events: string[]; videos: string[]; moods: string[]; language: string | null; altNames?: string | null;
+  studios?: number; chosen?: number; times?: number;
+  /** already in the studio's own library */
+  mine: boolean;
+};
+export type MusicSourceMode = "off" | "me" | "clients";
+export type MusicSettings = { picks: MusicSourceMode; community: MusicSourceMode; fromClients: MusicSourceMode; share: boolean; outsideLimit: number; hiddenCount?: number };
+export type OutsideMusic = {
+  settings: MusicSettings; country: string;
+  picks: OutsideSong[]; community: { country: OutsideSong[]; world: OutsideSong[] }; fromClients: OutsideSong[];
+};
+
 /** One shared tag; `also` = other names for it (any language); `more` = not usual in this studio's country. */
 export type MusicTag = { id: string; name: string; also: string[]; more: boolean };
 export type TagCatalog = { events: MusicTag[]; videos: MusicTag[]; moods: MusicTag[]; languages: MusicTag[]; own: string[] };
@@ -148,7 +162,8 @@ export function markMatch(title: string, query: string): { text: string; hit: bo
 /** What the client portal gets for one program. */
 export type ClientMusic = Omit<MusicSelection, "suggestions"> & {
   bookingId: string; program: string; eventDate: string | null;
-  ideas: Record<string, (MusicSong & { pick: boolean })[]>;
+  /** `src`: where a suggestion comes from when it is not the studio's own — StuPanel picks, other studios, other clients. */
+  ideas: Record<string, (MusicSong & { pick: boolean; src?: "picks" | "community" | "clients" })[]>;
 };
 
 export const embedUrl = (id: string) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;

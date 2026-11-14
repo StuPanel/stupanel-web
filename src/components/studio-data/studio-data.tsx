@@ -6,6 +6,7 @@
  * Used by Settings → Your data and by the page a closed studio's owner sees.
  */
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Check, Download, Loader2, Mail, Trash2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -79,7 +80,8 @@ export function ExportDrawer({ status, onClose, onDone }: { status: DataStatus; 
     } catch { notify("Couldn't download — check your internet and try again", { error: true }); }
     finally { setBusy(false); }
   }
-  return (
+  // On the body, so a parent with a transform (Settings) cannot shrink the drawer.
+  return createPortal(
     <FormDrawer open onClose={onClose} icon={Download} color="green" title="Download all your data" sub="One Excel file with every sheet"
       footer={<>
         <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#17151F] text-sm font-semibold">Cancel</button>
@@ -94,7 +96,8 @@ export function ExportDrawer({ status, onClose, onDone }: { status: DataStatus; 
       </div>
       <div className="bg-white rounded-[20px] p-4"><Prove purpose="export" status={status} value={creds} onChange={setCreds} /></div>
       <p className="px-1 mt-3 text-xs text-[#6B6680]">For safety we email you each time all the data is downloaded.</p>
-    </FormDrawer>
+    </FormDrawer>,
+    document.body,
   );
 }
 
@@ -135,7 +138,7 @@ export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose:
 
   const red = "flex-1 h-11 px-5 rounded-full bg-[#C2304F] text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40";
   const back = <button type="button" onClick={() => (step > 1 && step < 4 ? setStep(step - 1) : onClose())} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#17151F] text-sm font-semibold">{step > 1 && step < 4 ? "Back" : step === 4 ? "Close" : "Cancel"}</button>;
-  return (
+  return createPortal(
     <>
       <FormDrawer open onClose={onClose} icon={Trash2} color="red" title={`Delete ${status.studioName}`} sub={step < 4 ? `Step ${step} of 3` : "Check your email"}
         footer={step === 1 ? <>{back}<button type="button" onClick={() => setStep(2)} className={red}>Continue</button></>
@@ -195,6 +198,7 @@ export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose:
         )}
       </FormDrawer>
       {exporting && <ExportDrawer status={status} onClose={() => setExporting(false)} onDone={() => setExported(true)} />}
-    </>
+    </>,
+    document.body,
   );
 }

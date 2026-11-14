@@ -45,12 +45,8 @@ function Features() {
           <Switch label="Music selection" on={f.musicSelection} onChange={v => set("musicSelection", v)} />
         </Row>
       </Group>
-      <Group title="Studio features">
-        <Row id="f-albumTracking" label="Album tracking" hint="Follow each album from design to print to hand-over">
-          <Switch label="Album tracking" on={f.albumTracking} onChange={v => set("albumTracking", v)} />
-        </Row>
-      </Group>
       <Group title="Coming soon">
+        <SoonRow id="f-albumTracking" label="Album tracking" hint="Follow each album from design to print to hand-over" />
         <SoonRow id="f-faceRecognition" label="Face recognition" hint="Guests take a selfie and see only their own photos" />
       </Group>
     </>

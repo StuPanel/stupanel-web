@@ -28,7 +28,7 @@ import { EVENT_TYPES, fmtDate, uid } from "./constants";
 import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
-import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, Package, Shift, ShiftAssignment, SetupMode, TeamMember } from "./types";
+import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, GearCheck, Package, Shift, ShiftAssignment, SetupMode, TeamMember } from "./types";
 import { DEFAULT_SHIFTS, activeShifts, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
 type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
@@ -176,9 +176,11 @@ export async function saveNewClient(nc: ClientFormData): Promise<{ id: string } 
 
 // ─── Add / edit a person on a shift ───────────────────────────────────────────
 type SlotRef = { dayId: string; shiftId: string };
-function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyIds, onSave, onNewFreelancer }: {
+function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyIds, check, onSave, onNewFreelancer }: {
   open: boolean; onClose: () => void; days: EventDay[]; start: SlotRef | null; team: TeamMember[]; studio: StudioSetup;
   editing: { slot: SlotRef; a: ShiftAssignment } | null; busyIds: Set<string>;
+  /** Who and what the other programs took in each shift (null until it has loaded, or for someone without access). */
+  check: GearCheck | null;
   onSave: (a: ShiftAssignment, slots: SlotRef[], replace?: { slot: SlotRef; a: ShiftAssignment }) => void;
   onNewFreelancer: (m: TeamMember) => void;
 }) {
@@ -196,8 +198,9 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
     if (!open) return;
     const a = editing?.a;
     setMemberId(a?.id ?? ""); setRoleId(a?.role ?? ""); setSetup(a?.setup ?? "own");
-    setGear((a?.gear ?? []).filter(g => g.ownerId !== "studio"));
-    setStudioGear((a?.gear ?? []).find(g => g.ownerId === "studio")?.name ?? "");
+    // Studio gear picked from the list has an id; words typed before the list existed do not.
+    setGear((a?.gear ?? []).filter(g => g.ownerId !== "studio" || !!g.itemId));
+    setStudioGear((a?.gear ?? []).find(g => g.ownerId === "studio" && !g.itemId)?.name ?? "");
     setRental(a?.rental ? { ...a.rental, amount: String(a.rental.amount || "") } : { vendor: "", item: "", amount: "", paidBy: "studio" });
     const s = editing?.slot ?? start;
     setSlots(s ? [`${s.dayId}|${s.shiftId}`] : []);
@@ -216,8 +219,15 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
   // The days this shift form is for (picked slots, else the slot it was opened on) → who said they're off then.
   const slotDates = [...new Set((slots.length ? slots : start ? [`${start.dayId}|${start.shiftId}`] : []).map(k => days.find(d => d.id === k.split("|")[0])?.date).filter(Boolean) as string[])];
   const offFor = (m: TeamMember) => offOn(m.daysOff, slotDates);
+  // The shifts this form is for → who and what another program has at the same hours.
+  const slotKeys = slots.length ? slots : start ? [`${start.dayId}|${start.shiftId}`] : [];
+  const busyAt = (id: string) => { for (const k of slotKeys) { const w = check?.slots[k]?.busyPeople[id]; if (w) return w; } return ""; };
+  const gearOut = (key: string) => { for (const k of slotKeys) { const w = check?.slots[k]?.busyGear[key]; if (w) return w; } return null; };
+  const gearState = (key: string) => check?.memberGear.find(g => g.key === key)?.state ?? "ok";
+  // With the shift check loaded, "busy" means the same hours; before it loads, the same day.
+  const isBusy = (id: string) => (check ? !!busyAt(id) : busyIds.has(id));
   const shown = team.filter(m => m.isActive !== false && (!q.trim() || fullName(m).toLowerCase().includes(q.toLowerCase()) || (m.phone ?? "").includes(q)))
-    .sort((a, b) => Number(busyIds.has(a.id)) - Number(busyIds.has(b.id)));
+    .sort((a, b) => Number(isBusy(a.id)) - Number(isBusy(b.id)));
 
   async function addFreelancer() {
     if (!fl.name.trim() || !fl.phone.trim()) { setFl(f => ({ ...f, err: "Name and phone please." })); return; }
@@ -264,7 +274,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
             </div>
             <div className="max-h-[46vh] overflow-y-auto">
               {shown.map(m => {
-                const busy = busyIds.has(m.id);
+                const busy = isBusy(m.id);
                 const off = offFor(m)[0];
                 const r0 = role(m.memberRoles[0] ?? "");
                 return (
@@ -276,7 +286,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                       <span className="block text-xs text-[#6B6680] truncate">{m.memberRoles.map(r => role(r).label).join(", ") || "No work set"}</span>
                     </span>
                     {off && <span title={off.note ? `Day off: ${off.note}` : "Said they can't work this day"} className="text-[11px] font-bold text-[#7A4800] bg-[#FFF3E0] px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap"><CalendarOff className="w-3 h-3" />Day off</span>}
-                    {busy && <span className="text-[11px] font-bold text-[#C2304F] bg-[#FDECEF] px-2 py-0.5 rounded-full inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Busy</span>}
+                    {busy && <span title={busyAt(m.id) || "On another program that day"} className="text-[11px] font-bold text-[#C2304F] bg-[#FDECEF] px-2 py-0.5 rounded-full inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Busy</span>}
                   </button>
                 );
               })}
@@ -308,10 +318,16 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
             <span className="w-11 h-11 rounded-full text-white font-extrabold flex items-center justify-center" style={{ background: TILE[role(member.memberRoles[0] ?? "").tile as TileColor] ?? "#7D5CEF" }}>{member.firstName[0]?.toUpperCase()}</span>
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-bold text-[#17151F] truncate">{fullName(member)}</p>
-              <p className="text-xs text-[#6B6680]">{member.memberType === "freelancer" ? "Freelancer" : "Team staff"}{busyIds.has(member.id) ? " · busy on another program that day" : ""}</p>
+              <p className="text-xs text-[#6B6680]">{member.memberType === "freelancer" ? "Freelancer" : "Team staff"}{!check && busyIds.has(member.id) ? " · busy on another program that day" : ""}</p>
             </div>
             {!editing && <button type="button" onClick={() => setMemberId("")} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#5B3FD0]">Change</button>}
           </Card>
+          {busyAt(member.id) && (
+            <p role="alert" className="-mt-3 mb-5 rounded-[14px] bg-[#FDECEF] text-[#C2304F] text-[13px] px-4 py-3 flex gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{member.firstName} is already on <b>{busyAt(member.id)}</b> at the same time. You can still add them.</span>
+            </p>
+          )}
           {offFor(member).length > 0 && (
             <p role="status" className="-mt-3 mb-5 rounded-[14px] bg-[#FFF3E0] text-[#7A4800] text-[13px] px-4 py-3 flex gap-2">
               <CalendarOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -359,11 +375,13 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                     <div className="flex flex-wrap gap-1.5">
                       {owner.setup!.map(g => {
                         const on = gear.some(x => x.ownerId === owner.id && x.itemId === g.id);
+                        const out = gearOut(`${owner.id}:${g.id}`); const st = gearState(`${owner.id}:${g.id}`);
                         return (
                           <button key={g.id} type="button" role="checkbox" aria-checked={on}
                             onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === owner.id && x.itemId === g.id)) : [...gear, { ownerId: owner.id, itemId: g.id, name: g.name }])}
-                            className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
-                            {on && <Check className="w-3 h-3" />}{g.name}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : " · no rent set"; })()}
+                            title={out ? `Out with ${out.usedBy} — ${out.where}` : undefined}
+                            className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]", (out || st !== "ok") && "ring-1 ring-[#C2304F]")}>
+                            {on && <Check className="w-3 h-3" />}{g.name}{out ? <span className={on ? "text-[#FFB4C2]" : "text-[#C2304F]"}> · out</span> : st !== "ok" ? <span className={on ? "text-[#FFD9A0]" : "text-[#7A4800]"}> · {st === "service" ? "in service" : "out of use"}</span> : null}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : " · no rent set"; })()}
                           </button>
                         );
                       })}
@@ -372,7 +390,7 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                 ))}
                 {(() => {
                   // Picked before, but the owner has since taken it off their list — still billed until removed here.
-                  const gone = gear.filter(x => !team.find(t => t.id === x.ownerId)?.setup?.some(g => g.id === x.itemId));
+                  const gone = gear.filter(x => x.ownerId !== "studio" && !team.find(t => t.id === x.ownerId)?.setup?.some(g => g.id === x.itemId));
                   return gone.length > 0 && (
                     <div>
                       <p className="text-[12px] font-bold text-[#7A4800] mb-1.5">No longer on the owner&apos;s gear list <span className="font-medium text-[#6B6680]">— rent stays at the price it had</span></p>
@@ -389,7 +407,37 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                 })()}
                 <div>
                   <p className="text-[12px] font-bold text-[#4A4658] mb-1.5">Studio gear <span className="font-medium text-[#6B6680]">— no rent</span></p>
-                  <input value={studioGear} onChange={e => setStudioGear(e.target.value)} placeholder="e.g. Studio Sony A7 III + gimbal" aria-label="Studio gear" className={inputCls} />
+                  {(check?.studioGear.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {check!.studioGear.map(g => {
+                        const on = gear.some(x => x.ownerId === "studio" && x.itemId === g.itemId);
+                        const out = gearOut(g.key);
+                        return (
+                          <button key={g.itemId} type="button" role="checkbox" aria-checked={on} title={out ? `Out with ${out.usedBy} — ${out.where}` : undefined}
+                            onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === "studio" && x.itemId === g.itemId)) : [...gear, { ownerId: "studio", itemId: g.itemId, name: g.name }])}
+                            className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]", (out || g.state !== "ok") && "ring-1 ring-[#C2304F]")}>
+                            {on && <Check className="w-3 h-3" />}{g.name}{out ? <span className={on ? "text-[#FFB4C2]" : "text-[#C2304F]"}> · out</span> : g.state === "service" ? <span className={on ? "text-[#FFD9A0]" : "text-[#7A4800]"}> · in service</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Picked before but removed from the studio's gear since: it stays on this program until taken off here. */}
+                  {gear.filter(x => x.ownerId === "studio" && x.itemId && check && !check.studioGear.some(g => g.itemId === x.itemId)).map(x => (
+                    <button key={x.itemId} type="button" role="checkbox" aria-checked onClick={() => setGear(gear.filter(y => y !== x))}
+                      className="h-8 px-3 mb-2 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 bg-[#FFF3E0] text-[#7A4800]"><Check className="w-3 h-3" />{x.name} · no longer in your gear</button>
+                  ))}
+                  {gear.some(x => (x.ownerId === "studio" ? gearOut(`studio:${x.itemId}`) : gearOut(`${x.ownerId}:${x.itemId}`))) && (
+                    <p role="alert" className="mb-2 rounded-[12px] bg-[#FDECEF] text-[#C2304F] text-[12.5px] px-3 py-2">
+                      {gear.map(x => ({ x, o: gearOut(`${x.ownerId}:${x.itemId}`) })).filter(v => v.o).map(v => `${v.x.name} is out with ${v.o!.usedBy} (${v.o!.where})`).join(". ")}. You can still pick it.
+                    </p>
+                  )}
+                  {check && check.studioGear.length === 0
+                    ? <p className="text-[12.5px] text-[#6B6680] mb-2">Add the studio&apos;s cameras, lights and gimbals in <b>Equipment</b> to pick them here — then StuPanel knows which are free.</p>
+                    : null}
+                  {(studioGear || !check || check.studioGear.length === 0) && (
+                    <input value={studioGear} onChange={e => setStudioGear(e.target.value)} placeholder="Or write it, e.g. Studio Sony A7 III + gimbal" aria-label="Studio gear in words" className={inputCls} />
+                  )}
                 </div>
               </div>
             )}
@@ -469,6 +517,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // Settings → Programs → "Warn about double booking": other programs on the same dates.
   const [warnClash, setWarnClash] = useState(false);
   const [clashes, setClashes] = useState<{ date: string; names: string[] }[]>([]);
+  /** People and gear the other programs took in this program's shifts; what is free; double use. */
+  const [gearCheck, setGearCheck] = useState<GearCheck | null>(null);
   const [openBill, setOpenBill] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
 
@@ -770,6 +820,18 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     return () => { live = false; };
   }, [open, warnClash, dateKey, ownId]);
 
+  // Ask again a moment after the days, shifts or people change.
+  const checkKey = JSON.stringify(days.map(d => [d.id, d.date, d.shifts.map(s => [s.id, s.label, s.start, s.end, s.assignments.map(a => [a.id, a.setup, (a.gear ?? []).map(g => `${g.ownerId}:${g.itemId ?? ""}`)])])]));
+  useEffect(() => {
+    if (!open) { setGearCheck(null); return; }
+    let live = true;
+    const t = setTimeout(() => {
+      apiFetch(`${API}/equipment/check`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days, excludeBookingId: ownId }) })
+        .then(r => (r.ok ? r.json() : null)).then(d => { if (live && d) setGearCheck(d); }).catch(() => {});
+    }, 500);
+    return () => { live = false; clearTimeout(t); };
+  }, [open, checkKey, ownId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const step1 = !!client || (clientMode === "new" && !!newClient.firstName.trim() && !!newClient.phone.trim());
   const step2 = !!eventName.trim();
   const step3 = days.length > 0 && days.every(d => d.date);
@@ -918,6 +980,15 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     {clashes.map(c => <p key={c.date} className="mt-0.5">{fmtDate(c.date)} — {c.names.join(", ")}</p>)}
                   </div>
                 )}
+                {warnClash && (gearCheck?.clashes.length ?? 0) > 0 && (
+                  <div role="alert" className="mb-3 px-4 py-3 rounded-[14px] bg-[#FDECEF] text-[#C2304F] text-[13px]">
+                    <p className="font-semibold inline-flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" />On another program at the same time</p>
+                    {gearCheck!.clashes.map((c, i) => (
+                      <p key={i} className="mt-0.5 text-[#17151F]"><b>{c.name}</b> — {fmtDate(c.date)}{c.shift ? `, ${c.shift}` : ""}: also on {[c.other.number, c.other.name, c.other.day].filter(Boolean).join(" · ")}{c.other.shift ? ` (${c.other.shift})` : ""}</p>
+                    ))}
+                    <p className="mt-1 text-[12px] text-[#6B6680]">You can still save.</p>
+                  </div>
+                )}
                 {days.length === 0 && (
                   <Card className="p-5 text-center">
                     <Calendar className="w-7 h-7 text-[#A29DB3] mx-auto" />
@@ -991,6 +1062,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                                 <span className="flex-1" />
                                 {(d.shifts.length > 1 || s.assignments.length === 0) && <button type="button" onClick={() => removeShift(d.id, s.id)} aria-label={`Remove ${s.label} shift`} className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Minus className="w-3.5 h-3.5" /></button>}
                               </div>
+                              {(() => {
+                                // What is still free in this shift (other programs taken off).
+                                const f = gearCheck?.slots[`${d.id}|${s.id}`]?.free; if (!f) return null;
+                                const parts = [...f.people.filter(p => ["photographer", "cinematographer"].includes(p.role)).map(p => `${p.free} of ${p.total} ${role(p.role).label.toLowerCase()}${p.total === 1 ? "" : "s"}`), ...f.gear.map(g => `${g.free} of ${g.total} ${g.name.toLowerCase()}${g.total === 1 ? "" : "s"}`)];
+                                return parts.length > 0 && <p className="mb-2 text-[12px] text-[#6B6680]"><span className="font-semibold text-[#1F8A5B]">Not on another program:</span> {parts.join(" · ")}</p>;
+                              })()}
                               {timeOpen === s.id && (
                                 <div className="mb-2.5 flex items-center gap-2 flex-wrap animate-in fade-in duration-150">
                                   <input type="time" value={s.start ?? ""} onChange={e => setShift(d.id, s.id, { start: e.target.value })} aria-label={`${s.label} starts`} className={cn(inputCls, "h-10 w-[128px] text-sm")} />
@@ -1215,7 +1292,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
       <AssignDrawer open={assign.open} onClose={() => setAssign({ open: false, start: null, editing: null })} days={typedDays}
         start={assign.start} editing={assign.editing} team={team} studio={studio}
-        busyIds={new Set(assignDay?.date ? busy[assignDay.date] ?? [] : [])}
+        busyIds={new Set(assignDay?.date ? busy[assignDay.date] ?? [] : [])} check={gearCheck}
         onSave={savePerson} onNewFreelancer={m => setTeam(t => [...t, m])} />
     </>
   );

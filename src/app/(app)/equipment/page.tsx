@@ -40,7 +40,7 @@ type Board = {
   programs: Place[];
   shifts: { id: string; name: string; start: string | null; end: string | null }[];
 };
-type History = { rows: (Place & { date: string; usedBy: string })[]; users: { name: string; times: number }[]; programs: number };
+type History = { rent?: number; rows: (Place & { date: string; usedBy: string })[]; users: { name: string; times: number }[]; programs: number };
 
 const KIND: Record<Kind, { name: string; icon: React.ElementType; color: TileColor }> = {
   camera: { name: "Camera", icon: Camera, color: "ink" }, light: { name: "Light setup", icon: Lightbulb, color: "orchid" },
@@ -404,7 +404,7 @@ function GearDrawer({ unit, onClose, onSaved }: { unit?: Unit; onClose: () => vo
       )}
 
       {unit && (
-        <FormGroup title="Where it went" note={hist && hist.rows.length > 0 ? `${hist.rows.length} time${hist.rows.length === 1 ? "" : "s"} on ${hist.programs} program${hist.programs === 1 ? "" : "s"}${hist.users.length ? ` · most used by ${hist.users[0].name}` : ""}` : undefined}>
+        <FormGroup title="Where it went" note={hist && hist.rows.length > 0 ? `${hist.rows.length} time${hist.rows.length === 1 ? "" : "s"} on ${hist.programs} program${hist.programs === 1 ? "" : "s"}${hist.users.length ? ` · most used by ${hist.users[0].name}` : ""}${hist.rent ? ` · rent earned ${formatCurrency(hist.rent)}` : ""}` : undefined}>
           {!hist ? <div className="px-4 py-5 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#A29DB3]" /></div>
             : hist.rows.length === 0 ? <p className="px-4 py-4 text-[14px] text-[#6B6680]">Not used on a program yet. It shows here as soon as someone is put on a shift with it.</p>
             : hist.rows.slice(0, 40).map((r, i) => (

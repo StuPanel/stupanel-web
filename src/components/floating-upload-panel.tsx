@@ -22,16 +22,17 @@ function fmtEta(sec: number) {
 }
 
 /**
- * Bottom-right upload panel (all pages). Shows the uploads with progress,
+ * Bottom-right upload panel (all pages). On a phone it is a small pill above the bottom menu
+ * (tap to open), so the person can keep working while files upload. Shows the uploads with progress,
  * speed and time left; "Waiting for internet…" when the connection drops;
  * Pause all / Resume / Cancel all; and, after a reload/restart, the unfinished
  * uploads (also the ones that never started) with a button to pick the same
  * files or folder again and continue.
  */
-export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
+export function FloatingUploadPanel() {
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
   const [pending, setPending] = useState<PendingUpload[]>([]);
-  // On a phone the list would cover the page — start small (the bar and % stay visible).
+  // On a phone the panel would cover the page and the bottom menu — start as the small pill.
   const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -132,8 +133,37 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
   // Where the unfinished files were going, e.g. "PRG-1007 › Holud / Md Bappy".
   const places = [...new Set(unfinished.map(p => [p.bookingName, p.folderPath?.split("/").slice(0, 2).join(" / ")].filter(Boolean).join(" › ")).filter(Boolean))];
 
+  // Above the phone's bottom menu (both the studio app and the member area have one).
+  const place = "bottom-[calc(env(safe-area-inset-bottom)+92px)] lg:bottom-4";
+  const total = uploads.filter(u => !u.cancelled).length;
+  const pill = active.length > 0
+    ? { text: waiting ? "No internet" : paused ? "Paused" : `${overall}%`, sub: `${done.length}/${total}`, tone: waiting || paused ? "#B29DF8" : "#7D5CEF", pct: overall }
+    : unfinished.length > 0 ? { text: `${unfinished.length} unfinished`, sub: "", tone: "#5B3FD0", pct: 0 }
+    : failed.length > 0 ? { text: `${failed.length} failed`, sub: "", tone: "#C2304F", pct: 100 }
+    : uploads.length === 0 ? { text: "Uploading in another tab", sub: "", tone: "#7D5CEF", pct: 0 }
+    : { text: `${done.length} uploaded`, sub: "", tone: "#1F8A5B", pct: 100 };
+
   return (
-    <div className={`fixed ${lift ? "bottom-24 lg:bottom-4" : "bottom-4"} right-4 left-4 sm:left-auto z-50 sm:w-[22rem] bg-white rounded-[22px] border border-[#E3DFEC] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.10)] overflow-hidden`}>
+    <>
+    {/* Phone, closed: a small pill that leaves the page and the bottom menu free. Forms open on top of it. */}
+    {collapsed && (
+      <button type="button" onClick={() => setCollapsed(false)} aria-label={`Uploads: ${pill.text}${pill.sub ? `, ${pill.sub} done` : ""}. Open`}
+        className={`sm:hidden fixed ${place} right-3 z-40 h-11 pl-1.5 pr-3.5 rounded-full bg-white border border-[#E3DFEC] shadow-[0_2px_4px_rgba(22,18,40,.06),0_12px_24px_rgba(22,18,40,.14)] inline-flex items-center gap-2 active:scale-95 transition-transform`}>
+        <span className="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 36 36" className="absolute inset-0 w-8 h-8 -rotate-90" aria-hidden>
+            <circle cx="18" cy="18" r="15" fill="none" stroke="#EEE8FD" strokeWidth="4" />
+            <circle cx="18" cy="18" r="15" fill="none" stroke={pill.tone} strokeWidth="4" strokeLinecap="round" pathLength={100} strokeDasharray={`${pill.pct} 100`} className="transition-all duration-300" />
+          </svg>
+          {active.length > 0 ? (paused ? <Pause className="w-3.5 h-3.5" style={{ color: pill.tone }} /> : waiting ? <WifiOff className="w-3.5 h-3.5" style={{ color: pill.tone }} /> : <ChevronUp className="w-3.5 h-3.5" style={{ color: pill.tone }} />)
+            : failed.length > 0 ? <AlertCircle className="w-3.5 h-3.5" style={{ color: pill.tone }} />
+            : unfinished.length > 0 ? <RotateCcw className="w-3.5 h-3.5" style={{ color: pill.tone }} />
+            : <CheckCircle2 className="w-3.5 h-3.5" style={{ color: pill.tone }} />}
+        </span>
+        <span className="text-[13px] font-bold text-[#17151F] tabular-nums whitespace-nowrap">{pill.text}</span>
+        {pill.sub && <span className="text-[12px] text-[#6B6680] tabular-nums whitespace-nowrap">{pill.sub}</span>}
+      </button>
+    )}
+    <div className={`${collapsed ? "hidden sm:block" : ""} fixed ${place} right-3 left-3 sm:right-4 sm:left-auto z-50 sm:w-[22rem] bg-white rounded-[22px] border border-[#E3DFEC] shadow-[0_2px_4px_rgba(22,18,40,.06),0_16px_32px_rgba(22,18,40,.10)] overflow-hidden`}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <div className="min-w-0">
@@ -175,7 +205,7 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
       {active.length > 0 && (
         <div className="px-3 py-2 bg-[#FBFAFD] flex items-center gap-2">
           <p className="flex-1 min-w-0 pl-1 text-[11px] leading-snug text-[#6B6680]">
-            {paused ? "Paused — press Resume to continue." : "Keep this page open until it finishes."}
+            {paused ? "Paused — press Resume to continue." : "You can use other pages while it uploads. Just keep StuPanel open."}
           </p>
           {activeDrive.length > 0 && (paused ? (
             <button type="button" onClick={resumeDriveUploads}
@@ -300,5 +330,6 @@ export function FloatingUploadPanel({ lift = false }: { lift?: boolean } = {}) {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -158,3 +158,17 @@ export interface Booking {
   team: { userId: string; roleInBooking?: string; agreedRate?: number; agreedNote?: string }[];
   payments: { id: string; amount: number }[];
 }
+
+/** What the other programs already took in this program's shifts, and what is free (POST /equipment/check). */
+export type GearCheck = {
+  /** key = "<day id>|<shift id>" */
+  slots: Record<string, {
+    date: string;
+    busyPeople: Record<string, string>;
+    busyGear: Record<string, { usedBy: string; where: string }>;
+    free: { people: { role: string; total: number; free: number }[]; gear: { kind: string; name: string; total: number; free: number }[] };
+  }>;
+  clashes: { type: "person" | "gear"; id: string; name: string; date: string; shift: string; other: { number: string; name: string; day: string; shift: string } }[];
+  studioGear: { itemId: string; key: string; name: string; kind: string; state: "ok" | "service" | "out" }[];
+  memberGear: { key: string; state: "ok" | "service" | "out"; lend: boolean }[];
+};

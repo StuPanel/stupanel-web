@@ -17,7 +17,11 @@ export type DataStatus = {
   studioName: string; ownerEmail: string; hasPassword: boolean;
   scheduledFor: string | null; requestedAt: string | null; requestedBy: string | null; daysLeft: number | null; deleteAfterDays: number;
   counts: Record<"clients" | "programs" | "team" | "invoices" | "payments" | "quotes" | "contracts" | "photoSelections" | "songs" | "gear", number>;
+  /** When all the data was last downloaded (null = never). */
+  lastExportAt?: string | null;
 };
+/** A download in the last 7 days counts as "you have your data". */
+const recentExport = (s: DataStatus) => !!s.lastExportAt && Date.now() - new Date(s.lastExportAt).getTime() < 7 * 86400000;
 type Creds = { password?: string; code?: string };
 const err = async (r: Response) => { const d = await r.json().catch(() => ({})); return (Array.isArray(d.message) ? d.message[0] : d.message) || "Something went wrong"; };
 export const longDate = (d: string | Date) => new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -46,7 +50,7 @@ export function Prove({ purpose, status, value, onChange, danger }: {
     </div>
   ) : (
     <div className="space-y-2">
-      <p className="text-[13px] text-[#4A4658]">{status.hasPassword ? "We send a 6-digit code to" : "You sign in with Google, so we send a 6-digit code to"} <b>{status.ownerEmail}</b>.</p>
+      <p className="text-[13px] text-[#4A4658]">{sent ? <>Code sent to <b>{status.ownerEmail}</b> — check your email (and spam). It works for 15 minutes.</> : <>{status.hasPassword ? "Press Send code — we email a 6-digit code to" : "You sign in with Google, so we email a 6-digit code to"} <b>{status.ownerEmail}</b>.</>}</p>
       <div className="flex gap-2">
         <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" aria-label="6-digit code" value={value.code ?? ""}
           onChange={e => onChange({ code: e.target.value.replace(/\D/g, "").slice(0, 6) })} className={cn(inputCls, ring, "tracking-[0.3em] font-semibold")} />
@@ -112,7 +116,7 @@ const TICKS: [string, string][] = [
 /** Deleting the studio: what goes → read and tick → name + password → a confirmation link by email. */
 export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose: () => void }) {
   const [step, setStep] = useState(1);
-  const [exported, setExported] = useState(false);
+  const [exported, setExported] = useState(() => recentExport(status));
   const [exporting, setExporting] = useState(false);
   const [ticks, setTicks] = useState<string[]>([]);
   const [name, setName] = useState("");
@@ -124,7 +128,7 @@ export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose:
   const nameOk = name.trim().replace(/\s+/g, " ").toLowerCase() === status.studioName.trim().replace(/\s+/g, " ").toLowerCase();
   const c = status.counts;
   const lines = ([["clients", "clients"], ["programs", "programs"], ["payments", "client payments"], ["invoices", "invoices"], ["quotes", "quotes"], ["contracts", "agreements"], ["team", "team members"], ["photoSelections", "photo selections"], ["songs", "songs"], ["gear", "studio gear"]] as const)
-    .filter(([k]) => c[k] > 0).map(([k, l]) => `${c[k]} ${l}`);
+    .filter(([k]) => c[k] > 0).map(([k, l]) => `${c[k]} ${c[k] === 1 && l !== "studio gear" ? l.replace(/s$/, "") : l}`);
 
   async function send() {
     if (!ticked || !nameOk || !ready(creds) || busy) return;
@@ -159,7 +163,7 @@ export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose:
             </div>
             <div className={cn("rounded-[20px] p-4", exported ? "bg-[#E9F5EF]" : "bg-white")}>
               <p className="text-[14px] font-bold text-[#17151F]">{exported ? "Your data is downloaded" : "Download your data first"}</p>
-              <p className="text-[13px] text-[#6B6680] mt-1">{exported ? "Keep the Excel file safe — after deletion it is the only copy." : "We strongly advise it. After deletion StuPanel cannot give you anything back."}</p>
+              <p className="text-[13px] text-[#6B6680] mt-1">{exported ? `${status.lastExportAt && recentExport(status) ? `Downloaded ${longDate(status.lastExportAt)}. ` : ""}Keep the Excel file safe — after deletion it is the only copy.` : "We strongly advise it. After deletion StuPanel cannot give you anything back."}</p>
               {!exported && <button type="button" onClick={() => setExporting(true)} className="mt-3 h-11 px-4 rounded-full bg-[#1F8A5B] text-white text-sm font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" />Download all my data</button>}
             </div>
           </div>

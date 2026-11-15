@@ -1,11 +1,33 @@
 /**
  * Sort the client's chosen photos on the studio's own computer (Chrome / Edge on a computer).
  * The studio picks the folder with the original photos; we find each chosen file by its name
- * (and, when asked, the RAW file with the same name) and COPY it into
- *   <picked folder>/Album selection - <title>/<album>/Most important | Chosen
+ * (and, when asked, the RAW file with the same name) and COPY it into the same layout as the Drive copy:
+ *   <picked folder>/Album selection - <title>/<album>/<folder: Holud, Wedding…>/
+ * with "Selected photos.txt" (names by album and folder, ★ = loved most, the client's notes).
  * The originals are never moved, renamed or deleted.
  */
-import { MARK_FOLDER, folderName, isPicked, isRawName, type GPhoto } from "@/lib/photos";
+import { folderName, isPicked, isRawName, type GPhoto } from "@/lib/photos";
+
+/** The text list, same as the Drive copy's "Selected photos.txt". */
+export function chosenText(title: string, albums: { id: string; name: string }[], chosen: GPhoto[], clientNote?: string | null) {
+  const lines: string[] = [title, `${chosen.length} photo${chosen.length === 1 ? "" : "s"} chosen`];
+  if (clientNote?.trim()) lines.push(`Note from the client: ${clientNote.trim().replace(/\s+/g, " ")}`);
+  lines.push("");
+  for (const a of albums) {
+    const mine = chosen.filter(p => p.a === a.id);
+    if (!mine.length) continue;
+    lines.push(`== ${a.name} (${mine.length}) ==`);
+    const folders = [...new Set(mine.map(p => p.f ?? ""))];
+    for (const f of folders) {
+      const list = mine.filter(p => (p.f ?? "") === f);
+      if (f || folders.length > 1) lines.push("", `-- ${f || "Other photos"} (${list.length}) --`);
+      for (const p of list) lines.push(`${p.m === "important" ? "★ " : ""}${p.n}${p.no ? `   — ${p.no.replace(/\s+/g, " ")}` : ""}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trimEnd() + "\n";
+}
+const LIST_FILE = "Selected photos.txt";
 
 /* Minimal File System Access types (not in every TypeScript lib yet). */
 type FileHandle = { kind: "file"; name: string; getFile(): Promise<File>; createWritable(): Promise<WritableStream & { close(): Promise<void> }> };
@@ -35,7 +57,7 @@ export async function pickFolder(): Promise<DirHandle | null> {
 }
 
 export async function sortLocally(dir: DirHandle, opts: {
-  title: string; photos: GPhoto[]; albums: { id: string; name: string }[]; withRaw: boolean;
+  title: string; photos: GPhoto[]; albums: { id: string; name: string }[]; withRaw: boolean; clientNote?: string | null;
   onProgress: (p: SortProgress) => void; signal?: { cancelled: boolean };
 }): Promise<SortResult> {
   const outName = folderName(`Album selection - ${opts.title}`);
@@ -63,15 +85,15 @@ export async function sortLocally(dir: DirHandle, opts: {
   await walk(dir, 0);
   p.found = scanned; p.phase = "copying"; opts.onProgress({ ...p });
 
-  // 2. Copy each chosen photo into album / mark folders.
+  // 2. Copy each chosen photo into album / folder (Holud, Wedding…) — like the Drive copy.
   const out = await dir.getDirectoryHandle(outName, { create: true });
   const albumName = new Map(opts.albums.map(a => [a.id, a.name]));
   const folders = new Map<string, DirHandle>();
-  const folderFor = async (albumId: string, important: boolean) => {
-    const key = `${albumId}:${important}`;
+  const folderFor = async (albumId: string, folder: string | null | undefined) => {
+    const key = `${albumId}:${folder ?? ""}`;
     const hit = folders.get(key); if (hit) return hit;
     const a = await out.getDirectoryHandle(folderName(albumName.get(albumId) ?? "Photos"), { create: true });
-    const f = await a.getDirectoryHandle(important ? MARK_FOLDER.important : MARK_FOLDER.selected, { create: true });
+    const f = folder ? await a.getDirectoryHandle(folderName(folder), { create: true }) : a;
     folders.set(key, f); return f;
   };
   const exists = async (d: DirHandle, name: string) => { try { await d.getFileHandle(name); return true; } catch { return false; } };
@@ -83,7 +105,7 @@ export async function sortLocally(dir: DirHandle, opts: {
     const matches = [...(byName.get(ph.n.toLowerCase()) ?? []).slice(0, 1)];
     if (opts.withRaw) for (const r of byStem.get(stem(ph.n)) ?? []) if (!matches.some(m => m.name.toLowerCase() === r.name.toLowerCase())) matches.push(r);
     if (!matches.length) { missing.push(ph.n); p.done++; opts.onProgress({ ...p }); continue; }
-    const target = await folderFor(ph.a, ph.m === "important");
+    const target = await folderFor(ph.a, ph.f);
     for (const h of matches) {
       if (await exists(target, h.name)) { p.skipped++; continue; }
       const file = await h.getFile();
@@ -94,6 +116,12 @@ export async function sortLocally(dir: DirHandle, opts: {
     p.done++;
     opts.onProgress({ ...p });
   }
+  // 3. The list of names (with the client's notes), written again on every run.
+  try {
+    const w = await (await out.getFileHandle(LIST_FILE, { create: true })).createWritable();
+    await (w as unknown as { write(d: string): Promise<void> }).write(chosenText(opts.title, opts.albums, chosen, opts.clientNote));
+    await w.close();
+  } catch { /* the photos are copied; the list is a bonus */ }
   p.phase = "done"; opts.onProgress({ ...p });
   return { copied: p.copied, skipped: p.skipped, missing, folder: `${dir.name}/${outName}`, scanned };
 }

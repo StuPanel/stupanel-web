@@ -92,7 +92,7 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
     cancel.current = { cancelled: false };
     setSorting({ phase: "reading", found: 0, total: picked.length, done: 0, copied: 0, skipped: 0 });
     try {
-      const r = await sortLocally(dir, { title: g.title, photos: g.photos, albums: g.albums, withRaw, onProgress: setSorting, signal: cancel.current });
+      const r = await sortLocally(dir, { title: g.title, photos: g.photos, albums: g.albums, withRaw, clientNote: g.clientNote, onProgress: setSorting, signal: cancel.current });
       setSorted(r);
       notify(r.missing.length ? `${r.copied} copied · ${r.missing.length} not found` : `${r.copied} files copied`);
     } catch (e) {

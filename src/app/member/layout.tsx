@@ -156,6 +156,11 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     const role = localStorage.getItem("user_role");
     if (role !== "staff" && role !== "manager") { router.replace("/dashboard"); return; }
     if (role === "manager") rememberPanel("member");
+    // Made a manager (or no longer one) since signing in → show the right menu.
+    apiFetch(`${API}/auth/me`).then(r => (r.ok ? r.json() : null)).then(me => {
+      const now = me?.role ?? me?.user?.role;
+      if ((now === "staff" || now === "manager") && now !== role) { localStorage.setItem("user_role", now); window.location.reload(); }
+    }).catch(() => {});
 
     const load = () => apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)

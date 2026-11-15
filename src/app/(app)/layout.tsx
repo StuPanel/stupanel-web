@@ -132,6 +132,12 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("access_token");
     const role = localStorage.getItem("user_role");
     if (!token) { router.replace("/login"); return; }
+    // The studio changed this person's role since they signed in (e.g. no longer a manager):
+    // go by what the server says now, not what this browser remembers.
+    if (user?.role && user.role !== role) {
+      localStorage.setItem("user_role", user.role);
+      if (user.role === "staff") { rememberPanel("member"); router.replace("/member/dashboard"); return; }
+    }
     if (role === "staff") { router.replace("/member/dashboard"); return; }
     if (user?.role === "manager" && !canOpen(user, pathname)) { router.replace(homeFor(user)); return; }
     if (user?.role === "manager") rememberPanel("studio");

@@ -161,6 +161,10 @@ export function DeleteDrawer({ status, onClose }: { status: DataStatus; onClose:
                 : <p className="text-[14px] text-[#6B6680]">The studio and its settings.</p>}
               <p className="text-[12.5px] text-[#6B6680] mt-3">Plus settings, team prices, expenses, salary slips, leads, deliveries and chats. Files in your own Google Drive are not touched.</p>
             </div>
+            <div className="bg-white rounded-[20px] p-4">
+              <p className="text-[13px] font-bold text-[#4A4658] mb-1">What we keep</p>
+              <p className="text-[13.5px] text-[#4A4658] leading-relaxed">Only your name, email and phone number, so we can tell you about new features — and the bills you paid to StuPanel. The email you get when the studio is deleted has a link to remove your contact details too.</p>
+            </div>
             <div className={cn("rounded-[20px] p-4", exported ? "bg-[#E9F5EF]" : "bg-white")}>
               <p className="text-[14px] font-bold text-[#17151F]">{exported ? "Your data is downloaded" : "Download your data first"}</p>
               <p className="text-[13px] text-[#6B6680] mt-1">{exported ? `${status.lastExportAt && recentExport(status) ? `Downloaded ${longDate(status.lastExportAt)}. ` : ""}Keep the Excel file safe — after deletion it is the only copy.` : "We strongly advise it. After deletion StuPanel cannot give you anything back."}</p>

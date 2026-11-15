@@ -67,6 +67,7 @@ const PUBLIC_PREFIXES = [
   "/g/",
   "/r/",
   "/track",
+  "/former-studio/",
 ];
 
 export function middleware(request: NextRequest) {

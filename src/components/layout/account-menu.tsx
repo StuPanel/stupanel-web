@@ -79,7 +79,8 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
     document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
-    router.push("/login");
+    // A full page load, so nothing of this session keeps running.
+    window.location.href = "/login";
   }
 
   const items: { label: string; icon: React.ElementType; color: TileColor; href: string; show: boolean }[] = [

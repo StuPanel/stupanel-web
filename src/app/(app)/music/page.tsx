@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, ExternalLink, EyeOff, Flame, Globe2, Loader2, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, Loader2, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -38,12 +38,15 @@ export default function MusicLibraryPage() {
   const [form, setForm] = useState<{ song?: LibrarySong; url?: string; from?: OutsideSong } | null>(null);
   /** Songs from outside the studio's library (StuPanel picks, other studios, its clients). */
   const [out, setOut] = useState<OutsideMusic | null>(null);
-  const [tab, setTab] = useState<"mine" | "picks" | "community" | "clients">("mine");
+  const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients">("mine");
+  /** The studio's favourite songs (starred from any list), newest first. */
+  const [favs, setFavs] = useState<{ youtubeId: string; title: string; channel: string | null; thumb: string; url: string }[]>([]);
   const [world, setWorld] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [s, t, o] = await Promise.all([apiFetch(`${API}/music/songs`), apiFetch(`${API}/music/tags`), apiFetch(`${API}/music/outside`).catch(() => null)]);
+      const [s, t, o, f] = await Promise.all([apiFetch(`${API}/music/songs`), apiFetch(`${API}/music/tags`), apiFetch(`${API}/music/outside`).catch(() => null), apiFetch(`${API}/music/favorites`).catch(() => null)]);
+      if (f?.ok) setFavs((await f.json()).favorites ?? []);
       if (s.ok) setSongs(await s.json());
       if (t.ok) setCat({ ...EMPTY_CATALOG, ...(await t.json()) });
       if (o?.ok) setOut(await o.json());
@@ -58,15 +61,20 @@ export default function MusicLibraryPage() {
   const lists = useMemo(() => {
     const mineIds = new Set(songs.map(s => s.youtubeId));
     const live = (l: OutsideSong[]) => l.map(s => ({ ...s, mine: mineIds.has(s.youtubeId) }));
+    // Favourites: the richest copy of each starred song (own library first), else the saved name.
+    const all = new Map<string, LibrarySong | OutsideSong>();
+    for (const l of [live(out?.fromClients ?? []), live(out?.community.world ?? []), live(out?.community.country ?? []), live(out?.picks ?? []), songs as (LibrarySong | OutsideSong)[]]) for (const x of l) all.set(x.youtubeId, x);
+    const favList = favs.map(f => all.get(f.youtubeId) ?? ({ youtubeId: f.youtubeId, title: f.title, channel: f.channel ?? undefined, thumb: f.thumb, url: f.url, events: [], videos: [], moods: [], language: null, mine: mineIds.has(f.youtubeId) } as OutsideSong));
     return {
+      favs: favList as (LibrarySong | OutsideSong)[],
       mine: songs as (LibrarySong | OutsideSong)[],
       picks: live(out?.picks ?? []) as (LibrarySong | OutsideSong)[],
       community: live((world ? out?.community.world : out?.community.country) ?? []) as (LibrarySong | OutsideSong)[],
       clients: live(out?.fromClients ?? []).filter(s => !s.mine) as (LibrarySong | OutsideSong)[],
     };
-  }, [songs, out, world]);
+  }, [songs, out, world, favs]);
   const foundIn = useMemo(() => ({
-    mine: searchSongs(lists.mine, q, cat).map(h => h.song), picks: searchSongs(lists.picks, q, cat).map(h => h.song),
+    mine: searchSongs(lists.mine, q, cat).map(h => h.song), favs: searchSongs(lists.favs, q, cat).map(h => h.song), picks: searchSongs(lists.picks, q, cat).map(h => h.song),
     community: searchSongs(lists.community, q, cat).map(h => h.song), clients: searchSongs(lists.clients, q, cat).map(h => h.song),
   }), [lists, q, cat]);
   const source = lists[tab];
@@ -77,10 +85,26 @@ export default function MusicLibraryPage() {
   const pasted = youtubeIdOf(q);
   const tabs = [
     { id: "mine" as const, label: "My songs", icon: Music2, on: true },
+    { id: "favs" as const, label: "Favourites", icon: Heart, on: true },
     { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: !!out && out.settings.picks !== "off" },
     { id: "community" as const, label: "Popular in studios", icon: Building2, on: !!out && out.settings.community !== "off" },
     { id: "clients" as const, label: "From my clients", icon: Users, on: !!out && out.settings.fromClients !== "off" },
   ].filter(t => t.on);
+
+  const favIds = useMemo(() => new Set(favs.map(f => f.youtubeId)), [favs]);
+  /** Star / unstar a song (any list). */
+  async function toggleFav(s: LibrarySong | OutsideSong) {
+    const on = !favIds.has(s.youtubeId);
+    const r = await apiFetch(`${API}/music/favorite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ youtubeId: s.youtubeId, title: s.title, channel: s.channel ?? null, on }) }).catch(() => null);
+    if (!r?.ok) { notify("Couldn't save", { error: true }); return; }
+    setFavs((await r.json()).favorites ?? []);
+    notify(on ? "Added to Favourites" : "Taken out of Favourites");
+  }
+  /** The YouTube link on the clipboard in one tap. */
+  async function copyLink(s: LibrarySong | OutsideSong) {
+    try { await navigator.clipboard.writeText(s.url); notify("Link copied"); }
+    catch { notify("Couldn't copy", { error: true }); }
+  }
 
   /** Never show this outside song to this studio again. */
   async function hide(s: OutsideSong) {
@@ -131,7 +155,7 @@ export default function MusicLibraryPage() {
             className="ml-auto h-11 w-11 rounded-full bg-white text-[#6B6680] hover:bg-[#F5F3FA] inline-flex items-center justify-center flex-shrink-0"><Settings2 className="w-4 h-4" /></Link>
         </div>
       )}
-      {tab !== "mine" && (
+      {tab !== "mine" && tab !== "favs" && (
         <div className="mb-3 rounded-[16px] bg-white/70 px-4 py-2.5 flex items-center gap-3 flex-wrap text-[13px] text-[#4A4658]">
           <p className="flex-1 min-w-[200px]">
             {tab === "picks" ? "Songs chosen by StuPanel. Add the ones you like to My songs."
@@ -184,6 +208,8 @@ export default function MusicLibraryPage() {
 
       {loading ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{[0, 1, 2].map(i => <div key={i} className={cn("bg-white rounded-[22px] p-2.5", CARD_SHADOW)}><div className="sp-skel aspect-video rounded-[16px]" /><div className="sp-skel h-4 w-2/3 rounded-full mt-4 mx-1" /><div className="sp-skel h-3 w-1/3 rounded-full mt-2 mb-2 mx-1" /></div>)}</div>
+      ) : tab === "favs" && source.length === 0 ? (
+        <EmptyState icon={Heart} title="No favourites yet" text="Tap ♥ on any song — in My songs, StuPanel picks or the other lists — and it shows here." />
       ) : tab !== "mine" && source.length === 0 ? (
         <EmptyState icon={tab === "picks" ? Sparkles : tab === "community" ? Building2 : Users}
           title={tab === "picks" ? "No StuPanel picks yet" : tab === "community" ? (world ? "Nothing here yet" : "Nothing from your country yet") : "Nothing from your clients yet"}
@@ -255,6 +281,9 @@ export default function MusicLibraryPage() {
                     : o!.mine ? <span className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#1F8A5B] bg-[#E2F4EA] inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} />In my songs</span>
                     : <button type="button" onClick={() => setForm({ url: s.url, from: o! })} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" />Add to my songs</button>}
                   <span className="flex-1" />
+                  <button type="button" onClick={() => toggleFav(s)} aria-pressed={favIds.has(s.youtubeId)} aria-label={favIds.has(s.youtubeId) ? `Take ${s.title} out of Favourites` : `Add ${s.title} to Favourites`} title={favIds.has(s.youtubeId) ? "In Favourites" : "Add to Favourites"}
+                    className={cn("w-9 h-9 rounded-full flex items-center justify-center transition-colors", favIds.has(s.youtubeId) ? "text-[#C2304F] bg-[#FDECEF]" : "text-[#6B6680] hover:bg-[#F5F3FA]")}><Heart className="w-4 h-4" fill={favIds.has(s.youtubeId) ? "currentColor" : "none"} /></button>
+                  <button type="button" onClick={() => copyLink(s)} aria-label={`Copy the link of ${s.title}`} title="Copy link" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><Copy className="w-4 h-4" /></button>
                   <a href={s.url} target="_blank" rel="noreferrer" aria-label="Open on YouTube" title="Open on YouTube" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><ExternalLink className="w-4 h-4" /></a>
                   {lib ? <button type="button" onClick={() => remove(lib)} aria-label={`Remove ${s.title}`} title="Remove" className="w-9 h-9 rounded-full flex items-center justify-center text-[#C2304F] hover:bg-[#FDECEF]"><Trash2 className="w-4 h-4" /></button>
                     : <button type="button" onClick={() => hide(o!)} aria-label={`Hide ${s.title}`} title="Don't show me this song" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><EyeOff className="w-4 h-4" /></button>}

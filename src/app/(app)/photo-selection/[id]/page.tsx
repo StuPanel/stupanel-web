@@ -10,12 +10,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, Image as ImageIcon, ImagePlus, Images, Link2, Loader2,
-  MessageSquareText, MoreHorizontal, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
+  MessageSquareText, MoreHorizontal, Pencil, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
-import { askConfirm, notify } from "@/components/feedback";
+import { askConfirm, askText, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { PortalAccessModal } from "@/components/portal-access-modal";
 import { SelectLinkModal } from "@/components/select-link-modal";
@@ -24,7 +24,7 @@ import {
   albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeAgo, timeLeft, viewOf, zoomOf,
   type GalleryDetail, type GPhoto,
 } from "@/lib/photos";
-import { AddPhotos, syncUploads } from "../_components/add-photos";
+import { AddPhotos, syncUploadsInfo } from "../_components/add-photos";
 import { uploadStore } from "@/lib/upload-store";
 import { GallerySettings } from "../_components/gallery-settings";
 import { HandoffPanel } from "../_components/handoff";
@@ -75,7 +75,12 @@ export default function GalleryPage() {
 
   // Photos uploaded to the program's Drive folder that are not here yet (a reloaded tab, an upload continued
   // later, another device): bring them in when the page opens, and every 20 s while this program is uploading.
-  const sync = useCallback(async () => { if (await syncUploads(id)) load(); }, [id, load]);
+  // Photos deleted on Drive leave the selection too (Drive is the truth).
+  const sync = useCallback(async () => {
+    const r = await syncUploadsInfo(id);
+    if (r.added || r.removed) load();
+    if (r.removed) notify(`${r.removed} photo${r.removed > 1 ? "s" : ""} deleted on Google Drive ${r.removed > 1 ? "were" : "was"} taken out${r.chosen ? ` — the client had chosen ${r.chosen} of them` : ""}`, r.chosen ? { error: true } : undefined);
+  }, [id, load]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void sync(); }, [sync]);
   const programId = g?.program.id;
@@ -141,6 +146,42 @@ export default function GalleryPage() {
     setLink(d.link ?? null);
     return true;
   }
+  /** Rename a folder here, in the program's other selections and on Drive. */
+  async function renameFolder(from: string) {
+    const to = (await askText({ title: "Rename folder", message: "The new name shows here, for the client and on Google Drive.", value: from, confirmLabel: "Rename" }))?.trim();
+    if (!to || to === from) return;
+    setBusy(true);
+    const r = await apiFetch(`${API}/photo-selection/${id}/folders/rename`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from, to }) }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!r?.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't rename the folder", { error: true }); return; }
+    setFolder(to); await load();
+    notify(d.drive === "failed" ? `Renamed to “${to}” here — Google Drive didn't answer, rename it there too` : `Renamed to “${to}”`);
+  }
+  /** Delete a folder: out of the selection; photos uploaded from a phone/computer also go to Drive's trash. */
+  async function deleteFolder(name: string) {
+    const r0 = await apiFetch(`${API}/photo-selection/${id}/folders/info?folder=${encodeURIComponent(name)}`).catch(() => null);
+    const info: { photos: number; chosen: number; uploaded: number } = r0?.ok ? await r0.json() : { photos: 0, chosen: 0, uploaded: 0 };
+    const who = g?.client.firstName ?? "The client";
+    const ok = await askConfirm({
+      title: `Delete “${name}”?`,
+      message: [
+        `${info.photos} photo${info.photos === 1 ? "" : "s"} leave this selection.`,
+        info.uploaded ? "The photos uploaded here also move to Google Drive's trash (you can restore them there for 30 days)." : "The original files stay where they are.",
+        info.chosen ? `${who} has chosen ${info.chosen} of them — those choices go too.` : "",
+      ].filter(Boolean).join(" "),
+      confirmLabel: info.chosen ? `Delete with ${info.chosen} chosen` : "Delete folder", danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    const r = await apiFetch(`${API}/photo-selection/${id}/folders/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder: name }) }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!r?.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't delete the folder", { error: true }); return; }
+    setFolder(null); await load();
+    notify(`Deleted “${name}” — ${d.removed} photo${d.removed === 1 ? "" : "s"}${d.trashed ? ", moved to Drive's trash" : ""}`);
+  }
+
   async function take() {
     if (!g) return;
     const ok = await askConfirm({
@@ -412,6 +453,14 @@ export default function GalleryPage() {
               </button>
             );
           })}
+          {folder && (
+            <span className="inline-flex items-center gap-1 flex-shrink-0">
+              <button type="button" disabled={busy} onClick={() => renameFolder(folder)} aria-label={`Rename folder ${folder}`} title="Rename folder"
+                className="h-9 w-9 rounded-full bg-white text-[#4A4658] hover:bg-[#F5F3FA] inline-flex items-center justify-center disabled:opacity-50"><Pencil className="w-3.5 h-3.5" /></button>
+              <button type="button" disabled={busy} onClick={() => deleteFolder(folder)} aria-label={`Delete folder ${folder}`} title="Delete folder"
+                className="h-9 w-9 rounded-full bg-white text-[#C2304F] hover:bg-[#FDEDF1] inline-flex items-center justify-center disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
+            </span>
+          )}
         </div>
       )}
 

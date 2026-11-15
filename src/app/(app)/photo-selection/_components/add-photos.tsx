@@ -39,10 +39,15 @@ const errText = (d: { message?: string | string[] }, fallback: string) => (Array
  * Ask the server to bring in the photos that are in the program's Drive upload folder but not in the selection yet.
  * The Drive folder is the truth, so a reloaded tab or an upload continued later loses nothing.
  */
-export async function syncUploads(galleryId: string): Promise<number> {
+export async function syncUploadsInfo(galleryId: string): Promise<{ added: number; removed: number; chosen: number }> {
   const r = await apiFetch(`${API}/photo-selection/${galleryId}/uploads/sync`, { method: "POST" }).catch(() => null);
   const d = r?.ok ? await r.json().catch(() => ({})) : {};
-  return Number(d.added) || 0;
+  // removed: photos deleted on Drive, taken out of the selection; chosen: how many of those the client had chosen
+  return { added: Number(d.added) || 0, removed: Number(d.removed) || 0, chosen: Number(d.chosen) || 0 };
+}
+export async function syncUploads(galleryId: string): Promise<number> {
+  const r = await syncUploadsInfo(galleryId);
+  return r.added + r.removed;
 }
 
 /**

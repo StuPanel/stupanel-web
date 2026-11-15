@@ -124,6 +124,13 @@ function LoginForm() {
           {error}
         </div>
       )}
+      {!error && searchParams.get("noAccount") === "1" && (
+        <div role="alert" className="mb-5 px-4 py-3.5 rounded-lg bg-[#FFF7E8] border border-[#F3DDAE] text-[#6B4A00] text-sm">
+          <p className="font-semibold">No StuPanel account uses this Google account.</p>
+          <p className="mt-1 leading-relaxed">If your studio added you, sign in with the email they used, or open the invite link in your email. New here? Create your studio&apos;s account first.</p>
+          <Link href="/register" className="mt-3 inline-flex h-10 px-4 rounded-full bg-[#17151F] text-white text-sm font-semibold items-center">Create account</Link>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">

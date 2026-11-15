@@ -18,12 +18,13 @@ import { uploadStore } from "@/lib/upload-store";
 
 const CHUNK = 32 * 1024 * 1024; // multiple of 256 KB, as Google requires
 /**
- * How many files go up at once. A small file is mostly waiting (start, check, share with Drive),
- * so more of them run together; a big one is mostly sending, so fewer. Each running file takes
- * "load" from SLOTS: 3 big ones, up to 8 small ones, or a mix.
+ * How many files go up at once (Faisal 15-NOV): up to 20 MB → 12, 20–100 MB → 6, 100–500 MB → 3,
+ * bigger → 2. Each running file takes "load" from SLOTS, so sizes can mix (e.g. 2 big + 4 small).
+ * The browser sends each piece straight from the file, so many small files don't fill the phone's memory.
  */
-const SLOTS = 6;
-const loadOf = (f: File) => (f.size <= 1.5 * 1024 * 1024 ? 0.75 : f.size <= 6 * 1024 * 1024 ? 1.5 : 2);
+const SLOTS = 12;
+const MB = 1024 * 1024;
+const loadOf = (f: File) => (f.size <= 20 * MB ? 1 : f.size <= 100 * MB ? 2 : f.size <= 500 * MB ? 4 : 6);
 const PENDING_KEY = "sp_drive_pending_v1";
 
 export type DriveFileResult = {

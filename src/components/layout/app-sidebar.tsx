@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelSwitch } from "@/components/layout/panel-switch";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -12,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
 import { API_URL as API } from "@/lib/api";
-import { canOpen } from "@/lib/access";
+import { canOpen, homeFor } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
 import { StudioSwitcher } from "@/components/layout/studio-switcher";
 import { Tile, type TileColor } from "@/components/ui/apple";
@@ -148,6 +149,11 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
         <StudioSwitcher name={companyName} logo={companyLogo} sub="Studio workspace" compact={!wide} />
       </div>
+      {user?.role === "manager" && (
+        <div className={cn("flex-shrink-0", wide ? "px-3 pb-3" : "px-2 pb-3 flex justify-center")}>
+          <PanelSwitch current="studio" studioHref={homeFor(user)} compact={!wide} onNavigate={isMobile ? onClose : undefined} />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-3.5", wide ? "px-2.5" : "px-2")}>

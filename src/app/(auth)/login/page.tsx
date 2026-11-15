@@ -1,5 +1,6 @@
 "use client";
 
+import { managerStartsInMember } from "@/components/layout/panel-switch";
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,7 +46,7 @@ function LoginForm() {
     const token = localStorage.getItem("access_token");
     if (!token || searchParams.get("from")?.startsWith("/invite/")) return;
     const role = localStorage.getItem("user_role");
-    if (role === "staff") { router.replace("/member/dashboard"); return; }
+    if (role === "staff" || managerStartsInMember()) { router.replace("/member/dashboard"); return; }
     router.replace("/dashboard");
   }, [router, searchParams]);
 

@@ -39,6 +39,8 @@ export function homeFor(d: Session, redirectTo?: string | null) {
   // An invite link the person came from always wins.
   if (redirectTo?.startsWith("/invite/")) return redirectTo;
   if (d.user.role === "staff") return "/member/dashboard";
+  // A manager opens the panel they used last (their own work, or the studio).
+  if (d.user.role === "manager" && !redirectTo) { try { if (localStorage.getItem("sp_last_panel") === "member") return "/member/dashboard"; } catch { /* ignore */ } }
   if (!d.company.onboardingCompleted) return "/onboarding";
   return redirectTo || "/dashboard";
 }

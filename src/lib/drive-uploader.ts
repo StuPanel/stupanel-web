@@ -343,9 +343,30 @@ export function resumeWithFiles(files: File[]): { matched: number } {
 // ─── one file ────────────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
+/**
+ * Wait before trying a piece again. A phone with its screen off freezes the page, and the "online" event
+ * can fire while it is frozen — so on waking nothing told us the internet was back. Go on when any of these
+ * happens: "online", the page back on screen / focused, navigator.onLine seen true on a 4 s check, or 20 s
+ * passed anyway (then the next try shows whether the internet really is there).
+ */
 function waitOnline(): Promise<void> {
   if (typeof navigator === "undefined" || navigator.onLine) return sleep(3000);
-  return new Promise(r => window.addEventListener("online", () => r(), { once: true }));
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      clearInterval(poll); clearTimeout(cap);
+      window.removeEventListener("online", finish); window.removeEventListener("focus", onBack);
+      document.removeEventListener("visibilitychange", onBack);
+      resolve();
+    };
+    const onBack = () => { if (document.visibilityState === "visible") setTimeout(finish, 1000); };
+    const poll = setInterval(() => { if (navigator.onLine) finish(); }, 4000);
+    const cap = setTimeout(finish, 20000);
+    window.addEventListener("online", finish);
+    window.addEventListener("focus", onBack);
+    document.addEventListener("visibilitychange", onBack);
+  });
 }
 
 async function api<T>(path: string, body: unknown): Promise<T> {
@@ -450,7 +471,7 @@ async function runJob(job: Job) {
         failures++;
         update({ status: "waiting" });
         await waitOnline();
-        if (failures > 20) throw new Error("Upload keeps failing — check your internet and try again");
+        if (failures > 40) throw new Error("Upload keeps failing — check your internet and try again");
         // Ask Google how much it really has, then continue from there.
         const st = await api<{ state: string; offset: number; fileId: string | null }>(
           ep.status, { uploadUrl: pending.uploadUrl, size: total }).catch(() => null);

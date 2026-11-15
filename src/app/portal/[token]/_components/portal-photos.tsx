@@ -21,7 +21,7 @@ import { albumProgress, drivePhoto, foldersOf, isPicked, thumbOf, timeLeft, view
 const T = {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
     chosen: (n: number) => `${n} chosen`, sent: "Sent to the studio", started: "The studio has started your album",
-    all: "All", unseen: "Not decided", picked: "Chosen", important: "Love most", rejected: "Don't want", highlights: "Highlights",
+    all: "All", fresh: "New", freshNote: (n: number) => `The studio added ${n} new photo${n > 1 ? "s" : ""} — they are marked “New”.`, unseen: "Not decided", picked: "Chosen", important: "Love most", rejected: "Don't want", highlights: "Highlights",
     choose: "Choose", love: "Love most", dont: "Don't want", note: "Note for the studio (optional)", notePh: "e.g. make it brighter, crop closer…",
     full: (a: string, n: number) => `${a} is full (${n}). Remove one to choose another.`, extra: (a: string, n: number) => `More than ${n} in ${a} — the studio may charge for extra photos.`,
     saving: "Saving…", saved: "Saved", notSaved: "Not saved — check your internet", review: "Review & send", reviewTitle: "Check before sending", reviewSub: "This is what the studio gets.",
@@ -42,7 +42,7 @@ const T = {
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
-type Filter = "all" | "unseen" | "picked" | "important" | "rejected";
+type Filter = "all" | "new" | "unseen" | "picked" | "important" | "rejected";
 
 export function PortalPhotos({ token, galleries, brand, onChanged, autoOpen }: {
   token: string; galleries: ClientGalleryCard[]; brand: string; onChanged: () => void;
@@ -204,7 +204,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const folder = folderPick !== null && folders.includes(folderPick) ? folderPick : null;
   const inFolder = useMemo(() => (folder === null ? inAlbum : inAlbum.filter(p => (p.f ?? "") === folder)), [inAlbum, folder]);
   const shown = useMemo(() => inFolder.filter(p =>
-    filter === "all" ? true : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inFolder, filter]);
+    filter === "all" ? true : filter === "new" ? !!p.nw : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inFolder, filter]);
   const highlights = useMemo(() => inFolder.filter(p => p.hl), [inFolder]);
   const locked = !g?.canChange;
   const { isSeen, version, resume, clearResume, markSeen, setLast } = useSeen(g?.id);
@@ -256,11 +256,12 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   }
 
   /** Returns false when the photo could not be chosen (the album is full). */
-  function mark(p: GPhoto, m: Mark): boolean {
+  /** `next`: in the big view, slide to the next photo after marking. */
+  function mark(p: GPhoto, m: Mark, next = false): boolean {
     if (!g || locked) return false;
-    const next: Mark | null = p.m === m ? null : m;
+    const nextMark: Mark | null = p.m === m ? null : m;
     const a = albums.find(x => x.id === p.a);
-    if (a && isPicked(next) && !isPicked(p.m) && a.maxPicks !== null) {
+    if (a && isPicked(nextMark) && !isPicked(p.m) && a.maxPicks !== null) {
       const n = pickedIn(a.id);
       // Full: say it in the middle of the screen — a small line at the bottom is easy to miss.
       if (n >= a.maxPicks && !a.allowExtra) { setFull({ album: a.name, max: a.maxPicks, why: "blocked" }); navigator.vibrate?.([30, 60, 30]); return false; }
@@ -268,15 +269,17 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
       // The last one that fits: tell them the album is complete and offer to send it.
       if (n + 1 === a.maxPicks && !a.allowExtra && !toldFull.current.has(a.id)) { toldFull.current.add(a.id); setTimeout(() => setFull({ album: a.name, max: a.maxPicks!, why: "done" }), 650); }
     }
-    setG(x => (x ? { ...x, photos: x.photos.map(y => (y.id === p.id ? { ...y, m: next } : y)) } : x));
-    queue.current.set(p.id, { ...(queue.current.get(p.id) ?? { id: p.id }), mark: next });
+    setG(x => (x ? { ...x, photos: x.photos.map(y => (y.id === p.id ? { ...y, m: nextMark } : y)) } : x));
+    queue.current.set(p.id, { ...(queue.current.get(p.id) ?? { id: p.id }), mark: nextMark });
     schedule();
+    if (next) slideOn(nextMark);
     return true;
   }
   /** Double-tap: choose it (never un-chooses — that's what the ✓ button is for). False = it was not chosen. */
-  function quickChoose(p: GPhoto): boolean {
+  function quickChoose(p: GPhoto, next = false): boolean {
     if (!g || locked) return false;
-    return isPicked(p.m) ? true : mark(p, "selected");
+    if (isPicked(p.m)) { if (next) slideOn(p.m); return true; }
+    return mark(p, "selected", next);
   }
   function onCellTap(p: GPhoto, i: number) {
     if (tap.current?.id === p.id) {
@@ -320,6 +323,13 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const left = g && (g.status === "open" || g.status === "submitted") ? timeLeft(g.deadline) : null;
   const totalPicked = (g?.photos ?? []).filter(p => isPicked(p.m)).length;
   const vp = view !== null ? shown[view] : null;
+  // After a mark in the big view, the next photo slides in — unless the marked one leaves this list
+  // (e.g. "Not decided"), then the next one is already in its place.
+  const [nextSig, setNextSig] = useState(0);
+  function slideOn(next: Mark | null) {
+    const stays = filter === "all" || filter === "new" ? true : filter === "unseen" ? !next : filter === "picked" ? isPicked(next) : next === filter;
+    if (stays) setNextSig(n => n + 1);
+  }
   useEffect(() => {
     if (!vp) return;
     markSeen([vp.id]);
@@ -328,6 +338,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   }, [vp, markSeen, setLast]);
   const filters: { id: Filter; label: string; n: number }[] = [
     { id: "all", label: t.all, n: inFolder.length },
+    ...(inFolder.some(p => p.nw) ? [{ id: "new" as Filter, label: t.fresh, n: inFolder.filter(p => p.nw).length }] : []),
     { id: "unseen", label: t.unseen, n: inFolder.filter(p => !p.m).length },
     { id: "picked", label: t.picked, n: inFolder.filter(p => isPicked(p.m)).length },
     { id: "important", label: t.important, n: inFolder.filter(p => p.m === "important").length },
@@ -344,7 +355,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
         const on = p.m === b.m || (b.m === "selected" && p.m === "important" && !big);
         return (
           <button key={b.m} type="button" disabled={locked} aria-pressed={p.m === b.m} aria-label={b.label}
-            onClick={e => { e.stopPropagation(); mark(p, b.m); }}
+            onClick={big ? e => { e.stopPropagation(); mark(p, b.m, true); } : e => { e.stopPropagation(); mark(p, b.m); }}
             className={cn("rounded-full flex items-center justify-center gap-1.5 font-semibold transition-all active:scale-90 disabled:opacity-60",
               big ? "h-12 px-2.5 text-[13.5px] flex-1 whitespace-nowrap" : "w-8 h-8",
               p.m === b.m ? b.on : big ? "bg-white/10 text-white hover:bg-white/20" : on ? "bg-[#1F8A5B]/90 text-white" : "bg-white/85 text-[#33303F] backdrop-blur hover:bg-white")}>
@@ -497,6 +508,12 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
               ))}
             </div>
             {!locked && filter === "all" && !totalPicked && <p className="text-[12.5px] text-[#6B6680] mb-2">{t.tapHint}</p>}
+            {!locked && filter === "all" && inFolder.some(p => p.nw) && (
+              <button type="button" onClick={() => setFilter("new")} className="mb-2 w-full text-left rounded-2xl bg-white px-3.5 py-2.5 text-[13px] text-[#33303F] shadow-sm flex items-center gap-2">
+                <span className="h-5 px-2 rounded-full text-white text-[11px] font-bold inline-flex items-center flex-shrink-0" style={{ backgroundColor: brand }}>{t.fresh}</span>
+                <span className="flex-1">{t.freshNote(inFolder.filter(p => p.nw).length)}</span><ArrowRight className="w-4 h-4 text-[#8A8599]" />
+              </button>
+            )}
 
             {/* Grid */}
             {shown.length === 0 ? <p className="text-center text-[#8A8599] py-16 text-sm">{t.none}</p> : (
@@ -515,6 +532,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                         <Check className="w-9 h-9" strokeWidth={3} />
                       </span>
                     )}
+                    {p.nw && <span className="absolute left-1.5 bottom-1.5 h-5 px-1.5 rounded-full text-white text-[10.5px] font-bold inline-flex items-center shadow pointer-events-none" style={{ backgroundColor: brand }}>{t.fresh}</span>}
                     {p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#C2304F] text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
                     {p.no && <span className="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow" style={{ color: brand }}><StickyNote className="w-3.5 h-3.5" /></span>}
                     {!locked && (
@@ -637,14 +655,15 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
           title={`${view + 1} ${t.of} ${shown.length}`} sub={[albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
           top={<span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{totalPicked}</span></span>}
-          onDoubleTap={locked ? undefined : () => quickChoose(vp)}
+          onDoubleTap={locked ? undefined : () => quickChoose(vp, true)}
+          nextSignal={nextSig}
           hint={!locked && !hintSeen ? t.viewHint : undefined}
           onKey={e => {
             if (locked) return false;
             const k = e.key.toLowerCase();
-            if (k === "1" || k === "s" || k === " ") { mark(vp, "selected"); return true; }
-            if (k === "2" || k === "l") { mark(vp, "important"); return true; }
-            if (k === "3" || k === "x") { mark(vp, "rejected"); return true; }
+            if (k === "1" || k === "s" || k === " ") { mark(vp, "selected", true); return true; }
+            if (k === "2" || k === "l") { mark(vp, "important", true); return true; }
+            if (k === "3" || k === "x") { mark(vp, "rejected", true); return true; }
             return false;
           }}
           footer={

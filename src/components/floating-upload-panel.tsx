@@ -280,7 +280,7 @@ export function FloatingUploadPanel() {
       )}
 
       {!collapsed && uploads.length > 0 && (
-        <div className="max-h-[40vh] sm:max-h-80 overflow-y-auto">
+        <div className="max-h-[40vh] sm:max-h-80 overflow-y-auto overscroll-contain">
           {shown.map(u => {
             const isActive = !u.done && !u.error && !u.cancelled;
             return (

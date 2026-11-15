@@ -121,6 +121,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         </>
       ) : (
         <form onSubmit={acceptNew} noValidate>
+          {/* The email as the "username" so the browser offers to save this email + password together. */}
+          <input type="email" name="username" autoComplete="username" value={info.email} readOnly tabIndex={-1} aria-hidden="true" className="sr-only" />
           {/* Who you are and how you'll sign in */}
           <div className="rounded-[16px] bg-[#F7F4FE] border border-[#E4DCFB] p-4 mb-5">
             <p className="text-[15px] font-semibold text-[#17151F]">Hi {info.firstName}! 👋</p>

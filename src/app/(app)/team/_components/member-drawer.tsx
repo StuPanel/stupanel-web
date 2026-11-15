@@ -235,7 +235,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     if (!freelancer && !sendInvite && !(isEdit && lockedLogin)) {
       if (!form.username.trim()) return fail(hasEmail || isEdit ? "Please choose a username for their login." : "Add their email to send an invite, or choose a username and password.", "login");
       if (unCheck.available === false) return fail("That username is taken — pick another.", "login");
-      if (!isEdit && form.password.length < 6) return fail("Password must be at least 6 characters.", "login");
+      if (!isEdit && form.password.length < 8) return fail("Password must be at least 8 characters.", "login");
     }
     setError(""); setLoading(true);
     try {
@@ -516,12 +516,12 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
               )}
             </Field>
             {!isEdit && (
-              <Field label="Password" required hint="At least 6 characters.">
+              <Field label="Password" required hint="At least 8 characters.">
                 {id => (
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <input id={id} type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
-                        placeholder="Min. 6 characters" className={inputCls + " pr-10"} autoComplete="new-password" />
+                        placeholder="Min. 8 characters" className={inputCls + " pr-10"} autoComplete="new-password" />
                       <button type="button" aria-label={showPass ? "Hide password" : "Show password"} onClick={() => setShowPass(v => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">
                         {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -601,7 +601,7 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (pass.length < 6) { setError("Minimum 6 characters."); jumpToField(); return; }
+    if (pass.length < 8) { setError("Minimum 8 characters."); jumpToField(); return; }
     setError(""); setLoading(true);
     const r = await apiFetch(`${API}/team/${member!.id}/reset-password`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword: pass }),
@@ -642,7 +642,7 @@ export function ResetPassDialog({ member, onClose, onDone }: { member: Member | 
               <Label className="text-xs font-medium text-[#4A4658]">New Password</Label>
               <div className="relative">
                 <Input type={showPass ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)}
-                  placeholder="Min. 6 characters" className="pr-10 h-11 border-[#E4E0EC]" autoFocus />
+                  placeholder="Min. 8 characters" className="pr-10 h-11 border-[#E4E0EC]" autoFocus />
                 <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8599]">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

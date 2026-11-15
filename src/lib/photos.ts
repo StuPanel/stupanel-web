@@ -14,6 +14,8 @@ export type GPhoto = {
   f: string | null;
   /** The file on Google Drive (the picture is loaded straight from Google) */
   d: string | null;
+  /** client only: added after the studio last told them about new photos → "New" */
+  nw?: boolean;
   /** studio only */
   st?: "pending" | "processing" | "ready" | "failed"; err?: string | null; src?: string; t?: boolean;
 };
@@ -47,6 +49,8 @@ export type GalleryDetail = {
   activity?: { opens: number; lastOpenAt: string | null; lastPickAt: string | null };
   /** The photo on the client's welcome screen (null = chosen by itself) */
   coverPhotoId?: string | null;
+  /** Ready photos the client hasn't been told about yet */
+  newPhotos?: number; newPhotosToldAt?: string | null;
 };
 
 export type ClientGalleryCard = {

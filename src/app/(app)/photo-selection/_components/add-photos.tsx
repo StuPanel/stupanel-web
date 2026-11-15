@@ -76,6 +76,8 @@ export async function uploadToSelection(opts: {
     uploadToDrive({
       kind: "raw", files: plan.files, bookingId: opts.programId, bookingName: opts.programName,
       folderFor: () => path, plans: plan.plans, onDone: soon,
+      // Kept with the unfinished list, so an upload continued after a closed tab still lands in this selection.
+      syncPath: `/photo-selection/${opts.galleryId}/uploads/sync`,
     });
   }
   soon();
@@ -164,6 +166,18 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
     { id: "delivery", label: "Delivery", icon: PackageCheck, n: src?.delivery.reduce((n, f) => n + f.photos, 0) },
     { id: "computer", label: "Phone or computer", icon: MonitorUp },
   ];
+
+  /** RAW files can't go up from here: say where they go instead, with the way there. */
+  const rawHelp = (n: number) => (
+    <div className="mt-2 rounded-[14px] bg-[#FFF6E5] border border-[#F5DFB0] px-3.5 py-3 text-[12.5px] text-[#6B4E12] leading-relaxed">
+      <p className="font-semibold text-[13px] text-[#4A3608]">{n} RAW file{n > 1 ? "s" : ""} can&apos;t be added from here</p>
+      <p className="mt-0.5">RAW photos (ARW, CR3, NEF…) go in the program&apos;s <b>Raw files</b> first. StuPanel makes a preview of each, then you add them from the <b>Raw files</b> tab above.</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a href={`/programs?view=${programId}`} target="_blank" rel="noreferrer" className="h-8 px-3 rounded-full bg-[#17151F] text-white text-[12.5px] font-semibold inline-flex items-center">Upload them to Raw files</a>
+        <button type="button" onClick={() => { setFiles([]); setTab("raw"); }} className="h-8 px-3 rounded-full bg-white border border-[#E8DDC4] text-[#4A3608] text-[12.5px] font-semibold">Open the Raw files tab</button>
+      </div>
+    </div>
+  );
 
   const nameInput = (key: string, label: string) => (
     <input value={nameOf(key)} onChange={e => setNames(n => ({ ...n, [key]: e.target.value }))} maxLength={120} aria-label={label} placeholder="No folder"
@@ -264,6 +278,7 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
             <span className="w-14 h-14 mx-auto rounded-[18px] bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center"><MonitorUp className="w-6 h-6" /></span>
             <p className="text-[15px] font-bold text-[#17151F] mt-3">Choose photos from this phone or computer</p>
             <p className="text-[13px] text-[#6B6680] mt-1">JPG, PNG or HEIC. They are saved in this program&apos;s folder on your Google Drive (Album selection → Photos to choose).</p>
+            <p className="text-[12.5px] text-[#6B6680] mt-2">RAW files (ARW, CR3, NEF…)? <button type="button" onClick={() => setTab("raw")} className="font-semibold text-[#5B3FD0] underline underline-offset-2">Use Raw files</button> — they get a preview there.</p>
             <div className="flex flex-wrap justify-center gap-2 mt-4">
               <button type="button" onClick={() => folderInput.current?.click()} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><FolderOpen className="w-4 h-4" />Choose folders</button>
               <button type="button" onClick={() => fileInput.current?.click()} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[13px] font-semibold inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />Choose photos</button>
@@ -276,7 +291,8 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
           {files.length > 0 && (
             <div className={cn("bg-white rounded-[20px] p-4 mt-4 sp-fade-in", CARD_SHADOW)}>
               <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#1F8A5B]" />{uploadable} photos ready</p>
-              {files.length > uploadable && <p className="text-[12.5px] text-[#C2304F] mt-1">{files.length - uploadable} file{files.length - uploadable > 1 ? "s" : ""} will be left out (not JPG/PNG{files.some(f => isRawName(f.name)) ? " — RAW files can be added from Raw files on Drive" : ""}).</p>}
+              {files.length > uploadable && !files.some(f => isRawName(f.name)) && <p className="text-[12.5px] text-[#C2304F] mt-1">{files.length - uploadable} file{files.length - uploadable > 1 ? "s" : ""} will be left out (not JPG/PNG).</p>}
+              {files.some(f => isRawName(f.name)) && rawHelp(files.filter(f => isRawName(f.name)).length)}
               <div className="mt-3 space-y-2">
                 {[...groups].map(([folder, list]) => (
                   <div key={folder || "-"} className="flex flex-wrap items-center gap-2">

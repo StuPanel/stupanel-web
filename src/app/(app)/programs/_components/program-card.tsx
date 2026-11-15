@@ -1,5 +1,6 @@
 "use client";
 
+import { SideBadge } from "@/lib/coverage-side";
 import { useState, useRef } from "react";
 import {
   MoreHorizontal, Eye, Edit3, Trash2, AlertTriangle, Loader2, MapPin, Check,
@@ -35,7 +36,10 @@ export function ProgramRow({ b, onView, onEdit, onDelete }: {
       className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[72px] cursor-pointer hover:bg-[#F7F5FB] transition-colors focus:outline-none focus-visible:bg-[#F7F5FB]">
       <DateBox date={b.eventDate} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</p>
+        <p className="text-sm font-semibold text-[#17151F] flex items-center gap-1.5 min-w-0">
+          <span className="truncate">{b.eventName || "Untitled program"}</span>
+          <SideBadge side={b.coverageSide} short className="flex-shrink-0" />
+        </p>
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
           {client}
           {b.eventLocation ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</> : null}

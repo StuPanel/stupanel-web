@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanSide, daySide } from "@/lib/coverage-side";
 import { CalendarDays as HeaderIcon } from "lucide-react";
 import { EmptyState, Group, PageHeader } from "@/components/ui/apple";
 import { EntryRow, MONTH_NAMES, MonthCalendar, monthRange, type CalEntry } from "@/components/month-calendar";
@@ -14,6 +15,7 @@ import { localDateStr } from "@/lib/format";
 
 
 interface Booking {
+  coverageSide?: string | null;
   id: string; bookingNumber: string; eventName: string; eventDate?: string;
   eventLocation?: string; status: string; clientName?: string;
   client?: { firstName: string; lastName: string };
@@ -34,7 +36,7 @@ const STATUS_COLORS: Record<string, { dot: string; badge: string; label: string 
 };
 
 
-type Day = { date?: string; eventType?: string; location?: string; shifts?: { label?: string; start?: string; end?: string; assignments?: unknown[] }[] };
+type Day = { date?: string; eventType?: string; location?: string; side?: string; shifts?: { label?: string; start?: string; end?: string; assignments?: unknown[] }[] };
 const fmtT = (t?: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? ""); if (!m) return ""; const h = Number(m[1]); return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`; };
 
 /** One calendar entry per day of a program (a program without days shows on its date). */
@@ -44,12 +46,12 @@ function toEntries(b: Booking & { eventDays?: Day[] }): CalEntry[] {
   const name = b.eventName || b.bookingNumber;
   const days = (Array.isArray(b.eventDays) ? b.eventDays : []).filter(d => /^\d{4}-\d{2}-\d{2}/.test(d.date ?? ""));
   const base = { dot: sc.dot, chip: sc.badge, badge: { label: sc.label, cls: sc.badge }, href: `/programs?view=${b.id}` };
-  if (!days.length) return b.eventDate ? [{ ...base, key: b.id, date: b.eventDate.slice(0, 10), title: name, sub: [client, b.eventLocation].filter(Boolean).join(" · ") }] : [];
+  if (!days.length) return b.eventDate ? [{ ...base, key: b.id, date: b.eventDate.slice(0, 10), title: name, side: cleanSide(b.coverageSide), sub: [client, b.eventLocation].filter(Boolean).join(" · ") }] : [];
   return days.map((d, i) => {
     const shifts = (d.shifts ?? []).map(s => [s.label, s.start && s.end ? `${fmtT(s.start)}–${fmtT(s.end)}` : ""].filter(Boolean).join(" ")).filter(Boolean);
     const people = new Set((d.shifts ?? []).flatMap(s => (s.assignments ?? []) as { id?: string }[]).map(a => a?.id).filter(Boolean)).size;
     return {
-      ...base, key: `${b.id}-${i}`, date: d.date!.slice(0, 10),
+      ...base, key: `${b.id}-${i}`, date: d.date!.slice(0, 10), side: daySide(d, b.coverageSide),
       title: d.eventType && d.eventType.toLowerCase() !== name.toLowerCase() ? `${name} · ${d.eventType}` : name,
       sub: [client, shifts.join(", "), d.location || b.eventLocation, people ? `${people} on the team` : ""].filter(Boolean).join(" · "),
     };

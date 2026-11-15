@@ -1,5 +1,6 @@
 "use client";
 
+import { SideBadge, sideLabel } from "@/lib/coverage-side";
 import { useState, useEffect } from "react";
 import {
   AlertTriangle, ArrowRight, BadgeDollarSign, Camera, CalendarDays, CheckCircle2, Clock, HardDrive, Hourglass,
@@ -19,7 +20,7 @@ interface DashData {
   upcoming: number;
   statusCounts: Record<string, number>;
   recentUpcoming: {
-    id: string; bookingNumber: string; eventName?: string;
+    id: string; bookingNumber: string; eventName?: string; coverageSide?: string | null;
     eventDate?: string; eventLocation?: string; status: string;
     deliveryLink?: string;
     client: { firstName: string; lastName?: string; phone?: string };
@@ -95,7 +96,7 @@ export default function MemberDashboardPage() {
 
       {next && nextDays !== null && nextDays >= 0 && (
         <NextUp days={nextDays} title={next.eventName || "Program"} href={`/member/programs/${next.id}`}
-          sub={`${next.client.firstName} ${next.client.lastName ?? ""} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
+          sub={`${sideLabel(next.coverageSide) ? `${sideLabel(next.coverageSide)} · ` : ""}${next.client.firstName} ${next.client.lastName ?? ""} · ${fmtDate(next.eventDate)}${next.eventLocation ? ` · ${next.eventLocation}` : ""}`} />
       )}
 
       {todoCount > 0 && (
@@ -195,7 +196,7 @@ export default function MemberDashboardPage() {
           <p className="px-5 py-8 text-center text-sm text-[#A29DB3]">No programs coming up.</p>
         ) : data.recentUpcoming.map(b => (
           <ListRow key={b.id} href={`/member/programs/${b.id}`}
-            title={<span className="flex items-center gap-3"><DateBox date={b.eventDate} /><span className="min-w-0"><span className="block truncate">{b.eventName || "Program"}</span>
+            title={<span className="flex items-center gap-3"><DateBox date={b.eventDate} /><span className="min-w-0"><span className="flex items-center gap-1.5 min-w-0"><span className="truncate">{b.eventName || "Program"}</span><SideBadge side={b.coverageSide} short className="flex-shrink-0" /></span>
               <span className="block text-xs font-normal text-[#6B6680] truncate">{b.client.firstName} {b.client.lastName ?? ""}{b.eventLocation ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</> : null}</span></span></span>}
             right={<StatusBadge status={b.status} />} />
         ))}

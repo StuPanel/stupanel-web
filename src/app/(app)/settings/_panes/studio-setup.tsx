@@ -4,6 +4,7 @@
  * Settings that live in companies.settings (GET/PATCH /companies/settings):
  * features, work types, shift templates, team pay and delivery rules.
  */
+import { typeHasSides } from "@/lib/coverage-side";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronRight, Clock, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,13 @@ function TypeCard({ type: t, open, onToggle, onChange, onRemove }: {
       <div className={cn("grid transition-[grid-template-rows,opacity] duration-300 ease-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
         <div className="overflow-hidden">
           <div className="pl-12 sm:pl-14 pr-4 sm:pr-5 pb-3">
+            <div className="flex items-center gap-3 py-2 mb-1 border-b border-[#EFECF5]">
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13.5px] font-semibold text-[#17151F]">Ask whose side</span>
+                <span className="block text-xs text-[#6B6680]">Bride&apos;s side, groom&apos;s side or both — shown to your team and the client.</span>
+              </span>
+              <Switch label={`Ask whose side for ${t.name}`} on={typeHasSides(t)} onChange={v => onChange({ ...t, sides: v })} />
+            </div>
             {events.length === 0 && (
               <p className="text-xs text-[#6B6680] py-2">No parts — a program of this type gets one day named &quot;{t.name}&quot;. Add parts if it usually has more (e.g. Seminar, Award night).</p>
             )}

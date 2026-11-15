@@ -5,6 +5,7 @@
  * Left: what it is + quick actions, where it stands (status), and the money at a glance.
  * Right: what to do next, then tabs — Overview, Money, Team, Editing, Delivery, Documents.
  */
+import { SideBadge, cleanSide, daySide } from "@/lib/coverage-side";
 import { useAuth } from "@/context/auth-context";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -229,7 +230,11 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
       <div key={day.id} className="px-4 py-3.5 flex items-start gap-3">
         <DateBox date={day.date || undefined} />
         <div className="flex-1 min-w-0">
-          <p className="text-[14.5px] font-semibold text-[#17151F] truncate">{day.eventType || `Day ${i + 1}`}</p>
+          <p className="text-[14.5px] font-semibold text-[#17151F] flex items-center gap-1.5 min-w-0">
+            <span className="truncate">{day.eventType || `Day ${i + 1}`}</span>
+            {/* The day's side, when it is not the program's (shown at the top) */}
+            {daySide(day, b.coverageSide) !== cleanSide(b.coverageSide) && <SideBadge side={daySide(day, b.coverageSide)} className="flex-shrink-0" />}
+          </p>
           <p className="text-[12.5px] text-[#6B6680] flex flex-wrap items-center gap-x-2 mt-0.5">
             <span>{day.date ? fmtDate(day.date) : "No date yet"}</span>
             {day.location && <span className="inline-flex items-center gap-0.5 min-w-0"><MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{day.location}</span></span>}
@@ -290,6 +295,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2 lg:justify-center">
                   {typeName && <Chip tone="grey">{typeName}</Chip>}
+                  <SideBadge side={b.coverageSide} className="h-6 text-[12px]" />
                   <span className="h-6 px-2 rounded-full text-[12px] font-mono text-[#6B6680] inline-flex items-center">{b.bookingNumber}</span>
                 </div>
               </div>

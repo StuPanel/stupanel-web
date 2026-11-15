@@ -1,5 +1,6 @@
 "use client";
 
+import { SideBadge } from "@/lib/coverage-side";
 import { useState, useEffect, useCallback } from "react";
 import { Camera, Loader2, MapPin, Phone } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -14,7 +15,7 @@ const NEXT_TRANSITIONS: Record<string, string> = {
 const TRANSITION_LABELS: Record<string, string> = { editing: "Mark editing", ready_for_delivery: "Mark ready" };
 
 interface Booking {
-  id: string; bookingNumber: string; eventName?: string;
+  id: string; bookingNumber: string; eventName?: string; coverageSide?: string | null;
   eventDate?: string; eventLocation?: string; status: string;
   deliveryLink?: string;
   client: { id: string; firstName: string; lastName?: string; phone?: string };
@@ -89,7 +90,7 @@ export default function MemberProgramsPage() {
                 <Link href={`/member/programs/${b.id}`} className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-[#F7F5FB] transition-colors">
                   <DateBox date={b.eventDate} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{b.eventName || "Program"}</span>
+                    <span className="flex items-center gap-1.5 min-w-0"><span className="text-[15px] font-semibold text-[#17151F] truncate">{b.eventName || "Program"}</span><SideBadge side={b.coverageSide} short className="flex-shrink-0" /></span>
                     <span className="block text-xs text-[#6B6680] truncate">
                       {b.client.firstName} {b.client.lastName ?? ""}{b.program ? ` · ${b.program.name}` : ""}
                       {b.eventLocation && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {b.eventLocation}</>}

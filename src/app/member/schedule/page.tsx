@@ -1,5 +1,6 @@
 "use client";
 
+import { SideBadge, daySide } from "@/lib/coverage-side";
 import { useState, useEffect } from "react";
 import { CalendarDays, CalendarPlus, Download, ExternalLink, MapPin, Phone } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -22,7 +23,9 @@ interface Event {
   eventDate?: string; eventLocation?: string; status: string;
   clientName: string; clientPhone: string; days: string[];
   /** The days I work on this program. */
-  myDays?: { date: string; part: string; location: string; shifts: string[]; start?: string | null; mapUrl?: string | null }[];
+  myDays?: { date: string; part: string; location: string; shifts: string[]; start?: string | null; mapUrl?: string | null; side?: string | null }[];
+  /** Whose side the program covers: bride | groom | both. */
+  coverageSide?: string | null;
   /** Which studio (one login, many studios). */
   studio?: Studio;
 }
@@ -47,6 +50,12 @@ function calDays(e: Event): CalDay[] {
   }));
 }
 
+/** The side I work for on this program: the one side of my days, else the program's. */
+const mySide = (e: Event) => {
+  const sides = [...new Set((e.myDays ?? []).map(d => daySide(d, e.coverageSide)).filter(Boolean))];
+  return sides.length === 1 ? sides[0] : sides.length ? null : e.coverageSide ?? null;
+};
+
 /** My shift on the next day I work (e.g. "Evening (5:00 PM – 10:00 PM)"). */
 const nextShift = (e: Event) => {
   const today = new Date().toISOString().slice(0, 10);
@@ -69,9 +78,9 @@ function myEntries(events: Event[], many: boolean): CalEntry[] {
     // A program with days where I am on no shift (I edit it) has no work day for me on the calendar.
     const mine = e.myDays?.length ? e.myDays
       : e.days.length ? []
-      : e.eventDate ? [{ date: String(e.eventDate), part: "", location: e.eventLocation ?? "", shifts: [] as string[], start: null }] : [];
+      : e.eventDate ? [{ date: String(e.eventDate), part: "", location: e.eventLocation ?? "", shifts: [] as string[], start: null, side: e.coverageSide }] : [];
     return mine.filter(d => /^\d{4}-\d{2}-\d{2}/.test(d.date)).map((d, i) => ({
-      key: `${e.studio?.userId ?? ""}${e.id}-${i}`, date: d.date.slice(0, 10), dot, chip,
+      key: `${e.studio?.userId ?? ""}${e.id}-${i}`, date: d.date.slice(0, 10), dot, chip, side: daySide(d, e.coverageSide),
       title: d.part && d.part.toLowerCase() !== name.toLowerCase() ? `${name} · ${d.part}` : name,
       sub: [many && e.studio ? e.studio.name : "", d.shifts.join(", ") || (d.start ? timeRange(d.start, null) : ""), d.location || e.eventLocation, e.clientName].filter(Boolean).join(" · "),
       href: elsewhere ? undefined : `/member/programs/${e.id}`,
@@ -187,6 +196,7 @@ export default function SchedulePage() {
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center gap-2">
                     <span className="text-[15px] font-semibold text-[#17151F] truncate">{ev.eventName || "Program"}</span>
+                    <SideBadge side={mySide(ev)} short className="flex-shrink-0" />
                   </span>
                   {many && ev.studio && (
                     <span className="mt-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#5B3FD0] min-w-0">

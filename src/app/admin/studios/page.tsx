@@ -204,6 +204,30 @@ function R2Modal({ studio, onClose, onSaved }: {
   );
 }
 
+/** Deleting for good: type the studio's name and the code from the authenticator app. */
+function DeleteProof({ name, typed, setTyped, code, setCode }: {
+  name: string; typed: string; setTyped: (v: string) => void; code: string; setCode: (v: string) => void;
+}) {
+  const field = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white px-3 placeholder:text-slate-500 focus:outline-none focus:border-red-500";
+  return (
+    <div className="space-y-3 rounded-xl border border-red-900/40 bg-red-900/10 p-3">
+      <p className="text-xs text-red-200">
+        Every team login, client, program, payment and file of this studio is deleted now. Only StuPanel&apos;s billing record and the studio&apos;s name stay. This cannot be undone.
+      </p>
+      <div className="space-y-1">
+        <label htmlFor="del-name" className="text-xs text-slate-400">Type the studio&apos;s name: <span className="font-semibold text-slate-200 break-words">{name}</span></label>
+        <input id="del-name" value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" className={field} />
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="del-code" className="text-xs text-slate-400">6-digit code from your authenticator app</label>
+        <input id="del-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000"
+          className={cn(field, "tracking-[0.3em] font-semibold")} />
+      </div>
+    </div>
+  );
+}
+const proofOk = (name: string, typed: string, code: string) => typed.trim().toLowerCase() === String(name ?? "").trim().toLowerCase() && code.length === 6;
+
 // ─── Delete Modal ─────────────────────────────────────────────────────────────
 function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
   studio: any; onClose: () => void;
@@ -214,6 +238,9 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [code, setCode] = useState("");
 
   async function exportExcel() {
     setExporting(true);
@@ -223,8 +250,10 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `${studio.name}_export.xlsx`; a.click();
+      const fileName = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? `${studio.name}-StuPanel-data.xlsx`;
+      a.href = url; a.download = fileName; a.click();
       URL.revokeObjectURL(url);
+      setExported(true);
     } catch { setError("Export failed"); }
     finally { setExporting(false); }
   }
@@ -236,9 +265,10 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
       const endpoint = deleteType === "instant" ? "instant-delete" : "archive";
       const res = await fetch(`${API}/admin/studios/${studio.id}/${endpoint}`, {
         method: "POST", headers: authH(),
+        body: deleteType === "instant" ? JSON.stringify({ confirm: typed, code }) : undefined,
       });
       const d = await res.json();
-      if (!res.ok) { setError(d.message || "Operation failed"); return; }
+      if (!res.ok) { setError(Array.isArray(d.message) ? d.message.join(", ") : d.message || "Operation failed"); return; }
       if (deleteType === "instant") onDeleted(studio.id);
       else onArchived(studio.id);
       onClose();
@@ -250,7 +280,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
     <>
       <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-slate-900 border border-red-900/50 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="bg-slate-900 border border-red-900/50 rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
           {/* Header */}
           <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -271,10 +301,10 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
               className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-700 hover:border-indigo-600/50 hover:bg-indigo-500/5 transition-colors text-left">
               <Download className="w-4 h-4 text-indigo-400 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-slate-200">{exporting ? "Exporting..." : "Export Data (Excel)"}</p>
-                <p className="text-xs text-slate-500">Download all studio data before deletion</p>
+                <p className="text-sm font-medium text-slate-200">{exporting ? "Preparing the file…" : "Download all data (Excel)"}</p>
+                <p className="text-xs text-slate-500">Every sheet the owner gets: clients, programs, money, team and more. Do this before deleting.</p>
               </div>
-              {exporting && <Loader2 className="w-4 h-4 animate-spin text-indigo-400 ml-auto" />}
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin text-indigo-400 ml-auto" /> : exported ? <Check className="w-4 h-4 text-emerald-400 ml-auto flex-shrink-0" /> : null}
             </button>
 
             {/* Delete options */}
@@ -287,7 +317,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
                 <Archive className={cn("w-4 h-4 mt-0.5 flex-shrink-0", deleteType === "archive" ? "text-amber-400" : "text-slate-500")} />
                 <div>
                   <p className="text-sm font-medium text-slate-200">Archive (30 days)</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Studio deactivated, data kept for 30 days. Can be restored.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Studio closed, data kept for 30 days and can be restored. After 30 days it is deleted for good.</p>
                 </div>
                 {deleteType === "archive" && <Check className="w-4 h-4 text-amber-400 ml-auto mt-0.5 flex-shrink-0" />}
               </button>
@@ -297,18 +327,25 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
                   deleteType === "instant" ? "border-red-500/50 bg-red-500/5" : "border-slate-700 hover:border-slate-600")}>
                 <Trash2 className={cn("w-4 h-4 mt-0.5 flex-shrink-0", deleteType === "instant" ? "text-red-400" : "text-slate-500")} />
                 <div>
-                  <p className="text-sm font-medium text-slate-200">Instant Delete</p>
-                  <p className="text-xs text-slate-500 mt-0.5">All data + R2 files permanently deleted. Cannot be restored.</p>
+                  <p className="text-sm font-medium text-slate-200">Delete now</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Everything of the studio is deleted at once. Cannot be restored.</p>
                 </div>
                 {deleteType === "instant" && <Check className="w-4 h-4 text-red-400 ml-auto mt-0.5 flex-shrink-0" />}
               </button>
             </div>
 
+            {deleteType === "instant" && (
+              <>
+                {!exported && <p className="text-xs text-amber-200 bg-amber-900/20 border border-amber-800/40 px-3 py-2 rounded-lg">You have not downloaded this studio&apos;s data yet. After deleting there is no copy.</p>}
+                <DeleteProof name={studio.name} typed={typed} setTyped={setTyped} code={code} setCode={setCode} />
+              </>
+            )}
+
             {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-900/30">{error}</p>}
 
             <div className="flex gap-3 pt-1">
               <Button variant="outline" onClick={onClose} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
-              <Button onClick={proceed} disabled={loading || !deleteType}
+              <Button onClick={proceed} disabled={loading || !deleteType || (deleteType === "instant" && !proofOk(studio.name, typed, code))}
                 className={cn("flex-1 h-10 gap-2 text-white", deleteType === "instant" ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700")}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : deleteType === "instant" ? <Trash2 className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                 {deleteType === "instant" ? "Delete Now" : deleteType === "archive" ? "Archive Studio" : "Proceed"}
@@ -328,6 +365,8 @@ function ArchivedTab() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [pwError, setPwError] = useState("");
+  const [typed, setTyped] = useState("");
+  const [code, setCode] = useState("");
 
   async function load() {
     setLoading(true);
@@ -354,12 +393,12 @@ function ArchivedTab() {
     setPwError("");
     try {
       const res = await fetch(`${API}/admin/studios/${deleteTarget.id}/permanent-delete`, {
-        method: "POST", headers: authH(),
+        method: "POST", headers: authH(), body: JSON.stringify({ confirm: typed, code }),
       });
       const d = await res.json();
       if (!res.ok) { setPwError(d.message || "Failed"); setActionLoading(null); return; }
       setItems(prev => prev.filter(s => s.id !== deleteTarget.id));
-      setDeleteTarget(null);
+      setDeleteTarget(null); setTyped(""); setCode("");
     } finally { setActionLoading(null); }
   }
 
@@ -432,11 +471,11 @@ function ArchivedTab() {
                   <p className="text-xs text-slate-400">{deleteTarget.name}</p>
                 </div>
               </div>
-              <p className="text-xs text-red-300 bg-red-900/20 px-3 py-2 rounded-lg">This will permanently delete all data. Cannot be undone.</p>
+              <DeleteProof name={deleteTarget.name} typed={typed} setTyped={setTyped} code={code} setCode={setCode} />
               {pwError && <p className="text-xs text-red-400">{pwError}</p>}
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
-                <Button onClick={permanentDelete} disabled={actionLoading === deleteTarget.id}
+                <Button onClick={permanentDelete} disabled={actionLoading === deleteTarget.id || !proofOk(deleteTarget.name, typed, code)}
                   className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white gap-2">
                   {actionLoading === deleteTarget.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}Delete
                 </Button>

@@ -85,8 +85,10 @@ export async function resendInvite(m: Pick<Member, "id" | "email" | "firstName">
 
 
 // ─── Member Drawer ─────────────────────────────────────────────────────────────
-export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRolesChange }: {
+export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onCustomRolesChange, startTab = "who" }: {
   open: boolean; onClose: () => void; onSaved: () => void; editing?: Member | null;
+  /** Which part opens first (Edit next to "Own gear" opens Setup). */
+  startTab?: "who" | "pay" | "setup" | "login";
   customRoles: string[]; onCustomRolesChange: (roles: string[]) => void;
 }) {
   const isEdit = !!editing;
@@ -156,7 +158,7 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
     setNewRoleInput("");
     setMemberType(editing?.memberType === "freelancer" ? "freelancer" : "staff");
     setUserTouched(false);
-    setTab("who");
+    setTab(startTab);
     setLoginMode("invite");
     setEmailInfo(null);
     setAccess({ manager: editing?.role === "manager", areas: editing?.managerAreas ?? [] });

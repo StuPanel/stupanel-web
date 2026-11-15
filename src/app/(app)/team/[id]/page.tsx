@@ -49,6 +49,8 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [payOpen, setPayOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editTab, setEditTab] = useState<"who" | "pay" | "setup" | "login">("who");
+  const edit = (t: "who" | "pay" | "setup" | "login") => { setEditTab(t); setEditing(true); };
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -203,7 +205,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
               {more && (
                 <>
                   <div role="menu" className={cn("absolute right-0 top-[76px] w-56", MENU_CLS)}>
-                    <button role="menuitem" type="button" onClick={() => { setMore(false); setEditing(true); }} className={MENU_ITEM}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
+                    <button role="menuitem" type="button" onClick={() => { setMore(false); edit("who"); }} className={MENU_ITEM}><Edit3 className="w-4 h-4 text-[#6B6680]" />Edit details</button>
                     {isOwner && !freelancer && (m.login?.invitePending
                       ? <button role="menuitem" type="button" onClick={() => { setMore(false); resendInvite(m).then(ok => { if (ok) load(); }); }} className={MENU_ITEM}><Send className="w-4 h-4 text-[#6B6680]" />Send invite again</button>
                       : <button role="menuitem" type="button" onClick={() => { setMore(false); setResetting(true); }} className={MENU_ITEM}><KeyRound className="w-4 h-4 text-[#6B6680]" />{m.login?.shared ? "Send reset link" : "Reset password"}</button>)}
@@ -250,7 +252,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
 
           {waiting && (tab === "overview" || tab === "prices") && (
             <div className="mb-6">
-              <RateRequestCard memberId={m.id} name={m.firstName} req={waiting} onAnswered={setPrefs} onPrices={() => setEditing(true)} />
+              <RateRequestCard memberId={m.id} name={m.firstName} req={waiting} onAnswered={setPrefs} onPrices={() => edit("pay")} />
             </div>
           )}
 
@@ -348,9 +350,9 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
 
           {tab === "prices" && (
             <>
-              <Section title="Prices" action={<button type="button" onClick={() => setEditing(true)} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
+              <Section title="Prices" action={<button type="button" onClick={() => edit("pay")} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
                 {!monthly && rates.length === 0 ? (
-                  <Empty icon={Wallet} title="No prices set" text="Set what they get per program, day or shift."><button type="button" onClick={() => setEditing(true)} className={softBtn}>Set prices</button></Empty>
+                  <Empty icon={Wallet} title="No prices set" text="Set what they get per program, day or shift."><button type="button" onClick={() => edit("pay")} className={softBtn}>Set prices</button></Empty>
                 ) : (
                   <List>
                     {monthly > 0 && <Row icon={Wallet} color="green" title="Monthly salary" sub="Every month" right={<span className="text-[14.5px] font-bold text-[#17151F] tabular-nums">{formatCurrency(monthly)}</span>} />}
@@ -367,7 +369,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                   </List>
                 )}
               </Section>
-              <Section title="Own gear" action={<button type="button" onClick={() => setEditing(true)} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
+              <Section title="Own gear" action={<button type="button" onClick={() => edit("setup")} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
                 {gear.length === 0 ? (
                   <div className={cn(card, "px-4 py-4 text-[13.5px] text-[#8A8599]")}>No gear added. Add their own camera, lens or drone to count rent.</div>
                 ) : (
@@ -387,7 +389,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
             <>
               {prefs && <PayoutView prefs={prefs} />}
               {prefs && <DaysOffList prefs={prefs} />}
-              <Section title="Contact" action={<button type="button" onClick={() => setEditing(true)} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
+              <Section title="Contact" action={<button type="button" onClick={() => edit("who")} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Edit</button>}>
                 <List>
                   {m.phone && <Row href={`tel:${m.phone}`} external icon={Phone} color="blue" title={m.phone} sub="Phone / WhatsApp" />}
                   {realEmail && <Row href={`mailto:${realEmail}`} external icon={Mail} color="violet" title={realEmail} sub="Gets program reminder emails" />}
@@ -419,7 +421,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
 
       {/* Drawers */}
       {payOpen && <PayDrawer member={m} payout={prefs?.payout} onClose={() => setPayOpen(false)} onSaved={load} />}
-      <MemberDrawer open={editing} editing={editing ? m : null} onClose={() => setEditing(false)} onSaved={load} customRoles={customRoles} onCustomRolesChange={setCustomRoles} />
+      <MemberDrawer open={editing} startTab={editTab} editing={editing ? m : null} onClose={() => setEditing(false)} onSaved={load} customRoles={customRoles} onCustomRolesChange={setCustomRoles} />
       <ResetPassDialog member={resetting ? m : null} onClose={() => setResetting(false)} onDone={load} />
       <DeleteDialog member={deleting ? m : null} onClose={() => setDeleting(false)} onDeleted={() => router.replace("/team")} />
     </div>

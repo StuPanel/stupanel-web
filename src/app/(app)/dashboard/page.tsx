@@ -4,6 +4,7 @@
  * Dashboard — Apple style (DESIGN_SYSTEM §11): page header with tile, number
  * cards with tiles, grouped white cards with rows.
  */
+import { SideBadge } from "@/lib/coverage-side";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -22,7 +23,7 @@ interface Stats {
   changes: { programs: number; revenue: number; clients: number };
 }
 interface Booking {
-  id: string; bookingNumber: string; eventName?: string; eventDate?: string; eventTime?: string;
+  id: string; bookingNumber: string; eventName?: string; coverageSide?: string | null; eventDate?: string; eventTime?: string;
   status: string; grandTotal: number; paidAmount: number; currency: string;
   client: { id: string; firstName: string; lastName?: string };
 }
@@ -177,7 +178,7 @@ export default function DashboardPage() {
                     <span className="block text-lg font-extrabold text-[#17151F] leading-tight tabular-nums">{d?.day ?? ""}</span>
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</span>
+                    <span className="flex items-center gap-1.5 min-w-0"><span className="text-sm font-semibold text-[#17151F] truncate">{b.eventName || "Untitled program"}</span><SideBadge side={b.coverageSide} short className="flex-shrink-0" /></span>
                     <span className="block text-xs text-[#6B6680] truncate">{clientName(b.client)}{d ? ` · ${d.week}` : ""}{b.eventTime ? ` · ${b.eventTime}` : ""}</span>
                   </span>
                   <StatusPill status={b.status} />

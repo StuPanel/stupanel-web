@@ -4,6 +4,7 @@
  * Member panel: one program, laid out like the studio's program page —
  * what it is and my pay on the left, tabs for the rest on the right.
  */
+import { SideBadge } from "@/lib/coverage-side";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -26,9 +27,11 @@ type ProgramHub = {
   id: string;
   bookingNumber: string;
   eventName?: string;
+  /** Whose side the program covers: bride | groom | both. */
+  coverageSide?: string | null;
   status: string;
   eventDays: {
-    id: string; eventType: string; date?: string; location?: string; mapUrl?: string | null;
+    id: string; eventType: string; date?: string; location?: string; mapUrl?: string | null; side?: string | null;
     shifts?: { id: string; label: string; start?: string | null; end?: string | null; people: Person[] }[];
   }[];
   currency?: string;
@@ -147,6 +150,7 @@ export default function ProgramHubPage() {
                 <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">{clientName} · {dateText}</p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-2 lg:justify-center">
                   <StatusBadge status={hub.status} />
+                  <SideBadge side={hub.coverageSide} className="h-6 text-[12px]" />
                   {myRoles.map(r => <Chip key={r} tone="grey">{roleLabel(r)}</Chip>)}
                   <span className="h-6 px-2 rounded-full text-[12px] font-mono text-[#6B6680] inline-flex items-center">{hub.bookingNumber}</span>
                 </div>
@@ -203,7 +207,7 @@ export default function ProgramHubPage() {
                         <div className="flex items-center gap-3">
                           <DateBox date={day.date} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[14.5px] font-semibold text-[#17151F] truncate">{day.eventType}</p>
+                            <p className="text-[14.5px] font-semibold text-[#17151F] flex items-center gap-1.5 min-w-0"><span className="truncate">{day.eventType}</span><SideBadge side={day.side} className="flex-shrink-0" /></p>
                             <p className="text-[12.5px] text-[#6B6680] mt-0.5 flex items-center gap-1 min-w-0">
                               <span className="flex-shrink-0">{day.date ? fmtDate(day.date) : "Date not set"}</span>
                               {day.location && <><span>·</span><MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{day.location}</span></>}

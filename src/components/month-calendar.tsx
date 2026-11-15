@@ -6,6 +6,7 @@
  * the month follows the finger and slides in. Arrow buttons and the keyboard (← →) do the same.
  * Each entry is one day of a program; a day opens a list of its entries.
  */
+import { SideBadge } from "@/lib/coverage-side";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
@@ -18,6 +19,8 @@ export type CalEntry = {
   date: string;
   title: string;
   sub?: string;
+  /** Whose side that day covers: bride | groom | both. */
+  side?: string | null;
   /** Tailwind classes for the small dot and the chip on wide screens */
   dot: string;
   chip: string;
@@ -213,7 +216,10 @@ export function EntryRow({ e, withDate }: { e: CalEntry; withDate?: boolean }) {
         </span>
       ) : <span className={cn("w-1.5 self-stretch rounded-full flex-shrink-0", e.dot)} />}
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold text-[#17151F] truncate">{e.title}</span>
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm font-semibold text-[#17151F] truncate">{e.title}</span>
+          <SideBadge side={e.side} short className="flex-shrink-0" />
+        </span>
         {e.sub && <span className="block text-xs text-[#6B6680] truncate mt-0.5">{e.sub}</span>}
       </span>
       {e.badge && <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0", e.badge.cls)}>{e.badge.label}</span>}

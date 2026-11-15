@@ -24,9 +24,11 @@ export interface BookingDelivery {
   preview?: { name: string; count: number; bytes: number; videos: number; photos: number }[];
 }
 export type Studio = { name: string; phone?: string; bkashNumber?: string | null; nagadNumber?: string | null };
-export type PortalDay = { name: string; date: string | null; location: string | null };
+export type PortalDay = { name: string; date: string | null; location: string | null; side?: string | null };
 export type PortalBooking = {
   id: string; bookingNumber: string; eventName?: string;
+  /** Whose side the studio covers: bride | groom | both. */
+  coverageSide?: string | null;
   eventDate?: string; eventEndDate?: string | null; status: string; deliveryStatus?: string;
   grandTotal: number; paidAmount: number; currency: string;
   eventLocation?: string; deliveryLink?: string;

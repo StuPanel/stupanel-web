@@ -5,6 +5,7 @@
  * 1 Client · 2 Program (type + package) · 3 Days (Holud, Wedding… each with date & venue)
  * · 4 Price (package line, extras from Packages → Extras, own lines) · 5 Terms.
  */
+import { SidePicker, cleanSide, typeHasSides, type Side } from "@/lib/coverage-side";
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, Check, FileText, Loader2, MapPin, Minus, Package as PackageIcon, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -29,13 +30,15 @@ export type QLine = {
 export type QuoteForForm = {
   id: string; quoteNumber: string; version: number; status: string; currency: string;
   eventType?: string | null; eventDate?: string | null; venue?: string | null; eventDays?: QDay[] | null;
+  /** Whose side the studio covers: bride | groom | both. */
+  coverageSide?: string | null;
   programId?: string | null; items: QLine[];
   discountType?: string | null; discountValue?: number | string; taxPercent?: number | string; advanceRequired: number | string;
   validUntil?: string | null; notes?: string | null; termsAndConditions?: string | null;
   client: QClient;
 };
 export type QuotePrefill = { client: QClient; eventType?: string; eventDates?: string[]; venue?: string };
-type WorkType = { id: string; name: string; active?: boolean; events?: { id: string; name: string }[] };
+type WorkType = { id: string; name: string; active?: boolean; events?: { id: string; name: string }[]; sides?: boolean };
 
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -66,6 +69,7 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
   const [days, setDays] = useState<QDay[]>(initialDays);
   const [initialType] = useState(quote?.eventDays?.find(d => d.programType)?.programType ?? "");
   const [programType, setProgramType] = useState(initialType);
+  const [side, setSide] = useState<Side | null>(cleanSide(quote?.coverageSide));
   const [typeText] = useState(quote?.eventType ?? prefill?.eventType ?? ""); // matched to a type once types load
   const [packageId, setPackageId] = useState(quote?.programId ?? "");
   // ── price ──
@@ -132,6 +136,8 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
   function pickType(id: string) {
     const next = programType === id ? "" : id;
     setProgramType(next);
+    // A type that does not ask "Whose side?" keeps none.
+    if (!typeHasSides(workTypes.find(x => x.id === next))) setSide(null);
     if (!next) return;
     const ps = partsOf(next);
     setDays(ds => (untouched(ds) && ps.length ? ps.map(n => makeDay(n)) : ds));
@@ -237,6 +243,7 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
       }
       const body = {
         clientId, eventType: type?.name ?? (typeText || undefined), programId: packageId || undefined,
+        coverageSide: side ?? "",
         eventDays: days.map(d => ({ id: d.id, ...(programType ? { programType } : {}), eventType: d.eventType.trim(), date: d.date, location: d.location.trim() })),
         items: named.map(l => ({ ...l, name: l.name.trim(), description: l.description?.trim() || undefined })),
         subtotal, discountType: discountType || undefined, discountValue: discountType ? dv : 0, taxPercent: tp,
@@ -307,6 +314,12 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
                       {!workTypes.length && <p className="text-[13px] text-[#6B6680]">{typeText || "Set program types in Settings → Program types."}</p>}
                     </div>
                   </div>
+                  {(typeHasSides(type) || side) && (
+                    <div className="p-4 border-t border-[#EEEBF4]">
+                      <p className="text-[13px] font-semibold text-[#4A4658] mb-2">Whose side? <span className="font-normal text-[#6B6680]">— who is booking. The client sees it on the quote.</span></p>
+                      <SidePicker value={side} onChange={setSide} />
+                    </div>
+                  )}
                   <div className="border-t border-[#EEEBF4]">
                     <Field label="Package" hint={offered.length ? "Its price goes on top of the price list; its days are added below." : "Make packages in Packages — then pick one here."}>{id => (
                       <select id={id} value={packageId} onChange={e => choosePackage(e.target.value)} className={cn(inputCls, "cursor-pointer")}>

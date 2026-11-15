@@ -1,5 +1,6 @@
 "use client";
 
+import { sideLabel } from "@/lib/coverage-side";
 import { use, useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
@@ -21,6 +22,7 @@ function toDoc(d: any): DocData {
     client: { name: name || "Client", phone: d.client?.phone, email: d.client?.email },
     programName: d.booking?.eventName ?? null,
     programRef: d.booking?.bookingNumber ?? null,
+    coverage: sideLabel(d.booking?.coverageSide) || null,
     eventDays: [...days].filter((x: any) => x?.date || x?.location)
       .sort((a: any, b: any) => String(a.date ?? "").localeCompare(String(b.date ?? "")))
       .map((x: any, i: number) => ({ label: x.eventType || x.label || `Day ${i + 1}`, date: x.date, place: x.location })),

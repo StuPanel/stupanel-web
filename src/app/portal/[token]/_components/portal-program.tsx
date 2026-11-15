@@ -6,6 +6,7 @@
  *  • ProgramPage — everything for that program in the order it happens:
  *    days → payment → agreement → photo choosing → music → files.
  */
+import { SideBadge, cleanSide, sideLabel } from "@/lib/coverage-side";
 import {
   ArrowLeft, CalendarDays, CheckCircle, ChevronRight, CreditCard, FileSignature, Image as ImageIcon, Images, MapPin,
   MessageCircle, Music2, Package, Receipt,
@@ -103,6 +104,7 @@ export function ProgramPage({
               <span className="inline-flex items-center gap-1 tabular-nums"><CalendarDays className="w-3.5 h-3.5" />{dateRange(b)}</span>
               {b.eventLocation && <span className="inline-flex items-center gap-1 min-w-0"><MapPin className="w-3.5 h-3.5 flex-shrink-0" />{b.eventLocation}</span>}
             </p>
+            {sideLabel(b.coverageSide) && <p className="mt-1.5 text-[13px] text-[#33303F] flex items-center gap-1.5">Coverage: <SideBadge side={b.coverageSide} /></p>}
             <p className="mt-0.5 text-[12px] text-[#8A8599]">{b.bookingNumber}</p>
           </div>
           <StatusChip status={ds} />
@@ -122,6 +124,7 @@ export function ProgramPage({
                 <span className="flex-1 min-w-0">
                   <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{d.name || `Day ${i + 1}`}</span>
                   {d.location && <span className="block text-[12.5px] text-[#6B6680] truncate">{d.location}</span>}
+                  {cleanSide(d.side) && cleanSide(d.side) !== cleanSide(b.coverageSide) && <span className="block mt-0.5"><SideBadge side={d.side} /></span>}
                 </span>
                 <span className="text-[13px] font-semibold text-[#33303F] tabular-nums flex-shrink-0">{d.date ? fmtDate(d.date) : "Date to be set"}</span>
               </li>

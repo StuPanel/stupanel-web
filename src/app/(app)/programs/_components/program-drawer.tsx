@@ -29,9 +29,10 @@ import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, GearCheck, Package, Shift, ShiftAssignment, SetupMode, TeamMember } from "./types";
+import { SIDES, SidePicker, cleanSide, sideLabel, typeHasSides, type Side } from "@/lib/coverage-side";
 import { DEFAULT_SHIFTS, activeShifts, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
-type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[] };
+type WorkType = { id: string; name: string; active: boolean; events?: { id: string; name: string }[]; sides?: boolean };
 type ShiftTemplate = { id: string; name: string; shifts: { id: string; name: string }[] };
 type StudioSetup = { workTypes: WorkType[]; shiftTemplates: ShiftTemplate[]; studioRates: Rate[]; payMode: string; shifts: StudioShift[] };
 
@@ -528,6 +529,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [clientMode, setClientMode] = useState<"search" | "new">("search");
   const [newClient, setNewClient] = useState<ClientFormData>(blankClientForm);
   const [programType, setProgramType] = useState("");
+  /** Whose side is covered (bride / groom / both); null = not said. */
+  const [side, setSide] = useState<Side | null>(null);
   const [eventName, setEventName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [packageId, setPackageId] = useState("");
@@ -557,8 +560,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // The form as text. `base` is the form at the person's first touch, so anything filled in by
   // the app before that (the program being edited, a draft, a lead) doesn't count as a change.
   const snapshot = useMemo(
-    () => JSON.stringify({ client, clientMode, newClient, programType, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept }),
-    [client, clientMode, newClient, programType, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept],
+    () => JSON.stringify({ client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept }),
+    [client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept],
   );
   const [base, setBase] = useState<string | null>(null);
   /** A draft brought its own name: the automatic "Rina's wedding" name must not replace it (it can run just after). */
@@ -602,12 +605,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   /** Put a kept draft back into the form. */
   function applyDraft(d: Record<string, unknown>) {
     const o = d as Partial<{
-      client: Client | null; clientMode: "search" | "new"; newClient: ClientFormData; programType: string; eventName: string; nameTouched: boolean;
+      client: Client | null; clientMode: "search" | "new"; newClient: ClientFormData; programType: string; side: Side | null; eventName: string; nameTouched: boolean;
       packageId: string; days: EventDay[]; advanceWallet: string; money: typeof money; notes: string; editors: EditorDraft[]; kept: CostEntry[];
     }>;
     setClient(o.client ?? null); setClientMode(o.clientMode === "new" ? "new" : "search"); setNewClient({ ...blankClientForm, ...(o.newClient ?? {}) });
     draftNamed.current = !!o.nameTouched;
-    setProgramType(o.programType ?? ""); setEventName(o.eventName ?? ""); setNameTouched(!!o.nameTouched); setPackageId(o.packageId ?? "");
+    setProgramType(o.programType ?? ""); setSide(cleanSide(o.side)); setEventName(o.eventName ?? ""); setNameTouched(!!o.nameTouched); setPackageId(o.packageId ?? "");
     setDays(normalizeDays(o.days)); setAdvanceWallet(o.advanceWallet ?? "");
     setMoney(m => ({ ...m, ...(o.money ?? {}) })); setNotes(o.notes ?? "");
     setEditors(Array.isArray(o.editors) ? o.editors : []); setKept(Array.isArray(o.kept) ? o.kept : []);
@@ -645,7 +648,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     let alive = true;
     if (isEdit && initialBooking) {
       const b = initialBooking;
-      const d = normalizeDays(b.eventDays);
+      // A day whose side is the program's just follows the program; only a different one is the day's own.
+      const d = normalizeDays(b.eventDays).map(x => (cleanSide(x.side) && cleanSide(x.side) !== cleanSide(b.coverageSide) ? x : { ...x, side: undefined }));
+      setSide(cleanSide(b.coverageSide));
       setClient(b.client as Client); setEventName(b.eventName ?? ""); setNameTouched(true);
       setProgramType(d[0]?.programType ?? ""); setPackageId(b.program?.id ?? ""); setDays(d);
       setKept((b.costEntries ?? []) as CostEntry[]);
@@ -661,7 +666,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       apiFetch(`${API}/bookings/${b.id}/editors`).then(r => r.ok ? r.json() : []).then((rows: EditorDraft[]) => setEditors(rows.map(r => ({ userId: r.userId, role: r.role })))).catch(() => {});
     } else {
       const dr = initialDraft;
-      setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setPackageId("");
+      setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setSide(null); setPackageId("");
       setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
       setKept([]); setEditors([]); setNotes(dr?.notes ?? "");
       setMoney({ total: dr?.total ? String(dr.total) : "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
@@ -745,8 +750,18 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
   /** Pick a type. Days are not added by themselves — its parts show as "+ part" buttons. */
   function pickType(id: string) {
-    setProgramType(programType === id ? "" : id);
+    const next = programType === id ? "" : id;
+    setProgramType(next);
+    // A type that has no sides (a birthday, a company event) drops the side that was picked.
+    if (!typeHasSides(studio.workTypes.find(w => w.id === next))) { setSide(null); setDays(ds => ds.map(d => (d.side ? { ...d, side: undefined } : d))); }
   }
+  /** Choose the program's side; a day that had picked the same one just follows the program again. */
+  function chooseSide(next: Side | null) {
+    setSide(next);
+    setDays(ds => ds.map(d => (d.side && d.side === next ? { ...d, side: undefined } : d)));
+  }
+  /** "Whose side?" shows for wedding-like types, and whenever a side is already set. */
+  const askSide = typeHasSides(studio.workTypes.find(w => w.id === programType)) || !!side || days.some(d => d.side);
 
 
   // ── days & shifts ──
@@ -908,7 +923,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
         advanceWalletId: isEdit || !(advance > 0) ? undefined : advanceWallet || undefined,
         transportCost: num(money.transport), otherCost: num(money.other), albumCost: num(money.album), equipCost: equip,
-        internalNotes: notes || undefined, eventDays: typedDays,
+        internalNotes: notes || undefined, eventDays: typedDays, coverageSide: side ?? "",
         ...(billLocked ? {} : { costEntries: bill.entries.filter(e => e.memberName || e.totalBill), ...(unlocked ? { unlockBill: true } : {}) }),
         ...(isEdit ? {} : { status: "confirmed" }),
       };
@@ -990,6 +1005,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                       ))}
                     </div>
                   </div>
+                  {askSide && (
+                    <div className="p-4 border-t border-[#EEEBF4]">
+                      <p className="text-[13px] font-semibold text-[#4A4658] mb-2">Whose side? <span className="font-normal text-[#6B6680]">— who booked you. Your team and the client see it.</span></p>
+                      <SidePicker value={side} onChange={chooseSide} />
+                    </div>
+                  )}
                   <div className="border-t border-[#EEEBF4] grid sm:grid-cols-[1fr_240px]">
                     <Field label="Name" required name="eventName">{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
                     <Field label="Package">{id => (
@@ -1044,6 +1065,17 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
                             <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
                           </div>
+                          {/* This day's own side, when it is not the program's (a Holud only at the bride's house) */}
+                          {askSide && (days.length > 1 || d.side) && (
+                            <div className="col-start-2 sm:col-start-2 sm:col-span-3 flex items-center gap-2 flex-wrap">
+                              <label htmlFor={`day-side-${d.id}`} className="text-[12.5px] font-semibold text-[#4A4658]">This day covers</label>
+                              <select id={`day-side-${d.id}`} value={d.side ?? ""} onChange={e => setDay(d.id, { side: e.target.value || undefined })}
+                                className="h-8 pl-3 pr-7 rounded-full bg-[#F5F3FA] text-[12.5px] font-semibold text-[#17151F] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40">
+                                <option value="">{side ? `${sideLabel(side)} — same as the program` : "Same as the program"}</option>
+                                {SIDES.filter(x => x.id !== side).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
+                              </select>
+                            </div>
+                          )}
                           {/* Google Maps link for the team */}
                           <div className="col-start-2 sm:col-start-2 sm:col-span-3">
                             {mapOpen === d.id || (d.mapUrl && !isMapLink(d.mapUrl)) ? (

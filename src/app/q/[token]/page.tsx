@@ -1,5 +1,6 @@
 "use client";
 
+import { sideLabel } from "@/lib/coverage-side";
 import { StudioLinks, type StudioLinkFields } from "@/components/public/studio-links";
 import { useState, useEffect, use } from "react";
 import {
@@ -17,7 +18,7 @@ interface QuoteItem { id: string; name: string; description?: string; qty: numbe
 interface QuoteDay { id: string; eventType: string; date: string; location: string }
 interface Quote {
   id: string; quoteNumber: string; status: string; version: number;
-  eventType?: string; eventDate?: string; venue?: string; currency: string; eventDays?: QuoteDay[];
+  eventType?: string; eventDate?: string; venue?: string; currency: string; eventDays?: QuoteDay[]; coverageSide?: string | null;
   subtotal: number; discountAmount: number; taxAmount: number; grandTotal: number;
   advanceRequired: number; validUntil?: string; notes?: string; termsAndConditions?: string;
   items: QuoteItem[];
@@ -87,6 +88,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
   const dayNames = new Map(qDays.map((d, i) => [d.id, d.eventType || `Day ${i + 1}`]));
   const facts: [string, React.ReactNode][] = [
     ...(quote.eventType ? [["Event", quote.eventType] as [string, React.ReactNode]] : []),
+    ...(sideLabel(quote.coverageSide) ? [["Coverage", sideLabel(quote.coverageSide)] as [string, React.ReactNode]] : []),
     ...(!qDays.length && quote.eventDate ? [["Date", fmtDate(quote.eventDate)] as [string, React.ReactNode]] : []),
     ...(!qDays.length && quote.venue ? [["Venue", quote.venue] as [string, React.ReactNode]] : []),
     ...(quote.program ? [["Package", quote.program.name] as [string, React.ReactNode]] : []),

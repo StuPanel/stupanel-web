@@ -73,6 +73,8 @@ export interface EventDay {
   location: string;
   /** Google Maps link for the venue (optional). */
   mapUrl?: string;
+  /** Whose side this day covers (bride | groom | both). Stored on every day; in the form only when it differs from the program's. */
+  side?: string;
   shifts: Shift[];
 }
 
@@ -131,6 +133,8 @@ export interface Booking {
   deliveryUnlocked?: boolean;
   bookingNumber: string;
   eventName?: string;
+  /** Whose side is covered: bride | groom | both. */
+  coverageSide?: string | null;
   eventDate?: string;
   eventEndDate?: string;
   eventLocation?: string;

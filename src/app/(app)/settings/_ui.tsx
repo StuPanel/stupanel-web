@@ -22,7 +22,7 @@ export type Company = Record<string, any>;
 /** Studio settings from GET /companies/settings (defaults already filled in). */
 export type Shift = { id: string; name: string };
 export type ShiftTemplate = { id: string; name: string; shifts: Shift[] };
-export type WorkType = { id: string; name: string; active: boolean; events: { id: string; name: string }[] };
+export type WorkType = { id: string; name: string; active: boolean; events: { id: string; name: string }[]; /** Ask "Whose side?" (bride / groom / both) on programs of this type. */ sides?: boolean };
 export type StudioSettings = {
   language: { ui: "en" | "bn-smart" };
   features: { photoSelection: boolean; musicSelection: boolean; albumTracking: boolean; faceRecognition: boolean };

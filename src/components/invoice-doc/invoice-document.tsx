@@ -27,6 +27,8 @@ export interface DocData {
   client: { name: string; phone?: string | null; email?: string | null; address?: string | null };
   programName?: string | null;
   programRef?: string | null;
+  /** "Bride's side" / "Groom's side" / "Both sides" — empty when not said. */
+  coverage?: string | null;
   eventDays?: { label: string; date?: string | null; place?: string | null }[];
   items: { name: string; description?: string | null; qty: number; rate: number; total: number }[];
   subtotal: number; discount: number; taxLabel?: string; taxPercent?: number; taxAmount: number;
@@ -154,6 +156,7 @@ export function InvoiceDocument({ data, design, className, style }: { data: DocD
         <div style={{ fontSize: fs, lineHeight: 1.55 }}>
           {data.programName && <div style={{ fontWeight: 600 }}>{data.programName}</div>}
           {data.programRef && <div style={{ color: soft }}>Ref. {data.programRef}</div>}
+          {data.coverage && <div>Coverage: {data.coverage}</div>}
         </div>
       ))}
     </div>

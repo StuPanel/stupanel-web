@@ -1,5 +1,6 @@
 "use client";
 
+import { sideLabel } from "@/lib/coverage-side";
 import { apiFetch } from "@/lib/api";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
@@ -55,7 +56,7 @@ type QuoteItem = QLine;
 interface ViewLog { id: string; viewedAt: string; ipAddress?: string; deviceType?: string; browser?: string; action?: string; }
 interface Quote {
   id: string; quoteNumber: string; status: string; version: number;
-  eventType?: string; eventDate?: string; eventEndDate?: string; venue?: string; currency: string; eventDays?: QDay[];
+  eventType?: string; eventDate?: string; eventEndDate?: string; venue?: string; currency: string; eventDays?: QDay[]; coverageSide?: string | null;
   programId?: string | null; discountType?: string | null; discountValue?: number; taxPercent?: number;
   subtotal: number; discountAmount: number; taxAmount: number; grandTotal: number;
   advanceRequired: number; validUntil?: string; notes?: string; termsAndConditions?: string;
@@ -129,6 +130,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
   const qDays = q.eventDays ?? [];
   const event = [
     q.eventType && { label: "Program", value: q.eventType },
+    sideLabel(q.coverageSide) && { label: "Whose side", value: sideLabel(q.coverageSide) },
     ...(qDays.length ? [] : [
       q.eventDate && { label: "Date", value: fmtDate(q.eventDate) },
       q.venue && { label: "Venue", value: q.venue },

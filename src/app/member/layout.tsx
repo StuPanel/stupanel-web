@@ -9,8 +9,8 @@ import { StudioSwitcher } from "@/components/layout/studio-switcher";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, Camera, LogOut, X, UserCircle, Video,
-  Wallet, CalendarDays, MessageCircle, LayoutGrid, BadgeDollarSign,
+  LayoutDashboard, Camera, LogOut, X, UserCircle,
+  Wallet, CalendarDays, MessageCircle, LayoutGrid, BadgeDollarSign, Music2, Wand2,
 } from "lucide-react";
 import { MemberPhoto, PROFILE_EVENT } from "./_components/kit";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,8 @@ const navGroups: { title: string; items: { label: string; href: string; icon: Re
     { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard, color: "violet" },
     { label: "My Programs", href: "/member/programs",  icon: Camera,          color: "deep" },
     { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays,    color: "red" },
-    { label: "Editing",     href: "/member/editing",   icon: Video,           color: "blue" },
+    { label: "Editing",     href: "/member/editing",   icon: Wand2,           color: "blue" },
+    { label: "Music",       href: "/member/music",     icon: Music2,          color: "orchid" },
   ] },
   { title: "Me", items: [
     { label: "My Earnings", href: "/member/earnings",  icon: Wallet,          color: "green" },
@@ -38,11 +39,22 @@ const navGroups: { title: string; items: { label: string; href: string; icon: Re
 const mobileTabs = [
   { label: "Home",     href: "/member/dashboard", icon: LayoutDashboard },
   { label: "Programs", href: "/member/programs",  icon: Camera },
-  { label: "Editing",  href: "/member/editing",   icon: Video },
+  { label: "Editing",  href: "/member/editing",   icon: Wand2 },
   { label: "Schedule", href: "/member/schedule",  icon: CalendarDays },
 ];
 
-type Profile = { firstName?: string; lastName?: string; memberRoles?: string[]; avatarUrl?: string | null };
+type Profile = { firstName?: string; lastName?: string; memberRoles?: string[]; avatarUrl?: string | null; editingCount?: number };
+
+/**
+ * Which pages this person gets. Editing: tagged Photo / Video editor in Team, or given editing or album work.
+ * Music: tagged Video editor. While the profile loads, both stay hidden (no flash of a page they can't use).
+ */
+function hiddenPages(profile: Profile | null) {
+  const roles = profile?.memberRoles ?? [];
+  const editing = roles.includes("photo_editor") || roles.includes("video_editor") || (profile?.editingCount ?? 0) > 0;
+  const music = roles.includes("video_editor");
+  return new Set([...(editing ? [] : ["/member/editing"]), ...(music ? [] : ["/member/music"])]);
+}
 
 function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLogout }: {
   profile: Profile | null; chatUnread: number; pathname: string; isMobile?: boolean; onClose?: () => void; onLogout: () => void;
@@ -93,7 +105,7 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       )}
 
       <nav className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-3.5">
-        {navGroups.map(group => (
+        {navGroups.map(g => ({ ...g, items: g.items.filter(i => !hiddenPages(profile).has(i.href)) })).map(group => (
           <div key={group.title}>
             <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
             <ul className="space-y-px">
@@ -188,7 +200,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     window.location.href = "/login";
   }
 
-  const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
+  const moreActive = !mobileTabs.filter(t => !hiddenPages(profile).has(t.href)).some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (
     <div className="min-h-full sp-shell">
@@ -230,7 +242,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
           <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-[#E4E0EC] shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
-            {mobileTabs.map(item => {
+            {mobileTabs.filter(t => !hiddenPages(profile).has(t.href)).map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href}

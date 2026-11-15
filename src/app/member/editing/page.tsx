@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Video, CalendarDays } from "lucide-react";
+import { BookOpen, CalendarDays, Image as ImageIcon, Video, Wand2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ const ASSIGNMENT_STATUS: Record<string, { label: string; badge: string }> = {
 interface EditingAssignment {
   id: string; role: string; status: string;
   editingDeadline?: string; deliveryDeadline?: string;
+  /** What this person hands in, e.g. ["album"] */
+  deliverables?: string[];
   booking: {
     id: string; bookingNumber: string; eventName?: string;
     eventDays?: { date?: string; location?: string }[];
@@ -56,21 +58,27 @@ export default function EditingPage() {
 
   return (
     <div>
-      <PageHeader icon={Video} color="blue" title="Editing" sub="Photo and video editing given to you" />
+      <PageHeader icon={Wand2} color="blue" title="Editing" sub="Photo editing, album design and video editing given to you" />
       <Chips label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={FILTERS} />
 
       {loading ? <RowsSkeleton n={4} /> : assignments.length === 0 ? (
-        <EmptyState icon={Video} title="No editing work" text="When the studio gives you editing, it shows up here." />
+        <EmptyState icon={Wand2} title="No editing work" text="When the studio gives you editing, it shows up here." />
       ) : (
         <Group>
           {assignments.map(a => {
             const st = ASSIGNMENT_STATUS[a.status] ?? { label: a.status, badge: "bg-[#EEEDF2] text-[#4A4658]" };
             const firstDate = a.booking.eventDays?.[0]?.date;
             const deadline = a.deliveryDeadline || a.editingDeadline;
+            // Photo editing has its own look; an album to design is photo work marked "Album"; video is video.
+            const album = a.role === "photo_editor" && (a.deliverables ?? []).includes("album");
+            const onlyAlbum = album && (a.deliverables ?? []).every(d => d === "album");
+            const kind = a.role !== "photo_editor" ? { icon: Video, color: "orchid", label: "Video editing" }
+              : onlyAlbum ? { icon: BookOpen, color: "deep", label: "Photo editing · Album design" }
+              : { icon: ImageIcon, color: "deep", label: album ? "Photo editing · with Album" : "Photo editing" };
             return (
-              <ListRow key={a.id} href={`/member/editing/${a.id}`} icon={Video} color={a.role === "photo_editor" ? "deep" : "orchid"}
+              <ListRow key={a.id} href={`/member/editing/${a.id}`} icon={kind.icon} color={kind.color}
                 title={a.booking.eventName ?? a.booking.bookingNumber}
-                sub={<>{a.role === "photo_editor" ? "Photo editing" : "Video editing"} · {a.booking.client.firstName} {a.booking.client.lastName ?? ""}
+                sub={<>{kind.label} · {a.booking.client.firstName} {a.booking.client.lastName ?? ""}
                   {firstDate && <> · <CalendarDays className="inline w-3 h-3 -mt-0.5" /> {fmtDate(firstDate)}</>}
                   {deadline && <> · due {fmtDate(deadline)}</>}</>}
                 right={<span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap", st.badge)}>{st.label}</span>} />

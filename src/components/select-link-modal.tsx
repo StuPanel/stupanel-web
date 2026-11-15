@@ -21,7 +21,8 @@ export function SelectLinkModal({ title, what, client, link, onSet, message, onP
   onSet: (on: boolean, reset?: boolean) => Promise<boolean>;
   /** The WhatsApp message for this link */
   message: (url: string) => string;
-  onPortal: () => void;
+  /** Leave out to hide the client-portal part (e.g. for a team member, who can't open portal access). */
+  onPortal?: () => void;
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState<"" | "on" | "new" | "off">("");
@@ -93,6 +94,7 @@ export function SelectLinkModal({ title, what, client, link, onSet, message, onP
           </section>
 
           {/* Portal */}
+          {onPortal && (
           <section className="mt-3 rounded-2xl border border-[#E3DFEC] p-4 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-[#5B3FD0]" />Client portal</p>
@@ -100,6 +102,7 @@ export function SelectLinkModal({ title, what, client, link, onSet, message, onP
             </div>
             <button type="button" onClick={onPortal} className={`${btn} bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] flex-shrink-0`}>Open</button>
           </section>
+          )}
         </div>
       </div>
     </>

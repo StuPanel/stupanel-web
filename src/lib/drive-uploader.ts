@@ -478,7 +478,11 @@ async function runJob(job: Job) {
       if (readPending().some(p => p.fp === fp)) discardPending(fp);
       update({ cancelled: true, error: "Cancelled", status: "cancelled" });
     }
-    else { failedJobs.set(job.id, job); update({ error: msg || "Upload failed", status: "error", speed: 0 }); }
+    else {
+      failedJobs.set(job.id, job); update({ error: msg || "Upload failed", status: "error", speed: 0 });
+      // A phone fails these right as the page wakes up — after "back in view" already fired — so try again shortly.
+      setTimeout(autoRetry, 3000);
+    }
   } finally {
     activeFps.delete(fp);
   }

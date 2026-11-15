@@ -177,11 +177,15 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
-  function logout() {
+  async function logout() {
+    // End the session on the server too: otherwise the sign-in cookie that stays could
+    // quietly sign this person back in (a request still running, another tab).
+    try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* still sign out here */ }
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
     document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
-    router.replace("/login");
+    // A full page load, so nothing of this session keeps running.
+    window.location.href = "/login";
   }
 
   const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));

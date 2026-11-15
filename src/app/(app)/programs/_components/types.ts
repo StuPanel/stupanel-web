@@ -29,6 +29,8 @@ export interface TeamMember {
   memberType?: string;
   isActive?: boolean;
   memberRoles: string[];
+  /** "staff" | "manager" … (managers can be mentioned in private notes). */
+  role?: string;
   roleRates?: { roleId: string; rate: number; rateType: string; withSetup?: number; workType?: string; label?: string; note?: string }[];
   setup?: { id: string; category: string; name: string; rent: number; rentUnit: string; rents?: Record<string, number> }[];
   /** Days the member said they can't work (set in their panel). */
@@ -152,6 +154,8 @@ export interface Booking {
   teamBillTotal: number;
   profitAmount: number;
   internalNotes?: string;
+  /** Note for the team: members see it, the client never does. */
+  teamNotes?: string | null;
   deliveryMethod?: string;
   deliveryLink?: string;
   deliveryLinks?: { id: string; title: string; url: string }[];
@@ -181,3 +185,20 @@ export type GearCheck = {
   studioGear: { itemId: string; key: string; name: string; kind: string; state: "ok" | "service" | "out" }[];
   memberGear: { key: string; state: "ok" | "service" | "out"; lend: boolean }[];
 };
+
+/** People who can be @mentioned in a program's notes: everyone on its shifts (and its editors), or the managers. */
+export function notePeople(team: TeamMember[], days: { shifts?: { assignments?: { id: string; role?: string }[] }[] }[] | undefined, editorIds: string[] = []): { id: string; name: string; sub?: string }[] {
+  const roles = new Map<string, Set<string>>();
+  for (const d of days ?? []) for (const sh of d.shifts ?? []) for (const a of sh.assignments ?? []) {
+    if (!a?.id || a.id.startsWith("fl_")) continue;
+    if (!roles.has(a.id)) roles.set(a.id, new Set());
+    if (a.role) roles.get(a.id)!.add(a.role.replace(/_/g, " "));
+  }
+  for (const id of editorIds) if (!roles.has(id)) roles.set(id, new Set(["editor"]));
+  return [...roles.entries()].flatMap(([id, r]) => {
+    const m = team.find(t => t.id === id);
+    return m ? [{ id, name: `${m.firstName} ${m.lastName ?? ""}`.trim(), sub: [...r].join(", ") || undefined }] : [];
+  });
+}
+export const managerPeople = (team: TeamMember[]) =>
+  team.filter(m => m.role === "manager" && m.isActive !== false).map(m => ({ id: m.id, name: `${m.firstName} ${m.lastName ?? ""}`.trim(), sub: "Manager" }));

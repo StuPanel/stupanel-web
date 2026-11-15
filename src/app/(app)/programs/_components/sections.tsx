@@ -1,5 +1,6 @@
 "use client";
 
+import { NotePoints, type NotePerson } from "@/lib/note-points";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, HardDrive, Link2, Cloud, ExternalLink, Check, Clapperboard, Palette } from "lucide-react";
 import { askConfirm, notify } from "@/components/feedback";
@@ -9,7 +10,6 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "./constants";
 import type { Booking, ShiftAssignment } from "./types";
 import { Group, Tile } from "@/components/ui/apple";
-import { inputCls } from "@/components/ui/form-kit";
 
 export function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -560,58 +560,57 @@ export const ROLE_LABEL: Record<string, string> = {
 };
 export const SETUP_LABEL: Record<string, string> = { own: "Own setup", other: "Others' gear", rented: "Rented gear" };
 
-/** Team-only notes on a program. Saves a second after you stop typing (and when you leave the box). */
-export function PrivateNotes({ booking, onSaved }: { booking: Booking; onSaved: (notes: string) => void }) {
-  const [value, setValue] = useState(booking.internalNotes ?? "");
-  const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
-  const saved = useRef(booking.internalNotes ?? "");
-  const pending = useRef<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+const NOTE_TEXT = {
+  internalNotes: {
+    title: "Private notes", note: "Only you and your managers see these — not the team, never the client.",
+    placeholder: "e.g. Advance talk with the father", hint: "You have no managers to mention.",
+  },
+  teamNotes: {
+    title: "Note for the team", note: "The team on this program sees these points in their panel and reminder email. Never the client.",
+    placeholder: "e.g. Gate pass from the bride's uncle — type @ to mention", hint: "Put people on a shift first — then you can mention them.",
+  },
+} as const;
 
-  // Notes changed somewhere else (the edit form) while nothing is waiting to be saved here.
+/** A program's notes as points — private (owner + managers) or for the team. Every change saves at once. */
+export function PrivateNotes({ booking, onSaved, field = "internalNotes", people = [] }: {
+  booking: Booking; onSaved: (notes: string) => void; field?: "internalNotes" | "teamNotes"; people?: NotePerson[];
+}) {
+  const text = NOTE_TEXT[field];
+  const [value, setValue] = useState(booking[field] ?? "");
+  const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
+  const saved = useRef(booking[field] ?? "");
+
+  // Notes changed somewhere else (the edit form).
   useEffect(() => {
-    const incoming = booking.internalNotes ?? "";
-    if (pending.current === null && incoming !== saved.current) { saved.current = incoming; setValue(incoming); }
-  }, [booking.internalNotes]);
+    const incoming = booking[field] ?? "";
+    if (incoming !== saved.current) { saved.current = incoming; setValue(incoming); }
+  }, [booking, field]);
 
   const id = booking.id;
   const onSavedRef = useRef(onSaved);
   useEffect(() => { onSavedRef.current = onSaved; });
 
   const save = useCallback(async (v: string) => {
-    clearTimeout(timer.current);
-    pending.current = null;
+    setValue(v);
     if (v === saved.current) return;
     setState("saving");
     try {
       const r = await apiFetch(`${API}/bookings/${id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ internalNotes: v }),
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: v }),
       });
       if (!r.ok) throw new Error();
       saved.current = v; onSavedRef.current(v); setState("saved");
-    } catch { pending.current = v; setState("error"); }
-  }, [id]);
-
-  // Closing the drawer right after typing still saves.
-  useEffect(() => () => { if (pending.current !== null) void save(pending.current); }, [save]);
-
-  function change(v: string) {
-    setValue(v); setState(""); pending.current = v;
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => save(v), 1000);
-  }
+    } catch { setState("error"); }
+  }, [id, field]);
 
   return (
-    <Group title="Private notes" note="Only your team sees these — never the client."
+    <Group title={text.title} note={text.note}
       action={state === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6B6680]" aria-label="Saving" />
         : state === "saved" ? <span className="text-xs font-semibold text-[#1F8A5B]">Saved</span>
         : state === "error" ? <button type="button" onClick={() => save(value)} className="text-xs font-semibold text-[#C2304F]">Not saved — try again</button>
         : undefined}>
       <div className="p-3">
-        <textarea value={value} onChange={e => change(e.target.value)} onBlur={() => { if (pending.current !== null) void save(pending.current); }}
-          rows={3} maxLength={5000} aria-label="Private notes"
-          placeholder="Anything the team should remember — gate pass, parking, special requests…"
-          className={cn(inputCls, "h-auto py-2.5 resize-y min-h-[84px] leading-relaxed")} />
+        <NotePoints label={text.title} value={value} onChange={save} people={people} placeholder={text.placeholder} mentionHint={text.hint} />
       </div>
     </Group>
   );

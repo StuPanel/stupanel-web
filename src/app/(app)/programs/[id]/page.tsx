@@ -35,6 +35,7 @@ import { MusicSection } from "../_components/music-section";
 import { CreativeBriefSection, DeliveryOverview, EditorsSection, PrivateNotes, ROLE_LABEL, SETUP_LABEL } from "../_components/sections";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import type { Booking, Package, ShiftAssignment, TeamMember } from "../_components/types";
+import { managerPeople, notePeople } from "../_components/types";
 
 const TABS = ["overview", "money", "team", "raw", "editing", "delivery", "documents"] as const;
 type Tab = (typeof TABS)[number];
@@ -416,7 +417,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   <List>{pays.slice(0, 3).map(payRow)}</List>
                 </Section>
               )}
-              <PrivateNotes key={b.id} booking={b} onSaved={notes => setB(cur => (cur ? { ...cur, internalNotes: notes } : cur))} />
+              <PrivateNotes key={`t${b.id}`} field="teamNotes" booking={b} people={notePeople(team, b.eventDays)} onSaved={notes => setB(cur => (cur ? { ...cur, teamNotes: notes } : cur))} />
+              <PrivateNotes key={b.id} booking={b} people={managerPeople(team)} onSaved={notes => setB(cur => (cur ? { ...cur, internalNotes: notes } : cur))} />
             </>
           )}
 

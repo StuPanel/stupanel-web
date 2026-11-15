@@ -29,6 +29,8 @@ import { dayRange, offOn } from "@/lib/member-prefs";
 import { buildBill, findRate, ROLE_NAME, type Rate, gearRent, type GearItem } from "./pricing";
 import { BILL_LOCKED_STATUSES } from "./types";
 import type { BillLine, Booking, Client, CostEntry, EditorDraft, EventDay, GearCheck, Package, Shift, ShiftAssignment, SetupMode, TeamMember } from "./types";
+import { managerPeople, notePeople } from "./types";
+import { NotePoints } from "@/lib/note-points";
 import { SIDES, SidePicker, cleanSide, sideLabel, typeHasSides, type Side } from "@/lib/coverage-side";
 import { DEFAULT_SHIFTS, activeShifts, isMapLink, mapLink, timeRange, type StudioShift } from "@/lib/shifts";
 
@@ -540,6 +542,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [advanceWallet, setAdvanceWallet] = useState("");
   const [money, setMoney] = useState({ total: "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
   const [notes, setNotes] = useState("");
+  const [teamNote, setTeamNote] = useState("");
   const [kept, setKept] = useState<CostEntry[]>([]);
   const [editors, setEditors] = useState<EditorDraft[]>([]);
   const [studio, setStudio] = useState<StudioSetup>({ workTypes: [], shiftTemplates: [], studioRates: [], payMode: "per_shift", shifts: DEFAULT_SHIFTS });
@@ -560,8 +563,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // The form as text. `base` is the form at the person's first touch, so anything filled in by
   // the app before that (the program being edited, a draft, a lead) doesn't count as a change.
   const snapshot = useMemo(
-    () => JSON.stringify({ client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept }),
-    [client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, editors, kept],
+    () => JSON.stringify({ client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept }),
+    [client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept],
   );
   const [base, setBase] = useState<string | null>(null);
   /** A draft brought its own name: the automatic "Rina's wedding" name must not replace it (it can run just after). */
@@ -606,13 +609,13 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   function applyDraft(d: Record<string, unknown>) {
     const o = d as Partial<{
       client: Client | null; clientMode: "search" | "new"; newClient: ClientFormData; programType: string; side: Side | null; eventName: string; nameTouched: boolean;
-      packageId: string; days: EventDay[]; advanceWallet: string; money: typeof money; notes: string; editors: EditorDraft[]; kept: CostEntry[];
+      packageId: string; days: EventDay[]; advanceWallet: string; money: typeof money; notes: string; teamNote?: string; editors: EditorDraft[]; kept: CostEntry[];
     }>;
     setClient(o.client ?? null); setClientMode(o.clientMode === "new" ? "new" : "search"); setNewClient({ ...blankClientForm, ...(o.newClient ?? {}) });
     draftNamed.current = !!o.nameTouched;
     setProgramType(o.programType ?? ""); setSide(cleanSide(o.side)); setEventName(o.eventName ?? ""); setNameTouched(!!o.nameTouched); setPackageId(o.packageId ?? "");
     setDays(normalizeDays(o.days)); setAdvanceWallet(o.advanceWallet ?? "");
-    setMoney(m => ({ ...m, ...(o.money ?? {}) })); setNotes(o.notes ?? "");
+    setMoney(m => ({ ...m, ...(o.money ?? {}) })); setNotes(o.notes ?? ""); setTeamNote(o.teamNote ?? "");
     setEditors(Array.isArray(o.editors) ? o.editors : []); setKept(Array.isArray(o.kept) ? o.kept : []);
   }
 
@@ -662,13 +665,13 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         method: "cash", transport: String(Number(b.transportCost) || ""), album: String(Number(b.albumCost) || ""),
         equipExtra: String(Math.max(0, Number(b.equipCost) - rented) || ""), other: String(Number(b.otherCost) || ""),
       });
-      setNotes(b.internalNotes ?? "");
+      setNotes(b.internalNotes ?? ""); setTeamNote(b.teamNotes ?? "");
       apiFetch(`${API}/bookings/${b.id}/editors`).then(r => r.ok ? r.json() : []).then((rows: EditorDraft[]) => setEditors(rows.map(r => ({ userId: r.userId, role: r.role })))).catch(() => {});
     } else {
       const dr = initialDraft;
       setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setSide(null); setPackageId("");
       setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
-      setKept([]); setEditors([]); setNotes(dr?.notes ?? "");
+      setKept([]); setEditors([]); setNotes(dr?.notes ?? ""); setTeamNote("");
       setMoney({ total: dr?.total ? String(dr.total) : "", discount: "", advance: "", method: "cash", transport: "", album: "", equipExtra: "", other: "" });
       // An unfinished program kept earlier: carry on with it, or start a new one.
       apiFetch(`${API}/drafts/program`).then(r => (r.ok ? r.json() : null)).then(async d => {
@@ -923,7 +926,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
         advanceWalletId: isEdit || !(advance > 0) ? undefined : advanceWallet || undefined,
         transportCost: num(money.transport), otherCost: num(money.other), albumCost: num(money.album), equipCost: equip,
-        internalNotes: notes || undefined, eventDays: typedDays, coverageSide: side ?? "",
+        internalNotes: notes || undefined, teamNotes: teamNote.trim(), eventDays: typedDays, coverageSide: side ?? "",
         ...(billLocked ? {} : { costEntries: bill.entries.filter(e => e.memberName || e.totalBill), ...(unlocked ? { unlockBill: true } : {}) }),
         ...(isEdit ? {} : { status: "confirmed" }),
       };
@@ -1330,7 +1333,22 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     <Field label="Other">{() => <Money value={money.other} onChange={v => setMoney(m => ({ ...m, other: v }))} label="Other cost" />}</Field>
                   </div>
                   <div className="border-t border-[#EEEBF4]">
-                    <Field label="Private notes" hint="Only your team sees these.">{id => <textarea id={id} rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Special instructions, reminders…" className={cn(inputCls, "h-auto py-2.5 resize-none")} />}</Field>
+                    <div className="p-4">
+                      <p className="text-[13px] font-semibold text-[#4A4658]">Note for the team</p>
+                      <p className="text-xs text-[#6B6680] mb-2">One point per line. The team on this program sees it in their panel and reminder email — never the client.</p>
+                      <NotePoints label="Add a point for the team" value={teamNote} onChange={setTeamNote}
+                        people={notePeople(team, days, editors.map(e => e.userId))} placeholder="e.g. Gate pass from the bride's uncle — type @ to mention"
+                        mentionHint="Put people on a shift first — then you can mention them." />
+                    </div>
+                  </div>
+                  <div className="border-t border-[#EEEBF4]">
+                    <div className="p-4">
+                      <p className="text-[13px] font-semibold text-[#4A4658]">Private notes</p>
+                      <p className="text-xs text-[#6B6680] mb-2">Only you and your managers see these — not the team, never the client.</p>
+                      <NotePoints label="Add a private point" value={notes} onChange={setNotes}
+                        people={managerPeople(team)} placeholder="e.g. Advance talk with the father"
+                        mentionHint="You have no managers to mention." />
+                    </div>
                   </div>
                 </Card>
               </Section>

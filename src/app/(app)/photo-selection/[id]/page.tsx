@@ -389,7 +389,7 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {g.status !== "preparing" && <HandoffPanel g={g} />}
+      {g.status !== "preparing" && <HandoffPanel g={g} onChanged={load} />}
 
       {/* Getting photos ready */}
       {(working || g.counts.failed > 0) && (
@@ -467,14 +467,15 @@ export default function GalleryPage() {
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] flex-1 min-w-0">
+      {/* Phone: the filters scroll on their own line, the tools sit under them. Computer: one line. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+        <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] -mx-1 px-1 sm:mx-0 sm:px-0 w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTERS.filter(f => f.id !== "problems" || g.counts.failed > 0).map(f => (
             <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-              className={cn("h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap transition-colors", filter === f.id ? "bg-[#7D5CEF] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>{f.label}</button>
+              className={cn("h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap flex-shrink-0 transition-colors", filter === f.id ? "bg-[#7D5CEF] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>{f.label}</button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto">
           <div className="inline-flex p-1 rounded-full bg-white" role="radiogroup" aria-label="Photo size">
             {(["s", "m", "l"] as const).map(s => (
               <button key={s} type="button" role="radio" aria-checked={size === s} onClick={() => setSize(s)}
@@ -483,7 +484,7 @@ export default function GalleryPage() {
           </div>
           <button type="button" onClick={() => { setSelecting(v => !v); setSel(new Set()); }}
             className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold", selecting ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>{selecting ? "Done" : "Select"}</button>
-          <div className="relative">
+          <div className="relative ml-auto sm:ml-0">
             <button type="button" onClick={() => setMenu(m => (m === "copy" ? null : "copy"))} aria-expanded={menu === "copy"}
               className="h-9 px-3.5 rounded-full bg-white text-[#4A4658] text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA]"><ClipboardCopy className="w-4 h-4" />Get list<ChevronDown className="w-3.5 h-3.5" /></button>
             {menu === "copy" && (

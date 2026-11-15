@@ -45,7 +45,7 @@ const Bar = ({ pct, color = "bg-[#1F8A5B]" }: { pct: number; color?: string }) =
   <div className="h-2 rounded-full bg-[#F1EFF6] overflow-hidden"><div className={cn("h-full rounded-full transition-[width] duration-500", color)} style={{ width: `${Math.max(3, pct)}%` }} /></div>
 );
 
-export function HandoffPanel({ g }: { g: GalleryDetail }) {
+export function HandoffPanel({ g, onChanged }: { g: GalleryDetail; onChanged?: () => void }) {
   const [h, setH] = useState<Handoff | null>(null);
   const [busy, setBusy] = useState<"" | "drive" | "share">("");
   const [designer, setDesigner] = useState(false);
@@ -219,7 +219,7 @@ export function HandoffPanel({ g }: { g: GalleryDetail }) {
         </Card>
       </div>
 
-      {designer && <DesignerDrawer g={g} current={h?.designer ?? null} pickedCount={picked.length} onClose={() => setDesigner(false)} onSaved={x => { setH(x); setDesigner(false); notify("The album is with the designer"); }} />}
+      {designer && <DesignerDrawer g={g} current={h?.designer ?? null} pickedCount={picked.length} onClose={() => setDesigner(false)} onSaved={x => { setH(x); setDesigner(false); notify(g.status === "taken" ? "The album is with the designer" : "The album is with the designer — the client's choice is locked now (Album started)"); onChanged?.(); }} />}
     </section>
   );
 }

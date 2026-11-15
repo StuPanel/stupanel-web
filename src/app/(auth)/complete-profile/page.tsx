@@ -49,7 +49,7 @@ export default function CompleteProfilePage() {
     setError("");
 
     if (!form.companyName.trim()) { setError("Studio name is required."); return; }
-    if (!form.password || form.password.length < 6) { setError("Please set a password (min 6 characters)."); return; }
+    if (!form.password || form.password.length < 8) { setError("Please set a password (min 8 characters)."); return; }
     if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
 
     setLoading(true);
@@ -147,7 +147,7 @@ export default function CompleteProfilePage() {
               type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={set("password")}
-              placeholder="Min. 6 characters"
+              placeholder="Min. 8 characters"
               className="pl-10 pr-10 h-11 border-[#E4E0EC]"
               required
             />

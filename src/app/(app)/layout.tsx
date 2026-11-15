@@ -1,5 +1,6 @@
 "use client";
 
+import { rememberPanel } from "@/components/layout/panel-switch";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -133,6 +134,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     if (!token) { router.replace("/login"); return; }
     if (role === "staff") { router.replace("/member/dashboard"); return; }
     if (user?.role === "manager" && !canOpen(user, pathname)) { router.replace(homeFor(user)); return; }
+    if (user?.role === "manager") rememberPanel("studio");
     if (!user) {
       // auth/me failed (bad token)
       localStorage.removeItem("access_token");

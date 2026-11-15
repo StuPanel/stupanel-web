@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelSwitch, rememberPanel } from "@/components/layout/panel-switch";
 import { IdleSignOut } from "@/components/idle-sign-out";
 import { useEffect, useState } from "react";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
@@ -69,6 +70,9 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       <div className="px-3 pb-2">
         <StudioSwitcher name="" sub="Your studio" />
       </div>
+      {isManager && (
+        <div className="px-3 pb-3"><PanelSwitch current="member" onNavigate={onClose} /></div>
+      )}
 
       {profile && (
         <div className="px-3 pb-3">
@@ -117,13 +121,6 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
       </nav>
 
       <div className="p-3 border-t border-[#F1EFF6]">
-        {isManager && (
-          <Link href="/programs" onClick={onClose}
-            className="w-full flex items-center gap-3 px-2 h-10 mb-1 rounded-[12px] text-sm font-semibold text-[#5B3FD0] hover:bg-[#EEE8FD] transition-colors">
-            <Tile icon={LayoutGrid} color="ink" size={26} />
-            Studio app
-          </Link>
-        )}
         <button onClick={onLogout}
           className="w-full flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm font-medium text-[#C2304F] hover:bg-[#FDECEF] transition-colors">
           <span className="w-[26px] h-[26px] rounded-[8px] bg-[#FDECEF] flex items-center justify-center"><LogOut className="w-[15px] h-[15px]" /></span>
@@ -158,6 +155,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     if (!token) { router.replace("/login"); return; }
     const role = localStorage.getItem("user_role");
     if (role !== "staff" && role !== "manager") { router.replace("/dashboard"); return; }
+    if (role === "manager") rememberPanel("member");
 
     const load = () => apiFetch(`${API}/member/profile`)
       .then(r => r.ok ? r.json() : null)

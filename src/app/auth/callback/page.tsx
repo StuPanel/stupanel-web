@@ -1,5 +1,6 @@
 "use client";
 
+import { managerStartsInMember } from "@/components/layout/panel-switch";
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -32,7 +33,7 @@ function CallbackHandler() {
     const after = takeAfterLogin();
     if (after) { window.location.href = after; return; }
 
-    if (role === "staff") {
+    if (role === "staff" || managerStartsInMember()) {
       window.location.href = "/member/dashboard";
       return;
     }

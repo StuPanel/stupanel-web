@@ -4,6 +4,7 @@
  * Dashboard — Apple style (DESIGN_SYSTEM §11): page header with tile, number
  * cards with tiles, grouped white cards with rows.
  */
+import { MyWorkCard } from "@/components/my-work-card";
 import { SideBadge } from "@/lib/coverage-side";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -133,6 +134,8 @@ export default function DashboardPage() {
         </button>
         <PillSelect label="Period" value={period} onChange={v => setPeriod(v as Period)} options={PERIODS} />
       </PageHeader>
+
+      <MyWorkCard hideAmounts={!showAmounts} />
 
       {/* Numbers */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-7">

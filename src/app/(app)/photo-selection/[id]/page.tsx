@@ -113,7 +113,7 @@ export default function GalleryPage() {
     (filter === "all" ? true : filter === "picked" ? isPicked(p.m) : filter === "important" ? p.m === "important" : filter === "rejected" ? p.m === "rejected"
       : filter === "none" ? !p.m : filter === "notes" ? !!p.no : filter === "highlight" ? p.hl : p.st === "failed")), [g?.photos, album, folder, filter]);
 
-  const act = async (action: "send" | "take" | "reopen" | "close", clear?: boolean) => {
+  const act = async (action: "send" | "take" | "reopen" | "close" | "tell-new", clear?: boolean) => {
     setBusy(true);
     try {
       const r = await apiFetch(`${API}/photo-selection/${id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, clear }) });
@@ -311,6 +311,19 @@ export default function GalleryPage() {
       )}
       {g.status !== "submitted" && g.clientNote && (
         <div className="mb-4 rounded-[18px] bg-white p-4 flex items-start gap-3"><MessageSquareText className="w-5 h-5 text-[#5B3FD0] flex-shrink-0 mt-0.5" /><p className="text-[14px] text-[#17151F]">“{g.clientNote}”</p></div>
+      )}
+
+      {/* Photos added after the client last saw it: tell them (an email; the new ones show "New" for them) */}
+      {(g.status === "open" || g.status === "submitted") && (g.newPhotos ?? 0) > 0 && (
+        <div className="mb-4 rounded-[18px] bg-[#EEE8FD] p-4 flex items-center gap-3 flex-wrap sp-fade-in">
+          <span className="w-9 h-9 rounded-full bg-white text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><ImagePlus className="w-4 h-4" /></span>
+          <div className="min-w-0 flex-1 text-[14px] text-[#2A1F5C]">
+            <p className="font-semibold">{g.newPhotos} new photo{g.newPhotos === 1 ? "" : "s"} since {g.client.firstName} last saw it</p>
+            <p className="text-[12.5px] text-[#4A3F7A]">{g.client.firstName} sees them on the same link. Tell them, and the new ones are marked “New”{g.status === "submitted" ? " — their earlier choices stay" : ""}.</p>
+          </div>
+          <button type="button" disabled={busy} onClick={async () => { if (await act("tell-new")) notify(g.client.email ? `${g.client.firstName} got an email about the new photos` : `Marked as new — ${g.client.firstName} has no email, so tell them yourself`); }}
+            className="h-10 px-4 rounded-full bg-[#5B3FD0] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0 disabled:opacity-60"><Send className="w-3.5 h-3.5" />Tell {g.client.firstName}</button>
+        </div>
       )}
 
       {/* What the client has done so far — also before they send */}

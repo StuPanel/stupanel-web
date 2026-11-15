@@ -50,7 +50,7 @@ const Slide = memo(function Slide({ src, thumb, zoomSrc, offset, alt, zoomRef }:
   );
 });
 
-export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbAt, zoomAt, preload, title, sub, footer, top, onKey, onDoubleTap, hint }: {
+export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbAt, zoomAt, preload, title, sub, footer, top, onKey, onDoubleTap, hint, nextSignal }: {
   count: number; index: number; onIndex: (i: number) => void; onClose: () => void;
   /** The opened photo. */
   src: string;
@@ -68,6 +68,8 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbA
   onDoubleTap?: () => boolean | void;
   /** A short tip shown for a moment when the viewer opens. */
   hint?: string;
+  /** Each time this number goes up, slide to the next photo a moment later (after a photo was marked). */
+  nextSignal?: number;
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -134,6 +136,15 @@ export function PhotoViewer({ count, index, onIndex, onClose, src, srcAt, thumbA
     setTrack(-dir * (W + GAP), 0, SLIDE_MS);
     setTimeout(() => { busy.current = false; onIndex(to); }, SLIDE_MS);
   }, [index, count, onIndex, srcAt]);
+
+  // Marked → a beat so the mark is seen, then the next photo slides in.
+  const lastSignal = useRef(nextSignal);
+  useEffect(() => {
+    if (nextSignal === undefined || nextSignal === lastSignal.current) return;
+    lastSignal.current = nextSignal;
+    const t = setTimeout(() => { if (index < count - 1) go(1); }, 280);
+    return () => clearTimeout(t);
+  }, [nextSignal, go, index, count]);
 
   // A new photo is in the middle: put the track back (the photo that slid in is the same element, so nothing jumps).
   useLayoutEffect(() => {

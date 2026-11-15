@@ -58,6 +58,8 @@ export type PendingUpload = {
   replaceFileId?: string;
   /** The browser tab that holds this file right now (see "other tabs" below). */
   tab?: string;
+  /** API path to POST once files land (e.g. a photo selection's catch-up), so a continued upload is picked up too. */
+  syncPath?: string;
 };
 
 type Job = {
@@ -69,6 +71,9 @@ type Job = {
   folderPath?: string;
   plan?: UploadPlan;
   onDone?: (f: DriveFileResult) => void;
+  syncPath?: string;
+  /** Times this file was tried again on its own (tab back in view / internet back). */
+  autoRetries?: number;
   cancelled?: boolean;
   xhr?: XMLHttpRequest;
 };
@@ -206,6 +211,49 @@ export function retryFailedDriveUploads() {
 }
 export const failedDriveUploadCount = () => failedJobs.size;
 
+/**
+ * A phone stops a page it can't see (another app, screen off), so files uploading then fail.
+ * When the page is back in view, or the internet is back, those files are tried again on their own
+ * (up to 3 times each) — no "Try again" needed. A file whose Drive session ran out is left for the user.
+ */
+function autoRetry() {
+  if (paused || !failedJobs.size) return;
+  if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  let n = 0;
+  for (const [id, job] of [...failedJobs]) {
+    if ((job.autoRetries ?? 0) >= 3 || job.cancelled) continue;
+    job.autoRetries = (job.autoRetries ?? 0) + 1;
+    failedJobs.delete(id);
+    uploadStore.update(job.id, { error: undefined, status: "queued", progress: 0, speed: 0 });
+    queue.push(job);
+    n++;
+  }
+  if (n) pump();
+}
+if (typeof window !== "undefined") {
+  document.addEventListener("visibilitychange", () => setTimeout(autoRetry, 800));
+  window.addEventListener("online", () => setTimeout(autoRetry, 1500));
+  window.addEventListener("focus", () => setTimeout(autoRetry, 800));
+}
+
+/** One POST to `path` a few seconds after files stop arriving (at least every 20 s while they keep coming). */
+const syncers = new Map<string, () => void>();
+function syncSoon(path: string) {
+  let fn = syncers.get(path);
+  if (!fn) {
+    let timer: ReturnType<typeof setTimeout> | undefined; let first = 0;
+    fn = () => {
+      const now = Date.now();
+      if (!first) first = now;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = undefined; first = 0; void apiFetch(`${API}${path}`, { method: "POST" }).catch(() => null); }, now - first > 20000 ? 0 : 3000);
+    };
+    syncers.set(path, fn);
+  }
+  fn();
+}
+
 function pump() {
   if (paused) return;
   while (running < PARALLEL && queue.length) {
@@ -226,6 +274,8 @@ export function uploadToDrive(opts: {
   folderFor?: (f: File) => string | undefined;
   plans?: Map<File, UploadPlan>;
   onDone?: (f: DriveFileResult) => void;
+  /** API path to POST after files land — also when the upload is continued after a closed tab. */
+  syncPath?: string;
 }) {
   const known = new Set(readPending().map(p => p.fp));
   const remember: PendingUpload[] = [];
@@ -236,7 +286,7 @@ export function uploadToDrive(opts: {
     const folderPath = opts.folderFor?.(file);
     const plan = opts.plans?.get(file);
     const kind = opts.kind ?? "delivery";
-    const job: Job = { kind, id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, onDone: opts.onDone };
+    const job: Job = { kind, id, file, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, plan, syncPath: opts.syncPath, onDone: opts.onDone ?? (opts.syncPath ? () => syncSoon(opts.syncPath!) : undefined) };
     const fp = fingerprint(file, job.bookingId, folderPath, kind);
     // Remember every file now — also the ones waiting in line — so a closed tab loses nothing.
     if (!known.has(fp)) {
@@ -244,7 +294,7 @@ export function uploadToDrive(opts: {
       remember.push({
         kind, fp, bookingId: opts.bookingId, bookingName: opts.bookingName, folderPath, fileName: file.name,
         size: file.size, lastModified: file.lastModified, uploadUrl: "", createdAt: Date.now(),
-        uploadName: plan?.name, replaceFileId: plan?.replaceFileId, tab: TAB_ID,
+        uploadName: plan?.name, replaceFileId: plan?.replaceFileId, tab: TAB_ID, syncPath: opts.syncPath,
       });
     } else retake.add(fp); // remembered from an earlier visit — this tab holds it now
     uploadStore.add({
@@ -270,14 +320,14 @@ export function resumeWithFiles(files: File[]): { matched: number } {
   const tabs = readTabs();
   const pending = readPending().filter(p => !isUploadingElsewhere(p, tabs));
   let matched = 0;
-  type Group = { kind: DriveKind; bookingName?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
+  type Group = { kind: DriveKind; bookingName?: string; syncPath?: string; files: File[]; folders: Map<File, string | undefined>; plans: Map<File, UploadPlan> };
   const byProgram = new Map<string, Group>();
   for (const file of files) {
     const p = pending.find(x => x.fileName === file.name && x.size === file.size && x.lastModified === file.lastModified && !activeFps.has(x.fp));
     if (!p) continue;
     matched++;
-    const gKey = `${p.kind ?? "delivery"}|${p.bookingId}`;
-    const g: Group = byProgram.get(gKey) ?? { kind: p.kind ?? "delivery", bookingName: p.bookingName, files: [], folders: new Map<File, string | undefined>(), plans: new Map<File, UploadPlan>() };
+    const gKey = `${p.kind ?? "delivery"}|${p.bookingId}|${p.syncPath ?? ""}`;
+    const g: Group = byProgram.get(gKey) ?? { kind: p.kind ?? "delivery", bookingName: p.bookingName, syncPath: p.syncPath, files: [], folders: new Map<File, string | undefined>(), plans: new Map<File, UploadPlan>() };
     g.files.push(file);
     g.folders.set(file, p.folderPath);
     if (p.uploadName || p.replaceFileId) g.plans.set(file, { name: p.uploadName, replaceFileId: p.replaceFileId });
@@ -285,7 +335,7 @@ export function resumeWithFiles(files: File[]): { matched: number } {
   }
   for (const [gKey, g] of byProgram) {
     const bookingId = gKey.split("|")[1];
-    uploadToDrive({ kind: g.kind, files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f), plans: g.plans });
+    uploadToDrive({ kind: g.kind, files: g.files, bookingId, bookingName: g.bookingName, folderFor: f => g.folders.get(f), plans: g.plans, syncPath: g.syncPath });
   }
   return { matched };
 }

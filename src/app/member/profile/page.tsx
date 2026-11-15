@@ -130,7 +130,7 @@ export default function MemberProfilePage() {
     e.preventDefault();
     setPwErr(""); setPwOk(false);
     if (newPw !== confirmPw) { setPwErr("New passwords do not match"); return; }
-    if (newPw.length < 6) { setPwErr("New password must be at least 6 characters"); return; }
+    if (newPw.length < 8) { setPwErr("New password must be at least 8 characters"); return; }
     setPwSaving(true);
     const res = await apiFetch(`${API}/member/change-password`, {
       method: "PATCH",
@@ -209,7 +209,7 @@ export default function MemberProfilePage() {
               </button>
             </div>
           )}</Field>
-          <Field label="New password" required hint="At least 6 characters.">{id => (
+          <Field label="New password" required hint="At least 8 characters.">{id => (
             <div className="relative">
               <input id={id} type={showNew ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} required autoComplete="new-password" className={cn(inputCls, "pr-11")} />
               <button type="button" onClick={() => setShowNew(p => !p)} aria-label={showNew ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6680]">

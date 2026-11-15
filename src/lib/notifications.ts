@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle, Bell, CalendarDays, FileSignature, Clock, DollarSign, Film, Images, Music2, PhoneCall, Plus, ShieldAlert,
+  AlertTriangle, Bell, CalendarDays, FileSignature, Clock, DollarSign, Film, Images, Music2, PhoneCall, Plus, ShieldAlert, Users,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import type { TileColor } from "@/components/ui/apple";
@@ -29,11 +29,13 @@ export const TYPE_META: Record<string, { icon: typeof Bell; color: TileColor; la
   contract: { icon: FileSignature, color: "green", label: "Contract" },
   lead: { icon: PhoneCall, color: "deep", label: "Follow-up" },
   backup: { icon: ShieldAlert, color: "red", label: "Backup" },
+  team: { icon: Users, color: "blue", label: "Team" },
 };
 export const metaOf = (type: string) => TYPE_META[type] ?? { icon: Bell, color: "violet" as TileColor, label: "Notice" };
 
 /** Where a notification opens. */
 export function notifHref(n: Notif) {
+  if (n.type === "team") return "/team";
   return n.contractId ? `/contracts/${n.contractId}` : n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/notifications";
 }
 

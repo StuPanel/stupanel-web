@@ -11,7 +11,7 @@ import { Popover } from "radix-ui";
 import { Bell, CheckCheck, ChevronRight, MessageCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tile } from "@/components/ui/apple";
-import { dayGroup, metaOf, notifHref, timeAgo, useNotifications, type Notif } from "@/lib/notifications";
+import { dayGroup, goToNotif, metaOf, notifOrder, timeAgo, useNotifications, type Notif } from "@/lib/notifications";
 import { WhatsAppModal } from "@/app/(app)/programs/_components/whatsapp-modal";
 
 export function NotificationBell() {
@@ -22,17 +22,16 @@ export function NotificationBell() {
   const [waFor, setWaFor] = useState<Notif | null>(null);
 
   const list = tab === "unread" ? unread : items;
-  // Important first inside each day, then newest
-  const order = { high: 0, medium: 1, low: 2 } as const;
+  // Unread first inside each day, then important, then newest
   const groups = (["Today", "Yesterday", "Earlier"] as const)
-    .map(g => ({ g, rows: list.filter(n => dayGroup(n.createdAt) === g).sort((a, b) => order[a.priority] - order[b.priority] || +new Date(b.createdAt) - +new Date(a.createdAt)) }))
+    .map(g => ({ g, rows: list.filter(n => dayGroup(n.createdAt) === g).sort(notifOrder(isRead)) }))
     .filter(x => x.rows.length);
   const count = unread.length;
 
   function openOne(n: Notif) {
     markRead([n.id]);
     setOpen(false);
-    router.push(notifHref(n));
+    goToNotif(n, h => router.push(h));
   }
 
   return (

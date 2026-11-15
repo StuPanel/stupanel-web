@@ -1335,7 +1335,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                   <div className="border-t border-[#EEEBF4]">
                     <div className="p-4">
                       <p className="text-[13px] font-semibold text-[#4A4658]">Note for the team</p>
-                      <p className="text-xs text-[#6B6680] mb-2">One point per line. The team on this program sees it in their panel and reminder email — never the client.</p>
+                      <p className="text-xs text-[#6B6680] mb-2">The team on this program sees these points in their panel and reminder email — never the client.</p>
                       <NotePoints label="Add a point for the team" value={teamNote} onChange={setTeamNote}
                         people={notePeople(team, days, editors.map(e => e.userId))} placeholder="e.g. Gate pass from the bride's uncle — type @ to mention"
                         mentionHint="Put people on a shift first — then you can mention them." />

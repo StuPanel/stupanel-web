@@ -381,16 +381,27 @@ function AssignDrawer({ open, onClose, days, start, team, studio, editing, busyI
                       {owner.setup!.map(g => {
                         const on = gear.some(x => x.ownerId === owner.id && x.itemId === g.id);
                         const out = gearOut(`${owner.id}:${g.id}`); const st = gearState(`${owner.id}:${g.id}`);
+                        const notLent = (g as { lend?: boolean }).lend !== true; // the owner has not allowed renting it
                         return (
                           <button key={g.id} type="button" role="checkbox" aria-checked={on}
                             onClick={() => setGear(on ? gear.filter(x => !(x.ownerId === owner.id && x.itemId === g.id)) : [...gear, { ownerId: owner.id, itemId: g.id, name: g.name }])}
-                            title={out ? `Out with ${out.usedBy} — ${out.where}` : undefined}
+                            title={out ? `Out with ${out.usedBy} — ${out.where}` : notLent ? `${fullName(owner)} has not allowed renting this — ask them first` : undefined}
                             className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]", (out || st !== "ok") && "ring-1 ring-[#C2304F]")}>
                             {on && <Check className="w-3 h-3" />}{g.name}{out ? <span className={on ? "text-[#FFB4C2]" : "text-[#C2304F]"}> · out</span> : st !== "ok" ? <span className={on ? "text-[#FFD9A0]" : "text-[#7A4800]"}> · {st === "service" ? "in service" : "out of use"}</span> : null}{(() => { const r = gearRent(g as GearItem, [studio.payMode, "per_shift", "per_day", "per_program"]); return r.price > 0 ? ` · ${formatCurrency(r.price)} / ${r.unit.replace("per_", "")}` : " · no rent set"; })()}
+                            {notLent && <Lock className={cn("w-3 h-3", on ? "text-[#FFD9A0]" : "text-[#7A4800]")} aria-label="Not for rent" />}
                           </button>
                         );
                       })}
                     </div>
+                    {(() => {
+                      const asked = owner.setup!.filter(g => (g as { lend?: boolean }).lend !== true && gear.some(x => x.ownerId === owner.id && x.itemId === g.id));
+                      return asked.length > 0 && (
+                        <p className="mt-1.5 text-[12px] text-[#7A4800] bg-[#FFF3E0] rounded-lg px-2.5 py-1.5 flex gap-1.5">
+                          <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                          {fullName(owner)} has not allowed renting {asked.map(g => g.name).join(", ")}. Ask them first — you can still save.
+                        </p>
+                      );
+                    })()}
                   </div>
                 ))}
                 {(() => {

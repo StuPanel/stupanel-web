@@ -4,6 +4,7 @@
  * Member panel: one program, laid out like the studio's program page —
  * what it is and my pay on the left, tabs for the rest on the right.
  */
+import { PointList, parsePoints } from "@/lib/note-points";
 import { SideBadge } from "@/lib/coverage-side";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -29,6 +30,10 @@ type ProgramHub = {
   eventName?: string;
   /** Whose side the program covers: bride | groom | both. */
   coverageSide?: string | null;
+  /** The studio's note for the team, as points (may mention people). */
+  teamNotes?: string | null;
+  /** My user id — points that mention me are "For you". */
+  me?: string;
   status: string;
   eventDays: {
     id: string; eventType: string; date?: string; location?: string; mapUrl?: string | null; side?: string | null;
@@ -193,6 +198,11 @@ export default function ProgramHubPage() {
 
           {/* Panels stay mounted so switching is instant and nothing typed is lost. */}
           <div role="tabpanel" hidden={openTab !== "overview"}>
+            {parsePoints(hub.teamNotes).length > 0 && (
+              <Section title="Note from the studio">
+                <div className={cn(card, "overflow-hidden")}><PointList text={hub.teamNotes} meId={hub.me} /></div>
+              </Section>
+            )}
             <Section title={`Days${days.length ? ` · ${days.length}` : ""}`}>
               {days.length === 0 ? <Empty icon={CalendarX} title="No days added yet" text="The studio hasn't set the days for this program." /> : (
                 <div className={cn(card, "overflow-hidden divide-y divide-[#EEEBF4]")}>

@@ -92,7 +92,7 @@ export default function AdminEmailLogsPage() {
           ))}
         </select>
         <Button onClick={() => load(1, search, status)} size="sm" variant="outline"
-          className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
+          className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" />Refresh
         </Button>
       </div>
@@ -153,11 +153,11 @@ export default function AdminEmailLogsPage() {
           <p className="text-xs text-slate-500">Page {page} of {data.pages} ({data.total} total)</p>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               <ChevronLeft className="w-3.5 h-3.5" />Prev
             </Button>
             <Button size="sm" variant="outline" disabled={page >= data.pages} onClick={() => load(page + 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               Next<ChevronRight className="w-3.5 h-3.5" />
             </Button>
           </div>

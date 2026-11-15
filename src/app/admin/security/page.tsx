@@ -175,7 +175,7 @@ export default function AdminSecurityPage() {
               <option value="false">Failed only</option>
             </select>
             <Button onClick={() => loadLogins(1, loginFilter, search)} size="sm" variant="outline"
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" />Refresh
             </Button>
           </div>
@@ -227,11 +227,11 @@ export default function AdminSecurityPage() {
               <p className="text-xs text-slate-500">Page {loginPage} of {logins.pages}</p>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" disabled={loginPage <= 1} onClick={() => loadLogins(loginPage - 1)}
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                  className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   <ChevronLeft className="w-3.5 h-3.5" />Prev
                 </Button>
                 <Button size="sm" variant="outline" disabled={loginPage >= logins.pages} onClick={() => loadLogins(loginPage + 1)}
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                  className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   Next<ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -246,7 +246,7 @@ export default function AdminSecurityPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">{sessions?.total ?? 0} active sessions</p>
             <Button onClick={() => loadSessions(1)} size="sm" variant="outline"
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1.5">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" />Refresh
             </Button>
           </div>
@@ -291,11 +291,11 @@ export default function AdminSecurityPage() {
               <p className="text-xs text-slate-500">Page {sessionPage} of {sessions.pages}</p>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" disabled={sessionPage <= 1} onClick={() => loadSessions(sessionPage - 1)}
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                  className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   <ChevronLeft className="w-3.5 h-3.5" />Prev
                 </Button>
                 <Button size="sm" variant="outline" disabled={sessionPage >= sessions.pages} onClick={() => loadSessions(sessionPage + 1)}
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                  className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   Next<ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>

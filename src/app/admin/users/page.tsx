@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
     <div className="p-4 sm:p-6 md:p-8 space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-white">Users</h1>
-        <p className="text-sm text-slate-400 mt-0.5">{totalUsers} people in {asked ? `${total} matching studio${total === 1 ? "" : "s"}` : `${total} studio${total === 1 ? "" : "s"}`} — grouped by studio, newest first</p>
+        <p className="text-sm text-slate-400 mt-0.5">{asked ? `${total} studio${total === 1 ? "" : "s"} found for “${asked}”` : `${totalUsers} people in ${total} studio${total === 1 ? "" : "s"}`} — grouped by studio, newest first</p>
       </div>
 
       <form onSubmit={e => { e.preventDefault(); load(1, search.trim()); }} className="flex gap-2 flex-wrap">
@@ -106,7 +106,7 @@ export default function AdminUsersPage() {
               className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md text-slate-400 hover:bg-slate-700 inline-flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>
           )}
         </div>
-        <Button type="submit" size="sm" variant="outline" className="border-slate-700 text-slate-200 hover:bg-slate-800 h-10 gap-1.5"><Search className="w-3.5 h-3.5" />Search</Button>
+        <Button type="submit" size="sm" variant="outline" className="bg-transparent border-slate-700 text-slate-200 hover:bg-slate-800 h-10 gap-1.5"><Search className="w-3.5 h-3.5" />Search</Button>
         {items.length > 1 && (
           <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(allOpen ? new Set() : new Set(items.map(s => s.id)))} className="h-10 text-slate-300 hover:bg-slate-800">
             {allOpen ? "Close all" : "Open all"}
@@ -200,8 +200,8 @@ export default function AdminUsersPage() {
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">Page {page} of {pages} · {total} studios</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1, asked)} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1"><ChevronLeft className="w-3.5 h-3.5" />Prev</Button>
-            <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => load(page + 1, asked)} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">Next<ChevronRight className="w-3.5 h-3.5" /></Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1, asked)} className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1"><ChevronLeft className="w-3.5 h-3.5" />Prev</Button>
+            <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => load(page + 1, asked)} className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">Next<ChevronRight className="w-3.5 h-3.5" /></Button>
           </div>
         </div>
       )}

@@ -140,11 +140,11 @@ export default function AdminStoragePage() {
           <p className="text-xs text-slate-500">Page {page} of {data.pages}</p>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               <ChevronLeft className="w-3.5 h-3.5" />Prev
             </Button>
             <Button size="sm" variant="outline" disabled={page >= data.pages} onClick={() => load(page + 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               Next<ChevronRight className="w-3.5 h-3.5" />
             </Button>
           </div>

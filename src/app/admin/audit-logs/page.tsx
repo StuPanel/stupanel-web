@@ -67,7 +67,7 @@ export default function AdminAuditLogsPage() {
             className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-600 h-9" />
         </div>
         <Button onClick={() => load(1, companyId)} size="sm" variant="outline"
-          className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9">
+          className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-9">
           Filter
         </Button>
       </div>
@@ -123,11 +123,11 @@ export default function AdminAuditLogsPage() {
           <p className="text-xs text-slate-500">Page {page} of {pages} ({total} total)</p>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               <ChevronLeft className="w-3.5 h-3.5" />Prev
             </Button>
             <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => load(page + 1)}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
               Next<ChevronRight className="w-3.5 h-3.5" />
             </Button>
           </div>

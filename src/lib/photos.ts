@@ -39,7 +39,7 @@ export type GalleryCard = {
 export type Counts = { total: number; ready: number; failed: number; working: number; picked: number; important: number; rejected: number };
 
 export type GalleryDetail = {
-  id: string; title: string; status: GalleryStatus; deadline: string | null; allowNotes: boolean; welcome: string | null;
+  id: string; title: string; status: GalleryStatus; deadline: string | null; allowNotes: boolean; allowLove?: boolean; welcome: string | null;
   clientNote: string | null; submittedAt: string | null; changedAfterSubmitAt: string | null; takenAt: string | null;
   reopenRequestedAt: string | null; reopenReason: string | null; createdAt: string; updatedAt: string;
   program: { id: string; name: string; number: string; date: string | null };
@@ -60,7 +60,7 @@ export type ClientGalleryCard = {
 };
 
 export type ClientGallery = {
-  id: string; title: string; status: GalleryStatus; deadline: string | null; welcome: string | null; allowNotes: boolean;
+  id: string; title: string; status: GalleryStatus; deadline: string | null; welcome: string | null; allowNotes: boolean; allowLove?: boolean;
   clientNote: string | null; submittedAt: string | null; takenAt: string | null; reopenRequestedAt: string | null;
   studio: string; canChange: boolean; lockedWhy: string;
   /** For the welcome screen */

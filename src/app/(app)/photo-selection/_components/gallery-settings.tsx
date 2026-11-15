@@ -16,6 +16,7 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
   const [title, setTitle] = useState(g.title);
   const [deadline, setDeadline] = useState(toLocal(g.deadline));
   const [allowNotes, setAllowNotes] = useState(g.allowNotes);
+  const [allowLove, setAllowLove] = useState(g.allowLove !== false);
   const [welcome, setWelcome] = useState(g.welcome ?? "");
   const [rows, setRows] = useState<Row[]>(g.albums.map(a => ({ id: a.id, name: a.name, min: a.minPicks?.toString() ?? "", max: a.maxPicks?.toString() ?? "", allowExtra: !!a.allowExtra, total: a.total })));
   const [saving, setSaving] = useState(false);
@@ -37,7 +38,7 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
       const fail = async (r: Response) => { const d = await r.json().catch(() => ({})); throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save"); };
       const r = await j("", "PATCH", {
         title: title.trim(), deadline: deadline ? new Date(`${deadline}T23:59:00`).toISOString() : null,
-        allowNotes, welcome: welcome.trim() || null,
+        allowNotes, allowLove, welcome: welcome.trim() || null,
       });
       if (!r.ok) await fail(r);
       let order = 0;
@@ -122,6 +123,7 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
       </FormGroup>
 
       <FormGroup title="For the client">
+        <SwitchRow label="Love most (♥)" hint="The client can mark the photos they love most. Off: only Choose and Don't want" on={allowLove} onChange={setAllowLove} />
         <SwitchRow label="Notes on photos" hint="The client can write a note on a photo (e.g. “make this brighter”)" on={allowNotes} onChange={setAllowNotes} />
         <Field label="Message on top (optional)" hint="e.g. Pick your favourite 80 for the wedding album. Tap ♥ on the ones you love most.">
           {id => <textarea id={id} value={welcome} maxLength={2000} rows={3} onChange={e => setWelcome(e.target.value)} className={cn(inputCls, "h-auto py-2.5 resize-none")} />}

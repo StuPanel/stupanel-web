@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, CheckCircle2, FolderOpen, HardDrive, Image as ImageIcon, Link2, Loader2,
-  MessageCircle, Palette, Play, Send, Upload, Video, VideoOff,
+  MessageCircle, Music2, Palette, Play, Send, Upload, Video, VideoOff,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
@@ -90,6 +90,11 @@ export default function EditorWorkspacePage() {
   const [sendingChat, setSendingChat] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [hasMusic, setHasMusic] = useState<boolean | null>(null);
+  /** Tagged "Video editor" in Team → may choose the program's songs and ask the client. */
+  const [canMusic, setCanMusic] = useState(false);
+  useEffect(() => {
+    apiFetch(`${API}/member/profile`).then(r => (r.ok ? r.json() : null)).then(d => setCanMusic(!!d?.memberRoles?.includes("video_editor"))).catch(() => {});
+  }, []);
   const [rawShown, setRawShown] = useState<boolean | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const panels = useRef<HTMLDivElement>(null);
@@ -404,8 +409,14 @@ export default function EditorWorkspacePage() {
                 </div>
               </Section>
             )}
-            <EditorMusic assignmentId={id} onLoaded={setHasMusic} />
-            {!hasBrief && hasMusic === false && (
+            {/* Songs are for video work only; a member tagged Video editor can also choose them / ask the client. */}
+            {!isPhoto && <EditorMusic assignmentId={id} onLoaded={setHasMusic} />}
+            {!isPhoto && canMusic && (
+              <Link href={`/member/music/${assignment.booking.id}`} className="mt-3 h-11 px-4 rounded-full bg-[#F7E9F4] text-[#86307A] text-[13.5px] font-semibold inline-flex items-center gap-2 hover:bg-[#F1DAEC]">
+                <Music2 className="w-4 h-4" />Choose songs or ask the client
+              </Link>
+            )}
+            {!hasBrief && (isPhoto || hasMusic === false) && (
               <Empty icon={Palette} title="No brief yet" text="The studio hasn't written a brief and the client hasn't picked songs. Ask in Notes if you need direction.">
                 <button type="button" onClick={() => go("notes")} className={softBtn}><MessageCircle className="w-4 h-4" />Open notes</button>
               </Empty>

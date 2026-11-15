@@ -24,7 +24,7 @@ type Client = { id: string; firstName: string; lastName?: string | null; phone?:
 const chip = "h-8 px-3 rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5";
 const err = async (r: Response) => { const d = await r.json().catch(() => ({})); return (Array.isArray(d.message) ? d.message[0] : d.message) || "Something went wrong"; };
 
-export function MusicSection({ booking }: { booking: Booking }) {
+export function MusicSection({ booking, member = false }: { booking: Booking; /** a video editor in the member panel: no client-portal access window */ member?: boolean }) {
   const [sel, setSel] = useState<MusicSelection | null>(null);
   const [defaults, setDefaults] = useState<MusicPart[]>([]);
   /** The program's days (with the shared event each name means) and the kinds of video — for the parts builder. */
@@ -337,7 +337,7 @@ export function MusicSection({ booking }: { booking: Booking }) {
         <SelectLinkModal title="Share music choosing" what="this program's music" client={client} link={shareLink}
           onSet={setLinkOn}
           message={url => `Hi ${client.firstName}, please choose the songs for ${program} here — no code needed:\n${url}`}
-          onPortal={() => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
+          onPortal={member ? undefined : () => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
       )}
       {portal && client && <PortalAccessModal client={client} onClose={() => setPortal(false)} />}
     </div>

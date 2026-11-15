@@ -17,7 +17,13 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { uploadStore } from "@/lib/upload-store";
 
 const CHUNK = 32 * 1024 * 1024; // multiple of 256 KB, as Google requires
-const PARALLEL = 3;
+/**
+ * How many files go up at once. A small file is mostly waiting (start, check, share with Drive),
+ * so more of them run together; a big one is mostly sending, so fewer. Each running file takes
+ * "load" from SLOTS: 3 big ones, up to 8 small ones, or a mix.
+ */
+const SLOTS = 6;
+const loadOf = (f: File) => (f.size <= 1.5 * 1024 * 1024 ? 0.75 : f.size <= 6 * 1024 * 1024 ? 1.5 : 2);
 const PENDING_KEY = "sp_drive_pending_v1";
 
 export type DriveFileResult = {
@@ -160,6 +166,7 @@ const runningJobs = new Set<Job>();
 const failedJobs = new Map<string, Job>();
 const activeFps = new Set<string>();
 let running = 0;
+let load = 0;
 
 // Pause all: running files stop after the piece Google already has; everything keeps its place.
 let paused = false;
@@ -256,12 +263,14 @@ function syncSoon(path: string) {
 
 function pump() {
   if (paused) return;
-  while (running < PARALLEL && queue.length) {
+  while (queue.length) {
+    if (queue[0].cancelled) { queue.shift(); continue; }
+    const w = loadOf(queue[0].file);
+    if (running > 0 && load + w > SLOTS + 0.01) break;
     const job = queue.shift()!;
-    if (job.cancelled) continue;
-    running++;
+    running++; load += w;
     runningJobs.add(job);
-    runJob(job).finally(() => { running--; runningJobs.delete(job); pump(); if (running === 0 && queue.length === 0) heartbeat(false); });
+    runJob(job).finally(() => { running--; load -= w; runningJobs.delete(job); pump(); if (running === 0 && queue.length === 0) heartbeat(false); });
   }
 }
 

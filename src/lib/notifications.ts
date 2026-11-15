@@ -39,6 +39,23 @@ export function notifHref(n: Notif) {
   return n.contractId ? `/contracts/${n.contractId}` : n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/notifications";
 }
 
+/**
+ * Open a notice's page. When it is the page already open, load it again so the latest shows
+ * (a client sent / changed something since it was opened).
+ */
+export function goToNotif(n: Notif, push: (href: string) => void) {
+  const href = notifHref(n);
+  if (typeof window !== "undefined" && href.split("?")[0] === window.location.pathname) { window.location.assign(href); return; }
+  push(href);
+}
+
+/** Unread first, then important first, then newest. */
+export function notifOrder(isRead: (id: string) => boolean) {
+  const pri = { high: 0, medium: 1, low: 2 } as const;
+  return (a: Notif, b: Notif) =>
+    Number(isRead(a.id)) - Number(isRead(b.id)) || pri[a.priority] - pri[b.priority] || +new Date(b.createdAt) - +new Date(a.createdAt);
+}
+
 /** "Now", "5m", "3h", "2d", "11 Nov". */
 export function timeAgo(iso: string, now = Date.now()) {
   const t = new Date(iso).getTime();

@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Bell as HeaderIcon, CheckCheck, ChevronRight, MessageCircle, RefreshCw, X } from "lucide-react";
 import { CARD_SHADOW, PageHeader, Tile } from "@/components/ui/apple";
 import { cn } from "@/lib/utils";
-import { dayGroup, metaOf, notifHref, timeAgo, TYPE_META, useNotifications, type Notif } from "@/lib/notifications";
+import { dayGroup, goToNotif, metaOf, notifOrder, timeAgo, TYPE_META, useNotifications, type Notif } from "@/lib/notifications";
 import { WhatsAppModal } from "../programs/_components/whatsapp-modal";
 
 const KIND_ORDER = ["review", "contract", "photos", "music", "lead", "backup", "upcoming", "overdue", "payment", "stuck", "new"];
@@ -24,9 +24,8 @@ export default function NotificationsPage() {
 
   const base = show === "unread" ? unread : items;
   const visible = base.filter(n => kind === "all" || n.type === kind);
-  const order = { high: 0, medium: 1, low: 2 } as const;
   const groups = useMemo(() => (["Today", "Yesterday", "Earlier"] as const)
-    .map(g => ({ g, rows: visible.filter(n => dayGroup(n.createdAt) === g).sort((a, b) => order[a.priority] - order[b.priority] || +new Date(b.createdAt) - +new Date(a.createdAt)) }))
+    .map(g => ({ g, rows: visible.filter(n => dayGroup(n.createdAt) === g).sort(notifOrder(isRead)) }))
     .filter(x => x.rows.length), [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const kinds = KIND_ORDER.filter(k => base.some(n => n.type === k));
   const important = items.filter(n => n.priority === "high").length;
@@ -96,7 +95,7 @@ export default function NotificationsPage() {
               return (
                 <li key={n.id} className={cn("group flex items-start gap-3 p-4", unreadRow && "bg-[#FAF8FF]")}>
                   <Tile icon={m.icon} color={m.color} size={40} className="flex-shrink-0" />
-                  <button type="button" onClick={() => { markRead([n.id]); router.push(notifHref(n)); }} className="flex-1 min-w-0 text-left">
+                  <button type="button" onClick={() => { markRead([n.id]); goToNotif(n, h => router.push(h)); }} className="flex-1 min-w-0 text-left">
                     <span className="flex items-center gap-2">
                       {unreadRow && <span aria-label="Unread" className="w-2 h-2 rounded-full bg-[#7D5CEF] flex-shrink-0" />}
                       <span className={cn("text-[15px] truncate", unreadRow ? "font-bold text-[#17151F]" : "font-semibold text-[#2B2836]")}>{n.title}</span>
@@ -112,7 +111,7 @@ export default function NotificationsPage() {
                         <MessageCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">WhatsApp</span>
                       </button>
                     )}
-                    <button onClick={() => { markRead([n.id]); router.push(notifHref(n)); }} aria-label={`Open ${n.title}`}
+                    <button onClick={() => { markRead([n.id]); goToNotif(n, h => router.push(h)); }} aria-label={`Open ${n.title}`}
                       className="hidden sm:inline-flex h-8 px-3 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-xs font-semibold text-[#17151F] items-center gap-0.5">
                       Open<ChevronRight className="w-3.5 h-3.5" />
                     </button>

@@ -344,7 +344,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     ...(inFolder.some(p => p.nw) ? [{ id: "new" as Filter, label: t.fresh, n: inFolder.filter(p => p.nw).length }] : []),
     { id: "unseen", label: t.unseen, n: inFolder.filter(p => !p.m).length },
     { id: "picked", label: t.picked, n: inFolder.filter(p => isPicked(p.m)).length },
-    { id: "important", label: t.important, n: inFolder.filter(p => p.m === "important").length },
+    ...(g?.allowLove !== false ? [{ id: "important" as Filter, label: t.important, n: inFolder.filter(p => p.m === "important").length }] : []),
     { id: "rejected", label: t.rejected, n: inFolder.filter(p => p.m === "rejected").length },
   ];
 
@@ -354,7 +354,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
         { m: "selected" as Mark, I: Check, label: t.choose, on: "bg-[#1F8A5B] text-white" },
         { m: "important" as Mark, I: Heart, label: t.love, on: "bg-[#C2304F] text-white" },
         { m: "rejected" as Mark, I: X, label: t.dont, on: "bg-[#33303F] text-white" },
-      ]).map(b => {
+      ]).filter(b => b.m !== "important" || g?.allowLove !== false).map(b => {
         const on = p.m === b.m || (b.m === "selected" && p.m === "important" && !big);
         return (
           <button key={b.m} type="button" disabled={locked} aria-pressed={p.m === b.m} aria-label={b.label}
@@ -665,7 +665,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             if (locked) return false;
             const k = e.key.toLowerCase();
             if (k === "1" || k === "s" || k === " ") { mark(vp, "selected", true); return true; }
-            if (k === "2" || k === "l") { mark(vp, "important", true); return true; }
+            if ((k === "2" || k === "l") && g.allowLove !== false) { mark(vp, "important", true); return true; }
             if (k === "3" || k === "x") { mark(vp, "rejected", true); return true; }
             return false;
           }}

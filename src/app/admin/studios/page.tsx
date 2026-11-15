@@ -212,7 +212,7 @@ function DeleteProof({ name, typed, setTyped, code, setCode }: {
   return (
     <div className="space-y-3 rounded-xl border border-red-900/40 bg-red-900/10 p-3">
       <p className="text-xs text-red-200">
-        Every team login, client, program, payment and file of this studio is deleted now. Only StuPanel&apos;s billing record and the studio&apos;s name stay. This cannot be undone.
+        Every team login, client, program, payment and file of this studio is deleted now. Only StuPanel&apos;s billing record, the studio&apos;s name and the owner&apos;s name, email and phone stay. This cannot be undone.
       </p>
       <div className="space-y-1">
         <label htmlFor="del-name" className="text-xs text-slate-400">Type the studio&apos;s name: <span className="font-semibold text-slate-200 break-words">{name}</span></label>

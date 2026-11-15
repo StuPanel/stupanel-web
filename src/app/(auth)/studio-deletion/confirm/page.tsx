@@ -39,6 +39,7 @@ function Confirm() {
         <li>The studio closes <b>now</b>: your team cannot sign in and client links stop working.</li>
         <li>All of its data is deleted for good after <b>15 days</b>.</li>
         <li>Until then you can sign in, download your data, or stop the deletion.</li>
+        <li>We keep only your name, email and phone number, to tell you about new features. You can have those removed too.</li>
       </ul>
       {error && <p role="alert" className="mt-4 rounded-[14px] bg-[#FDECEF] text-[#C2304F] text-[13.5px] px-4 py-3">{error}</p>}
       <button type="button" onClick={go} disabled={busy || !token} className="mt-6 w-full h-12 rounded-full bg-[#C2304F] text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">

@@ -288,6 +288,7 @@ export function uploadToDrive(opts: {
   syncPath?: string;
 }) {
   const known = new Set(readPending().map(p => p.fp));
+  opts = { ...opts, files: opts.files.filter(f => !isJunkFile(f.name)) };
   const remember: PendingUpload[] = [];
   const retake = new Set<string>();
   if (opts.files.length) heartbeat(true);
@@ -379,10 +380,21 @@ function waitOnline(): Promise<void> {
   });
 }
 
+/** Files a Mac or Windows puts in folders that aren't photos: "._name" (Mac copies on USB drives), .DS_Store, Thumbs.db… */
+export const isJunkFile = (name: string) => /^\._|^\.ds_store$|^thumbs\.db$|^desktop\.ini$|^\./i.test(name);
+
 async function api<T>(path: string, body: unknown): Promise<T> {
-  const r = await apiFetch(`${API}${path}`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
+  let r: Response | null = null;
+  // "Too many requests" (429) or a busy server (503): wait and try again — never fail a file for it.
+  for (let i = 0; i < 8; i++) {
+    r = await apiFetch(`${API}${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (r.status !== 429 && r.status !== 503) break;
+    const after = Number(r.headers.get("retry-after"));
+    await sleep((after > 0 ? after * 1000 : 1500 * 2 ** Math.min(i, 4)) + Math.random() * 800);
+  }
+  r = r!;
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.message || "Upload failed"), { status: r.status });
   return d as T;

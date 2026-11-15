@@ -177,7 +177,8 @@ export function namesCsv(photos: GPhoto[], albums: { id: string; name: string }[
 const OK_TYPES = /^image\/(jpeg|png|webp|heic|heif)$/i;
 const RAW_EXT = /\.(cr2|cr3|nef|nrw|arw|srf|sr2|raf|rw2|orf|dng|pef|x3f|srw|3fr|iiq)$/i;
 export const isRawName = (n: string) => RAW_EXT.test(n);
-export const canUpload = (f: File) => OK_TYPES.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name);
+/** A photo we can upload; "._name" copies a Mac leaves on USB drives and other hidden files are not photos. */
+export const canUpload = (f: File) => !/^\./.test(f.name) && (OK_TYPES.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
 
 /** Group files picked as folders by their folder name ("Wedding/IMG_1.jpg" → "Wedding"). Loose files → "". */
 export function byFolder(files: File[]) {

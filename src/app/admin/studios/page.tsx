@@ -192,7 +192,7 @@ function R2Modal({ studio, onClose, onSaved }: {
 
             {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={onClose} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
+              <Button variant="outline" onClick={onClose} className="flex-1 h-10 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
               <Button onClick={save} disabled={saving} className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Save
               </Button>
@@ -344,7 +344,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
             {error && <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-900/30">{error}</p>}
 
             <div className="flex gap-3 pt-1">
-              <Button variant="outline" onClick={onClose} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
+              <Button variant="outline" onClick={onClose} className="flex-1 h-10 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
               <Button onClick={proceed} disabled={loading || !deleteType || (deleteType === "instant" && !proofOk(studio.name, typed, code))}
                 className={cn("flex-1 h-10 gap-2 text-white", deleteType === "instant" ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700")}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : deleteType === "instant" ? <Trash2 className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
@@ -474,7 +474,7 @@ function ArchivedTab() {
               <DeleteProof name={deleteTarget.name} typed={typed} setTyped={setTyped} code={code} setCode={setCode} />
               {pwError && <p className="text-xs text-red-400">{pwError}</p>}
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
+                <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 h-10 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
                 <Button onClick={permanentDelete} disabled={actionLoading === deleteTarget.id || !proofOk(deleteTarget.name, typed, code)}
                   className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white gap-2">
                   {actionLoading === deleteTarget.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}Delete
@@ -595,7 +595,7 @@ export default function AdminStudiosPage() {
               <option value="past_due">Past Due</option>
             </select>
             <Button onClick={() => load(1, search, status)} size="sm" variant="outline"
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
+              className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-9 gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" />Refresh
             </Button>
           </div>
@@ -701,10 +701,10 @@ export default function AdminStudiosPage() {
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500">Page {page} of {pages} ({total} total)</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1)} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => load(page - 1)} className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   <ChevronLeft className="w-3.5 h-3.5" />Prev
                 </Button>
-                <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => load(page + 1)} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
+                <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => load(page + 1)} className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 h-8 gap-1">
                   Next<ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>

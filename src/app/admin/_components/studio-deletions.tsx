@@ -185,10 +185,10 @@ export function StudioDeletionsTab({ onCount }: { onCount?: (n: number) => void 
           </h2>
           {former.length > 0 && (
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={copyEmails} disabled={!emails.length} className="h-8 border-slate-700 text-slate-200 hover:bg-slate-800 gap-1.5 text-xs">
+              <Button size="sm" variant="outline" onClick={copyEmails} disabled={!emails.length} className="h-8 bg-transparent border-slate-700 text-slate-200 hover:bg-slate-800 gap-1.5 text-xs">
                 {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}{copied ? "Copied" : `Copy ${emails.length} email${emails.length === 1 ? "" : "s"}`}
               </Button>
-              <Button size="sm" variant="outline" onClick={downloadCsv} className="h-8 border-slate-700 text-slate-200 hover:bg-slate-800 gap-1.5 text-xs"><Download className="w-3.5 h-3.5" />CSV</Button>
+              <Button size="sm" variant="outline" onClick={downloadCsv} className="h-8 bg-transparent border-slate-700 text-slate-200 hover:bg-slate-800 gap-1.5 text-xs"><Download className="w-3.5 h-3.5" />CSV</Button>
             </div>
           )}
         </div>
@@ -229,7 +229,7 @@ export function StudioDeletionsTab({ onCount }: { onCount?: (n: number) => void 
               <p className="font-bold text-white text-sm">Remove these contact details?</p>
               <p className="text-xs text-slate-400 break-words">{forget.ownerName || "The owner"} of {forget.studioName}. Their name, email and phone are deleted and cannot be brought back.</p>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setForget(null)} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
+                <Button variant="outline" onClick={() => setForget(null)} className="flex-1 h-10 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
                 <Button onClick={forgetNow} className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white gap-2"><Trash2 className="w-4 h-4" />Remove</Button>
               </div>
             </div>
@@ -287,7 +287,7 @@ function StopModal({ studio, onClose, onStopped }: { studio: Waiting; onClose: (
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} className="flex-1 h-10 border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1 h-10 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</Button>
             <Button onClick={stop} disabled={busy || reason.trim().length < 3}
               className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}Stop it

@@ -26,9 +26,9 @@ const T = {
     full: (a: string, n: number) => `${a} is full (${n}). Remove one to choose another.`, extra: (a: string, n: number) => `More than ${n} in ${a} — the studio may charge for extra photos.`,
     saving: "Saving…", saved: "Saved", notSaved: "Not saved — check your internet", review: "Review & send", reviewTitle: "Check before sending", reviewSub: "This is what the studio gets.",
     fewer: (n: number) => `${n} fewer than asked`, more: (n: number) => `${n} more than asked`, ok: "Good", noLimit: "No limit",
-    anyNote: "Anything else for the studio? (optional)", send: "Send to the studio", sending: "Sending…", sendHint: "You can still change your choice until the studio starts the album.",
-    thanks: "Sent! Thank you", thanksSub: "The studio will start your album. Until then you can still change your choice here.", backToPhotos: "Back to my photos", close: "Close",
-    lockedTaken: "Your album has started — your choice is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
+    anyNote: "Anything else for the studio? (optional)", send: "Send to the studio", sending: "Sending…", sendHint: "After sending, your choice is locked. If you need a change later, tap “Ask to change”.",
+    thanks: "Sent! Thank you", thanksSub: "The studio will start your album. Your choice is locked now — if you need a change, tap “Ask to change”.", backToPhotos: "Back to my photos", close: "Close",
+    lockedTaken: "Your album has started — your choice is locked.", lockedSent: "You sent your choice — it is locked.", lockedOver: "The time to choose is over.", ask: "Ask to change", why: "What do you want to change? (optional)", askSend: "Send request", asked: "Request sent — the studio will open it for you.",
     seen: (n: number, of: number) => `Seen ${n} of ${of} photos`, seenAll: (n: number) => `You've seen all ${n} photos`,
     resume: "Continue where you left off", resumeSub: (i: number, n: number, a: string) => `Photo ${i} of ${n}${a ? ` · ${a}` : ""}`, resumeGo: "Continue", dismiss: "Dismiss",
     folders: "Folders", allFolders: "All", otherPhotos: "Other photos",
@@ -323,6 +323,9 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   const left = g && (g.status === "open" || g.status === "submitted") ? timeLeft(g.deadline) : null;
   const totalPicked = (g?.photos ?? []).filter(p => isPicked(p.m)).length;
   const vp = view !== null ? shown[view] : null;
+  // Big view, top right: "20 / 20–30" for the album of the photo shown (just the number when it has no limit).
+  const viewAlbum = view !== null && g ? albums.find(a => a.id === vp?.a) : undefined;
+  const viewCount = viewAlbum ? albumProgress(viewAlbum, pickedIn(viewAlbum.id)).text : String(totalPicked);
   // After a mark in the big view, the next photo slides in — unless the marked one leaves this list
   // (e.g. "Not decided"), then the next one is already in its place.
   const [nextSig, setNextSig] = useState(0);
@@ -403,8 +406,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             {g.welcome && <div className="mb-3 rounded-2xl bg-white p-4 text-[14px] text-[#33303F] shadow-sm flex gap-2.5"><MessageSquareText className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: brand }} /><p className="whitespace-pre-line">{g.welcome}</p></div>}
             {locked && (
               <div className="mb-3 rounded-2xl bg-[#17151F] text-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                <p className="flex-1 text-[14px] flex items-center gap-2"><Lock className="w-4 h-4 flex-shrink-0" />{g.status === "taken" ? t.lockedTaken : g.lockedWhy || t.lockedOver}</p>
-                {g.status === "taken" && (asked ? <span className="text-[13px] text-[#9AD5B6]">{t.asked}</span>
+                <p className="flex-1 text-[14px] flex items-center gap-2"><Lock className="w-4 h-4 flex-shrink-0" />{g.status === "taken" ? t.lockedTaken : g.status === "submitted" ? t.lockedSent : g.lockedWhy || t.lockedOver}</p>
+                {(g.status === "taken" || g.status === "submitted") && (asked ? <span className="text-[13px] text-[#9AD5B6]">{t.asked}</span>
                   : <button type="button" onClick={() => setAsking(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-[13px] font-semibold flex-shrink-0">{t.ask}</button>)}
               </div>
             )}
@@ -654,7 +657,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
           title={`${view + 1} ${t.of} ${shown.length}`} sub={[albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
-          top={<span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{totalPicked}</span></span>}
+          top={<span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{viewCount}</span></span>}
           onDoubleTap={locked ? undefined : () => quickChoose(vp, true)}
           nextSignal={nextSig}
           hint={!locked && !hintSeen ? t.viewHint : undefined}

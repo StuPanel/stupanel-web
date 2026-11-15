@@ -61,6 +61,8 @@ export default function GalleryPage() {
   const [settings, setSettings] = useState(false);
   const [portal, setPortal] = useState(false);
   const [sharing, setSharing] = useState(false);
+  /** Why the share window is open: first send, opened again, new photos — picks the WhatsApp message. */
+  const [shareWhy, setShareWhy] = useState<"send" | "reopen" | "new">("send");
   const [link, setLink] = useState<{ url: string } | null | undefined>(undefined);
   const [menu, setMenu] = useState<"copy" | "more" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -132,11 +134,11 @@ export default function GalleryPage() {
   async function send() {
     if (!g) return;
     if (g.counts.working && !(await askConfirm({ title: "Some photos are still getting ready", message: `${g.counts.working} photos are not ready yet. The client sees them as soon as they are. Send now?`, confirmLabel: "Send now" }))) return;
-    if (await act("send")) { notify("Sent — share it with the client"); openShare(); }
+    if (await act("send")) { notify(g.client.email ? `Sent — ${g.client.firstName} got an email. Send it on WhatsApp too:` : "Sent — share it with the client"); openShare("send"); }
   }
   // The direct link (no code) for this selection lives with the handoff state.
-  function openShare() {
-    setSharing(true); setLink(undefined);
+  function openShare(why: "send" | "reopen" | "new" = "send") {
+    setShareWhy(why); setSharing(true); setLink(undefined);
     apiFetch(`${API}/photo-selection/${id}/handoff`).then(r => (r.ok ? r.json() : null)).then(d => setLink(d?.link ?? null)).catch(() => setLink(null));
   }
   async function setShareLink(on: boolean, reset?: boolean) {
@@ -193,12 +195,12 @@ export default function GalleryPage() {
   }
   async function reopen() {
     const keep = await askConfirm({ title: "Open it again for the client?", message: "Their choices stay — they can change them and send again.", confirmLabel: "Open again" });
-    if (keep && (await act("reopen"))) notify("Open again for the client");
+    if (keep && (await act("reopen"))) { notify(g?.client.email ? `Open again — ${g.client.firstName} got an email` : "Open again for the client"); openShare("reopen"); }
   }
   async function clearAll() {
     setMenu(null);
     if (!(await askConfirm({ title: "Clear every choice and start over?", message: "All marks and notes of the client are removed. This can't be undone.", confirmLabel: "Clear and open", danger: true }))) return;
-    if (await act("reopen", true)) notify("Cleared — the client starts again");
+    if (await act("reopen", true)) { notify("Cleared — the client starts again"); openShare("reopen"); }
   }
   async function closeIt() {
     setMenu(null);
@@ -300,7 +302,7 @@ export default function GalleryPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setAdding(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><ImagePlus className="w-4 h-4" />Add photos</button>
-          <button type="button" onClick={openShare} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Link2 className="w-4 h-4" />Share</button>
+          <button type="button" onClick={() => openShare()} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Link2 className="w-4 h-4" />Share</button>
           <button type="button" onClick={() => setSettings(true)} aria-label="Settings" title="Settings" className="w-10 h-10 rounded-full bg-white text-[#4A4658] inline-flex items-center justify-center hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Settings2 className="w-4 h-4" /></button>
           <div className="relative">
             <button type="button" onClick={() => setMenu(m => (m === "more" ? null : "more"))} aria-label="More" aria-expanded={menu === "more"} className="w-10 h-10 rounded-full bg-white text-[#4A4658] inline-flex items-center justify-center hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><MoreHorizontal className="w-4 h-4" /></button>
@@ -362,7 +364,7 @@ export default function GalleryPage() {
             <p className="font-semibold">{g.newPhotos} new photo{g.newPhotos === 1 ? "" : "s"} since {g.client.firstName} last saw it</p>
             <p className="text-[12.5px] text-[#4A3F7A]">{g.client.firstName} sees them on the same link. Tell them, and the new ones are marked “New”{g.status === "submitted" ? " — their earlier choices stay" : ""}.</p>
           </div>
-          <button type="button" disabled={busy} onClick={async () => { if (await act("tell-new")) notify(g.client.email ? `${g.client.firstName} got an email about the new photos` : `Marked as new — ${g.client.firstName} has no email, so tell them yourself`); }}
+          <button type="button" disabled={busy} onClick={async () => { if (await act("tell-new")) { notify(g.client.email ? `${g.client.firstName} got an email about the new photos` : `Marked as new — ${g.client.firstName} has no email, send it on WhatsApp`); openShare("new"); } }}
             className="h-10 px-4 rounded-full bg-[#5B3FD0] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0 disabled:opacity-60"><Send className="w-3.5 h-3.5" />Tell {g.client.firstName}</button>
         </div>
       )}
@@ -595,9 +597,14 @@ export default function GalleryPage() {
       {adding && <AddPhotos galleryId={g.id} programId={g.program.id} programName={g.program.name} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} />}
       {settings && <GallerySettings g={g} onClose={() => setSettings(false)} onSaved={load} />}
       {sharing && (
-        <SelectLinkModal title="Share photo selection" what="this photo selection" client={g.client} link={link}
+        <SelectLinkModal title={shareWhy === "reopen" ? "Tell the client it's open again" : shareWhy === "new" ? "Tell the client about new photos" : "Share photo selection"} what="this photo selection" client={g.client} link={link}
           onSet={setShareLink}
-          message={url => `Hi ${g.client.firstName}, please choose the photos for your album here — no code needed:\n${url}${g.deadline ? `\nPlease choose by ${fmtDate(g.deadline)}.` : ""}`}
+          message={url => (shareWhy === "reopen"
+            ? `Hi ${g.client.firstName}, your photo selection is open again — change what you need and send it again:\n${url}`
+            : shareWhy === "new"
+              ? `Hi ${g.client.firstName}, we added ${g.newPhotos || "some"} new photos to your selection — they are marked "New". Choose from them too and send again:\n${url}`
+              : `Hi ${g.client.firstName}, please choose the photos for your album here — no code needed:\n${url}`)
+            + (g.deadline ? `\nPlease choose by ${fmtDate(g.deadline)}.` : "")}
           onPortal={() => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
       )}
       {portal && <PortalAccessModal client={{ id: g.client.id, firstName: g.client.firstName, lastName: g.client.lastName, phone: g.client.phone }} onClose={() => setPortal(false)} />}

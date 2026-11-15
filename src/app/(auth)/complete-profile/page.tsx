@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { API_URL as API } from "@/lib/api";
+import { enterSession } from "@/lib/studio-session";
 
 
 export default function CompleteProfilePage() {
@@ -25,8 +26,24 @@ export default function CompleteProfilePage() {
     confirmPassword: "",
   });
 
+  // A new Google sign-up arrives with ?ticket=…: nothing exists yet, this form creates the studio.
+  const [ticket] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("ticket") ?? ""));
+  const [who, setWho] = useState("");
+
   // Redirect if not logged in; pre-fill company name from /auth/me
   useEffect(() => {
+    if (ticket) {
+      fetch(`${API}/auth/google/signup-info`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticket }) })
+        .then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) }))
+        .then(({ ok, d }) => {
+          if (!ok) { setError((Array.isArray(d.message) ? d.message[0] : d.message) || "Please press Continue with Google again."); return; }
+          setWho(d.email ?? "");
+          setForm(prev => ({ ...prev, companyName: prev.companyName || d.suggestedName || "" }));
+        })
+        .catch(() => setError("Couldn't reach StuPanel. Check your internet and try again."))
+        .finally(() => setFetchingUser(false));
+      return;
+    }
     const token = localStorage.getItem("access_token");
     if (!token) { router.replace("/login"); return; }
 
@@ -39,7 +56,7 @@ export default function CompleteProfilePage() {
       })
       .catch(() => {})
       .finally(() => setFetchingUser(false));
-  }, [router]);
+  }, [router, ticket]);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }));
@@ -56,6 +73,17 @@ export default function CompleteProfilePage() {
     try {
       const body: Record<string, string> = { companyName: form.companyName.trim(), password: form.password };
       if (form.phone.trim()) body.phone = form.phone.trim();
+
+      if (ticket) {
+        // Only now the studio is created; the answer is a signed-in session.
+        const r = await fetch(`${API}/auth/google/signup`, {
+          method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticket, ...body }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((Array.isArray(d.message) ? d.message[0] : d.message) || "Something went wrong.");
+        enterSession(d, "/onboarding");
+        return;
+      }
 
       const res = await apiFetch(`${API}/auth/complete-profile`, {
         method: "PATCH",
@@ -92,8 +120,9 @@ export default function CompleteProfilePage() {
         </div>
         <h2 className="text-2xl font-bold text-[#17151F]">Almost done!</h2>
         <p className="text-[#6B6680] mt-1 text-sm">
-          Confirm your studio details to finish setting up your account.
+          {ticket ? "Name your studio and set a password to create your account." : "Confirm your studio details to finish setting up your account."}
         </p>
+        {ticket && who && <p className="text-[#6B6680] mt-1 text-sm">Signing up as <span className="font-semibold text-[#17151F] break-all">{who}</span>. Nothing is created until you press the button.</p>}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -179,7 +208,7 @@ export default function CompleteProfilePage() {
 
         <Button type="submit" disabled={loading}
           className="w-full h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white font-semibold mt-2">
-          {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : "Continue to Setup"}
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : ticket ? "Create my studio" : "Continue to Setup"}
         </Button>
       </form>
     </>

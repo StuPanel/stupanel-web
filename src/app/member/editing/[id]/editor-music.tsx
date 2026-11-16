@@ -2,7 +2,8 @@
 
 /** The client's chosen songs, for the editor of this program. */
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
+import { notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { Section, card } from "@/components/ui/profile-page";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -29,8 +30,8 @@ export function EditorMusic({ assignmentId, onLoaded }: { assignmentId: string; 
             <p className="text-[13px] font-bold text-[#4A4658] mb-1.5">{p.label}</p>
             <ol className="space-y-1.5">
               {p.songs.map((s, i) => (
-                <li key={s.youtubeId}>
-                  <a href={s.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] p-2">
+                <li key={s.youtubeId} className="flex items-center gap-1.5">
+                  <a href={s.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 flex items-center gap-2.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] p-2">
                     <span className="w-5 text-[12px] font-bold text-[#5B3FD0] tabular-nums text-center">{i + 1}</span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={s.thumb} alt="" className="w-14 h-9 rounded-[8px] object-cover flex-shrink-0" loading="lazy" />
@@ -40,6 +41,9 @@ export function EditorMusic({ assignmentId, onLoaded }: { assignmentId: string; 
                     </span>
                     <ExternalLink className="w-4 h-4 text-[#6B6680] flex-shrink-0" />
                   </a>
+                  <button type="button" aria-label={`Copy the YouTube link of ${s.title}`} title="Copy YouTube link"
+                    onClick={async () => { try { await navigator.clipboard.writeText(s.url); notify("YouTube link copied"); } catch { notify("Could not copy. Open the song and copy its link.", { error: true }); } }}
+                    className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] flex items-center justify-center flex-shrink-0"><Copy className="w-4 h-4" /></button>
                 </li>
               ))}
             </ol>

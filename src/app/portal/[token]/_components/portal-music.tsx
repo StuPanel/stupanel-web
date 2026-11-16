@@ -17,7 +17,7 @@ import { EMPTY_CATALOG, embedUrl, searchSongs, type ClientMusic, type MusicPick,
 const T = {
     card: "Choose your music", cardSub: "Tell us the songs you want in your videos", open: "Choose songs", see: "See your songs", change: "Change songs",
     done: (a: number, b: number) => `${a} of ${b} parts done`, sent: "Sent to the studio", sentOn: (d: string) => `Sent on ${d}`,
-    yours: "Your choices", upTo: (n: number) => `Up to ${n} songs. The first one is your first choice.`, none: "No song yet. Add one from below.",
+    yours: "Your choices", upTo: (n: number) => (n ? `Up to ${n} songs. The first one is your first choice.` : "Choose as many songs as you like. The first one is your first choice."), none: "No song yet. Add one from below.",
     note: "Note for the editor (optional) — e.g. start from 1:20", own: "Add your own song", ownHint: "Open the song on YouTube → Share → Copy link → paste here",
     paste: "Paste a YouTube link", add: "Add", ideas: "Suggested by the studio", studioPick: "Studio pick", srcPicks: "Popular choice", srcCommunity: "Popular with other couples", srcClients: "Chosen by other clients", findIdea: "Search these songs", noIdea: "No song with that name here. You can paste your own YouTube link above.", added: "Added", listen: "Listen",
     full: (n: number) => `You already chose ${n} songs for this part. Remove one to add another.`, dup: "This song is already in this part.",
@@ -134,7 +134,7 @@ function MusicSheet({ api, music, brand, onClose }: {
   }
   function addSong(s: MusicSong, from: "studio" | "client") {
     if (list.some(x => x.youtubeId === s.youtubeId)) { setMsg(t.dup); return false; }
-    if (list.length >= music.perPart) { setMsg(t.full(music.perPart)); return false; }
+    if (music.perPart && list.length >= music.perPart) { setMsg(t.full(music.perPart)); return false; }
     change([...list, { youtubeId: s.youtubeId, title: s.title, channel: s.channel, thumb: s.thumb, url: s.url, from }]);
     return true;
   }
@@ -145,7 +145,7 @@ function MusicSheet({ api, music, brand, onClose }: {
 
   async function addOwn() {
     const url = link.trim(); if (!url) return;
-    if (list.length >= music.perPart) { setMsg(t.full(music.perPart)); return; }
+    if (music.perPart && list.length >= music.perPart) { setMsg(t.full(music.perPart)); return; }
     setAdding(true); setMsg("");
     try {
       const r = await fetch(api.url("/lookup"), {
@@ -231,7 +231,7 @@ function MusicSheet({ api, music, brand, onClose }: {
                 <button key={p.key} role="tab" aria-selected={on} type="button" onClick={() => { setStep(i); setMsg(""); setPlaying(null); }}
                   className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 flex-shrink-0", on ? "text-white" : "bg-white text-[#4A4658]")}
                   style={on ? { backgroundColor: brand } : undefined}>
-                  {n > 0 && <Check className="w-3.5 h-3.5" />}{p.label}<span className="opacity-70 tabular-nums">{n}/{music.perPart}</span>
+                  {n > 0 && <Check className="w-3.5 h-3.5" />}{p.label}<span className="opacity-70 tabular-nums">{music.perPart ? `${n}/${music.perPart}` : n}</span>
                 </button>
               );
             })}
@@ -292,7 +292,7 @@ function MusicSheet({ api, music, brand, onClose }: {
           ) : (
             <>
               <div className="flex items-baseline justify-between mb-1.5 mt-1">
-                <h3 className="text-sm font-bold text-[#17151F]">{t.yours} <span className="text-[#8A8599] tabular-nums">({list.length}/{music.perPart})</span></h3>
+                <h3 className="text-sm font-bold text-[#17151F]">{t.yours} <span className="text-[#8A8599] tabular-nums">({music.perPart ? `${list.length}/${music.perPart}` : list.length})</span></h3>
               </div>
               {!locked && <p className="text-xs text-[#6B6680] mb-2">{t.upTo(music.perPart)}</p>}
               {list.length === 0 ? <p className="rounded-2xl border border-dashed border-[#E4E0EC] bg-white/60 p-4 text-center text-[13px] text-[#6B6680]">{t.none}</p>

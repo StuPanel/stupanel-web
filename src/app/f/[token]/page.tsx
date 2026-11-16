@@ -89,17 +89,21 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   }, [base, store, stamp]);
 
   // ── search ──
-  const search = useCallback(async (image: string) => {
+  const search = useCallback(async (image: string, code?: string) => {
+    const usePin = code ?? pin;
     setSelfie(image); setStep("search"); setCount(0); setNote("");
     let key: string | undefined;
     try { key = JSON.parse(localStorage.getItem(store) || "{}").key; } catch { /* private window */ }
     const started = Date.now();
-    const r = await fetch(`${base}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: image.split(",")[1], ...(key ? { key } : {}), ...(pin ? { pin } : {}) }) }).catch(() => null);
+    const r = await fetch(`${base}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: image.split(",")[1], ...(key ? { key } : {}), ...(usePin ? { pin: usePin } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     if (!r?.ok) {
-      const code = d?.code;
+      const codeErr = d?.code;
+      // The gallery got a code after this page was opened (or the code changed): ask for it without calling it wrong,
+      // and keep the selfie, so the guest does not have to take it again.
+      if (codeErr === "WRONG_PIN") { setPin(""); setNote(usePin ? "That code is not right. Please check it and try again." : ""); setG(v => (v ? { ...v, needsPin: true } : v)); return setStep("pin"); }
       setNote(r?.status === 429 ? "Too many tries. Please wait a minute and try again." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Something went wrong. Please check your internet and try again.");
-      return setStep(code === "WRONG_PIN" ? "pin" : r?.status === 403 ? "land" : "selfie");
+      return setStep(r?.status === 403 ? "land" : "selfie");
     }
     const out = stamp(d as Result);
     try { localStorage.setItem(store, JSON.stringify({ key: out.key, selfie: await thumbOfSelfie(image) })); } catch { /* private window */ }
@@ -140,7 +144,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   return (
     <Shell>
       {step === "land" && <Landing g={g} note={note} onStart={start} />}
-      {step === "pin" && <Pin value={pin} note={note} onChange={setPin} onBack={() => setStep("land")} onDone={() => { setNote(""); setStep("selfie"); }} />}
+      {step === "pin" && <Pin base={base} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
+        // A selfie taken before the code was asked for is used straight away.
+        onDone={code => { setNote(""); if (selfie) void search(selfie, code); else setStep("selfie"); }} />}
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
@@ -234,9 +240,24 @@ function Landing({ g, note, onStart }: { g: Open; note: string; onStart: () => v
 
 // ─── Code ─────────────────────────────────────────────────────────────────────
 
-function Pin({ value, note, onChange, onBack, onDone }: { value: string; note: string; onChange: (v: string) => void; onBack: () => void; onDone: () => void }) {
+function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; value: string; note: string; onChange: (v: string) => void; onBack: () => void; onDone: (code: string) => void }) {
   const input = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<"" | "checking" | "ok">("");
+  const [wrong, setWrong] = useState("");
   useEffect(() => { input.current?.focus(); }, []);
+
+  // The fourth digit is checked by itself: no button to press.
+  async function check(code: string) {
+    setState("checking"); setWrong("");
+    const r = await fetch(`${base}/pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code }) }).catch(() => null);
+    if (r?.ok) { setState("ok"); await new Promise(ok => setTimeout(ok, 350)); return onDone(code); }
+    setState("");
+    setWrong(r?.status === 429 ? "Too many tries. Please wait a minute and try again." : r?.status === 403 ? "That code is not right. Please check it and try again." : "Could not check the code. Please check your internet and try again.");
+    onChange("");
+    setTimeout(() => input.current?.focus(), 30);
+  }
+  const message = wrong || note;
+
   return (
     <div className="gf-step" style={{ padding: "16px 22px 26px" }}>
       <button type="button" aria-label="Back" onClick={onBack} style={{ width: 46, height: 46, borderRadius: 16, border: 0, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic d={BACK} w={2.4} /></button>
@@ -245,14 +266,16 @@ function Pin({ value, note, onChange, onBack, onDone }: { value: string; note: s
         <p style={{ fontSize: 15, color: "#4A4658" }}>The 4-digit code from the studio or the couple.</p>
       </div>
       <label htmlFor="gf-pin" style={{ position: "absolute", left: -9999 }}>4-digit code</label>
-      <div className={`gf-otp${value.length === 4 ? " ok" : ""}`} style={{ marginTop: 30, position: "relative" }} onClick={() => input.current?.focus()}>
+      <div className={`gf-otp${state === "ok" ? " ok" : ""}`} style={{ marginTop: 30, position: "relative", opacity: state === "checking" ? .6 : 1 }} onClick={() => input.current?.focus()}>
         {[0, 1, 2, 3].map(i => <span key={i} className={value[i] ? "f" : ""}>{value[i] ?? ""}</span>)}
-        <input id="gf-pin" ref={input} value={value} inputMode="numeric" autoComplete="one-time-code" maxLength={4}
-          onChange={e => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+        <input id="gf-pin" ref={input} value={value} inputMode="numeric" autoComplete="one-time-code" maxLength={4} readOnly={state !== ""}
+          aria-invalid={!!message} aria-describedby="gf-pin-msg"
+          onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); if (wrong) setWrong(""); onChange(v); if (v.length === 4) void check(v); }}
           style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", fontSize: 16 }} />
       </div>
-      {note && <p role="alert" style={{ marginTop: 14, textAlign: "center", fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{note}</p>}
-      <button type="button" className="gf-cta" disabled={value.length !== 4} onClick={onDone} style={{ marginTop: "auto", opacity: value.length === 4 ? 1 : .5 }}>Continue</button>
+      <p id="gf-pin-msg" role={message ? "alert" : "status"} style={{ marginTop: 14, minHeight: 22, textAlign: "center", fontSize: 14, fontWeight: 600, color: message ? "#C2304F" : state === "ok" ? "#1F8A5B" : "#6B6680" }}>
+        {message || (state === "checking" ? "Checking…" : state === "ok" ? "Code is right" : "It is checked as soon as you type the fourth number.")}
+      </p>
     </div>
   );
 }

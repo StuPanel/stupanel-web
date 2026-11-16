@@ -16,7 +16,9 @@ export type FaceSettings = {
   watermark?: boolean; watermarkText?: string;
   watermarkKind?: "text" | "logo"; watermarkLogo?: string;
   watermarkPos?: "tl" | "tc" | "tr" | "cl" | "cc" | "cr" | "bl" | "bc" | "br";
-  /** Share of the photo's width, 5–60 */ watermarkSize?: number; /** 20–100 */ watermarkOpacity?: number;
+  /** Share of the photo's width, 5–60 */ watermarkSize?: number; /** 5–100 */ watermarkOpacity?: number;
+  /** Placed by hand: how far across and down, 0–100 each (null = use watermarkPos) */
+  watermarkX?: number | null; watermarkY?: number | null;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };

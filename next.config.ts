@@ -8,7 +8,7 @@ const CSP = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://api.stupanel.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://lh3.googleusercontent.com https://drive.google.com https://ssl.gstatic.com https://i.ytimg.com",
   "connect-src 'self' https://api.stupanel.com wss://api.stupanel.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://accounts.google.com https://www.googleapis.com https://drive.google.com",
-  "frame-src https://accounts.google.com https://drive.google.com https://docs.google.com https://www.youtube-nocookie.com",
+  "frame-src https://accounts.google.com https://drive.google.com https://drive.usercontent.google.com https://docs.google.com https://www.youtube-nocookie.com",
   "media-src 'self' blob: https://*.r2.cloudflarestorage.com",
   "object-src 'none'",
   "base-uri 'self'",
@@ -41,6 +41,11 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
+      },
+      // AI Face Search guest page: the guest takes a selfie with the camera.
+      {
+        source: "/f/:path*",
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" }],
       },
     ];
   },

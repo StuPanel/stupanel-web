@@ -9,7 +9,7 @@ import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
   CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
-  MessageSquareText, Target, Music2, Images, FileSignature } from "lucide-react";
+  MessageSquareText, Target, Music2, Images, ScanFace, FileSignature } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
 import { API_URL as API } from "@/lib/api";
@@ -43,6 +43,7 @@ export const navigation = [
       { name: "Packages", href: "/packages", icon: Package, color: "violet" as TileColor },
       { name: "Delivery", href: "/delivery", icon: ImageIcon, color: "teal" as TileColor },
       { name: "Photo Selection", href: "/photo-selection", icon: Images, color: "red" as TileColor },
+      { name: "AI Face Search", href: "/face-search", icon: ScanFace, color: "violet" as TileColor },
       { name: "Music Library", href: "/music", icon: Music2, color: "orchid" as TileColor },
     ],
   },

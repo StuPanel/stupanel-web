@@ -208,7 +208,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       )}
 
       {loading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{[0, 1, 2].map(i => <div key={i} className={cn("bg-white rounded-[22px] p-2.5", CARD_SHADOW)}><div className="sp-skel aspect-video rounded-[16px]" /><div className="sp-skel h-4 w-2/3 rounded-full mt-4 mx-1" /><div className="sp-skel h-3 w-1/3 rounded-full mt-2 mb-2 mx-1" /></div>)}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{[0, 1, 2].map(i => <div key={i} className={cn("bg-white rounded-[22px] p-2.5", CARD_SHADOW)}><div className="sp-skel aspect-video rounded-[16px]" /><div className="sp-skel h-4 w-2/3 rounded-full mt-4 mx-1" /><div className="sp-skel h-3 w-1/3 rounded-full mt-2 mb-2 mx-1" /></div>)}</div>
       ) : tab === "favs" && source.length === 0 ? (
         <EmptyState icon={Heart} title="No favourites yet" text="Tap ♥ on any song — in My songs, StuPanel picks or the other lists — and it shows here." />
       ) : tab !== "mine" && source.length === 0 ? (
@@ -231,7 +231,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           </div>
         </div>
       ) : (
-        <ul className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {shown.map((s, i) => {
             const lib = "id" in s ? (s as LibrarySong) : null;
             const o = lib ? null : (s as OutsideSong);
@@ -239,7 +239,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
             const key = lib?.id ?? s.youtubeId;
             const untagged = !s.events.length && !s.videos.length && !ownTags.length;
             return (
-              <li key={key} className={cn("bg-white rounded-[22px] p-2.5 flex flex-col sp-pop-in", CARD_SHADOW)} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+              <li key={key} className={cn("bg-white rounded-[22px] p-2.5 flex flex-col min-w-0 sp-pop-in", CARD_SHADOW)} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
                 <div className="relative aspect-video rounded-[16px] overflow-hidden bg-[#17151F]">
                   {playing === key ? (
                     <>
@@ -264,7 +264,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                   )}
                 </div>
                 <div className="px-1.5 pt-3 flex-1">
-                  <p className="text-[14.5px] font-bold text-[#17151F] line-clamp-2 leading-snug">
+                  <p className="text-[14.5px] font-bold text-[#17151F] line-clamp-2 leading-snug [overflow-wrap:anywhere]">
                     {markMatch(s.title, q).map((m, k) => (m.hit ? <mark key={k} className="bg-[#EEE8FD] text-[#5B3FD0] rounded-[4px] px-0.5">{m.text}</mark> : <span key={k}>{m.text}</span>))}
                   </p>
                   {s.channel && <p className="text-[12.5px] text-[#6B6680] truncate mt-0.5">{s.channel}</p>}

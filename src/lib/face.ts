@@ -19,7 +19,7 @@ export type FaceGallery = {
   program: { id?: string; number: string; eventName: string | null; eventDate: string | null; client: string } | null;
   counts: FaceCounts; cover: Cover;
 };
-export type FaceDetail = FaceGallery & { ready: boolean; folders: { name: string; photos: number }[]; creditsUsed: number; credits: Credits };
+export type FaceDetail = FaceGallery & { ready: boolean; /** Set while StuPanel has Face Search switched off (for everyone or this studio): the sentence to show. */ off?: string | null; folders: { name: string; photos: number }[]; creditsUsed: number; credits: Credits };
 
 export type FacePhoto = {
   id: string; fileName: string; folder: string | null; driveFileId: string; width: number | null; height: number | null;

@@ -104,6 +104,12 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {g.off && (
+        <div role="status" className="mb-4 rounded-[18px] bg-[#FDECEF] p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-[#A82743] flex-shrink-0" />
+          <p className="flex-1 text-[14px] text-[#7A1F33]">{g.off} You can&apos;t add photos and guests can&apos;t search until it is on again.</p>
+        </div>
+      )}
       {!g.ready && (
         <div className="mb-4 rounded-[18px] bg-[#FFF3E0] p-4 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-[#8A5200] flex-shrink-0" />

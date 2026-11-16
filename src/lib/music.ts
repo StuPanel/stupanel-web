@@ -45,7 +45,8 @@ export type TagCatalog = { events: MusicTag[]; videos: MusicTag[]; moods: MusicT
 /** The same short name the server makes for a day ("Gaye Holud" → "gaye-holud"), used in a part's key. */
 export const partSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9\u0980-\u09ff]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 export const EMPTY_CATALOG: TagCatalog = { events: [], videos: [], moods: [], languages: [], own: [] };
-export const tagName = (list: MusicTag[], id: string) => list.find(t => t.id === id)?.name ?? id;
+/** A tag's name. A tag that is hidden now (so not in the list) is still on old songs: its id is shown as plain words. */
+export const tagName = (list: MusicTag[], id: string) => list.find(t => t.id === id)?.name ?? id.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
 
 /** The 11-character video id in a pasted YouTube link (or null). */
 export function youtubeIdOf(input: string): string | null {

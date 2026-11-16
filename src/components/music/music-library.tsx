@@ -337,6 +337,8 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                             : <><Users className="w-3 h-3 text-[#5B3FD0]" />{o.times} client{o.times === 1 ? "" : "s"}</>}
                         </span>
                       )}
+                      {/* Music without singing: said on the picture, so it shows on small cards too */}
+                      {s.language === "instrumental" && <span className="absolute left-2 top-2 h-6 px-2 rounded-full bg-[#DDF3EE] text-[#0F5A4C] text-[11.5px] font-bold inline-flex items-center gap-1 shadow-sm"><Piano className="w-3 h-3" aria-hidden />Instrumental</span>}
                       {lib && !lib.shared && <span className="absolute right-2 top-2 h-6 px-2 rounded-full bg-black/60 text-white text-[11px] font-semibold inline-flex items-center gap-1" title="Not shared with other studios"><EyeOff className="w-3 h-3" />Private</span>}
                     </button>
                   )}
@@ -350,9 +352,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                     {s.events.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.events, id)}</span>)}
                     {s.videos.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#E6EEF8] text-[#1F5C99] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.videos, id)}</span>)}
                     {ownTags.map(t => <span key={t} className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[11.5px] font-semibold inline-flex items-center">{t}</span>)}
-                    {s.language === "instrumental"
-                      ? <span className="h-6 px-2 rounded-full bg-[#DDF3EE] text-[#0F5A4C] text-[11.5px] font-semibold inline-flex items-center gap-1"><Piano className="w-3 h-3" aria-hidden />Instrumental</span>
-                      : s.language && <span className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.languages, s.language)}</span>}
+                    {s.language && s.language !== "instrumental" && <span className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.languages, s.language)}</span>}
                     {s.moods.map(id => <span key={id} className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.moods, id)}</span>)}
                     {untagged && <span className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">Fits any part</span>}
                   </div>

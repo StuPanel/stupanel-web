@@ -212,7 +212,7 @@ function EntryList({ entries, onStudio }: { entries: Entry[]; onStudio?: (id: st
           <span className="min-w-0 flex-1">
             <span className="block text-sm text-white truncate">
               {e.studio && (onStudio && e.companyId ? <button type="button" onClick={() => onStudio(e.companyId!)} className="font-semibold hover:underline">{e.studio}</button> : <b>{e.studio}</b>)}
-              {e.studio && " · "}{KIND[e.kind] ?? e.kind}{e.gallery ? ` · ${e.gallery}` : ""}
+              {e.studio && " · "}{e.kind === "adjust" && e.delta > 0 ? "Added by StuPanel" : KIND[e.kind] ?? e.kind}{e.gallery ? ` · ${e.gallery}` : ""}
             </span>
             <span className="block text-xs text-slate-400 truncate">{[e.note, e.actor ? `by ${e.actor}` : "", fmtWhen(e.createdAt)].filter(Boolean).join(" · ")}</span>
           </span>

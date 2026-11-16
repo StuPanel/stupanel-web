@@ -65,7 +65,7 @@ export default function FaceCreditsPage() {
 
       <BuyCredits onBought={load} />
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-5 items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-5 items-start">
         <Group title="This month by gallery" action={<span className="text-xs text-[#6B6680] tabular-nums">{num(usedTotal)} used</span>} flush>
           <div className="p-4 space-y-3.5">
             {d.usedThisMonth.length === 0 ? <p className="text-sm text-[#6B6680]">Nothing used this month.</p> : d.usedThisMonth.map(u => (
@@ -79,7 +79,23 @@ export default function FaceCreditsPage() {
 
         <Group title="History" flush>
           {d.entries.length === 0 ? <p className="p-4 text-sm text-[#6B6680]">No changes yet.</p> : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Phones: one change per row, the number on the right */}
+            <ul className="sm:hidden divide-y divide-[#EEEBF4]">
+              {d.entries.map(e => (
+                <li key={e.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold text-[#17151F] truncate">{e.note || KIND[e.kind] || e.kind}</p>
+                    <p className="text-xs text-[#6B6680] truncate">{[day(e.at), e.gallery ?? (e.kind === "use" ? "Removed gallery" : "")].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={cn("text-[15px] font-bold tabular-nums", e.delta > 0 ? "text-[#176B47]" : "text-[#17151F]")}>{e.delta > 0 ? "+" : ""}{num(e.delta)}</p>
+                    <p className="text-xs text-[#6B6680] tabular-nums">{num(e.balanceAfter)} left</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead><tr className="text-left text-xs text-[#6B6680]">
                   <th className="font-semibold px-4 py-2.5">Date</th><th className="font-semibold px-4 py-2.5">What</th><th className="font-semibold px-4 py-2.5">Gallery</th>
@@ -98,6 +114,7 @@ export default function FaceCreditsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Group>
       </div>

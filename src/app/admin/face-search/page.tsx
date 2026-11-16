@@ -9,19 +9,19 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Coins, Images, Loader2, Minus, Plus, Power, RefreshCw, ScanFace, Search, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Coins, Download, ExternalLink, Images, Loader2, Minus, Plus, Power, RefreshCw, ScanFace, Search, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { Btn, Msg, Page, Panel, fmtWhen, inp } from "../_components/staff-kit";
 
-type Settings = { enabled: boolean; welcomeCredits: number; offNotice: string };
+type Settings = { enabled: boolean; welcomeCredits: number; offNotice: string; monthlyCap: number };
 type Entry = { id: string; companyId?: string; studio?: string; delta: number; bucket: string; kind: string; note: string | null; actor: string | null; balanceAfter: number; createdAt: string; gallery?: string | null };
 type Overview = {
   engine: { ready: boolean; region: string }; settings: Settings;
   totals: {
     studios: number; studiosOff: number; galleries: number; published: number; draft: number; closed: number;
     photos: number; ready: number; waiting: number; failed: number; faces: number; guests: number; found: number;
-    creditsLeft: number; creditsGiven: number; usedThisMonth: number; usedTotal: number; awsUsdThisMonth: number;
+    creditsLeft: number; creditsGiven: number; usedThisMonth: number; usedTotal: number; awsUsdThisMonth: number; capLeft: number | null;
   };
   days: { day: string; used: number }[]; recent: Entry[];
 };
@@ -31,6 +31,13 @@ type StudioDetail = {
   disabled: boolean; adminNote: string | null; usedTotal: number;
   galleries: { id: string; title: string; status: string; photos: number; ready: number; waiting: number; failed: number; guests: number; createdAt: string }[];
   entries: Entry[];
+};
+type GalleryView = {
+  id: string; title: string; status: string; createdAt: string; link: string; studio: { id: string; name: string } | null;
+  settings: { guestsSee: string; strictness: string; downloads: boolean; pin: boolean };
+  counts: { photos: number; ready: number; waiting: number; failed: number; guests: number; found: number }; creditsUsed: number;
+  failed: { id: string; fileName: string; folder: string | null; error: string | null }[]; reasons: { reason: string; count: number }[];
+  guests: { id: string; matchCount: number; searches: number; downloads: number; lastSearchAt: string | null; createdAt: string }[];
 };
 type Tab = "overview" | "studios" | "history" | "settings";
 
@@ -133,6 +140,7 @@ function OverviewTab({ o, call, onDone, onStudio }: { o: Overview; call: Call; o
             <li className="flex justify-between gap-3"><span className="text-slate-400">Amazon region</span><span className="text-white">{o.engine.region}</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">Studios using it</span><span className="text-white tabular-nums">{num(t.studios)}{t.studiosOff ? ` · ${num(t.studiosOff)} off` : ""}</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">Galleries</span><span className="text-white tabular-nums">{num(t.galleries)} · {num(t.published)} published</span></li>
+            <li className="flex justify-between gap-3"><span className="text-slate-400">Monthly limit</span><span className={cn("tabular-nums", t.capLeft !== null && t.capLeft < o.settings.monthlyCap * 0.1 ? "text-amber-300" : "text-white")}>{t.capLeft === null ? "No limit" : `${num(t.capLeft)} of ${num(o.settings.monthlyCap)} left`}</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">In the queue</span><span className="text-white tabular-nums">{num(t.waiting)}</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">Could not be read</span><span className={cn("tabular-nums", t.failed ? "text-amber-300" : "text-white")}>{num(t.failed)}</span></li>
           </ul>
@@ -143,6 +151,39 @@ function OverviewTab({ o, call, onDone, onStudio }: { o: Overview; call: Call; o
       <Panel title="Newest credit changes">
         <EntryList entries={o.recent} onStudio={onStudio} />
       </Panel>
+      <Panel title="Reports" sub="CSV files you can open in Excel or Google Sheets">
+        <Reports call={call} />
+      </Panel>
+    </div>
+  );
+}
+
+/** Save a month's usage or credit history as a CSV file. */
+function Reports({ call }: { call: Call }) {
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  async function get(kind: "usage" | "entries") {
+    setBusy(kind); setError("");
+    try {
+      const d = await call<{ name: string; text: string }>(`/export/${kind}?month=${month}`);
+      const url = URL.createObjectURL(new Blob([d.text], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a"); a.href = url; a.download = d.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) { setError((e as Error).message); }
+    setBusy("");
+  }
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <label htmlFor="fa-month" className="block text-xs font-medium text-slate-300 mb-1">Month</label>
+          <input id="fa-month" type="month" className={cn(inp, "w-44")} value={month} max={new Date().toISOString().slice(0, 7)} onChange={e => setMonth(e.target.value || new Date().toISOString().slice(0, 7))} />
+        </div>
+        <Btn variant="ghost" loading={busy === "usage"} onClick={() => get("usage")}><Download className="w-3.5 h-3.5" />Usage by studio</Btn>
+        <Btn variant="ghost" loading={busy === "entries"} onClick={() => get("entries")}><Download className="w-3.5 h-3.5" />Credit history</Btn>
+      </div>
+      <Msg error={error} />
     </div>
   );
 }
@@ -221,6 +262,7 @@ function StudioDrawer({ id, call, onClose, onChanged }: { id: string; call: Call
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  const [gal, setGal] = useState<string | null>(null);
 
   useEffect(() => { call<StudioDetail>(`/studios/${id}`).then(setD).catch(e => setMsg({ error: e.message })); }, [id, call]);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
@@ -266,7 +308,8 @@ function StudioDrawer({ id, call, onClose, onChanged }: { id: string; call: Call
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
         </div>
-        {!d ? <div className="p-5"><Msg error={msg.error} />{!msg.error && <div className="py-16 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}</div> : (
+        {gal ? <GalleryPanel id={gal} call={call} onBack={() => setGal(null)} onChanged={() => { call<StudioDetail>(`/studios/${id}`).then(setD).catch(() => null); onChanged(); }} />
+          : !d ? <div className="p-5"><Msg error={msg.error} />{!msg.error && <div className="py-16 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div>}</div> : (
           <div className="p-5 space-y-5">
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-slate-800 border border-slate-700 rounded-xl p-3"><p className="text-xs text-slate-400">Credits left</p><p className="text-xl font-bold text-white tabular-nums">{num(d.balance.total)}</p></div>
@@ -319,12 +362,14 @@ function StudioDrawer({ id, call, onClose, onChanged }: { id: string; call: Call
               {d.galleries.length === 0 ? <p className="text-sm text-slate-400">No face gallery yet.</p> : (
                 <ul className="divide-y divide-slate-700/70 -my-2">
                   {d.galleries.map(g => (
-                    <li key={g.id} className="py-2.5 flex items-center gap-3">
+                    <li key={g.id}>
+                      <button type="button" onClick={() => setGal(g.id)} className="w-full text-left py-2.5 flex items-center gap-3 rounded-lg hover:bg-slate-700/40 px-2 -mx-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-white truncate">{g.title}</span>
                         <span className="block text-xs text-slate-400 truncate">{[`${num(g.photos)} photos`, g.waiting ? `${num(g.waiting)} in the queue` : "", g.failed ? `${num(g.failed)} not read` : "", `${num(g.guests)} guests`, fmtWhen(g.createdAt)].filter(Boolean).join(" · ")}</span>
                       </span>
                       <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold capitalize flex-shrink-0", g.status === "published" ? "bg-emerald-950/60 text-emerald-300" : g.status === "closed" ? "bg-slate-700 text-slate-300" : "bg-amber-950/50 text-amber-300")}>{g.status}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -336,6 +381,79 @@ function StudioDrawer({ id, call, onClose, onChanged }: { id: string; call: Call
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** One gallery for support: what it holds, why photos failed, how guests are doing; close it or open it again. */
+function GalleryPanel({ id, call, onBack, onChanged }: { id: string; call: Call; onBack: () => void; onChanged: () => void }) {
+  const [g, setG] = useState<GalleryView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  useEffect(() => { call<GalleryView>(`/galleries/${id}`).then(setG).catch(e => setMsg({ error: e.message })); }, [id, call]);
+
+  async function act(action: "close" | "reopen") {
+    setBusy(true); setMsg({});
+    try { setG(await call<GalleryView>(`/galleries/${id}/status`, { method: "POST", json: { action } })); onChanged(); setMsg({ ok: action === "close" ? "Gallery closed. Guests read that it is closed." : "Gallery is open again as a draft. The studio publishes it." }); }
+    catch (e) { setMsg({ error: (e as Error).message }); }
+    setBusy(false);
+  }
+  const row = (label: string, value: React.ReactNode) => <li className="flex justify-between gap-3"><span className="text-slate-400">{label}</span><span className="text-white text-right tabular-nums">{value}</span></li>;
+
+  return (
+    <div className="p-5 space-y-5">
+      <button type="button" onClick={onBack} className="h-9 px-3 rounded-lg border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-800 inline-flex items-center gap-1.5"><ArrowLeft className="w-3.5 h-3.5" />Back to the studio</button>
+      <Msg error={msg.error} ok={msg.ok} />
+      {!g ? !msg.error && <div className="py-16 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
+        <>
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-bold text-white [overflow-wrap:anywhere]">{g.title}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Made {fmtWhen(g.createdAt)}</p>
+            </div>
+            <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold capitalize flex-shrink-0", g.status === "published" ? "bg-emerald-950/60 text-emerald-300" : g.status === "closed" ? "bg-slate-700 text-slate-300" : "bg-amber-950/50 text-amber-300")}>{g.status}</span>
+          </div>
+          <Panel title="Gallery">
+            <ul className="space-y-2.5 text-sm">
+              {row("Photos", `${num(g.counts.photos)} · ${num(g.counts.ready)} ready`)}
+              {row("In the queue", num(g.counts.waiting))}
+              {row("Could not be read", <span className={g.counts.failed ? "text-amber-300" : ""}>{num(g.counts.failed)}</span>)}
+              {row("Guests", g.counts.guests ? `${num(g.counts.guests)} · ${Math.round((g.counts.found / g.counts.guests) * 100)}% found photos` : "0")}
+              {row("Credits used", num(g.creditsUsed))}
+              {row("Guests see", g.settings.guestsSee === "all" ? "All photos" : "Only their own")}
+              {row("Matching", <span className="capitalize">{g.settings.strictness}</span>)}
+              {row("Downloads", g.settings.downloads ? "Allowed" : "Off")}
+              {row("Code before selfie", g.settings.pin ? "Yes" : "No")}
+            </ul>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <a href={g.link} target="_blank" rel="noreferrer" className="h-9 px-4 rounded-lg border border-slate-600 text-xs font-semibold text-slate-200 hover:bg-slate-700 inline-flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" />Open guest page</a>
+              {g.status === "closed"
+                ? <Btn loading={busy} onClick={() => act("reopen")}>Open again</Btn>
+                : <Btn variant="danger" loading={busy} onClick={() => act("close")}>Close this gallery</Btn>}
+            </div>
+            <p className="text-xs text-slate-400 mt-2">Closing stops guest search for this gallery only. Photos, guests and credits stay.</p>
+          </Panel>
+          <Panel title={`Photos that could not be read (${num(g.counts.failed)})`}>
+            {g.counts.failed === 0 ? <p className="text-sm text-slate-400">None.</p> : (
+              <>
+                <ul className="space-y-1.5 mb-3">
+                  {g.reasons.map(r => <li key={r.reason} className="flex gap-3 text-sm"><span className="w-10 text-right font-bold text-amber-300 tabular-nums flex-shrink-0">{num(r.count)}</span><span className="text-slate-200 [overflow-wrap:anywhere]">{r.reason}</span></li>)}
+                </ul>
+                <ul className="divide-y divide-slate-700/70 max-h-60 overflow-y-auto text-xs">
+                  {g.failed.map(f => <li key={f.id} className="py-1.5 flex gap-3"><span className="text-slate-200 flex-1 min-w-0 truncate">{[f.folder, f.fileName].filter(Boolean).join(" / ")}</span><span className="text-slate-400 truncate max-w-[45%]">{f.error}</span></li>)}
+                </ul>
+              </>
+            )}
+          </Panel>
+          <Panel title="Newest guests" sub="No names or phone numbers are shown here.">
+            {g.guests.length === 0 ? <p className="text-sm text-slate-400">No guest has searched yet.</p> : (
+              <ul className="divide-y divide-slate-700/70 -my-2 text-sm">
+                {g.guests.map(u => <li key={u.id} className="py-2 flex justify-between gap-3"><span className="text-slate-300">{fmtWhen(u.lastSearchAt ?? u.createdAt)}</span><span className={cn("tabular-nums", u.matchCount ? "text-emerald-300" : "text-slate-400")}>{u.matchCount ? `${num(u.matchCount)} photos` : "No photos"}{u.downloads ? ` · ${num(u.downloads)} downloads` : ""}</span></li>)}
+              </ul>
+            )}
+          </Panel>
+        </>
+      )}
     </div>
   );
 }
@@ -356,12 +474,13 @@ function SettingsTab({ o, call, onSaved }: { o: Overview; call: Call; onSaved: (
   const [s, setS] = useState<Settings>(o.settings);
   const [welcome, setWelcome] = useState(String(o.settings.welcomeCredits));
   const [notice, setNotice] = useState(o.settings.offNotice);
+  const [cap, setCap] = useState(String(o.settings.monthlyCap));
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
 
   async function save(patch: Partial<Settings>, key: string, done: string) {
     setBusy(key); setMsg({});
-    try { const r = await call<Settings>("/settings", { method: "PUT", json: patch }); setS(r); setWelcome(String(r.welcomeCredits)); setNotice(r.offNotice); setMsg({ ok: done }); onSaved(); }
+    try { const r = await call<Settings>("/settings", { method: "PUT", json: patch }); setS(r); setWelcome(String(r.welcomeCredits)); setNotice(r.offNotice); setCap(String(r.monthlyCap)); setMsg({ ok: done }); onSaved(); }
     catch (e) { setMsg({ error: (e as Error).message }); }
     setBusy("");
   }
@@ -395,6 +514,17 @@ function SettingsTab({ o, call, onSaved }: { o: Overview; call: Call; onSaved: (
           <Btn loading={busy === "welcome"} disabled={Number(welcome || 0) === s.welcomeCredits} onClick={() => save({ welcomeCredits: Number(welcome || 0) }, "welcome", "Saved.")}>Save</Btn>
         </div>
         <p className="text-xs text-slate-400 mt-2">0 means a new studio starts with no credits until you give some in Studios.</p>
+      </Panel>
+
+      <Panel title="Monthly limit for all studios" sub="The most photos all studios together may add in one month. When it is reached, adding photos stops until next month and no credits are taken. It keeps the Amazon bill from running away.">
+        <div className="flex items-end gap-2">
+          <div className="w-44">
+            <label htmlFor="fa-cap" className="block text-xs font-medium text-slate-300 mb-1">Photos per month</label>
+            <input id="fa-cap" className={cn(inp, "tabular-nums")} inputMode="numeric" value={cap} onChange={e => setCap(e.target.value.replace(/\D/g, "").slice(0, 9))} />
+          </div>
+          <Btn loading={busy === "cap"} disabled={Number(cap || 0) === s.monthlyCap} onClick={() => save({ monthlyCap: Number(cap || 0) }, "cap", "Saved.")}>Save</Btn>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">{Number(cap || 0) ? `About US$${(Number(cap) * 0.001).toFixed(2)} at Amazon at most. ${num(o.totals.usedThisMonth)} used so far this month.` : "0 means no limit."}</p>
       </Panel>
 
       <Panel title="What a credit is">

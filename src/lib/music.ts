@@ -40,7 +40,7 @@ export type OutsideMusic = {
 };
 
 /** One shared tag; `also` = other names for it (any language); `more` = not usual in this studio's country. */
-export type MusicTag = { id: string; name: string; also: string[]; more: boolean };
+export type MusicTag = { id: string; name: string; also: string[]; more: boolean; /** Event tags only: the event this one sits under (a ritual of a Sanatani wedding) */ parent?: string };
 export type TagCatalog = { events: MusicTag[]; videos: MusicTag[]; moods: MusicTag[]; languages: MusicTag[]; own: string[] };
 /** The same short name the server makes for a day ("Gaye Holud" → "gaye-holud"), used in a part's key. */
 export const partSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9\u0980-\u09ff]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);

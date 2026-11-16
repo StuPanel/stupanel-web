@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, LayoutGrid, Loader2, Minus, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -34,6 +34,8 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [q, setQ] = useState("");
   const [event, setEvent] = useState("");
   const [video, setVideo] = useState("");
+  /** With singing, or music only (kept as the language "Instrumental"). */
+  const [sound, setSound] = useState<"" | "song" | "instrumental">("");
   /** A ritual under the chosen event (only events that have them, like Sanatani wedding). */
   const [ritual, setRitual] = useState("");
   const [allEvents, setAllEvents] = useState(false);
@@ -86,7 +88,10 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   }), [lists, q, cat]);
   const source = lists[tab];
   const found = foundIn[tab];
-  const shown = useMemo(() => found.filter(s => (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual)) && (!video || s.videos.includes(video))), [found, event, ritual, video]);
+  const isInst = (s: { language?: string | null }) => s.language === "instrumental";
+  /** What the Event and Video rows leave, before the Sound row: its chips count from this. */
+  const beforeSound = useMemo(() => found.filter(s => (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual)) && (!video || s.videos.includes(video))), [found, event, ritual, video]);
+  const shown = useMemo(() => beforeSound.filter(s => !sound || (sound === "instrumental") === isInst(s)), [beforeSound, sound]);
   // Events on the top row: the ones that stand on their own and have songs. An event with rituals under it is always there.
   const usedEvents = cat.events.filter(t => !t.parent && (source.some(s => s.events.includes(t.id)) || cat.events.some(c => c.parent === t.id)));
   // The events usual in the studio's country come first; the rest wait behind "More events" (the chosen one always shows).
@@ -94,7 +99,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const shownEvents = allEvents ? usedEvents : usedEvents.filter(t => !t.more || t.id === event);
   const rituals = event ? cat.events.filter(t => t.parent === event) : [];
   const eventName = cat.events.find(t => t.id === event)?.name ?? "";
-  const filtering = !!(event || ritual || video);
+  const filtering = !!(event || ritual || video || sound);
   const usedVideos = cat.videos.filter(t => source.some(s => s.videos.includes(t.id)));
   const pasted = youtubeIdOf(q);
   const tabs = [
@@ -168,7 +173,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       {tabs.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-3 [scrollbar-width:none]" role="tablist" aria-label="Songs from">
           {tabs.map(t => { const on = tab === t.id; const n = (q ? foundIn : lists)[t.id].length; return (
-            <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => { setTab(t.id); setEvent(""); setVideo(""); setPlaying(null); }}
+            <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => { setTab(t.id); setEvent(""); setVideo(""); setSound(""); setPlaying(null); }}
               className={cn("h-11 pl-3.5 pr-4 rounded-full text-[13.5px] font-bold whitespace-nowrap inline-flex items-center gap-2 transition-all flex-shrink-0",
                 on ? "bg-[#7D5CEF] text-white shadow-[0_10px_22px_-12px_rgba(125,92,239,.9)]" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
               <t.icon className="w-4 h-4" />{t.label}
@@ -213,7 +218,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           </div>
         </div>
 
-        {(usedEvents.length > 0 || usedVideos.length > 0) && (
+        {(usedEvents.length > 0 || usedVideos.length > 0 || source.length > 0) && (
           <div className="space-y-2.5">
             {usedEvents.length > 0 && (
               <div className="sm:flex sm:items-start sm:gap-3">
@@ -258,13 +263,27 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                 </div>
               </div>
             )}
+            {source.length > 0 && (
+              <div className="sm:flex sm:items-start sm:gap-3">
+                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Sound</p>
+                <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none] min-w-0 flex-1" role="group" aria-label="With singing or music only">
+                  <button type="button" aria-pressed={!sound} onClick={() => setSound("")} className={chip(!sound)}>All</button>
+                  <button type="button" aria-pressed={sound === "song"} onClick={() => setSound(sound === "song" ? "" : "song")} className={chip(sound === "song")}>
+                    <Mic2 className="w-4 h-4" aria-hidden />With singing{count(beforeSound.filter(s => !isInst(s)).length, sound === "song")}
+                  </button>
+                  <button type="button" aria-pressed={sound === "instrumental"} onClick={() => setSound(sound === "instrumental" ? "" : "instrumental")} className={chip(sound === "instrumental")}>
+                    <Piano className="w-4 h-4" aria-hidden />Instrumental{count(beforeSound.filter(isInst).length, sound === "instrumental")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {(filtering || q) && !loading && (
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#F1EFF6]">
-            <p className="text-[13px] text-[#4A4658]" role="status"><b className="text-[#17151F] tabular-nums">{shown.length}</b> song{shown.length === 1 ? "" : "s"}{filtering ? ` for ${[eventName, cat.events.find(t => t.id === ritual)?.name, cat.videos.find(t => t.id === video)?.name].filter(Boolean).join(" · ")}` : ""}</p>
-            {filtering && <button type="button" onClick={() => { setEvent(""); setRitual(""); setVideo(""); }} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-shrink-0"><X className="w-3.5 h-3.5" />Clear filters</button>}
+            <p className="text-[13px] text-[#4A4658]" role="status"><b className="text-[#17151F] tabular-nums">{shown.length}</b> song{shown.length === 1 ? "" : "s"}{filtering ? ` for ${[eventName, cat.events.find(t => t.id === ritual)?.name, cat.videos.find(t => t.id === video)?.name, sound === "instrumental" ? "Instrumental" : sound === "song" ? "With singing" : ""].filter(Boolean).join(" · ")}` : ""}</p>
+            {filtering && <button type="button" onClick={() => { setEvent(""); setRitual(""); setVideo(""); setSound(""); }} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-shrink-0"><X className="w-3.5 h-3.5" />Clear filters</button>}
           </div>
         )}
       </section>
@@ -289,7 +308,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           <p className="mt-1 text-[13.5px] text-[#6B6680]">{pasted ? "Add it with the tags it fits." : q ? `Nothing matches “${q.trim()}”${event || video ? " with these filters" : ""}.` : "No song has these tags yet."}</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={() => setForm(pasted ? { url: q.trim() } : {})} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />{pasted ? "Add this song" : "Add from YouTube"}</button>
-            {(event || video) && <button type="button" onClick={() => { setEvent(""); setVideo(""); }} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#17151F] text-[13px] font-semibold">Clear filters</button>}
+            {(event || video || sound) && <button type="button" onClick={() => { setEvent(""); setVideo(""); setSound(""); }} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#17151F] text-[13px] font-semibold">Clear filters</button>}
           </div>
         </div>
       ) : (
@@ -334,7 +353,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                     {s.events.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.events, id)}</span>)}
                     {s.videos.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#E6EEF8] text-[#1F5C99] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.videos, id)}</span>)}
                     {ownTags.map(t => <span key={t} className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[11.5px] font-semibold inline-flex items-center">{t}</span>)}
-                    {s.language && <span className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.languages, s.language)}</span>}
+                    {s.language === "instrumental"
+                      ? <span className="h-6 px-2 rounded-full bg-[#DDF3EE] text-[#0F5A4C] text-[11.5px] font-semibold inline-flex items-center gap-1"><Piano className="w-3 h-3" aria-hidden />Instrumental</span>
+                      : s.language && <span className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.languages, s.language)}</span>}
                     {s.moods.map(id => <span key={id} className="h-6 px-2 rounded-full border border-[#E3DFEC] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.moods, id)}</span>)}
                     {untagged && <span className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">Fits any part</span>}
                   </div>
@@ -466,6 +487,8 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
   const [shared, setShared] = useState(song?.shared ?? true);
   const [saving, setSaving] = useState(false);
 
+  /** Music only, no singing. */
+  const inst = language[0] === "instrumental";
   // What is ticked right now, for the link check below (it must not undo the person's own ticks).
   const cur = useRef({ events, videos, moods, language, own });
   useEffect(() => { cur.current = { events, videos, moods, language, own }; });
@@ -493,7 +516,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
           if (!now.events.length && gs.events.length) { setEvents(gs.events); what.push("event"); }
           if (!now.videos.length && gs.videos.length) { setVideos(gs.videos); what.push("kind of video"); }
           if (!now.moods.length && gs.moods.length) { setMoods(gs.moods); what.push("mood"); }
-          if (!now.language.length && gs.language) { setLanguage([gs.language]); what.push("language"); }
+          if (!now.language.length && gs.language) { setLanguage([gs.language]); what.push(gs.language === "instrumental" ? "Instrumental (no singing)" : "language"); }
           if (!now.own.length && gs.tags.length) { setOwn(gs.tags); what.push("your own tags"); }
           setFilled(what.length ? { from: gs.from, what } : null);
         }
@@ -574,6 +597,17 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
         </div>
       )}
 
+      <FormGroup title="Is there singing in it?" note="Instrumental is music only — good behind decoration shots, rituals and entries">
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="With singing or music only">
+          {([["song", "With singing", Mic2], ["instrumental", "Instrumental", Piano]] as const).map(([id, label, Icon]) => { const on = (id === "instrumental") === inst; return (
+            <button key={id} type="button" aria-pressed={on} onClick={() => setLanguage(id === "instrumental" ? ["instrumental"] : inst ? [] : language)}
+              className={cn("h-12 rounded-[14px] border text-[14px] font-semibold inline-flex items-center justify-center gap-2 transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+                on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white border-[#DDD8E8] text-[#17151F] hover:border-[#7D5CEF]")}>
+              <Icon className="w-4 h-4" aria-hidden />{label}
+            </button>
+          ); })}
+        </div>
+      </FormGroup>
       <FormGroup title="Which event?" note="Leave empty if it fits any event">
         <TagPicker list={cat.events} value={events} onChange={setEvents} label="Event" />
       </FormGroup>
@@ -584,17 +618,19 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
       {!moreOpen && (
         <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={false} className={cn("w-full text-left bg-white rounded-[20px] px-4 py-3.5 mb-4 flex items-center gap-3", CARD_SHADOW)}>
           <span className="flex-1 min-w-0">
-            <span className="block text-[14px] font-bold text-[#17151F]">Mood, language and your own tags</span>
-            <span className="block text-[12.5px] text-[#6B6680] truncate">{[...language.map(l => tagName(cat.languages, l)), ...moods.map(m => tagName(cat.moods, m)), ...own].join(" · ") || "Optional. They help when searching."}</span>
+            <span className="block text-[14px] font-bold text-[#17151F]">{inst ? "Mood and your own tags" : "Mood, language and your own tags"}</span>
+            <span className="block text-[12.5px] text-[#6B6680] truncate">{[...language.filter(l => l !== "instrumental").map(l => tagName(cat.languages, l)), ...moods.map(m => tagName(cat.moods, m)), ...own].join(" · ") || "Optional. They help when searching."}</span>
           </span>
-          <span className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#4B32B8] text-[13px] font-semibold inline-flex items-center flex-shrink-0">{language.length || moods.length || own.length ? "Change" : "Add"}</span>
+          <span className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#4B32B8] text-[13px] font-semibold inline-flex items-center flex-shrink-0">{(language.length && !inst) || moods.length || own.length ? "Change" : "Add"}</span>
         </button>
       )}
       {moreOpen && <>
-      <FormGroup title="Mood and language" note="Optional — they help when searching">
+      <FormGroup title={inst ? "Mood" : "Mood and language"} note="Optional — they help when searching">
         <TagPicker list={cat.moods} value={moods} onChange={setMoods} label="Mood" />
-        <div className="h-px bg-[#F1EFF6] my-1" />
-        <TagPicker list={cat.languages} value={language} onChange={setLanguage} single label="Language" />
+        {!inst && <>
+          <div className="h-px bg-[#F1EFF6] my-1" />
+          <TagPicker list={cat.languages.filter(l => l.id !== "instrumental")} value={language} onChange={setLanguage} single label="Language" />
+        </>}
       </FormGroup>
       <FormGroup title="Your own tags" note="Only for your studio — e.g. Bride entry, Cake cutting">
         {allOwn.length > 0 && (

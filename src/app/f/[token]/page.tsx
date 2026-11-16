@@ -307,8 +307,6 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
-  /** Where the photos go: the guest's WhatsApp, or their email. */
-  const [by, setBy] = useState<"whatsapp" | "email">("whatsapp");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const n = res.count ?? res.photos.length;
@@ -317,12 +315,15 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
   async function send() {
     const digits = phone.replace(/[^\d+]/g, "");
     if (name.trim().length < 2) return setErr("Please type your name.");
-    if (by === "whatsapp" && digits.replace(/\D/g, "").length < 10) return setErr("Please type your WhatsApp number, like 01712345678.");
-    if (by === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr("Please check your email address.");
+    // One of the two is enough; both is best. Whatever is typed must be right.
+    const hasPhone = digits.replace(/\D/g, "").length > 0, hasMail = mail.trim().length > 0;
+    if (!hasPhone && !hasMail) return setErr("Please give your WhatsApp number or your email, or both.");
+    if (hasPhone && digits.replace(/\D/g, "").length < 10) return setErr("Please check your WhatsApp number, like 01712345678.");
+    if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr("Please check your email address.");
     setErr(""); setBusy(true);
     // A local number (01…) is sent with Bangladesh's country code.
-    const value = by === "email" ? mail.trim() : digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
-    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), channel: by, value }) }).catch(() => null);
+    const number = digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
+    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), ...(hasPhone ? { phone: number } : {}), ...(hasMail ? { email: mail.trim() } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     setBusy(false);
     if (!r?.ok) return setErr(r?.status === 429 ? "Too many tries. Please wait a minute." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Could not save. Please check your internet and try again.");
@@ -346,26 +347,17 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
           <input id="gf-name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={120} placeholder="Nadia Rahman" style={field} />
         </div>
         <div>
-          <div role="radiogroup" aria-label="Send my photos by" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: 5, borderRadius: 18, background: "rgba(125,92,239,.12)", marginBottom: 12 }}>
-            {(["whatsapp", "email"] as const).map(c => (
-              <button key={c} type="button" role="radio" aria-checked={by === c} onClick={() => { setBy(c); setErr(""); }}
-                style={{ height: 44, border: 0, borderRadius: 14, fontSize: 15, fontWeight: 700, background: by === c ? "#fff" : "transparent", color: by === c ? "#17151F" : "#4A4658", boxShadow: by === c ? "0 6px 14px -8px rgba(40,28,96,.5)" : "none" }}>
-                {c === "whatsapp" ? "WhatsApp" : "Email"}
-              </button>
-            ))}
-          </div>
-          {by === "whatsapp" ? <>
-            <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>WhatsApp number</label>
-            <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
-              aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
-          </> : <>
-            <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>Email address</label>
-            <input id="gf-mail" value={mail} onChange={e => setMail(e.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="nadia@example.com" style={field}
-              aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
-          </>}
+          <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>WhatsApp number</label>
+          <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
+            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} />
+        </div>
+        <div>
+          <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>Email address</label>
+          <input id="gf-mail" value={mail} onChange={e => setMail(e.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="nadia@gmail.com" style={field}
+            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
         </div>
         {err ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{err}</p>
-          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>Only {studio} sees this. It is used to send you your photos.</p>}
+          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
         <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : waiting ? "Tell me when they are ready" : `See my ${n === 1 ? "photo" : "photos"}`}</button>

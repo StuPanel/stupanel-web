@@ -18,11 +18,13 @@ import { dayTime, errText, num, type FaceGuest, type FaceGuestList, type FaceSta
 type Filter = "all" | "send" | "sent" | "opened" | "waiting" | "none";
 
 /** What stage a guest is at, in one word the studio can act on. */
-function stageOf(u: FaceGuest): { id: Exclude<Filter, "all">; label: string; cls: string; icon: React.ElementType } {
+function stageOf(u: FaceGuest, autoMail = false): { id: Exclude<Filter, "all">; label: string; cls: string; icon: React.ElementType } {
   if (!u.registeredAt) return { id: "none", label: "No details", cls: "bg-[#F1EFF6] text-[#4A4658]", icon: ScanFace };
-  if (u.due) return { id: "send", label: u.linkSentAt ? "New photos to send" : "To send", cls: "bg-[#FFF0D6] text-[#7A4A00]", icon: Send };
+  // With an email (and emails going by themselves) the guest is told by email: nothing for the studio to send.
+  if (u.due && u.email && (autoMail || !u.phone)) return { id: "send", label: autoMail ? "Email on its way" : "Email when you press", cls: "bg-[#E6EEF8] text-[#1F5C99]", icon: Mail };
+  if (u.due) return { id: "send", label: u.linkSentAt ? "New photos to send" : "Send on WhatsApp", cls: "bg-[#FFF0D6] text-[#7A4A00]", icon: Send };
   if (u.opened) return { id: "opened", label: "Opened", cls: "bg-[#E2F4EA] text-[#176B47]", icon: CheckCheck };
-  if (u.linkSentAt) return { id: "sent", label: "Sent", cls: "bg-[#E6EEF8] text-[#1F5C99]", icon: Check };
+  if (u.linkSentAt) return { id: "sent", label: u.email ? "Emailed" : "Sent", cls: "bg-[#E6EEF8] text-[#1F5C99]", icon: u.email ? MailCheck : Check };
   if (!u.matchCount) return { id: "waiting", label: "Waiting for photos", cls: "bg-[#F1EFF6] text-[#4A4658]", icon: Clock };
   // Found their photos on the page themselves: nothing to send.
   return { id: "opened", label: "Has their photos", cls: "bg-[#E2F4EA] text-[#176B47]", icon: CheckCheck };
@@ -46,13 +48,16 @@ export function GuestsTab({ id, title, status, onSettings }: { id: string; title
 
   const list = useMemo(() => data?.guests ?? [], [data]);
   const registered = list.filter(u => u.registeredAt);
-  const queue = registered.filter(u => u.due && u.phone);
-  const emailDue = registered.filter(u => u.due && !u.phone && u.email);
+  /** Emails go by themselves in this gallery: a guest with an email needs no WhatsApp message from the studio. */
+  const autoMail = data?.notifyEmail !== false && data?.notifyWhen !== "manual";
+  const byMail = (u: FaceGuest) => !!u.email && (autoMail || !u.phone);
+  const queue = registered.filter(u => u.due && u.phone && !byMail(u));
+  const emailDue = registered.filter(u => u.due && byMail(u));
   const told = registered.filter(u => u.linkSentAt);
   const next = queue.find(u => !skipped.includes(u.id)) ?? queue[0];
   const counts: Record<Filter, number> = { all: list.length, send: 0, sent: 0, opened: 0, waiting: 0, none: 0 };
-  for (const u of list) counts[stageOf(u).id]++;
-  const shown = only === "all" ? list : list.filter(u => stageOf(u).id === only);
+  for (const u of list) counts[stageOf(u, autoMail).id]++;
+  const shown = only === "all" ? list : list.filter(u => stageOf(u, autoMail).id === only);
 
   /** Open WhatsApp with the ready message, and take the guest out of the queue. */
   async function send(u: FaceGuest) {
@@ -78,7 +83,7 @@ export function GuestsTab({ id, title, status, onSettings }: { id: string; title
   function download() {
     const esc = (v: string | number | null | undefined) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     const rows = [["Name", "WhatsApp", "Email", "Photos found", "Status", "Message sent", "Downloads", "Last seen"],
-      ...registered.map(u => [u.name, u.phone, u.email, u.matchCount, stageOf(u).label, dayTime(u.linkSentAt), u.downloads, dayTime(u.lastSearchAt ?? u.createdAt)])];
+      ...registered.map(u => [u.name, u.phone, u.email, u.matchCount, stageOf(u, autoMail).label, dayTime(u.linkSentAt), u.downloads, dayTime(u.lastSearchAt ?? u.createdAt)])];
     const url = URL.createObjectURL(new Blob(["﻿" + rows.map(r => r.map(esc).join(",")).join("\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/[^\w\- ]+/g, "").trim() || "gallery"} guests.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -147,7 +152,7 @@ export function GuestsTab({ id, title, status, onSettings }: { id: string; title
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {[
           { label: "Left their details", n: registered.length, sub: `${num(registered.filter(u => u.phone).length)} WhatsApp · ${num(registered.filter(u => u.email).length)} email` },
-          { label: "To send", n: queue.length + emailDue.length, sub: emailDue.length ? `${num(emailDue.length)} by email` : "From your WhatsApp", warn: queue.length + emailDue.length > 0 },
+          { label: "To send on WhatsApp", n: queue.length, sub: emailDue.length ? `${num(emailDue.length)} more go by email` : "Guests who gave no email", warn: queue.length > 0 },
           { label: "Told", n: told.length, sub: "Message or email sent" },
           { label: "Opened", n: list.filter(u => u.opened).length, sub: told.length ? `${Math.round((list.filter(u => u.opened).length / told.length) * 100)}% of those told` : "After the message" },
         ].map(x => (
@@ -190,7 +195,7 @@ export function GuestsTab({ id, title, status, onSettings }: { id: string; title
       {shown.length === 0 ? <p className="text-center text-sm text-[#6B6680] py-10">No guest here.</p> : (
         <Group>
           {shown.map(u => {
-            const st = stageOf(u);
+            const st = stageOf(u, autoMail);
             return (
               <div key={u.id} className="px-4 sm:px-5 py-3 flex items-center gap-3 min-h-[68px]">
                 <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#4B32B8] flex items-center justify-center flex-shrink-0 text-[13px] font-bold">
@@ -198,7 +203,7 @@ export function GuestsTab({ id, title, status, onSettings }: { id: string; title
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#17151F] truncate">{u.name || u.phone || u.email || "Guest (no details)"}</p>
-                  <p className="text-xs text-[#6B6680] truncate">{[u.name ? u.phone || u.email : "", u.linkSentAt ? `Told ${dayTime(u.linkSentAt)}` : `Came ${dayTime(u.lastSearchAt ?? u.createdAt)}`, u.downloads ? `${num(u.downloads)} downloads` : ""].filter(Boolean).join(" · ")}</p>
+                  <p className="text-xs text-[#6B6680] truncate">{[u.name ? [u.phone, u.email].filter(Boolean).join(" · ") : u.phone && u.email ? u.email : "", u.linkSentAt ? `Told ${dayTime(u.linkSentAt)}` : `Came ${dayTime(u.lastSearchAt ?? u.createdAt)}`, u.downloads ? `${num(u.downloads)} downloads` : ""].filter(Boolean).join(" · ")}</p>
                   {/* Phones: the stage sits under the name, so the name keeps its room */}
                   <span className={cn("sm:hidden mt-1 inline-flex px-2 py-0.5 rounded-full text-[11.5px] font-bold whitespace-nowrap items-center gap-1", st.cls)}><st.icon className="w-3 h-3" aria-hidden />{st.label}{u.matchCount ? ` · ${num(u.matchCount)}` : ""}</span>
                 </div>

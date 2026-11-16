@@ -9,7 +9,7 @@
  * each can be turned off in Settings → Music. A song from outside is added to My songs with one press.
  * Search finds a song by its name, artist, any tag or other name of a tag (haldi → Holud), or a pasted YouTube link.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, LayoutGrid, Loader2, Minus, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -36,6 +36,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [video, setVideo] = useState("");
   /** A ritual under the chosen event (only events that have them, like Sanatani wedding). */
   const [ritual, setRitual] = useState("");
+  const [allEvents, setAllEvents] = useState(false);
   /** Songs in one row on a wide screen: 0 = the usual three; the studio's choice is kept on this device. */
   const [cols, setCols] = useState(() => { try { const n = Number(localStorage.getItem("sp-music-cols")); return n >= 2 && n <= 6 ? n : 0; } catch { return 0; } });
   const pickCols = (n: number) => { setCols(n); try { if (n) localStorage.setItem("sp-music-cols", String(n)); else localStorage.removeItem("sp-music-cols"); } catch { /* private window */ } };
@@ -88,6 +89,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const shown = useMemo(() => found.filter(s => (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual)) && (!video || s.videos.includes(video))), [found, event, ritual, video]);
   // Events on the top row: the ones that stand on their own and have songs. An event with rituals under it is always there.
   const usedEvents = cat.events.filter(t => !t.parent && (source.some(s => s.events.includes(t.id)) || cat.events.some(c => c.parent === t.id)));
+  // The events usual in the studio's country come first; the rest wait behind "More events" (the chosen one always shows).
+  const moreEvents = usedEvents.filter(t => t.more);
+  const shownEvents = allEvents ? usedEvents : usedEvents.filter(t => !t.more || t.id === event);
   const rituals = event ? cat.events.filter(t => t.parent === event) : [];
   const eventName = cat.events.find(t => t.id === event)?.name ?? "";
   const filtering = !!(event || ritual || video);
@@ -132,10 +136,13 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
     setSongs(p => p.filter(x => x.id !== s.id)); notify("Removed");
   }
 
-  const chip = (on: boolean) => cn("h-10 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
-    on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4] hover:text-[#17151F]");
-  const subChip = (on: boolean) => cn("h-9 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
-    on ? "bg-[#7D5CEF] text-white" : "bg-white text-[#4A4658] hover:text-[#17151F]");
+  // Filter chips: white with a clear edge and dark text, so they read on any backdrop; the chosen one is solid violet.
+  const chip = (on: boolean) => cn("h-10 px-3.5 rounded-full text-[13.5px] font-semibold whitespace-nowrap inline-flex items-center gap-2 transition-colors flex-shrink-0 border focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+    on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white shadow-[0_8px_18px_-10px_rgba(125,92,239,.9)]" : "bg-white border-[#DDD8E8] text-[#17151F] hover:border-[#7D5CEF] hover:bg-[#F6F2FF]");
+  const subChip = (on: boolean) => cn("h-9 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors border focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+    on ? "bg-[#17151F] border-[#17151F] text-white" : "bg-white border-[#DDD8E8] text-[#17151F] hover:border-[#7D5CEF]");
+  /** The small number in a chip. */
+  const count = (n: number, on: boolean) => <span className={cn("min-w-[22px] h-[20px] px-1.5 rounded-full text-[11.5px] font-bold tabular-nums inline-flex items-center justify-center", on ? "bg-white/25 text-white" : n ? "bg-[#EEE8FD] text-[#4B32B8]" : "bg-[#F1EFF6] text-[#6B6680]")}>{n}</span>;
   // The studio's own count of songs in a row applies on wide screens; phones and tablets keep one and two.
   const gridCls = cn("grid grid-cols-1 sm:grid-cols-2 gap-4", cols ? "lg:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" : "xl:grid-cols-3", cols >= 5 && "lg:gap-3");
   const gridStyle = cols ? ({ ["--cols" as string]: cols } as React.CSSProperties) : undefined;
@@ -189,20 +196,20 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       )}
 
       {/* Find: search, then what the songs are for. One panel, so it reads as one tool. */}
-      <section aria-label="Find songs" className={cn("bg-white rounded-[22px] p-3 sm:p-4 mb-4 space-y-3", CARD_SHADOW)}>
+      <section aria-label="Find songs" className="bg-white rounded-[22px] p-3 sm:p-4 mb-4 space-y-3.5 border border-[#E6E1F0] shadow-[0_10px_28px_-18px_rgba(40,28,96,.35)]">
         <div className="flex items-center gap-2.5">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B6680] pointer-events-none" />
             <input value={q} onChange={e => setQ(e.target.value)} type="search" enterKeyHint="search" aria-label="Search songs"
               placeholder="Search a song, artist or tag, or paste a YouTube link"
-              className="w-full h-12 pl-11 pr-11 rounded-full bg-[#F5F3FA] text-[15px] text-[#17151F] outline-none border border-transparent focus:border-[#7D5CEF] focus:bg-white placeholder:text-[#8A8599] [&::-webkit-search-cancel-button]:hidden" />
+              className="w-full h-12 pl-11 pr-11 rounded-full bg-white text-[15px] text-[#17151F] outline-none border border-[#DDD8E8] focus:border-[#7D5CEF] focus:ring-4 focus:ring-[#7D5CEF]/15 placeholder:text-[#6B6680] [&::-webkit-search-cancel-button]:hidden" />
             {q && <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-white text-[#6B6680] flex items-center justify-center"><X className="w-4 h-4" /></button>}
           </div>
           {/* How many songs sit in one row (wide screens). The usual is three. */}
-          <div role="group" aria-label="Songs in a row" className="hidden lg:flex items-center gap-1 h-12 px-1.5 rounded-full bg-[#F5F3FA] flex-shrink-0">
-            <button type="button" aria-label="Bigger cards" title="Bigger cards" disabled={(cols || 3) <= 2} onClick={() => pickCols((cols || 3) - 1)} className="w-9 h-9 rounded-full bg-white text-[#17151F] flex items-center justify-center disabled:opacity-40"><Minus className="w-4 h-4" /></button>
+          <div role="group" aria-label="Songs in a row" className="hidden lg:flex items-center gap-1 h-12 px-1.5 rounded-full bg-white border border-[#DDD8E8] flex-shrink-0">
+            <button type="button" aria-label="Bigger cards" title="Bigger cards" disabled={(cols || 3) <= 2} onClick={() => pickCols((cols || 3) - 1)} className="w-9 h-9 rounded-full bg-[#F1EFF6] hover:bg-[#EEE8FD] text-[#17151F] flex items-center justify-center disabled:opacity-40"><Minus className="w-4 h-4" /></button>
             <span className="px-1.5 text-[13px] font-semibold text-[#17151F] tabular-nums whitespace-nowrap inline-flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-[#6B6680]" />{cols || 3} in a row</span>
-            <button type="button" aria-label="Smaller cards" title="Smaller cards" disabled={(cols || 3) >= 6} onClick={() => pickCols((cols || 3) + 1)} className="w-9 h-9 rounded-full bg-white text-[#17151F] flex items-center justify-center disabled:opacity-40"><Plus className="w-4 h-4" /></button>
+            <button type="button" aria-label="Smaller cards" title="Smaller cards" disabled={(cols || 3) >= 6} onClick={() => pickCols((cols || 3) + 1)} className="w-9 h-9 rounded-full bg-[#F1EFF6] hover:bg-[#EEE8FD] text-[#17151F] flex items-center justify-center disabled:opacity-40"><Plus className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -210,25 +217,26 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           <div className="space-y-2.5">
             {usedEvents.length > 0 && (
               <div className="sm:flex sm:items-start sm:gap-3">
-                <p className="text-xs font-bold text-[#6B6680] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Event</p>
+                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Event</p>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none]" role="group" aria-label="Event">
                     <button type="button" aria-pressed={!event} onClick={() => { setEvent(""); setRitual(""); }} className={chip(!event)}>All</button>
-                    {usedEvents.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = event === t.id; return (
+                    {shownEvents.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = event === t.id; return (
                       <button key={t.id} type="button" aria-pressed={on} onClick={() => { setEvent(on ? "" : t.id); setRitual(""); }} className={chip(on)}>
-                        {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/70" : "text-[#8A8599]")}>{n}</span>
+                        {t.name}{count(n, on)}
                       </button>
                     ); })}
+                    {moreEvents.length > 0 && <button type="button" aria-expanded={allEvents} onClick={() => setAllEvents(v => !v)} className="h-10 px-3.5 rounded-full text-[13.5px] font-semibold text-[#4B32B8] border border-dashed border-[#B9ADEB] hover:bg-[#F6F2FF] flex-shrink-0 whitespace-nowrap">{allEvents ? "Fewer" : `More events (${moreEvents.length})`}</button>}
                   </div>
                   {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
                   {rituals.length > 0 && (
-                    <div className="rounded-[16px] bg-[#F6F2FF] p-2.5">
+                    <div className="rounded-[16px] bg-[#F3EEFF] border border-[#DDD3FA] p-2.5">
                       <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
                       <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
                         <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
                         {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; return (
                           <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
-                            {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/75" : "text-[#8A8599]")}>{n}</span>
+                            {t.name}{count(n, on)}
                           </button>
                         ); })}
                       </div>
@@ -239,12 +247,12 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
             )}
             {usedVideos.length > 0 && (
               <div className="sm:flex sm:items-start sm:gap-3">
-                <p className="text-xs font-bold text-[#6B6680] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Video</p>
+                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Video</p>
                 <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none] min-w-0 flex-1" role="group" aria-label="Kind of video">
                   <button type="button" aria-pressed={!video} onClick={() => setVideo("")} className={chip(!video)}>All</button>
                   {usedVideos.map(t => { const n = found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length; const on = video === t.id; return (
                     <button key={t.id} type="button" aria-pressed={on} onClick={() => setVideo(on ? "" : t.id)} className={chip(on)}>
-                      {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/70" : "text-[#8A8599]")}>{n}</span>
+                      {t.name}{count(n, on)}
                     </button>
                   ); })}
                 </div>
@@ -442,6 +450,10 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
 }) {
   const [url, setUrl] = useState(startUrl ?? "");
   const [info, setInfo] = useState<{ youtubeId: string; title: string; channel?: string } | null>(song ? { youtubeId: song.youtubeId, title: song.title, channel: song.channel } : null);
+  /** What was ticked by itself after the link was pasted (so the person knows to check it). */
+  const [filled, setFilled] = useState<{ from: "stupanel" | "studios" | "name"; what: string[] } | null>(null);
+  /** Mood, language and own tags are folded away until asked for: fewer choices on the first look. */
+  const [moreOpen, setMoreOpen] = useState(!!song);
   const [checking, setChecking] = useState(false);
   const [problem, setProblem] = useState("");
   const [events, setEvents] = useState<string[]>(song?.events ?? from?.events ?? []);
@@ -453,6 +465,10 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
   const [altNames, setAltNames] = useState(song?.altNames ?? from?.altNames ?? "");
   const [shared, setShared] = useState(song?.shared ?? true);
   const [saving, setSaving] = useState(false);
+
+  // What is ticked right now, for the link check below (it must not undo the person's own ticks).
+  const cur = useRef({ events, videos, moods, language, own });
+  useEffect(() => { cur.current = { events, videos, moods, language, own }; });
 
   // A pasted link is checked with YouTube a moment after typing stops.
   const id = song ? song.youtubeId : youtubeIdOf(url);
@@ -467,7 +483,21 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
     const t = setTimeout(async () => {
       const r = await apiFetch(`${API}/music/lookup?url=${encodeURIComponent(url.trim())}`).catch(() => null);
       if (off) return;
-      if (r?.ok) setInfo(await r.json()); else { setInfo(null); setProblem(r ? await err(r) : "Could not check the link — is the internet on?"); }
+      if (r?.ok) {
+        const d = await r.json();
+        setInfo(d);
+        // Tick what we can work out, but never over something the person (or the list it came from) already ticked.
+        const gs = d.guess as { from: "stupanel" | "studios" | "name"; events: string[]; videos: string[]; moods: string[]; language: string | null; tags: string[] } | null;
+        if (gs && !from) {
+          const now = cur.current, what: string[] = [];
+          if (!now.events.length && gs.events.length) { setEvents(gs.events); what.push("event"); }
+          if (!now.videos.length && gs.videos.length) { setVideos(gs.videos); what.push("kind of video"); }
+          if (!now.moods.length && gs.moods.length) { setMoods(gs.moods); what.push("mood"); }
+          if (!now.language.length && gs.language) { setLanguage([gs.language]); what.push("language"); }
+          if (!now.own.length && gs.tags.length) { setOwn(gs.tags); what.push("your own tags"); }
+          setFilled(what.length ? { from: gs.from, what } : null);
+        }
+      } else { setInfo(null); setProblem(r ? await err(r) : "Could not check the link — is the internet on?"); }
       setChecking(false);
     }, 450);
     return () => { off = true; clearTimeout(t); setChecking(false); };
@@ -537,12 +567,30 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
         </div>
       )}
 
+      {filled && (
+        <div role="status" className="mb-4 rounded-[16px] bg-[#E2F4EA] px-4 py-3 text-[13.5px] text-[#14532F] sp-fade-in">
+          <b>We ticked the {filled.what.join(", ").replace(/, ([^,]*)$/, " and $1")} for you</b>
+          {filled.from === "stupanel" ? " (StuPanel's tags for this song)." : filled.from === "studios" ? " (what most studios chose for this song)." : " (read from the song's name)."} Please check, and change anything that is wrong.
+        </div>
+      )}
+
       <FormGroup title="Which event?" note="Leave empty if it fits any event">
         <TagPicker list={cat.events} value={events} onChange={setEvents} label="Event" />
       </FormGroup>
       <FormGroup title="Which kind of video?" note="Leave empty if it fits any video">
         <TagPicker list={cat.videos} value={videos} onChange={setVideos} label="Kind of video" />
       </FormGroup>
+      {/* Mood, language and own tags: filled in by themselves where possible, and folded away so the form is short */}
+      {!moreOpen && (
+        <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={false} className={cn("w-full text-left bg-white rounded-[20px] px-4 py-3.5 mb-4 flex items-center gap-3", CARD_SHADOW)}>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[14px] font-bold text-[#17151F]">Mood, language and your own tags</span>
+            <span className="block text-[12.5px] text-[#6B6680] truncate">{[...language.map(l => tagName(cat.languages, l)), ...moods.map(m => tagName(cat.moods, m)), ...own].join(" · ") || "Optional. They help when searching."}</span>
+          </span>
+          <span className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#4B32B8] text-[13px] font-semibold inline-flex items-center flex-shrink-0">{language.length || moods.length || own.length ? "Change" : "Add"}</span>
+        </button>
+      )}
+      {moreOpen && <>
       <FormGroup title="Mood and language" note="Optional — they help when searching">
         <TagPicker list={cat.moods} value={moods} onChange={setMoods} label="Mood" />
         <div className="h-px bg-[#F1EFF6] my-1" />
@@ -563,6 +611,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
         </div>
         <SuggestTag onOwn={t => setOwn(o => (o.some(x => x.toLowerCase() === t.toLowerCase()) ? o : [...o, t]))} />
       </FormGroup>
+      </>}
       <FormGroup title="More">
         <Field label="Other names (optional)" hint="Words people may search this song by — another spelling, the name in your language">
           {fid => <input id={fid} value={altNames} onChange={e => setAltNames(e.target.value)} maxLength={255} placeholder="e.g. কেশরিয়া, kesaria" className={inputCls} />}

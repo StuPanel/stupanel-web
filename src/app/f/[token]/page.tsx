@@ -9,13 +9,13 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { faceDownloadUrl, facePhotoUrl, type Cover, type FacePhoto } from "@/lib/face";
+import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import "./guest.css";
 
 type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean };
 type Result = { key: string; registered: boolean; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "results";
 
-const SCAN_MS = 2400;
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
 const longDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
 
@@ -255,18 +255,28 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
     setTimeout(() => onShot(image), 380);
   }, [onShot]);
 
-  // The scan: the meter fills while the guest holds still, then the picture is taken by itself.
+  // The scan: the face is checked on this phone a few times a second. The meter fills only while the face is
+  // clear, centred, the right size, well lit and still; then the selfie is taken by itself. If any of that is
+  // lost the meter goes back down. The guest can also press the button at any time.
+  const [face, setFace] = useState<FaceState | "off" | "wait">("wait");
   useEffect(() => {
     if (!live) return;
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0 - 500) / SCAN_MS);
-      setPct(Math.max(0, Math.round(p * 100)));
-      if (p >= 1) shoot(); else raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    let on = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let p = 0;
+    loadFaceCheck().then(check => {
+      if (!on) return;
+      timer = setInterval(() => {
+        const v = video.current;
+        if (!v || done.current) return;
+        const state = check(v);
+        // About 1.3 s of a perfect face fills it; anything else lets it fall back quickly.
+        p = state === "good" ? Math.min(100, p + 12) : Math.max(0, p - 20);
+        setFace(state); setPct(p);
+        if (p >= 100) shoot();
+      }, 150);
+    }).catch(() => { if (on) setFace("off"); });
+    return () => { on = false; if (timer) clearInterval(timer); };
   }, [live, shoot]);
 
   async function picked(f?: File) {
@@ -280,6 +290,8 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
   const [bad, setBad] = useState("");
   const alertBad = () => setBad("We could not open that photo. Please pick a JPG or PNG.");
   const locked = pct >= 100;
+  // A face is in the oval (even if it still needs a small fix): the mesh and the beam show only then.
+  const seen = face !== "wait" && face !== "off" && face !== "none" && face !== "many";
   const ghost: React.CSSProperties = { height: 48, padding: "0 16px", borderRadius: 16, border: 0, background: "rgba(255,255,255,.12)", color: "#fff", fontSize: 14, fontWeight: 600 };
 
   return (
@@ -291,8 +303,11 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
       </div>
       <div className="gf-rise" style={{ padding: "16px 28px 0", textAlign: "center", display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.025em", lineHeight: 1.12 }}>{denied ? "Camera is off" : locked ? "Got it" : "Look at the camera"}</h1>
-        <p style={{ fontSize: 15, color: note || bad ? "#FF9DB0" : "#C9C4D8" }} role={note || bad ? "alert" : undefined}>
-          {bad || note || (denied ? "Allow the camera in your browser, or pick a photo of your face." : "Keep your face inside the oval and hold still.")}
+        <p style={{ fontSize: 15, minHeight: 23, fontWeight: 600, color: note || bad ? "#FF9DB0" : face === "good" ? "#3DD68C" : "#C9C4D8" }} role={note || bad ? "alert" : "status"} aria-live="polite">
+          {bad || note || (denied ? "Allow the camera in your browser, or pick a photo of your face."
+            : face === "off" ? "Keep your face inside the oval, then press the round button."
+            : face === "wait" ? "Keep your face inside the oval."
+            : FACE_HINT[face])}
         </p>
       </div>
       <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -300,15 +315,15 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
           <span className="gf-br tl" aria-hidden="true" /><span className="gf-br tr" aria-hidden="true" /><span className="gf-br bl" aria-hidden="true" /><span className="gf-br br" aria-hidden="true" />
           <div className="gf-ovalclip" style={{ background: "#1F1B2B" }}>
             <video ref={video} playsInline muted className={facing === "environment" ? "back" : ""} aria-label="Camera preview" />
-            {live && <Mesh />}
-            {live && <div className="gf-beam" aria-hidden="true" />}
+            {live && seen && <Mesh now />}
+            {live && seen && <div className="gf-beam" aria-hidden="true" />}
           </div>
           <svg viewBox="0 0 268 352" aria-hidden="true"><ellipse className="gf-wave" cx="134" cy="176" rx="130" ry="172" /><ellipse className="gf-wave w2" cx="134" cy="176" rx="130" ry="172" /><ellipse className="gf-wave w3" cx="134" cy="176" rx="130" ry="172" /><ellipse className="gf-ring" cx="134" cy="176" rx="130" ry="172" /></svg>
         </div>
       </div>
       <div style={{ padding: "0 22px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, flex: "none" }}>
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }} role="status" aria-live="polite">
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}><span>{denied ? "Waiting for the camera" : locked ? "Face found" : live ? "Scanning your face" : "Starting the camera"}</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}><span>{denied ? "Waiting for the camera" : locked ? "Face found" : !live ? "Starting the camera" : face === "off" ? "Press the button when ready" : seen ? "Scanning your face" : "Looking for your face"}</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</span></div>
           <div className="gf-meter"><i style={{ transform: `scaleX(${pct / 100})` }} /></div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>

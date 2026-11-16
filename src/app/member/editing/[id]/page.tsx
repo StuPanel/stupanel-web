@@ -20,6 +20,8 @@ import { CHIP, Chip, Empty, List, ProfileSkeleton, QuickAction, Row, Section, Ta
 import { daysUntil } from "../../_components/kit";
 import { EditorRawAccess } from "../../_components/raw-upload";
 import { EditorMusic } from "./editor-music";
+import { MusicSection } from "@/app/(app)/programs/_components/music-section";
+import type { Booking } from "@/app/(app)/programs/_components/types";
 import { MyCosts } from "../../_components/costs";
 import { SubmitWorkDrawer } from "./submit-drawer";
 
@@ -74,14 +76,31 @@ function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
 }
 
-const TABS = ["work", "brief", "raw", "notes"] as const;
+/** The program's full music tools (parts, songs, the client's link) for a video editor. */
+function ProgramMusic({ bookingId }: { bookingId: string }) {
+  const [row, setRow] = useState<Booking | null | undefined>(undefined);
+  useEffect(() => {
+    apiFetch(`${API}/music/programs`).then(async r => {
+      const list: { id: string }[] = r.ok ? await r.json() : [];
+      setRow((list.find(x => x.id === bookingId) as unknown as Booking) ?? null);
+    }).catch(() => setRow(null));
+  }, [bookingId]);
+  if (row === undefined) return <div className="sp-skel h-40 rounded-[20px]" />;
+  if (row === null) return <Empty icon={Music2} title="Music is not open for this program" text="It may be cancelled. Ask the studio in Notes." />;
+  return <MusicSection member booking={row} />;
+}
+
+const TABS = ["work", "brief", "raw", "music", "notes"] as const;
 type Tab = (typeof TABS)[number];
 const LABEL = "text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]";
 
 export default function EditorWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const sp = useSearchParams();
-  const [tab, setTab] = useTab<Tab>(`/member/editing/${id}`, TABS, sp.get("tab"));
+  const [tab, setTabRaw] = useTab<Tab>(`/member/editing/${id}`, TABS, sp.get("tab"));
+  // Once opened, the Music tab stays loaded while the editor moves between tabs.
+  const [musicSeen, setMusicSeen] = useState(sp.get("tab") === "music");
+  const setTab = (t: Tab) => { if (t === "music") setMusicSeen(true); setTabRaw(t); };
   const [ws, setWs] = useState<Workspace | null>(null);
   const [error, setError] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -92,6 +111,7 @@ export default function EditorWorkspacePage() {
   const [hasMusic, setHasMusic] = useState<boolean | null>(null);
   /** Tagged "Video editor" in Team → may choose the program's songs and ask the client. */
   const [canMusic, setCanMusic] = useState(false);
+
   useEffect(() => {
     apiFetch(`${API}/member/profile`).then(r => (r.ok ? r.json() : null)).then(d => setCanMusic(!!d?.memberRoles?.includes("video_editor"))).catch(() => {});
   }, []);
@@ -202,6 +222,8 @@ export default function EditorWorkspacePage() {
     { id: "work", label: "My work", count: groups.length },
     { id: "brief", label: "Brief" },
     { id: "raw", label: "Raw files" },
+    // Songs are for video work only.
+    ...(isPhoto ? [] : [{ id: "music" as Tab, label: "Music" }]),
     { id: "notes", label: "Notes", count: chat.length },
   ];
 
@@ -409,19 +431,27 @@ export default function EditorWorkspacePage() {
                 </div>
               </Section>
             )}
-            {/* Songs are for video work only; a member tagged Video editor can also choose them / ask the client. */}
-            {!isPhoto && <EditorMusic assignmentId={id} onLoaded={setHasMusic} />}
-            {!isPhoto && canMusic && (
-              <Link href={`/member/music/${assignment.booking.id}`} className="mt-3 h-11 px-4 rounded-full bg-[#F7E9F4] text-[#86307A] text-[13.5px] font-semibold inline-flex items-center gap-2 hover:bg-[#F1DAEC]">
-                <Music2 className="w-4 h-4" />Choose songs or ask the client
-              </Link>
+            {!isPhoto && (
+              <button type="button" onClick={() => go("music")} className="mt-3 h-11 px-4 rounded-full bg-[#F7E9F4] text-[#86307A] text-[13.5px] font-semibold inline-flex items-center gap-2 hover:bg-[#F1DAEC]">
+                <Music2 className="w-4 h-4" />{canMusic ? "Choose songs or ask the client" : "See the client's songs"}
+              </button>
             )}
-            {!hasBrief && (isPhoto || hasMusic === false) && (
-              <Empty icon={Palette} title="No brief yet" text="The studio hasn't written a brief and the client hasn't picked songs. Ask in Notes if you need direction.">
+            {!hasBrief && (isPhoto || canMusic || hasMusic === false) && (
+              <Empty icon={Palette} title="No brief yet" text="The studio hasn't written a brief for this work. Ask in Notes if you need direction.">
                 <button type="button" onClick={() => go("notes")} className={softBtn}><MessageCircle className="w-4 h-4" />Open notes</button>
               </Empty>
             )}
           </div>
+
+          {/* Music lives inside the program's work, next to Raw files and Notes. */}
+          {!isPhoto && (
+            <div role="tabpanel" hidden={tab !== "music"}>
+              {canMusic
+                ? (tab === "music" || musicSeen) && <ProgramMusic bookingId={assignment.booking.id} />
+                : <EditorMusic assignmentId={id} onLoaded={setHasMusic} />}
+              {!canMusic && hasMusic === false && <Empty icon={Music2} title="No songs yet" text="The client hasn't picked songs for this program. Ask in Notes if you need them." />}
+            </div>
+          )}
 
           <div role="tabpanel" hidden={tab !== "raw"}>
             <EditorRawAccess bookingId={booking.id} onShown={setRawShown} />

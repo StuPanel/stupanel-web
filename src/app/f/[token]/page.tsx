@@ -601,17 +601,29 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
     setHeld(null);
   }
 
-  async function downloadAll() {
+  /** Choosing mode: a tap ticks a photo instead of opening it, and only the ticked ones are downloaded. */
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const everyone = useMemo(() => [...res.photos, ...res.more.filter(m => !res.photos.some(p => p.id === m.id))], [res.photos, res.more]);
+  const chosen = everyone.filter(p => picked.includes(p.id));
+  const toggle = (id: string) => { setHeld(null); setSaveNote(""); setPicked(l => (l.includes(id) ? l.filter(x => x !== id) : [...l, id])); };
+  const stopPicking = () => { setPicking(false); setPicked([]); setHeld(null); setSaveNote(""); };
+  /** How many photos the download in hand is about (for the button's words). */
+  const [total, setTotal] = useState(0);
+
+  /** Download these photos: all of the guest's own, or the ones they ticked. */
+  async function download(list: FacePhoto[]) {
+    const n = list.length;
     if (saving || !n) return;
     if (held) return give(held);
-    setSaveNote("");
+    setSaveNote(""); setTotal(n);
     counted(base, res.key, n);
     // Photos with the studio's watermark come from StuPanel: they are fetched here, then saved together.
-    if (res.photos[0]?.wm) {
+    if (list[0]?.wm) {
       const files: File[] = [];
       for (let i = 0; i < n; i++) {
         setSaving(i + 1);
-        const p = res.photos[i];
+        const p = list[i];
         const r = await fetch(faceSaveUrl(p)).catch(() => null);
         if (!r?.ok) continue;
         files.push(new File([await r.blob()], `${(p.fileName || `photo-${i + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }));
@@ -626,21 +638,26 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
     for (let i = 0; i < n; i++) {
       setSaving(i + 1);
       const f = document.createElement("iframe");
-      f.style.display = "none"; f.src = faceSaveUrl(res.photos[i]);
+      f.style.display = "none"; f.src = faceSaveUrl(list[i]);
       frames.current?.appendChild(f);
       await new Promise(ok => setTimeout(ok, 900));
     }
     setSaving(0);
   }
 
-  const tile = (p: FacePhoto, i: number, list: "mine" | "more") => (
-    <button key={p.id} type="button" className="gf-print" onClick={() => onOpen(list, i)} aria-label={`Open photo ${i + 1}`}
-      style={{ ["--r" as string]: `${i % 2 ? 7 : -7}deg`, animationDelay: `${Math.min(i, 10) * 0.07}s`, padding: 5 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={facePhotoUrl(p, 480)} alt="" loading={i > 5 ? "lazy" : undefined} referrerPolicy="no-referrer"
-        style={{ aspectRatio: p.width && p.height ? `${p.width} / ${p.height}` : "4 / 5", background: "#F1EFF6" }} />
-    </button>
-  );
+  const tile = (p: FacePhoto, i: number, list: "mine" | "more") => {
+    const on = picking && picked.includes(p.id);
+    return (
+      <button key={p.id} type="button" className={`gf-print${picking ? " gf-pick" : ""}${on ? " gf-picked" : ""}`} onClick={() => (picking ? toggle(p.id) : onOpen(list, i))}
+        aria-label={picking ? `${on ? "Take out" : "Choose"} photo ${i + 1}` : `Open photo ${i + 1}`} aria-pressed={picking ? on : undefined}
+        style={{ ["--r" as string]: `${i % 2 ? 7 : -7}deg`, animationDelay: `${Math.min(i, 10) * 0.07}s`, padding: 5 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={facePhotoUrl(p, 480)} alt="" loading={i > 5 ? "lazy" : undefined} referrerPolicy="no-referrer"
+          style={{ aspectRatio: p.width && p.height ? `${p.width} / ${p.height}` : "4 / 5", background: "#F1EFF6" }} />
+        {picking && <span className="gf-tick" aria-hidden="true">{on && <Ic size={16} w={3.2} d={<path d="M5 12.5l4.5 4.500L19 7.500" />} />}</span>}
+      </button>
+    );
+  };
 
   return (
     <div className="gf-step">
@@ -653,8 +670,11 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
           <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.025em" }}>{n ? `${n} photo${n === 1 ? "" : "s"} of you` : "No photos of you yet"}</h1>
           <span style={{ fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.title}, by {g.studio.name}</span>
         </div>
-        <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>New selfie</button>
+        {picking
+          ? <button type="button" onClick={() => { setHeld(null); setPicked(picked.length === everyone.length ? [] : everyone.map(p => p.id)); }} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#4B32B8", fontSize: 13, fontWeight: 700, flex: "none" }}>{picked.length === everyone.length ? "Clear all" : "Choose all"}</button>
+          : <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>New selfie</button>}
       </div>
+      {picking && <p role="status" style={{ flex: "none", margin: "0 18px 8px", padding: "9px 14px", borderRadius: 14, background: "rgba(125,92,239,.14)", color: "#4B32B8", fontSize: 14, fontWeight: 700 }}>{picked.length ? `${picked.length} chosen. Tap more, or press Download.` : "Tap the photos you want to download."}</p>}
       <div className="gf-scroll">
         {n === 0 && (
           <div className="gf-glass gf-rise" style={{ padding: "16px 16px", borderRadius: 22, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -671,11 +691,16 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
         )}
       </div>
       {n > 0 && res.downloads && (
-        <div className="gf-bar gf-glass" style={saveNote ? { flexDirection: "column", gap: 6 } : undefined}>
+        <div className="gf-bar gf-glass" style={{ flexDirection: "column", gap: saveNote ? 6 : 0 }}>
           {saveNote && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A82743", textAlign: "center" }}>{saveNote}</p>}
-          <button type="button" className="gf-cta" onClick={downloadAll} disabled={!!saving} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18 }}>
-            <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${n}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : `Download all ${n}`}
-          </button>
+          <div style={{ display: "flex", gap: 8, width: "100%" }}>
+            {picking
+              ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Cancel</button>
+              : !held && !saving && n > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Choose</button>}
+            <button type="button" className="gf-cta" onClick={() => download(picking ? chosen : res.photos)} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+              <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${total}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : picking ? (chosen.length ? `Download ${chosen.length}` : "Download") : `Download all ${n}`}
+            </button>
+          </div>
         </div>
       )}
       <div ref={frames} aria-hidden="true" />

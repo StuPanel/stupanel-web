@@ -39,7 +39,13 @@ type GalleryView = {
   failed: { id: string; fileName: string; folder: string | null; error: string | null }[]; reasons: { reason: string; count: number }[];
   guests: { id: string; matchCount: number; searches: number; downloads: number; lastSearchAt: string | null; createdAt: string }[];
 };
-type Tab = "overview" | "studios" | "history" | "settings";
+type Pack = { id: string; name: string; credits: number; priceBdt: number; badge: string | null; isActive: boolean; sortOrder: number; perCredit: number };
+type Order = { id: string; companyId: string; studio: string; pack: string; credits: number; amountBdt: number; method: string; reference: string; senderNumber: string | null; status: "pending" | "paid" | "rejected"; rejectReason: string | null; placedBy: string | null; reviewedBy: string | null; reviewedAt: string | null; createdAt: string };
+type Orders = { orders: Order[]; next: string | null; totals: { pending: number; paidCount: number; paidBdt: number; creditsSold: number } };
+type Tab = "overview" | "orders" | "studios" | "history" | "packs" | "settings";
+const METHOD: Record<string, string> = { bkash: "bKash", nagad: "Nagad", rocket: "Rocket", gateway: "Gateway" };
+/** What one photo costs StuPanel, in taka: Amazon reading + keeping the faces + guests' searches, with a margin for the exchange rate. */
+const COST_PER_CREDIT_BDT = 0.25;
 
 const num = (n: number) => (n ?? 0).toLocaleString("en");
 const authH = () => ({ Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
@@ -51,6 +57,7 @@ export default function AdminFaceSearchPage() {
   const [o, setO] = useState<Overview | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [pending, setPending] = useState(0);
 
   const call = useCallback(async <T,>(path: string, init?: { method?: string; json?: unknown }): Promise<T> => {
     const r = await fetch(`${API}/admin/face-search${path}`, {
@@ -66,8 +73,11 @@ export default function AdminFaceSearchPage() {
 
   const load = useCallback(() => call<Overview>("/overview").then(d => { setO(d); setError(""); }).catch(e => setError(e.message)), [call]);
   useEffect(() => { void load(); }, [load]);
+  // How many payments wait for a check (the number on the Orders tab). Looked at again every minute.
+  const countPending = useCallback(() => call<Orders>("/orders?status=pending").then(d => setPending(d.totals.pending)).catch(() => null), [call]);
+  useEffect(() => { void countPending(); const t = setInterval(() => void countPending(), 60000); return () => clearInterval(t); }, [countPending]);
 
-  const tabs: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "studios", label: "Studios" }, { id: "history", label: "Credit history" }, { id: "settings", label: "Settings" }];
+  const tabs: { id: Tab; label: string; count?: number }[] = [{ id: "overview", label: "Overview" }, { id: "orders", label: "Orders", count: pending }, { id: "studios", label: "Studios" }, { id: "history", label: "Credit history" }, { id: "packs", label: "Packs" }, { id: "settings", label: "Settings" }];
 
   return (
     <Page title="AI Face Search" sub="Switches, credits and usage for every studio"
@@ -79,13 +89,17 @@ export default function AdminFaceSearchPage() {
       <div role="tablist" aria-label="AI Face Search sections" className="flex gap-1 p-1 rounded-xl bg-slate-800 border border-slate-700 w-full sm:w-fit overflow-x-auto">
         {tabs.map(t => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-            className={cn("h-9 px-4 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors", tab === t.id ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-700")}>{t.label}</button>
+            className={cn("h-9 px-4 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors", tab === t.id ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-700", "inline-flex items-center gap-1.5")}>
+            {t.label}{!!t.count && <span className="min-w-5 h-5 px-1.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-bold inline-flex items-center justify-center tabular-nums">{t.count}</span>}
+          </button>
         ))}
       </div>
       <Msg error={error} />
       {!o ? !error && <div className="py-16 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div>
         : tab === "overview" ? <OverviewTab o={o} call={call} onDone={load} onStudio={id => { setTab("studios"); setOpen(id); }} />
         : tab === "studios" ? <StudiosTab call={call} open={open} setOpen={setOpen} onChanged={load} />
+        : tab === "orders" ? <OrdersTab call={call} onChanged={() => { void load(); void countPending(); }} onStudio={id => { setTab("studios"); setOpen(id); }} />
+        : tab === "packs" ? <PacksTab call={call} />
         : tab === "history" ? <HistoryTab call={call} onStudio={id => { setTab("studios"); setOpen(id); }} />
         : <SettingsTab o={o} call={call} onSaved={load} />}
     </Page>
@@ -224,7 +238,7 @@ function StudiosTab({ call, open, setOpen, onChanged }: { call: Call; open: stri
       </div>
       <p className="text-xs text-slate-400">{q.trim() ? "Search looks at every studio, so you can give credits before a studio has used Face Search." : "Studios that have a face gallery or credits."}</p>
       <Msg error={error} />
-      <section className="bg-slate-800 border border-slate-700 rounded-xl overflow-x-auto">
+      <section className="bg-slate-800 border border-slate-700 rounded-xl overflow-x-auto max-w-[calc(100vw-3rem)] lg:max-w-full">
         <table className="w-full text-sm min-w-[720px]">
           <thead>
             <tr className="text-left text-xs text-slate-400 border-b border-slate-700">
@@ -458,6 +472,200 @@ function GalleryPanel({ id, call, onBack, onChanged }: { id: string; call: Call;
   );
 }
 
+/** Payments studios sent for credit packs: check the money, then accept (credits go to the studio at once) or reject with a reason. */
+function OrdersTab({ call, onChanged, onStudio }: { call: Call; onChanged: () => void; onStudio: (id: string) => void }) {
+  const [status, setStatus] = useState<"pending" | "paid" | "rejected">("pending");
+  const [d, setD] = useState<Orders | null>(null);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [reason, setReason] = useState("");
+
+  const load = useCallback((st: string) => call<Orders>(`/orders?status=${st}`).then(setD).catch(e => setMsg({ error: e.message })), [call]);
+  useEffect(() => { void load(status); }, [status, load]);
+
+  async function more() {
+    if (!d?.next || busy) return;
+    setBusy("more");
+    try { const n = await call<Orders>(`/orders?status=${status}&cursor=${d.next}`); setD({ ...n, orders: [...d.orders, ...n.orders] }); } catch (e) { setMsg({ error: (e as Error).message }); }
+    setBusy("");
+  }
+  async function approve(o: Order) {
+    if (busy) return;
+    setBusy(o.id); setMsg({});
+    try { await call(`/orders/${o.id}/approve`, { method: "POST", json: {} }); setMsg({ ok: `${num(o.credits)} credits added to ${o.studio}.` }); await load(status); onChanged(); }
+    catch (e) { setMsg({ error: (e as Error).message }); }
+    setBusy("");
+  }
+  async function reject() {
+    if (!rejecting || busy || reason.trim().length < 3) return;
+    setBusy(rejecting.id); setMsg({});
+    try { await call(`/orders/${rejecting.id}/reject`, { method: "POST", json: { reason: reason.trim() } }); setMsg({ ok: "Order rejected. The studio sees your reason." }); setRejecting(null); setReason(""); await load(status); onChanged(); }
+    catch (e) { setMsg({ error: (e as Error).message }); }
+    setBusy("");
+  }
+
+  return (
+    <div className="space-y-4">
+      {d && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Stat icon={AlertTriangle} label="Waiting for a check" value={num(d.totals.pending)} tone={d.totals.pending ? "warn" : undefined} sub={d.totals.pending ? "Oldest first below" : "Nothing waiting"} />
+          <Stat icon={CheckCircle2} label="Orders paid" value={num(d.totals.paidCount)} />
+          <Stat icon={Coins} label="Money received" value={`৳${num(d.totals.paidBdt)}`} />
+          <Stat icon={Coins} label="Credits sold" value={num(d.totals.creditsSold)} sub={`About ৳${num(Math.round(d.totals.creditsSold * COST_PER_CREDIT_BDT))} cost to you`} />
+        </div>
+      )}
+      <div className="flex gap-1 p-1 rounded-lg bg-slate-800 border border-slate-700 w-fit" role="radiogroup" aria-label="Which orders">
+        {(["pending", "paid", "rejected"] as const).map(st => (
+          <button key={st} type="button" role="radio" aria-checked={status === st} onClick={() => { setD(null); setStatus(st); }}
+            className={cn("h-8 px-3 rounded-md text-xs font-semibold", status === st ? "bg-slate-600 text-white" : "text-slate-300 hover:bg-slate-700")}>{st === "pending" ? "Waiting" : st === "paid" ? "Accepted" : "Rejected"}</button>
+        ))}
+      </div>
+      <Msg error={msg.error} ok={msg.ok} />
+      {!d ? !msg.error && <div className="py-12 flex justify-center text-slate-500"><Loader2 className="w-5 h-5 animate-spin" /></div>
+        : d.orders.length === 0 ? <p className="text-sm text-slate-400 bg-slate-800 border border-slate-700 rounded-xl px-5 py-8 text-center">{status === "pending" ? "No payment is waiting. New ones show here, oldest first." : "Nothing here yet."}</p>
+        : (
+          <ul className="space-y-3">
+            {d.orders.map(o => (
+              <li key={o.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="min-w-0 flex-1 grid sm:grid-cols-3 gap-x-6 gap-y-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-400">Studio</p>
+                    <button type="button" onClick={() => onStudio(o.companyId)} className="text-sm font-semibold text-white hover:underline truncate max-w-full text-left">{o.studio}</button>
+                    <p className="text-xs text-slate-400 truncate">{[o.placedBy, fmtWhen(o.createdAt)].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Bought</p>
+                    <p className="text-sm font-semibold text-white">{o.pack} · {num(o.credits)} credits</p>
+                    <p className="text-lg font-bold text-emerald-300 tabular-nums leading-tight">৳{num(o.amountBdt)}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-400">Check this payment in {METHOD[o.method] ?? o.method}</p>
+                    <p className="text-sm font-bold text-white tabular-nums tracking-wide [overflow-wrap:anywhere]">{o.reference}</p>
+                    <p className="text-xs text-slate-400 tabular-nums">From {o.senderNumber ?? "unknown"}</p>
+                  </div>
+                </div>
+                {o.status === "pending" ? (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Btn variant="danger" disabled={!!busy} onClick={() => { setRejecting(o); setReason(""); }}>Reject</Btn>
+                    <Btn loading={busy === o.id} disabled={!!busy && busy !== o.id} onClick={() => approve(o)} className="bg-emerald-600 hover:bg-emerald-700"><CheckCircle2 className="w-3.5 h-3.5" />Accept and give credits</Btn>
+                  </div>
+                ) : (
+                  <p className={cn("text-xs flex-shrink-0 lg:max-w-[220px] lg:text-right", o.status === "paid" ? "text-emerald-300" : "text-red-300")}>
+                    {o.status === "paid" ? "Accepted" : "Rejected"}{o.reviewedBy ? ` by ${o.reviewedBy}` : ""}<span className="block text-slate-400">{fmtWhen(o.reviewedAt)}{o.rejectReason ? ` · ${o.rejectReason}` : ""}</span>
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      {d?.next && <div className="flex justify-center"><Btn variant="ghost" loading={busy === "more"} onClick={more}>Show more</Btn></div>}
+
+      {rejecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Reject this order">
+          <button type="button" aria-label="Close" onClick={() => setRejecting(null)} className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
+            <h3 className="text-base font-bold text-white">Reject this order?</h3>
+            <p className="text-sm text-slate-300">{rejecting.studio} · {rejecting.pack} · ৳{num(rejecting.amountBdt)} · {rejecting.reference}</p>
+            <div>
+              <label htmlFor="fa-reason" className="block text-xs font-medium text-slate-300 mb-1">Reason the studio will read</label>
+              <input id="fa-reason" autoFocus className={inp} value={reason} maxLength={300} onChange={e => setReason(e.target.value)} placeholder="We could not find this transaction ID" />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Btn variant="ghost" onClick={() => setRejecting(null)}>Cancel</Btn>
+              <Btn variant="danger" loading={busy === rejecting.id} disabled={reason.trim().length < 3} onClick={reject}>Reject order</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The credit packs studios can buy: name, credits, price, on or off. Shows what each pack earns after the cost. */
+function PacksTab({ call }: { call: Call }) {
+  const [packs, setPacks] = useState<Pack[] | null>(null);
+  const [edit, setEdit] = useState<Partial<Pack> | null>(null);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  useEffect(() => { call<Pack[]>("/packs").then(setPacks).catch(e => setMsg({ error: e.message })); }, [call]);
+
+  async function save(p: Partial<Pack>, done: string) {
+    setBusy(p.id ?? "new"); setMsg({});
+    try { setPacks(await call<Pack[]>("/packs", { method: "POST", json: p })); setEdit(null); setMsg({ ok: done }); }
+    catch (e) { setMsg({ error: (e as Error).message }); }
+    setBusy("");
+  }
+  const profit = (p: { credits?: number; priceBdt?: number }) => {
+    const c = Number(p.credits) || 0, price = Number(p.priceBdt) || 0;
+    const cost = c * COST_PER_CREDIT_BDT;
+    return { cost: Math.round(cost), profit: Math.round(price - cost), pct: price ? Math.round(((price - cost) / price) * 100) : 0, per: c ? price / c : 0 };
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <p className="text-sm text-slate-400 max-w-2xl">One photo costs you about ৳{COST_PER_CREDIT_BDT.toFixed(2)} (Amazon reading it, keeping the faces, and the guests&apos; searches). Profit below is the price minus that cost. Studios only see packs that are on.</p>
+        <Btn onClick={() => setEdit({ name: "", credits: 1000, priceBdt: 700, badge: "", isActive: false, sortOrder: (packs?.length ?? 0) + 1 })}><Plus className="w-3.5 h-3.5" />New pack</Btn>
+      </div>
+      <Msg error={msg.error} ok={msg.ok} />
+      <section className="bg-slate-800 border border-slate-700 rounded-xl overflow-x-auto max-w-[calc(100vw-3rem)] lg:max-w-full">
+        <table className="w-full text-sm min-w-[760px]">
+          <thead><tr className="text-left text-xs text-slate-400 border-b border-slate-700">
+            <th className="font-medium px-4 py-3">Pack</th><th className="font-medium px-3 py-3 text-right">Credits</th><th className="font-medium px-3 py-3 text-right">Price</th><th className="font-medium px-3 py-3 text-right">Per photo</th>
+            <th className="font-medium px-3 py-3 text-right">Your cost</th><th className="font-medium px-3 py-3 text-right">Profit</th><th className="font-medium px-3 py-3">On sale</th><th className="px-4 py-3"><span className="sr-only">Actions</span></th>
+          </tr></thead>
+          <tbody>
+            {packs === null ? <tr><td colSpan={8} className="py-10 text-center text-slate-500"><Loader2 className="w-5 h-5 animate-spin inline" /></td></tr>
+              : packs.length === 0 ? <tr><td colSpan={8} className="py-10 text-center text-slate-400">No packs yet. Make the first one.</td></tr>
+              : packs.map(p => { const m = profit(p); return (
+                <tr key={p.id} className="border-b border-slate-700/60 last:border-0">
+                  <td className="px-4 py-3"><p className="font-semibold text-white">{p.name}</p>{p.badge && <p className="text-xs text-indigo-300">{p.badge}</p>}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-white">{num(p.credits)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-white font-semibold">৳{num(p.priceBdt)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-slate-200">৳{m.per.toFixed(2)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-slate-200">৳{num(m.cost)}</td>
+                  <td className={cn("px-3 py-3 text-right tabular-nums font-semibold", m.profit > 0 ? "text-emerald-300" : "text-red-300")}>৳{num(m.profit)} · {m.pct}%</td>
+                  <td className="px-3 py-3">
+                    <button type="button" role="switch" aria-checked={p.isActive} aria-label={`${p.name} on sale`} disabled={busy === p.id} onClick={() => save({ ...p, isActive: !p.isActive }, p.isActive ? `${p.name} is off sale.` : `${p.name} is on sale.`)}
+                      className={cn("w-11 h-6 rounded-full relative transition-colors disabled:opacity-60", p.isActive ? "bg-emerald-600" : "bg-slate-600")}>
+                      <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform", p.isActive && "translate-x-5")} />
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right"><Btn variant="ghost" onClick={() => setEdit(p)}>Change</Btn></td>
+                </tr>
+              ); })}
+          </tbody>
+        </table>
+      </section>
+
+      {edit && (() => { const m = profit(edit); return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={edit.id ? "Change pack" : "New pack"}>
+          <button type="button" aria-label="Close" onClick={() => setEdit(null)} className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
+            <h3 className="text-base font-bold text-white">{edit.id ? "Change pack" : "New pack"}</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2"><label htmlFor="pk-name" className="block text-xs font-medium text-slate-300 mb-1">Name</label><input id="pk-name" className={inp} maxLength={60} value={edit.name ?? ""} onChange={e => setEdit({ ...edit, name: e.target.value })} placeholder="Standard" /></div>
+              <div><label htmlFor="pk-credits" className="block text-xs font-medium text-slate-300 mb-1">Credits</label><input id="pk-credits" className={cn(inp, "tabular-nums")} inputMode="numeric" value={edit.credits ?? ""} onChange={e => setEdit({ ...edit, credits: Number(e.target.value.replace(/\D/g, "").slice(0, 8)) })} /></div>
+              <div><label htmlFor="pk-price" className="block text-xs font-medium text-slate-300 mb-1">Price (taka)</label><input id="pk-price" className={cn(inp, "tabular-nums")} inputMode="numeric" value={edit.priceBdt ?? ""} onChange={e => setEdit({ ...edit, priceBdt: Number(e.target.value.replace(/\D/g, "").slice(0, 9)) })} /></div>
+              <div><label htmlFor="pk-badge" className="block text-xs font-medium text-slate-300 mb-1">Label (optional)</label><input id="pk-badge" className={inp} maxLength={30} value={edit.badge ?? ""} onChange={e => setEdit({ ...edit, badge: e.target.value })} placeholder="Most popular" /></div>
+              <div><label htmlFor="pk-order" className="block text-xs font-medium text-slate-300 mb-1">Position</label><input id="pk-order" className={cn(inp, "tabular-nums")} inputMode="numeric" value={edit.sortOrder ?? 0} onChange={e => setEdit({ ...edit, sortOrder: Number(e.target.value.replace(/\D/g, "").slice(0, 3)) })} /></div>
+            </div>
+            <p className={cn("text-xs rounded-lg px-3 py-2 border", m.profit > 0 ? "text-emerald-300 bg-emerald-950/40 border-emerald-900" : "text-red-300 bg-red-950/50 border-red-900")}>
+              ৳{m.per.toFixed(2)} per photo. Your cost about ৳{num(m.cost)}, profit ৳{num(m.profit)} ({m.pct}%).{m.profit <= 0 ? " This price loses money." : ""}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" className="w-4 h-4 accent-emerald-500" checked={!!edit.isActive} onChange={e => setEdit({ ...edit, isActive: e.target.checked })} />On sale to studios</label>
+            <div className="flex justify-end gap-2 pt-1">
+              <Btn variant="ghost" onClick={() => setEdit(null)}>Cancel</Btn>
+              <Btn loading={busy === (edit.id ?? "new")} disabled={!edit.name?.trim() || !edit.credits || !edit.priceBdt} onClick={() => save(edit, "Saved.")}>Save pack</Btn>
+            </div>
+          </div>
+        </div>
+      ); })()}
+    </div>
+  );
+}
+
 function HistoryTab({ call, onStudio }: { call: Call; onStudio: (id: string) => void }) {
   const [rows, setRows] = useState<Entry[] | null>(null);
   const [error, setError] = useState("");
@@ -532,7 +740,8 @@ function SettingsTab({ o, call, onSaved }: { o: Overview; call: Call; onSaved: (
           <li>1 credit = 1 photo added to a face gallery (read once by Amazon, about US$0.001).</li>
           <li>Guest selfie search, viewing and downloads are free for the studio.</li>
           <li>RAW files, videos and the same photo added twice are not counted.</li>
-          <li>Selling credit packs and credits included in plans are not built yet.</li>
+          <li>Studios buy credit packs in Credits → Buy credits; you set the packs in Packs and accept payments in Orders.</li>
+          <li>Credits included in plans and an automatic payment gateway are not built yet.</li>
         </ul>
       </Panel>
     </div>

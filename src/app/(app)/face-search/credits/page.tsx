@@ -3,13 +3,14 @@
 /**
  * Face Search credits: what the studio has, how credits work, where they went and the history.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Coins, Loader2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { CARD_SHADOW, Group, PageHeader } from "@/components/ui/apple";
 import { day, num, type Credits } from "@/lib/face";
+import { BuyCredits } from "./buy-credits";
 
 type Page = {
   balance: Credits;
@@ -21,7 +22,8 @@ const KIND: Record<string, string> = { grant: "Plan credits", use: "Photos added
 
 export default function FaceCreditsPage() {
   const [d, setD] = useState<Page | null>(null);
-  useEffect(() => { apiFetch(`${API}/face-search/credits`).then(r => (r.ok ? r.json() : null)).then(setD).catch(() => setD(null)); }, []);
+  const load = useCallback(() => { apiFetch(`${API}/face-search/credits`).then(r => (r.ok ? r.json() : null)).then(v => { if (v) setD(v); }).catch(() => null); }, []);
+  useEffect(() => { load(); }, [load]);
   if (!d) return <div className="py-24 flex justify-center text-[#A29DB3]"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   const b = d.balance;
   const top = Math.max(1, ...d.usedThisMonth.map(u => u.used));
@@ -48,7 +50,7 @@ export default function FaceCreditsPage() {
             <div><p className="text-[20px] font-bold tabular-nums">{num(b.plan)}</p><p className="text-xs text-[#6B6680]"><span className="inline-block w-2 h-2 rounded-full bg-[#C98A1B] mr-1.5" />Plan credits{b.planResetAt ? ` · new on ${day(b.planResetAt)}` : " · end with the month"}</p></div>
             <div><p className="text-[20px] font-bold tabular-nums">{num(b.purchased)}</p><p className="text-xs text-[#6B6680]"><span className="inline-block w-2 h-2 rounded-full bg-[#7D5CEF] mr-1.5" />Purchased · never expire</p></div>
           </div>
-          <p className="mt-4 text-[12.5px] leading-snug rounded-[12px] bg-[#EEE8FD] text-[#3A2796] px-3 py-2.5">Plan credits are used first, so the credits you bought are not wasted. Buying credit packs opens soon.</p>
+          <p className="mt-4 text-[12.5px] leading-snug rounded-[12px] bg-[#EEE8FD] text-[#3A2796] px-3 py-2.5">Plan credits are used first, so the credits you bought are not wasted.</p>
         </div>
 
         <Group title="How credits work" note="The same list for every studio.">
@@ -60,6 +62,8 @@ export default function FaceCreditsPage() {
           ))}
         </Group>
       </div>
+
+      <BuyCredits onBought={load} />
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-5 items-start">
         <Group title="This month by gallery" action={<span className="text-xs text-[#6B6680] tabular-nums">{num(usedTotal)} used</span>} flush>

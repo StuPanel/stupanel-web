@@ -17,15 +17,15 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW, EmptyState, Group } from "@/components/ui/apple";
-import { FormDrawer, PillPicker, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { FormDrawer, inputCls } from "@/components/ui/form-kit";
 import { useTab } from "@/components/ui/profile-page";
 import { QrPoster } from "./qr-poster";
-import { WatermarkEditor } from "./watermark-editor";
+import { GallerySettings } from "./gallery-settings";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
   FACE_STATUS, FACE_UPLOAD_PATH, day, dayTime, errText, facePhotoUrl, num,
-  type Credits, type FaceDetail, type FaceGuest, type FacePhoto, type FaceSettings,
+  type Credits, type FaceDetail, type FaceGuest, type FacePhoto,
 } from "@/lib/face";
 
 type Tab = "photos" | "guests" | "share" | "settings";
@@ -137,7 +137,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
       {tab === "guests" && <Guests id={g.id} title={g.title} />}
       {tab === "share" && <Share g={g} />}
-      {tab === "settings" && <Settings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
+      {tab === "settings" && <GallerySettings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
       {adding && <AddPhotos g={g} onClose={() => setAdding(false)} onRefresh={() => { load(); setTick(n => n + 1); }}
         onAdded={() => { setAdding(false); setTab("photos"); load(); setTick(n => n + 1); }} />}
@@ -668,147 +668,5 @@ function Share({ g }: { g: FaceDetail }) {
     </div>
     <QrPoster link={g.link} title={g.title} pin={g.settings.pin} />
     </>
-  );
-}
-
-// ─── Settings ─────────────────────────────────────────────────────────────────
-
-function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g: FaceDetail) => void; onRemoved: () => void; onAct: (a: "close" | "reopen") => void }) {
-  const [s, setS] = useState<FaceSettings>(g.settings);
-  const [title, setTitle] = useState(g.title);
-  const [pin, setPin] = useState(g.settings.pin);
-  const [welcome, setWelcome] = useState(g.settings.welcome);
-  const [fb, setFb] = useState(g.settings.followFacebook ?? "");
-  const [ig, setIg] = useState(g.settings.followInstagram ?? "");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  async function save(patch: Partial<FaceSettings>, extra: { title?: string } = {}) {
-    const next = { ...s, ...patch };
-    setS(next);
-    const r = await apiFetch(`${API}/face-search/${g.id}`, json({ settings: next, ...extra }, "PATCH")).catch(() => null);
-    if (!r?.ok) return notify("Could not save. Please try again.", { error: true });
-    onSaved(await r.json());
-    notify("Saved");
-  }
-  // Typed fields save a moment after the last key.
-  function later(fn: () => void) { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(fn, 700); }
-
-  /** Turning the watermark on changes how every photo reaches the guest, so the studio is told first. */
-  async function watermark(on: boolean) {
-    if (!on) return save({ watermark: false });
-    const ok = await askConfirm({
-      title: "Turn on the watermark?",
-      message: "What changes for guests:\n• Photos open a little slower, because each one passes through StuPanel to get the watermark.\n• They get a copy up to 2560 px wide, not your original file.\n• Your logo or text is put on every photo, where and how big you choose.\n\nOur advice: keep this off and export your photos with your own watermark from Lightroom or Photoshop. Guests then get them fast and in full quality.",
-      confirmLabel: "Turn on anyway",
-    });
-    if (ok) await save({ watermark: true });
-  }
-
-  async function remove() {
-    if (!(await askConfirm({ title: "Remove this gallery?", message: "Guests can't open the link any more and the face data is deleted. Your photos stay on Google Drive. Credits already used are not given back.", confirmLabel: "Remove gallery", danger: true }))) return;
-    const r = await apiFetch(`${API}/face-search/${g.id}`, { method: "DELETE" }).catch(() => null);
-    if (!r?.ok) return notify("Could not remove the gallery. Please try again.", { error: true });
-    notify("Gallery removed"); onRemoved();
-  }
-
-  const strictText = { strict: "Fewest wrong photos. A guest may miss a few of their own.", balanced: "Best for most events.", loose: "Finds more photos. A similar face may slip in now and then." }[s.strictness];
-
-  return (
-    <div className="lg:grid lg:grid-cols-[200px_minmax(0,720px)] lg:gap-6 lg:items-start">
-      <nav aria-label="Settings sections" className={cn("hidden lg:flex flex-col gap-0.5 bg-white rounded-[20px] p-2 sticky top-20", CARD_SHADOW)}>
-        {[["fs-s-name", "Guest page"], ["fs-s-see", "Who sees what"], ["fs-s-match", "Face matching"], ["fs-s-before", "Before the photos"], ["fs-s-close", "Close or remove"]].map(([to, label]) => (
-          <a key={to} href={`#${to}`} className="h-10 px-3 rounded-[12px] text-[13.5px] font-semibold text-[#4A4658] hover:bg-[#F5F3FA] hover:text-[#17151F] flex items-center">{label}</a>
-        ))}
-      </nav>
-      <div className="min-w-0">
-      <section id="fs-s-name" className="scroll-mt-24">
-      <Group title="Guest page">
-        <div className="px-4 py-3.5">
-          <label htmlFor="fs-name" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Name guests see</label>
-          <input id="fs-name" className={inputCls} value={title} maxLength={150} onChange={e => { const v = e.target.value; setTitle(v); if (v.trim()) later(() => save({}, { title: v.trim() })); }} />
-        </div>
-        <div className="px-4 py-3.5">
-          <label htmlFor="fs-welcome" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Short note on the first screen (optional)</label>
-          <input id="fs-welcome" className={inputCls} value={welcome} maxLength={300} placeholder="Thank you for celebrating with us" onChange={e => { const v = e.target.value; setWelcome(v); later(() => save({ welcome: v })); }} />
-        </div>
-      </Group>
-      </section>
-
-      <section id="fs-s-see" className="scroll-mt-24">
-      <Group title="Who sees what">
-        <div className="px-4 py-3.5">
-          <p className="text-[15px] font-medium text-[#17151F]">Guests see</p>
-          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">With &quot;Only their own&quot;, a guest sees the photos their face is in.</p>
-          <PillPicker<"own" | "all"> label="Guests see" value={s.guestsSee} onChange={v => save({ guestsSee: v })} options={[{ value: "own", label: "Only their own" }, { value: "all", label: "All photos" }]} />
-        </div>
-        <SwitchRow label="Highlights for everyone" hint="Photos you mark as Highlights are shown to every guest." on={s.highlightsForAll} onChange={v => save({ highlightsForAll: v })} />
-      </Group>
-      </section>
-
-      <section id="fs-s-match" className="scroll-mt-24">
-      <Group title="Face matching">
-        <div className="px-4 py-3.5">
-          <p className="text-[15px] font-medium text-[#17151F]">How strict</p>
-          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">{strictText}</p>
-          <PillPicker<FaceSettings["strictness"]> label="How strict" value={s.strictness} onChange={v => save({ strictness: v })}
-            options={[{ value: "strict", label: "Strict" }, { value: "balanced", label: "Balanced" }, { value: "loose", label: "Loose" }]} />
-        </div>
-      </Group>
-      </section>
-
-      <section id="fs-s-before" className="scroll-mt-24">
-      <Group title="Before guests get their photos" note="Locking the gallery while the client has dues comes later.">
-        <div className="px-4 py-3.5">
-          <label htmlFor="fs-pin" className="block text-[15px] font-medium text-[#17151F]">Ask for a 4-digit code</label>
-          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests type it before the selfie. Leave empty for no code.</p>
-          <input id="fs-pin" className={cn(inputCls, "max-w-[140px] tabular-nums tracking-[0.3em] text-center")} inputMode="numeric" maxLength={4} placeholder="None" value={pin}
-            onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPin(v); if (v.length === 4 || v === "") later(() => save({ pin: v })); }} />
-        </div>
-        <div className="px-4 py-3.5">
-          <p className="text-[15px] font-medium text-[#17151F]">Ask for name and WhatsApp number</p>
-          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">{{ off: "Guests see their photos right after the selfie.", optional: "Guests are asked after the selfie and can skip it.", required: "Guests see how many photos were found, and must give their name and number to open them." }[s.register ?? "off"]}</p>
-          <PillPicker<"off" | "optional" | "required"> label="Ask for name and number" value={s.register ?? "off"} onChange={v => save({ register: v })}
-            options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
-        </div>
-        <div className="px-4 py-3.5">
-          <p className="text-[15px] font-medium text-[#17151F]">Ask guests to follow your pages</p>
-          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests open your page before their photos. Leave both empty to skip this step. We can&apos;t check that they pressed Follow.</p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="fs-fb" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Facebook page link</label>
-              <input id="fs-fb" className={inputCls} inputMode="url" maxLength={200} placeholder="facebook.com/yourstudio" value={fb} onChange={e => { const v = e.target.value; setFb(v); later(() => save({ followFacebook: v })); }} />
-            </div>
-            <div>
-              <label htmlFor="fs-ig" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Instagram link</label>
-              <input id="fs-ig" className={inputCls} inputMode="url" maxLength={200} placeholder="instagram.com/yourstudio" value={ig} onChange={e => { const v = e.target.value; setIg(v); later(() => save({ followInstagram: v })); }} />
-            </div>
-          </div>
-        </div>
-        <SwitchRow label="Watermark on guest photos" hint="Off is best: export your photos with your own watermark, then guests get them fast and sharp." on={!!s.watermark} onChange={v => watermark(v)} />
-        {s.watermark && <WatermarkEditor s={s} cover={g.cover} studio="" onSave={patch => save(patch)} />}
-        <SwitchRow label="Guests can download" hint="Off = guests can only look at their photos." on={s.downloads} onChange={v => save({ downloads: v })} />
-      </Group>
-      </section>
-
-      <section id="fs-s-close" className="scroll-mt-24">
-      <Group title="Close or remove">
-        <div className="px-4 py-3.5 flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-medium text-[#17151F]">{g.status === "closed" ? "This gallery is closed" : "Close this gallery"}</p>
-            <p className="text-xs text-[#6B6680] mt-0.5">Guests see &quot;This gallery is closed&quot;. You can open it again.</p>
-          </div>
-          <button type="button" onClick={() => onAct(g.status === "closed" ? "reopen" : "close")} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] flex-shrink-0">{g.status === "closed" ? "Open again" : "Close"}</button>
-        </div>
-        <div className="px-4 py-3.5 flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-medium text-[#A82743]">Remove this gallery</p>
-            <p className="text-xs text-[#6B6680] mt-0.5">The link stops working and the face data is deleted. Photos stay on Drive.</p>
-          </div>
-          <button type="button" onClick={remove} className="h-10 px-4 rounded-full bg-[#FDECEF] text-[13px] font-semibold text-[#A82743] flex-shrink-0 inline-flex items-center gap-1.5"><Trash2 className="w-4 h-4" />Remove</button>
-        </div>
-      </Group>
-      </section>
-      </div>
-    </div>
   );
 }

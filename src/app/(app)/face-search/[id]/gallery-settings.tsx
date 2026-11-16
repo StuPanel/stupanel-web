@@ -5,7 +5,7 @@
  *   Guest page · Access · Photos · Face matching · Watermark · Close or remove
  * The list on the left shows each section's state at a glance. Everything saves by itself.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check, Images, ImageUp, KeyRound, Loader2, Minus, Plus, ScanFace, Stamp, Trash2, TriangleAlert, Type,
 } from "lucide-react";
@@ -271,6 +271,46 @@ const SPOTS: { x: number; y: number; label: string }[] = [
 /** Where the old nine-place setting sits, as the two numbers used now. */
 const fromPos = (p?: string) => ({ x: p?.[1] === "l" ? 3 : p?.[1] === "c" ? 50 : 97, y: p?.[0] === "t" ? 3 : p?.[0] === "c" ? 50 : 97 });
 
+/**
+ * The logo as guests will get it: the empty space around it cut off (the server does the same).
+ * `ar` is width / height. If the picture can't be read here, the logo is shown as it is.
+ */
+function useTightLogo(url: string) {
+  const [out, setOut] = useState<{ url: string; src: string; ar: number } | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    let on = true;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!on) return;
+      let src = url, ar = img.naturalWidth / Math.max(1, img.naturalHeight);
+      try {
+        const scale = Math.min(1, 800 / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const x = c.getContext("2d", { willReadFrequently: true });
+        if (x) {
+          x.drawImage(img, 0, 0, w, h);
+          const d = x.getImageData(0, 0, w, h).data;
+          let l = w, t = h, r = -1, b = -1;
+          for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (d[(yy * w + xx) * 4 + 3] > 12) { if (xx < l) l = xx; if (xx > r) r = xx; if (yy < t) t = yy; if (yy > b) b = yy; }
+          if (r >= l && b >= t && (r - l + 1 < w || b - t + 1 < h)) {
+            const k = document.createElement("canvas"); k.width = r - l + 1; k.height = b - t + 1;
+            k.getContext("2d")?.drawImage(c, l, t, k.width, k.height, 0, 0, k.width, k.height);
+            src = k.toDataURL("image/png"); ar = k.width / k.height;
+          }
+        }
+      } catch { /* the storage did not allow reading the pixels: show it as it is */ }
+      setOut({ url, src, ar });
+    };
+    img.onerror = () => { if (on) setOut({ url, src: url, ar: 3 }); };
+    img.src = url;
+    return () => { on = false; };
+  }, [url]);
+  return out && out.url === url ? out : null;
+}
+
 /** A number with a slider, a box to type in, and − / + for one step at a time. */
 function Dial({ id, label, value, min, max, unit = "%", onChange }: { id: string; label: string; value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
   const set = (v: number) => onChange(Math.min(max, Math.max(min, Math.round(v))));
@@ -356,7 +396,11 @@ function MarkEditor({ s, cover, save }: { s: FaceSettings; cover: Cover; save: S
     if (d.hasAlpha === false) notify("This logo has a solid background. A PNG with a see-through background looks better.");
   }
 
+  const tight = useTightLogo(logo);
   const useLogo = kind === "logo" && !!logo;
+  // Same sums as the server: the width is a share of the photo's width, and the logo is never taller than 60% of the photo
+  // (the preview is 3:2, so 60% of its height is 40% of its width).
+  const logoW = tight ? Math.min(size, 40 * tight.ar) : size;
   const shown = text.trim() || "Your studio name";
   // left: X% with translate(-X%) puts the mark's left edge at X% of the free space, the same way the server places it.
   const pos: React.CSSProperties = { position: "absolute", left: `${at.x}%`, top: `${at.y}%`, transform: `translate(-${at.x}%, -${at.y}%)`, opacity: opacity / 100 };
@@ -386,7 +430,7 @@ function MarkEditor({ s, cover, save }: { s: FaceSettings; cover: Cover; save: S
           )}
           {useLogo
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img ref={mark as React.RefObject<HTMLImageElement>} src={logo} alt="" draggable={false} className="block object-contain pointer-events-none" style={{ ...pos, width: `${size}cqw`, maxHeight: "40cqw" }} />
+            ? <img ref={mark as React.RefObject<HTMLImageElement>} src={tight?.src ?? logo} alt="" draggable={false} className="block pointer-events-none" style={{ ...pos, width: `${logoW}cqw`, height: tight ? `${logoW / tight.ar}cqw` : "auto", maxHeight: "40cqw", objectFit: "contain" }} />
             : <span ref={mark as React.RefObject<HTMLSpanElement>} className="font-bold text-white whitespace-nowrap leading-none pointer-events-none" style={{ ...pos, fontSize: `${(size * 0.1267).toFixed(2)}cqw`, textShadow: "0 0 .25cqw rgba(0,0,0,.7)" }}>{shown}</span>}
           {drag && <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px)", backgroundSize: "33.333% 33.333%" }} />}
         </div>
@@ -410,7 +454,7 @@ function MarkEditor({ s, cover, save }: { s: FaceSettings; cover: Cover; save: S
               <span className="w-[92px] h-[60px] rounded-[12px] flex items-center justify-center overflow-hidden flex-shrink-0 bg-[repeating-conic-gradient(#8A8599_0_25%,#A29DB3_0_50%)] bg-[length:14px_14px]">
                 {logo
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={logo} alt="Your watermark logo" className="max-w-full max-h-full object-contain p-1.5" />
+                  ? <img src={tight?.src ?? logo} alt="Your watermark logo" className="max-w-full max-h-full object-contain p-1.5" />
                   : <ImageUp className="w-5 h-5 text-white" />}
               </span>
               <div className="flex gap-2 flex-wrap">
@@ -431,6 +475,7 @@ function MarkEditor({ s, cover, save }: { s: FaceSettings; cover: Cover; save: S
           </div>
         )}
 
+        {useLogo && tight && size > 40 * tight.ar && <p className="text-xs text-[#8A5200] -mb-2">This logo is tall, so it stops growing at 60% of the photo&apos;s height.</p>}
         <Dial id="fs-wm-size" label="Size (share of the photo's width)" value={size} min={3} max={80} onChange={v => { setSize(v); later(() => save({ watermarkSize: v }), 500); }} />
         <Dial id="fs-wm-op" label="Strength (100 = solid)" value={opacity} min={5} max={100} onChange={v => { setOpacity(v); later(() => save({ watermarkOpacity: v }), 500); }} />
 

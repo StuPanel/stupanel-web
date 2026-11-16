@@ -1,0 +1,127 @@
+/**
+ * The guest page in English or Bangla. English sentences are the keys, so the page reads normally in the code
+ * and a sentence without a Bangla line simply stays English.
+ * The language is one value for the whole page (set once per render by the page itself).
+ */
+export type Lang = "en" | "bn";
+let lang: Lang = "en";
+export const setGuestLang = (l: Lang) => { lang = l; };
+
+/** A number in the page's digits. */
+export const N = (n: number | string) => (lang === "bn" ? String(n).replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[Number(d)]) : String(n));
+/** "3 photos" / "৩টি ছবি". */
+export const P = (n: number) => (lang === "bn" ? `${N(n)}টি ছবি` : `${n} photo${n === 1 ? "" : "s"}`);
+
+/** The sentence in the page's language; {name} blanks are filled from `v`. */
+export function T(s: string, v?: Record<string, string | number>) {
+  let out = lang === "bn" ? BN[s] ?? s : s;
+  if (v) for (const k of Object.keys(v)) out = out.split(`{${k}}`).join(String(v[k]));
+  return out;
+}
+
+const BN: Record<string, string> = {
+  // first screen
+  "Find your photos in seconds": "কয়েক সেকেন্ডে আপনার ছবি খুঁজুন",
+  "Get your photos as soon as they are ready": "ছবি তৈরি হলেই পেয়ে যান",
+  "This gallery is closed": "এই গ্যালারি বন্ধ আছে",
+  "The photos are on their way": "ছবিগুলো আসছে",
+  "Take one selfie. We show you every photo you are in.": "একটি সেলফি তুলুন। আপনি যে যে ছবিতে আছেন সব দেখাব।",
+  "Take one selfie now and say where to send them. {studio} sends your photos to you when they are ready.": "এখন একটি সেলফি তুলুন আর কোথায় পাঠাব বলুন। ছবি তৈরি হলে {studio} আপনাকে পাঠিয়ে দেবে।",
+  "Please ask {studio} if you still need your photos.": "ছবি দরকার হলে {studio}-এর সাথে যোগাযোগ করুন।",
+  "{studio} is still adding the photos. Please scan again a little later.": "{studio} এখনো ছবি যোগ করছে। একটু পরে আবার স্ক্যান করুন।",
+  "Send me my photos": "আমার ছবি পাঠান",
+  "Find my photos": "আমার ছবি খুঁজুন",
+  "I have a code for all photos": "আমার কাছে সব ছবির কোড আছে",
+  "Your selfie is used only to find your photos. The picture itself is not kept.": "সেলফি শুধু আপনার ছবি খুঁজতে ব্যবহার হয়। ছবিটি রেখে দেওয়া হয় না।",
+  "This link is not working. Please ask the studio for a new one.": "এই লিংক কাজ করছে না। স্টুডিওর কাছে নতুন লিংক চান।",
+  "Photos not found": "ছবি পাওয়া যায়নি",
+  // code
+  "Enter the code": "কোড দিন",
+  "The 4-digit code from the studio or the couple.": "স্টুডিও বা বর-কনের দেওয়া ৪ সংখ্যার কোড।",
+  "That code is not right. Please check it and try again.": "কোডটি ঠিক নয়। দেখে আবার চেষ্টা করুন।",
+  "Too many tries. Please wait a minute and try again.": "অনেকবার চেষ্টা হয়েছে। এক মিনিট পরে আবার চেষ্টা করুন।",
+  "Too many tries. Please wait a minute.": "অনেকবার চেষ্টা হয়েছে। এক মিনিট অপেক্ষা করুন।",
+  "Could not check the code. Please check your internet and try again.": "কোড যাচাই করা যায়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন।",
+  "Something went wrong. Please check your internet and try again.": "কিছু একটা সমস্যা হয়েছে। ইন্টারনেট দেখে আবার চেষ্টা করুন।",
+  "Checking…": "যাচাই হচ্ছে…",
+  "Code is right": "কোড ঠিক আছে",
+  "It is checked as soon as you type the fourth number.": "চতুর্থ সংখ্যা লিখলেই নিজে থেকে যাচাই হবে।",
+  // selfie
+  "Camera is off": "ক্যামেরা বন্ধ",
+  "Got it": "হয়ে গেছে",
+  "Look at the camera": "ক্যামেরার দিকে তাকান",
+  "Allow the camera in your browser, or pick a photo of your face.": "ব্রাউজারে ক্যামেরার অনুমতি দিন, অথবা আপনার মুখের একটি ছবি বেছে নিন।",
+  "Keep your face inside the oval, then press the round button.": "মুখ ডিম্বাকার ঘরের ভেতরে রাখুন, তারপর গোল বাটন চাপুন।",
+  "Keep your face inside the oval.": "মুখ ডিম্বাকার ঘরের ভেতরে রাখুন।",
+  "Waiting for the camera": "ক্যামেরার অপেক্ষায়",
+  "Face found": "মুখ পাওয়া গেছে",
+  "Starting the camera": "ক্যামেরা চালু হচ্ছে",
+  "Press the button when ready": "তৈরি হলে বাটন চাপুন",
+  "Scanning your face": "মুখ স্ক্যান হচ্ছে",
+  "Looking for your face": "আপনার মুখ খোঁজা হচ্ছে",
+  "Use a photo": "ছবি বেছে নিন",
+  "Flip": "ঘোরান",
+  "We could not open that photo. Please pick a JPG or PNG.": "ছবিটি খোলা যায়নি। JPG বা PNG ছবি বেছে নিন।",
+  "photo of you so far": "টি ছবি পাওয়া গেছে",
+  "photos of you so far": "টি ছবি পাওয়া গেছে",
+  "Matching your face with the event photos": "অনুষ্ঠানের ছবির সাথে আপনার মুখ মেলানো হচ্ছে",
+  // details
+  "Where should we send your photos?": "আপনার ছবি কোথায় পাঠাব?",
+  "We found {photos} of you": "আপনার {photos} পাওয়া গেছে",
+  "Your selfie is saved. {studio} sends your photos here when they are ready.": "সেলফি সেভ হয়েছে। ছবি তৈরি হলে {studio} এখানে পাঠিয়ে দেবে।",
+  "Tell us who you are to see them.": "ছবি দেখতে আপনার পরিচয় দিন।",
+  "Add your name and number, and the studio can send you new photos too.": "নাম আর নম্বর দিন, তাহলে স্টুডিও নতুন ছবিও পাঠাতে পারবে।",
+  "Your name": "আপনার নাম",
+  "WhatsApp number": "WhatsApp নম্বর",
+  "Email address": "ইমেইল",
+  "(optional)": "(না দিলেও চলে)",
+  "Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.": "একটি বা দুটোই দিন। ইমেইল দিলে ছবি নিজে থেকেই ইনবক্সে চলে আসবে। শুধু {studio} এটা দেখবে।",
+  "Only {studio} sees this. It is used to send you your photos.": "শুধু {studio} এটা দেখবে। আপনার ছবি পাঠাতে এটা ব্যবহার হবে।",
+  "Please type your name.": "আপনার নাম লিখুন।",
+  "Please give your WhatsApp number or your email, or both.": "WhatsApp নম্বর বা ইমেইল, অথবা দুটোই দিন।",
+  "Please give your WhatsApp number.": "আপনার WhatsApp নম্বর দিন।",
+  "Please give your email address.": "আপনার ইমেইল দিন।",
+  "Please check your WhatsApp number, like 01712345678.": "WhatsApp নম্বরটি দেখে নিন, যেমন 01712345678।",
+  "Please check your email address.": "ইমেইল ঠিকানাটি দেখে নিন।",
+  "Could not save. Please check your internet and try again.": "সেভ করা যায়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন।",
+  "Saving…": "সেভ হচ্ছে…",
+  "Tell me when they are ready": "তৈরি হলে আমাকে জানান",
+  "See my photo": "আমার ছবি দেখুন",
+  "See my photos": "আমার ছবি দেখুন",
+  "Not now": "এখন না",
+  // on the list
+  "You are on the list": "আপনার নাম তালিকায় আছে",
+  "{studio} will send you your photos from {event} when they are ready. You can close this page now.": "{event}-এর ছবি তৈরি হলে {studio} আপনাকে পাঠিয়ে দেবে। এখন এই পেজ বন্ধ করতে পারেন।",
+  "You can also scan the same code again later. No new selfie is needed on this phone.": "পরে একই কোড আবার স্ক্যান করতে পারেন। এই ফোনে নতুন সেলফি লাগবে না।",
+  "Take the selfie again": "আবার সেলফি তুলুন",
+  // follow
+  "One small thing first": "আগে ছোট্ট একটা কাজ",
+  "{studio} took these photos. Follow their page, then open your {photos}.": "এই ছবিগুলো {studio} তুলেছে। তাদের পেজ ফলো করুন, তারপর আপনার {photos} খুলুন।",
+  "Follow on {site}": "{site}-এ ফলো করুন",
+  "Opens in a new tab": "নতুন ট্যাবে খুলবে",
+  "Open a page first, then come back here.": "আগে একটি পেজ খুলুন, তারপর এখানে ফিরে আসুন।",
+  // photos
+  "{photos} of you": "আপনার {photos}",
+  "No photos of you yet": "এখনো আপনার কোনো ছবি নেই",
+  "{event}, by {studio}": "{event}, {studio}",
+  "New selfie": "নতুন সেলফি",
+  "We looked through every photo.": "আমরা সব ছবি দেখেছি।",
+  "More photos may still be added. Open this page again later and your photos will show here by themselves. A clearer selfie also helps: face the light and take off sunglasses.": "আরও ছবি যোগ হতে পারে। পরে এই পেজ আবার খুললে আপনার ছবি নিজে থেকেই এখানে আসবে। পরিষ্কার সেলফিও কাজে দেয়: আলোর দিকে মুখ করুন, সানগ্লাস খুলে নিন।",
+  "All event photos": "অনুষ্ঠানের সব ছবি",
+  "Highlights from the event": "অনুষ্ঠানের বাছাই করা ছবি",
+  "{a} of {b}": "{b}টির মধ্যে {a}",
+  "Download": "ডাউনলোড",
+  "Download all {n}": "সব {n}টি ডাউনলোড করুন",
+  "Download {n}": "{n}টি ডাউনলোড করুন",
+  "Choose photos to download": "ডাউনলোডের জন্য ছবি বাছুন",
+  "Choose": "বাছুন",
+  "Cancel": "বাদ দিন",
+  "Choose all": "সব বাছুন",
+  "Clear all": "সব বাদ দিন",
+  "{n} chosen. Tap more, or press Download.": "{n}টি বাছা হয়েছে। আরও বাছুন, অথবা ডাউনলোড চাপুন।",
+  "Tap the photos you want to download.": "যে ছবিগুলো ডাউনলোড করতে চান সেগুলোতে চাপ দিন।",
+  "Getting {a} of {b}": "{b}টির মধ্যে {a}টি আনা হচ্ছে",
+  "Save {photos} to this phone": "এই ফোনে {photos} সেভ করুন",
+  "The photos could not be downloaded. Please check your internet and try again.": "ছবি ডাউনলোড করা যায়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন।",
+  "{photos} could not be downloaded. Open them and press Download.": "{photos} ডাউনলোড করা যায়নি। ছবিগুলো খুলে ডাউনলোড চাপুন।",
+};

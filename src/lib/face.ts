@@ -27,12 +27,16 @@ export type FaceSettings = {
   watermarkX?: number | null; watermarkY?: number | null;
   /** Email a guest when their photos are ready; auto = by itself, manual = when the studio presses the button */
   notifyEmail?: boolean; notifyWhen?: "auto" | "manual";
+  /** The guest page's (and guest emails') language; guests can still switch */
+  language?: "en" | "bn";
+  /** What the details form asks for besides the name (both hidden = the number is asked) */
+  askPhone?: "hide" | "optional" | "required"; askEmail?: "hide" | "optional" | "required";
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */
   message?: string;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };
-export type Cover = { driveFileId: string; width: number | null; height: number | null } | null;
+export type Cover = { /** Set for guests when the cover carries the watermark */ id?: string; driveFileId: string; width: number | null; height: number | null } | null;
 
 export type FaceGallery = {
   id: string; title: string; status: FaceStatus; bookingId: string; link: string; settings: FaceSettings;

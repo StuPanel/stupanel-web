@@ -26,7 +26,7 @@ const STATE: Record<string, { label: string; cls: string }> = {
 };
 
 export default function MemberMusicPage() {
-  const [tab, setTab] = useState<"programs" | "library">("programs");
+  const [tab, setTab] = useState<"programs" | "library">("library");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [denied, setDenied] = useState(false);
   const [q, setQ] = useState("");
@@ -54,7 +54,7 @@ export default function MemberMusicPage() {
     <div>
       {tab === "programs" && <PageHeader icon={Music2} color="orchid" title="Music" sub="Choose songs for a program, or ask the client to choose" />}
       <div className={cn("flex gap-1.5 mb-4", tab === "library" && "mb-3")} role="tablist" aria-label="Music">
-        {([["programs", "Programs", ListMusic], ["library", "Music Library", Music2]] as const).map(([id, label, Icon]) => (
+        {([["library", "Music Library", Music2], ["programs", "Programs", ListMusic]] as const).map(([id, label, Icon]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={cn("h-10 px-4 rounded-full text-[13.5px] font-bold inline-flex items-center gap-2 transition-colors", tab === id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
             <Icon className="w-4 h-4" />{label}

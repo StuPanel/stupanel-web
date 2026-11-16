@@ -6,7 +6,7 @@
  * On → status, the client's songs per part (in their order, with notes), the studio's suggestions, lock / open again.
  * The client chooses in their portal, or on a direct link (no code) for this program's music only.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check, ChevronDown, Copy, ExternalLink, Library, Link2, Loader2, Lock, LockOpen, Music2, Plus, Settings2, X,
 } from "lucide-react";
@@ -34,6 +34,9 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
   const [setup, setSetup] = useState(false);
   const [parts, setParts] = useState<MusicPart[]>([]);
   const [perPart, setPerPart] = useState(3);
+  const [libQ, setLibQ] = useState("");
+  const suggestBox = useRef<HTMLDivElement>(null);
+  const linkInput = useRef<HTMLInputElement>(null);
   const [newPart, setNewPart] = useState("");
   const [busy, setBusy] = useState("");
   const [link, setLink] = useState("");
@@ -103,8 +106,26 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
 
   async function addSuggestion(s: { youtubeId: string; title: string; channel?: string }) {
     if (!sel) return;
-    if (sel.suggestions.some(x => x.youtubeId === s.youtubeId)) { notify("Already suggested", { error: true }); return; }
-    await put({ suggestions: [...sel.suggestions, { ...s, parts: forPart ? [forPart] : [] }] }, "Suggestion added");
+    const had = sel.suggestions.find(x => x.youtubeId === s.youtubeId);
+    if (had) {
+      // Already suggested: add this part to it ("Every part" covers everything).
+      if (!had.parts.length || (forPart && had.parts.includes(forPart))) { notify("Already suggested for this part", { error: true }); return; }
+      const parts = forPart ? [...had.parts, forPart] : [];
+      await put({ suggestions: sel.suggestions.map(x => (x.youtubeId === s.youtubeId ? { ...x, parts } : x)) }, "Suggestion added");
+      return;
+    }
+    await put({ suggestions: [...sel.suggestions, { youtubeId: s.youtubeId, title: s.title, ...(s.channel ? { channel: s.channel } : {}), parts: forPart ? [forPart] : [] }] }, "Suggestion added");
+  }
+
+  /** From a part's "Suggest a song": choose that part, open the library and bring the box into view. */
+  function suggestFor(key: string) {
+    setForPart(key);
+    if (!showLib) void openLibrary();
+    requestAnimationFrame(() => { suggestBox.current?.scrollIntoView({ behavior: "smooth", block: "center" }); linkInput.current?.focus({ preventScroll: true }); });
+  }
+
+  async function copyLink(url: string) {
+    try { await navigator.clipboard.writeText(url); notify("YouTube link copied"); } catch { notify("Could not copy. Open the song and copy its link.", { error: true }); }
   }
 
   async function addByLink() {
@@ -204,13 +225,20 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
           <button type="button" disabled={!newPart.trim()} onClick={() => { setParts([...parts, { key: `custom-${Date.now()}`, label: newPart.trim(), kind: "custom" }]); setNewPart(""); }}
             className="h-10 px-4 rounded-[12px] bg-white text-[#5B3FD0] text-[13px] font-semibold disabled:opacity-50 flex-shrink-0">Add</button>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-[13px] font-semibold text-[#4A4658]">Songs the client can choose for each part</p>
-          <div className="flex items-center gap-1 bg-white rounded-full p-0.5" role="group" aria-label="Songs per part">
-            {[1, 2, 3, 5].map(n => (
+          <div className="flex items-center gap-1 bg-white rounded-full p-0.5 flex-wrap" role="group" aria-label="Songs per part">
+            {[1, 2, 3, 5, 10].map(n => (
               <button key={n} type="button" aria-pressed={perPart === n} onClick={() => setPerPart(n)}
-                className={cn("w-9 h-8 rounded-full text-[13px] font-bold", perPart === n ? "bg-[#17151F] text-white" : "text-[#4A4658]")}>{n}</button>
+                className={cn("min-w-9 h-9 px-2 rounded-full text-[13px] font-bold", perPart === n ? "bg-[#17151F] text-white" : "text-[#4A4658]")}>{n}</button>
             ))}
+            <input type="number" inputMode="numeric" min={1} max={100} aria-label="Another number" placeholder="Other"
+              value={perPart > 0 && ![1, 2, 3, 5, 10].includes(perPart) ? perPart : ""}
+              onChange={e => { const n = Math.round(Number(e.target.value)); if (n >= 1) setPerPart(Math.min(100, n)); }}
+              className={cn("w-[68px] h-9 rounded-full text-center text-[13px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-[#7D5CEF] placeholder:font-semibold placeholder:text-[#8A8599]",
+                perPart > 0 && ![1, 2, 3, 5, 10].includes(perPart) ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#17151F]")} />
+            <button type="button" aria-pressed={perPart === 0} onClick={() => setPerPart(0)}
+              className={cn("h-9 px-3 rounded-full text-[13px] font-bold whitespace-nowrap", perPart === 0 ? "bg-[#17151F] text-white" : "text-[#4A4658]")}>No limit</button>
           </div>
         </div>
         <div className="flex gap-2 pt-1">
@@ -238,7 +266,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
             {wantsChange ? <span className="font-semibold text-[#C2304F]">Client wants to change the songs{s.reopenReason ? ` — “${s.reopenReason}”` : ""}</span>
               : sent ? <span className="font-semibold text-[#1F8A5B] inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" />Client sent {s.counts.total} song{s.counts.total === 1 ? "" : "s"}{s.submittedAt ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(s.submittedAt))}` : ""}</span>
               : s.counts.total ? <span className="text-[#6B6680]">Client is choosing — {s.counts.filled} of {s.counts.parts} parts so far</span>
-              : <span className="text-[#6B6680]">Waiting for the client · up to {s.perPart} per part</span>}
+              : <span className="text-[#6B6680]">Waiting for the client · {s.perPart ? `up to ${s.perPart} per part` : "any number per part"}</span>}
           </p>
         </div>
         <button type="button" onClick={openSetup} aria-label="Change parts" className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#6B6680] flex-shrink-0"><Settings2 className="w-4 h-4" /></button>
@@ -259,7 +287,11 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
           const list = s.picks[p.key] ?? [];
           return (
             <div key={p.key} className="rounded-[14px] bg-white p-3">
-              <p className="text-[13px] font-bold text-[#17151F] flex items-center justify-between">{p.label}<span className="text-[12px] font-semibold text-[#6B6680] tabular-nums">{list.length}/{s.perPart}</span></p>
+              <p className="text-[13px] font-bold text-[#17151F] flex items-center justify-between gap-2"><span className="min-w-0 truncate">{p.label}</span>
+                <span className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[12px] font-semibold text-[#6B6680] tabular-nums">{s.perPart ? `${list.length}/${s.perPart}` : list.length}</span>
+                  <button type="button" onClick={() => suggestFor(p.key)} className="h-8 px-3 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12.5px] font-semibold inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Suggest a song</button>
+                </span></p>
               {list.length === 0 ? <p className="text-[12.5px] text-[#A29DB3] mt-1">{sent ? "No song chosen — your choice" : "Nothing yet"}</p> : (
                 <ol className="mt-2 space-y-2">
                   {list.map((x, i) => (
@@ -271,6 +303,8 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
                         <span className="block text-[13px] font-semibold text-[#17151F] truncate">{x.title}</span>
                         <span className="block text-[12px] text-[#6B6680] truncate">{x.note ? `“${x.note}”` : x.from === "studio" ? "From your suggestions" : "Client's own link"}</span>
                       </span>
+                      <button type="button" onClick={() => copyLink(x.url)} aria-label={`Copy the YouTube link of ${x.title}`} title="Copy YouTube link"
+                        className="h-8 px-2.5 rounded-full bg-[#F5F3FA] text-[#17151F] text-[12.5px] font-semibold inline-flex items-center gap-1 hover:bg-[#EEEBF4] flex-shrink-0"><Copy className="w-3.5 h-3.5" /><span className="hidden sm:inline">Copy link</span></button>
                       <a href={x.url} target="_blank" rel="noreferrer" aria-label={`Open ${x.title} on YouTube`} className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA] flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>
                     </li>
                   ))}
@@ -282,29 +316,33 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
         {s.clientNote && <p className="rounded-[14px] bg-white p-3 text-[13px] text-[#4A4658]"><b className="text-[#17151F]">Client&apos;s note:</b> {s.clientNote}</p>}
       </div>
 
-      {/* Suggestions */}
-      <details className="mt-3 group">
-        <summary className="cursor-pointer list-none flex items-center justify-between text-[13px] font-bold text-[#4A4658] py-1">
-          Your suggestions for this client <span className="inline-flex items-center gap-1 text-[#6B6680] font-semibold">{s.suggestions.length}<ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" /></span>
-        </summary>
-        <p className="text-[12px] text-[#6B6680] mb-2">Songs from your library that fit a part are shown to the client automatically. Add extra ones just for this program here.</p>
+      {/* Suggestions: always open, so the studio sees it can suggest songs. */}
+      <div ref={suggestBox} className="mt-3 rounded-[16px] bg-white/70 p-3 scroll-mt-24">
+        <p className="flex items-center justify-between text-[14px] font-bold text-[#17151F]">
+          <span className="inline-flex items-center gap-1.5"><Library className="w-4 h-4 text-[#9E3A8C]" />Suggest songs to the client</span>
+          <span className="text-[12px] font-semibold text-[#6B6680] tabular-nums">{s.suggestions.length} suggested</span>
+        </p>
+        <p className="text-[12px] text-[#6B6680] mt-0.5 mb-2">The client sees your suggestions first when they choose. Pick the part, then paste a YouTube link or take a song from your library. Library songs that fit a part are also shown by themselves.</p>
         <div className="flex gap-2">
           <select value={forPart} onChange={e => setForPart(e.target.value)} aria-label="Suggest for" className="h-10 px-2.5 rounded-[12px] bg-white text-[13px] text-[#17151F] outline-none flex-shrink-0 max-w-[40%]">
             <option value="">Every part</option>
             {s.parts.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
-          <input value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addByLink(); }} placeholder="Paste a YouTube link" aria-label="YouTube link" className={cn(inputCls, "h-10 bg-white")} />
+          <input ref={linkInput} value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addByLink(); }} placeholder="Paste a YouTube link" aria-label="YouTube link" className={cn(inputCls, "h-10 bg-white")} />
           <button type="button" onClick={addByLink} disabled={busy === "link" || !link.trim()} className="h-10 w-10 rounded-[12px] bg-[#7D5CEF] text-white flex items-center justify-center disabled:opacity-50 flex-shrink-0" aria-label="Add suggestion">
             {busy === "link" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           </button>
         </div>
         <button type="button" onClick={openLibrary} className="mt-2 text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5"><Library className="w-3.5 h-3.5" />{showLib ? "Hide my library" : "Pick from my library"}</button>
         {showLib && (
-          <ul className="mt-2 max-h-56 overflow-y-auto rounded-[14px] bg-white divide-y divide-[#EEEBF4]">
+          <>
+          {(library?.length ?? 0) > 6 && <input value={libQ} onChange={e => setLibQ(e.target.value)} placeholder="Search your library" aria-label="Search your library" className={cn(inputCls, "h-10 bg-white mt-2")} />}
+          <ul className="mt-2 max-h-72 overflow-y-auto rounded-[14px] bg-white divide-y divide-[#EEEBF4]">
             {library === null && <li className="p-3 text-[13px] text-[#6B6680]">Loading…</li>}
             {library?.length === 0 && <li className="p-3 text-[13px] text-[#6B6680]">Your library is empty. Add songs in <a href="/music" className="font-semibold text-[#5B3FD0]">Music Library</a>.</li>}
-            {library?.map(x => {
-              const has = s.suggestions.some(y => y.youtubeId === x.youtubeId);
+            {library?.filter(x => !libQ.trim() || x.title.toLowerCase().includes(libQ.trim().toLowerCase())).map(x => {
+              const was = s.suggestions.find(y => y.youtubeId === x.youtubeId);
+              const has = !!was && (!was.parts.length || (!!forPart && was.parts.includes(forPart)));
               return (
                 <li key={x.id} className="flex items-center gap-2.5 p-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -315,6 +353,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
               );
             })}
           </ul>
+          </>
         )}
         {s.suggestions.length > 0 && (
           <ul className="mt-2 space-y-1.5">
@@ -331,7 +370,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
             ))}
           </ul>
         )}
-      </details>
+      </div>
 
       {sharing && client && (
         <SelectLinkModal title="Share music choosing" what="this program's music" client={client} link={shareLink}

@@ -20,6 +20,7 @@ import { CARD_SHADOW, EmptyState, Group } from "@/components/ui/apple";
 import { FormDrawer, PillPicker, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { useTab } from "@/components/ui/profile-page";
 import { QrPoster } from "./qr-poster";
+import { WatermarkEditor } from "./watermark-editor";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
@@ -677,7 +678,6 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
   const [title, setTitle] = useState(g.title);
   const [pin, setPin] = useState(g.settings.pin);
   const [welcome, setWelcome] = useState(g.settings.welcome);
-  const [wm, setWm] = useState(g.settings.watermarkText ?? "");
   const [fb, setFb] = useState(g.settings.followFacebook ?? "");
   const [ig, setIg] = useState(g.settings.followInstagram ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -698,7 +698,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
     if (!on) return save({ watermark: false });
     const ok = await askConfirm({
       title: "Turn on the watermark?",
-      message: "What changes for guests:\n• Photos open a little slower, because each one passes through StuPanel to get the watermark.\n• They get a copy up to 2560 px wide, not your original file.\n• The text sits small in the bottom-right corner. You can't move or style it.\n\nOur advice: keep this off and export your photos with your own watermark from Lightroom or Photoshop. Guests then get them fast, in full quality, with the look you chose.",
+      message: "What changes for guests:\n• Photos open a little slower, because each one passes through StuPanel to get the watermark.\n• They get a copy up to 2560 px wide, not your original file.\n• Your logo or text is put on every photo, where and how big you choose.\n\nOur advice: keep this off and export your photos with your own watermark from Lightroom or Photoshop. Guests then get them fast and in full quality.",
       confirmLabel: "Turn on anyway",
     });
     if (ok) await save({ watermark: true });
@@ -785,13 +785,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
           </div>
         </div>
         <SwitchRow label="Watermark on guest photos" hint="Off is best: export your photos with your own watermark, then guests get them fast and sharp." on={!!s.watermark} onChange={v => watermark(v)} />
-        {s.watermark && (
-          <div className="px-4 py-3.5">
-            <label htmlFor="fs-wm" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Watermark text</label>
-            <input id="fs-wm" className={cn(inputCls, "max-w-[320px]")} maxLength={40} placeholder="Your studio name" value={wm} onChange={e => { const v = e.target.value; setWm(v); later(() => save({ watermarkText: v })); }} />
-            <p className="text-xs text-[#6B6680] mt-1.5">Shown small in the bottom-right corner of every photo. Leave empty to use your studio name.</p>
-          </div>
-        )}
+        {s.watermark && <WatermarkEditor s={s} cover={g.cover} studio="" onSave={patch => save(patch)} />}
         <SwitchRow label="Guests can download" hint="Off = guests can only look at their photos." on={s.downloads} onChange={v => save({ downloads: v })} />
       </Group>
       </section>

@@ -14,6 +14,9 @@ export type FaceSettings = {
   followFacebook?: string; followInstagram?: string;
   /** Put the studio's name on every photo guests see or save ("" text = the studio's name) */
   watermark?: boolean; watermarkText?: string;
+  watermarkKind?: "text" | "logo"; watermarkLogo?: string;
+  watermarkPos?: "tl" | "tc" | "tr" | "cl" | "cc" | "cr" | "bl" | "bc" | "br";
+  /** Share of the photo's width, 5–60 */ watermarkSize?: number; /** 20–100 */ watermarkOpacity?: number;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };

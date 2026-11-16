@@ -10,6 +10,8 @@ export type FaceSettings = {
   downloads: boolean; pin: string; welcome: string;
   /** Ask guests for a name and WhatsApp number: off, optional (they can skip), required (before any photo) */
   register?: "off" | "optional" | "required";
+  /** The studio's pages guests are asked to follow before the photos ("" = none) */
+  followFacebook?: string; followInstagram?: string;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };

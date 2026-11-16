@@ -14,7 +14,7 @@ import { CARD_SHADOW, EmptyState, Group, MainButton, PageHeader, RowsSkeleton, S
 import { FormDrawer, inputCls } from "@/components/ui/form-kit";
 import { FACE_STATUS, day, errText, facePhotoUrl, num, type Credits, type FaceGallery } from "@/lib/face";
 
-type List = { ready: boolean; credits: Credits; galleries: FaceGallery[] };
+type List = { ready: boolean; off?: string | null; credits: Credits; galleries: FaceGallery[] };
 
 export default function FaceSearchPage() {
   const router = useRouter();
@@ -43,6 +43,9 @@ export default function FaceSearchPage() {
         <MainButton icon={Plus} onClick={() => setCreating(true)}>New</MainButton>
       </PageHeader>
 
+      {data?.off && (
+        <div role="status" className="mb-4 rounded-[18px] bg-[#FDECEF] p-4 text-[14px] text-[#7A1F33]">{data.off}</div>
+      )}
       {data && !data.ready && (
         <div className="mb-5 rounded-[18px] bg-[#FFF3E0] p-4 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-[#8A5200] flex-shrink-0" />

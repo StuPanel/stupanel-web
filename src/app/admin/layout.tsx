@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp, Server, Music2 } from "lucide-react";
+  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
@@ -46,6 +46,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { label: "Settings",      href: "/admin/settings", icon: Settings, perm: "settings.manage" },
       { label: "Broadcast",     href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
       { label: "Music",         href: "/admin/music", icon: Music2, perm: "content.manage" },
+      { label: "Face Search",   href: "/admin/face-search", icon: ScanFace, perm: "settings.manage" },
       { label: "Support",       href: "/admin/support", icon: MessageCircle, perm: "support.view" },
       { label: "Audit Logs",    href: "/admin/audit-logs", icon: ClipboardList, perm: "audit.view" },
     ],

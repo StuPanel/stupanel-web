@@ -8,6 +8,12 @@ export type Strictness = "strict" | "balanced" | "loose";
 export type FaceSettings = {
   guestsSee: "own" | "all"; highlightsForAll: boolean; strictness: Strictness;
   downloads: boolean; pin: string; welcome: string;
+  /** A second code for the couple and family: whoever types it sees every photo ("" = off) */
+  fullPin?: string;
+  /** The last day the gallery is open, YYYY-MM-DD ("" = no end) */
+  expiresAt?: string;
+  /** Guests may save many photos at once (Download all, Choose); `downloads` is the single photo's Download */
+  downloadAll?: boolean;
   /** Ask guests for a name and WhatsApp number: off, optional (they can skip), required (before any photo) */
   register?: "off" | "optional" | "required";
   /** The studio's pages guests are asked to follow before the photos ("" = none) */

@@ -12,8 +12,8 @@ import { facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/fac
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import "./guest.css";
 
-type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
-type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
+type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
@@ -154,7 +154,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
 
   return (
     <Shell>
-      {step === "land" && <Landing g={g} note={note} onStart={start} />}
+      {step === "land" && <Landing g={g} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
       {step === "pin" && <Pin base={base} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
         // A selfie taken before the code was asked for is used straight away.
         onDone={code => { setNote(""); if (selfie) void search(selfie, code); else setStep("selfie"); }} />}
@@ -206,7 +206,7 @@ function counted(base: string, key: string, n: number) {
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
 
-function Landing({ g, note, onStart }: { g: Open; note: string; onStart: () => void }) {
+function Landing({ g, note, onStart, onCode }: { g: Open; note: string; onStart: () => void; onCode: () => void }) {
   const live = g.status === "published" && g.ready;
   // Before the photos are out: a guest can leave a selfie and a number, and is told when they are ready.
   const early = g.status === "draft" && g.ready && !!g.register && g.register !== "off";
@@ -247,6 +247,10 @@ function Landing({ g, note, onStart }: { g: Open; note: string; onStart: () => v
               <Ic size={22} d={<><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="3" /><path d="M7.5 17c1-2 2.600-3 4.500-3s3.500 1 4.500 3" /></>} />
               {early ? "Send me my photos" : "Find my photos"}
             </button>
+          )}
+          {/* The couple and family may have a code that opens every photo; other guests just start */}
+          {live && !g.needsPin && g.hasFullCode && (
+            <button type="button" onClick={onCode} style={{ height: 44, border: 0, background: "transparent", fontSize: 14, fontWeight: 700, color: "#4B32B8" }}>I have a code for all photos</button>
           )}
           <p style={{ fontSize: 12, color: "#6B6680", textAlign: "center" }}>Your selfie is used only to find your photos. The picture itself is not kept.</p>
         </div>
@@ -690,15 +694,15 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
           </>
         )}
       </div>
-      {n > 0 && res.downloads && (
+      {(n > 0 || res.more.length > 0) && res.downloads && res.downloadAll !== false && (
         <div className="gf-bar gf-glass" style={{ flexDirection: "column", gap: saveNote ? 6 : 0 }}>
           {saveNote && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A82743", textAlign: "center" }}>{saveNote}</p>}
           <div style={{ display: "flex", gap: 8, width: "100%" }}>
             {picking
               ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Cancel</button>
-              : !held && !saving && n > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Choose</button>}
-            <button type="button" className="gf-cta" onClick={() => download(picking ? chosen : res.photos)} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
-              <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${total}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : picking ? (chosen.length ? `Download ${chosen.length}` : "Download") : `Download all ${n}`}
+              : !held && !saving && n > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Choose</button>}
+            <button type="button" className="gf-cta" onClick={() => (!picking && !n ? setPicking(true) : download(picking ? chosen : res.photos))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+              <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${total}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : picking ? (chosen.length ? `Download ${chosen.length}` : "Download") : n ? `Download all ${n}` : "Choose photos to download"}
             </button>
           </div>
         </div>

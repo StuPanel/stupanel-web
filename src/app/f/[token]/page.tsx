@@ -10,14 +10,16 @@ import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/face";
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
+import { N, P, T, setGuestLang, type Lang } from "./i18n";
 import "./guest.css";
 
-type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Ask = "hide" | "optional" | "required";
+type Open = { /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
-const longDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
+const longDate = (d: string | null, lang: Lang = "en") => (d ? new Date(d).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
 
 /** A simple face mesh (same on every face): brow, eyes, nose, mouth, jaw. */
 const PTS: [number, number][] = [[124, 96], [70, 132], [178, 132], [96, 150], [152, 150], [124, 140], [124, 186], [100, 190], [148, 190], [88, 226], [160, 226], [124, 222], [124, 244], [104, 268], [144, 268], [124, 290], [58, 190], [190, 190]];
@@ -57,6 +59,12 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   const [res, setRes] = useState<Result | null>(null);
   const [count, setCount] = useState(0);
   const [view, setView] = useState<{ list: "mine" | "more"; i: number } | null>(null);
+  // The studio picks the page's language; a guest can switch, and this browser remembers it.
+  const [lang, setLang] = useState<Lang | null>(null);
+  const now: Lang = lang ?? g?.language ?? "en";
+  setGuestLang(now);
+  useEffect(() => { document.documentElement.lang = now; }, [now]);
+  const swap = () => { const l: Lang = now === "bn" ? "en" : "bn"; setLang(l); try { localStorage.setItem("sp-face-lang", l); } catch { /* private window */ } };
 
   // A gallery with a watermark: every photo is asked from StuPanel (with the watermark), not from Google Drive.
   const stamp = useCallback((o: Result): Result => {
@@ -71,7 +79,8 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     (async () => {
       const r = await fetch(base).catch(() => null);
       if (!on) return;
-      if (!r?.ok) { setErr("This link is not working. Please ask the studio for a new one."); return setStep("bad"); }
+      try { const l = localStorage.getItem("sp-face-lang"); if (l === "bn" || l === "en") setLang(l); } catch { /* private window */ }
+      if (!r?.ok) { setErr(T("This link is not working. Please ask the studio for a new one.")); return setStep("bad"); }
       const d: Open = await r.json();
       setG(d);
       // Came back in the same browser: show the photos again without a selfie.
@@ -109,8 +118,8 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       const codeErr = d?.code;
       // The gallery got a code after this page was opened (or the code changed): ask for it without calling it wrong,
       // and keep the selfie, so the guest does not have to take it again.
-      if (codeErr === "WRONG_PIN") { setPin(""); setNote(usePin ? "That code is not right. Please check it and try again." : ""); setG(v => (v ? { ...v, needsPin: true } : v)); return setStep("pin"); }
-      setNote(r?.status === 429 ? "Too many tries. Please wait a minute and try again." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Something went wrong. Please check your internet and try again.");
+      if (codeErr === "WRONG_PIN") { setPin(""); setNote(usePin ? T("That code is not right. Please check it and try again.") : ""); setG(v => (v ? { ...v, needsPin: true } : v)); return setStep("pin"); }
+      setNote(r?.status === 429 ? T("Too many tries. Please wait a minute and try again.") : (Array.isArray(d?.message) ? d.message[0] : d?.message) || T("Something went wrong. Please check your internet and try again."));
       return setStep(r?.status === 403 ? "land" : "selfie");
     }
     const out = stamp(d as Result);
@@ -147,21 +156,21 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   };
   const afterDetails = (out: Result) => setStep(wantsFollow(out) ? "follow" : "results");
 
-  if (step === "bad") return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>Photos not found</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
-  if (step === "load" || !g) return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
+  if (step === "bad") return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>{T("Photos not found")}</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
+  if (step === "load" || !g) return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
 
   const start = () => { setNote(""); setStep(g.needsPin && pin.length !== 4 ? "pin" : "selfie"); };
 
   return (
-    <Shell>
-      {step === "land" && <Landing g={g} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
+    <Shell bn={now === "bn"}>
+      {step === "land" && <Landing g={g} base={base} lang={now} onLang={swap} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
       {step === "pin" && <Pin base={base} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
         // A selfie taken before the code was asked for is used straight away.
         onDone={code => { setNote(""); if (selfie) void search(selfie, code); else setStep("selfie"); }} />}
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
-        <Register base={base} res={res} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
+        <Register base={base} res={res} askPhone={g.askPhone} askEmail={g.askEmail} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
       )}
       {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} onRetake={() => { setNote(""); setStep("selfie"); }} />}
       {step === "follow" && res && g.follow && (
@@ -178,11 +187,11 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
         return (
           <PhotoViewer count={list.length} index={view.i} onIndex={i => setView({ list: view.list, i })} onClose={() => setView(null)}
             src={facePhotoUrl(p, 1600)} srcAt={i => facePhotoUrl(list[i], 1600)} thumbAt={i => facePhotoUrl(list[i], 480)} zoomAt={i => facePhotoUrl(list[i], 2560)}
-            title={g.title} sub={`${view.i + 1} of ${list.length}`}
+            title={g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
             footer={res.downloads ? (
               <a href={faceSaveUrl(p)} onClick={() => counted(base, res.key, 1)} target="_blank" rel="noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none" }}>
-                <Ic d={DL} />Download
+                <Ic d={DL} />{T("Download")}
               </a>
             ) : undefined} />
         );
@@ -191,8 +200,8 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="gf-page"><div className="gf gf-live"><div className="gf-scene" aria-hidden="true" />{children}</div></div>;
+function Shell({ children, bn }: { children: React.ReactNode; bn?: boolean }) {
+  return <div className="gf-page"><div className={`gf gf-live${bn ? " gf-bn" : ""}`}><div className="gf-scene" aria-hidden="true" />{children}</div></div>;
 }
 
 async function thumbOfSelfie(dataUrl: string) {
@@ -206,21 +215,23 @@ function counted(base: string, key: string, n: number) {
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
 
-function Landing({ g, note, onStart, onCode }: { g: Open; note: string; onStart: () => void; onCode: () => void }) {
+function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; base: string; lang: Lang; onLang: () => void; note: string; onStart: () => void; onCode: () => void }) {
+  // A gallery with a watermark: the cover comes from StuPanel with the watermark on it.
+  const cover = g.cover ? (g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : facePhotoUrl(g.cover, 1200)) : "";
   const live = g.status === "published" && g.ready;
   // Before the photos are out: a guest can leave a selfie and a number, and is told when they are ready.
   const early = g.status === "draft" && g.ready && !!g.register && g.register !== "off";
   const open = live || early;
-  const title = live ? "Find your photos in seconds" : early ? "Get your photos as soon as they are ready" : g.status === "closed" ? "This gallery is closed" : "The photos are on their way";
-  const body = live ? (g.welcome || "Take one selfie. We show you every photo you are in.")
-    : early ? `Take one selfie now and say where to send them. ${g.studio.name} sends your photos to you when they are ready.`
-    : g.status === "closed" ? `Please ask ${g.studio.name} if you still need your photos.` : `${g.studio.name} is still adding the photos. Please scan again a little later.`;
+  const title = live ? T("Find your photos in seconds") : early ? T("Get your photos as soon as they are ready") : g.status === "closed" ? T("This gallery is closed") : T("The photos are on their way");
+  const body = live ? (g.welcome || T("Take one selfie. We show you every photo you are in."))
+    : early ? T("Take one selfie now and say where to send them. {studio} sends your photos to you when they are ready.", { studio: g.studio.name })
+    : g.status === "closed" ? T("Please ask {studio} if you still need your photos.", { studio: g.studio.name }) : T("{studio} is still adding the photos. Please scan again a little later.", { studio: g.studio.name });
   return (
     <div className="gf-step">
       <div style={{ position: "relative", flex: "1 1 54%", minHeight: 300, overflow: "hidden", borderRadius: "0 0 40px 40px", background: "#2A2140" }}>
         {g.cover && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="gf-kb" src={facePhotoUrl(g.cover, 1200)} alt="" referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectPosition: "50% 25%" }} />
+          <img className="gf-kb" src={cover} alt="" referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectPosition: "50% 25%" }} />
         )}
         <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(23,21,31,.28) 0%, rgba(23,21,31,0) 30%, rgba(23,21,31,.86) 100%)" }} />
         <div className="gf-drop gf-glass" style={{ position: "absolute", top: 18, left: 18, display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 7px", borderRadius: 18, animationDelay: ".15s" }}>
@@ -230,8 +241,12 @@ function Landing({ g, note, onStart, onCode }: { g: Open; note: string; onStart:
             : <span style={{ width: 34, height: 34, borderRadius: 12, background: "#17151F", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{initials(g.studio.name)}</span>}
           <span style={{ fontWeight: 700, fontSize: 14 }}>{g.studio.name}</span>
         </div>
+        <button type="button" className="gf-drop gf-glass" onClick={onLang} lang={lang === "bn" ? "en" : "bn"} aria-label={lang === "bn" ? "Switch to English" : "বাংলায় দেখুন"}
+          style={{ position: "absolute", top: 18, right: 18, height: 48, minWidth: 48, padding: "0 16px", borderRadius: 18, border: 0, fontWeight: 700, fontSize: 14, color: "#17151F", animationDelay: ".15s" }}>
+          {lang === "bn" ? "English" : "বাংলা"}
+        </button>
         <div style={{ position: "absolute", left: 22, right: 22, bottom: 26, color: "#fff", display: "flex", flexDirection: "column", gap: 8 }}>
-          {g.eventDate && <span className="gf-rise" style={{ fontSize: 14, fontWeight: 600, opacity: .9, animationDelay: ".3s" }}>{longDate(g.eventDate)}</span>}
+          {g.eventDate && <span className="gf-rise" style={{ fontSize: 14, fontWeight: 600, opacity: .9, animationDelay: ".3s" }}>{longDate(g.eventDate, lang)}</span>}
           <h1 className="gf-rise" style={{ fontSize: 36, lineHeight: 1.04, fontWeight: 800, letterSpacing: "-.035em", animationDelay: ".4s", overflowWrap: "anywhere" }}>{g.title}</h1>
         </div>
       </div>
@@ -245,14 +260,14 @@ function Landing({ g, note, onStart, onCode }: { g: Open; note: string; onStart:
           {open && (
             <button type="button" className="gf-cta gf-pulse" onClick={onStart}>
               <Ic size={22} d={<><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="3" /><path d="M7.5 17c1-2 2.600-3 4.500-3s3.500 1 4.500 3" /></>} />
-              {early ? "Send me my photos" : "Find my photos"}
+              {early ? T("Send me my photos") : T("Find my photos")}
             </button>
           )}
           {/* The couple and family may have a code that opens every photo; other guests just start */}
           {live && !g.needsPin && g.hasFullCode && (
-            <button type="button" onClick={onCode} style={{ height: 44, border: 0, background: "transparent", fontSize: 14, fontWeight: 700, color: "#4B32B8" }}>I have a code for all photos</button>
+            <button type="button" onClick={onCode} style={{ height: 44, border: 0, background: "transparent", fontSize: 14, fontWeight: 700, color: "#4B32B8" }}>{T("I have a code for all photos")}</button>
           )}
-          <p style={{ fontSize: 12, color: "#6B6680", textAlign: "center" }}>Your selfie is used only to find your photos. The picture itself is not kept.</p>
+          <p style={{ fontSize: 12, color: "#6B6680", textAlign: "center" }}>{T("Your selfie is used only to find your photos. The picture itself is not kept.")}</p>
         </div>
       </div>
     </div>
@@ -273,7 +288,7 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
     const r = await fetch(`${base}/pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code }) }).catch(() => null);
     if (r?.ok) { setState("ok"); await new Promise(ok => setTimeout(ok, 350)); return onDone(code); }
     setState("");
-    setWrong(r?.status === 429 ? "Too many tries. Please wait a minute and try again." : r?.status === 403 ? "That code is not right. Please check it and try again." : "Could not check the code. Please check your internet and try again.");
+    setWrong(r?.status === 429 ? T("Too many tries. Please wait a minute and try again.") : r?.status === 403 ? T("That code is not right. Please check it and try again.") : T("Could not check the code. Please check your internet and try again."));
     onChange("");
     setTimeout(() => input.current?.focus(), 30);
   }
@@ -283,8 +298,8 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
     <div className="gf-step" style={{ padding: "16px 22px 26px" }}>
       <button type="button" aria-label="Back" onClick={onBack} style={{ width: 46, height: 46, borderRadius: 16, border: 0, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic d={BACK} w={2.4} /></button>
       <div className="gf-rise" style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 8, textAlign: "center" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em" }}>Enter the code</h1>
-        <p style={{ fontSize: 15, color: "#4A4658" }}>The 4-digit code from the studio or the couple.</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em" }}>{T("Enter the code")}</h1>
+        <p style={{ fontSize: 15, color: "#4A4658" }}>{T("The 4-digit code from the studio or the couple.")}</p>
       </div>
       <label htmlFor="gf-pin" style={{ position: "absolute", left: -9999 }}>4-digit code</label>
       <div className={`gf-otp${state === "ok" ? " ok" : ""}`} style={{ marginTop: 30, position: "relative", opacity: state === "checking" ? .6 : 1 }} onClick={() => input.current?.focus()}>
@@ -295,7 +310,7 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
           style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", fontSize: 16 }} />
       </div>
       <p id="gf-pin-msg" role={message ? "alert" : "status"} style={{ marginTop: 14, minHeight: 22, textAlign: "center", fontSize: 14, fontWeight: 600, color: message ? "#C2304F" : state === "ok" ? "#1F8A5B" : "#6B6680" }}>
-        {message || (state === "checking" ? "Checking…" : state === "ok" ? "Code is right" : "It is checked as soon as you type the fourth number.")}
+        {message || (state === "checking" ? T("Checking…") : state === "ok" ? T("Code is right") : T("It is checked as soon as you type the fourth number."))}
       </p>
     </div>
   );
@@ -303,7 +318,7 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
 
 // ─── Name and number ─────────────────────────────────────────────────────────
 
-function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
+function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; askPhone?: Ask; askEmail?: Ask; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
@@ -311,22 +326,30 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
   const [busy, setBusy] = useState(false);
   const n = res.count ?? res.photos.length;
   const waiting = !!res.waiting;
+  // What the studio asks for. A guest must be reachable some way, so with both hidden the number is asked.
+  const mailAsk: Ask = askEmail ?? "optional";
+  const phoneAsk: Ask = (askPhone ?? "optional") === "hide" && mailAsk === "hide" ? "optional" : askPhone ?? "optional";
+  const both = phoneAsk !== "hide" && mailAsk !== "hide";
+  const either = both && phoneAsk === "optional" && mailAsk === "optional";
+  const opt = (a: Ask) => (a === "optional" && both && !either ? ` ${T("(optional)")}` : "");
 
   async function send() {
     const digits = phone.replace(/[^\d+]/g, "");
-    if (name.trim().length < 2) return setErr("Please type your name.");
+    if (name.trim().length < 2) return setErr(T("Please type your name."));
     // One of the two is enough; both is best. Whatever is typed must be right.
-    const hasPhone = digits.replace(/\D/g, "").length > 0, hasMail = mail.trim().length > 0;
-    if (!hasPhone && !hasMail) return setErr("Please give your WhatsApp number or your email, or both.");
-    if (hasPhone && digits.replace(/\D/g, "").length < 10) return setErr("Please check your WhatsApp number, like 01712345678.");
-    if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr("Please check your email address.");
+    const hasPhone = phoneAsk !== "hide" && digits.replace(/\D/g, "").length > 0, hasMail = mailAsk !== "hide" && mail.trim().length > 0;
+    if (!hasPhone && (phoneAsk === "required" || mailAsk === "hide")) return setErr(T("Please give your WhatsApp number."));
+    if (!hasMail && (mailAsk === "required" || phoneAsk === "hide")) return setErr(T("Please give your email address."));
+    if (!hasPhone && !hasMail) return setErr(T("Please give your WhatsApp number or your email, or both."));
+    if (hasPhone && digits.replace(/\D/g, "").length < 10) return setErr(T("Please check your WhatsApp number, like 01712345678."));
+    if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr(T("Please check your email address."));
     setErr(""); setBusy(true);
     // A local number (01…) is sent with Bangladesh's country code.
     const number = digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
     const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), ...(hasPhone ? { phone: number } : {}), ...(hasMail ? { email: mail.trim() } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     setBusy(false);
-    if (!r?.ok) return setErr(r?.status === 429 ? "Too many tries. Please wait a minute." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Could not save. Please check your internet and try again.");
+    if (!r?.ok) return setErr(r?.status === 429 ? T("Too many tries. Please wait a minute.") : (Array.isArray(d?.message) ? d.message[0] : d?.message) || T("Could not save. Please check your internet and try again."));
     onDone();
   }
 
@@ -338,30 +361,30 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={selfie} alt="" style={{ width: 76, height: 76, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 4px #fff, 0 10px 24px -10px rgba(40,28,96,.5)" }} />
           : null}
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? "Where should we send your photos?" : `We found ${n} photo${n === 1 ? "" : "s"} of you`}</h1>
-        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? `Your selfie is saved. ${studio} sends your photos here when they are ready.` : must ? "Tell us who you are to see them." : "Add your name and number, and the studio can send you new photos too."}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? T("Where should we send your photos?") : T("We found {photos} of you", { photos: P(n) })}</h1>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? T("Your selfie is saved. {studio} sends your photos here when they are ready.", { studio }) : must ? T("Tell us who you are to see them.") : T("Add your name and number, and the studio can send you new photos too.")}</p>
       </div>
       <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
-          <label htmlFor="gf-name" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>Your name</label>
+          <label htmlFor="gf-name" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("Your name")}</label>
           <input id="gf-name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={120} placeholder="Nadia Rahman" style={field} />
         </div>
-        <div>
-          <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>WhatsApp number</label>
+        {phoneAsk !== "hide" && <div>
+          <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("WhatsApp number")}{opt(phoneAsk)}</label>
           <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
-            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} />
-        </div>
-        <div>
-          <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>Email address</label>
+            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter" && mailAsk === "hide") void send(); }} />
+        </div>}
+        {mailAsk !== "hide" && <div>
+          <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("Email address")}{opt(mailAsk)}</label>
           <input id="gf-mail" value={mail} onChange={e => setMail(e.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="nadia@gmail.com" style={field}
             aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
-        </div>
+        </div>}
         {err ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{err}</p>
-          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.</p>}
+          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{either ? T("Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.", { studio }) : T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : waiting ? "Tell me when they are ready" : `See my ${n === 1 ? "photo" : "photos"}`}</button>
-        {!must && <button type="button" onClick={onSkip} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>Not now</button>}
+        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? T("Saving…") : waiting ? T("Tell me when they are ready") : T(n === 1 ? "See my photo" : "See my photos")}</button>
+        {!must && <button type="button" onClick={onSkip} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>{T("Not now")}</button>}
       </div>
     </div>
   );
@@ -382,12 +405,12 @@ function Waiting({ studio, title, selfie, onRetake }: { studio: string; title: s
             <Ic size={18} w={3} d={<path d="M5 12.5l4.5 4.500L19 7.500" />} />
           </span>
         </div>
-        <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.12 }}>You are on the list</h1>
-        <p style={{ fontSize: 16, lineHeight: 1.5, color: "#4A4658", maxWidth: 320 }}>{studio} will send you your photos from {title} when they are ready. You can close this page now.</p>
+        <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.12 }}>{T("You are on the list")}</h1>
+        <p style={{ fontSize: 16, lineHeight: 1.5, color: "#4A4658", maxWidth: 320 }}>{T("{studio} will send you your photos from {event} when they are ready. You can close this page now.", { studio, event: title })}</p>
       </div>
       <div style={{ marginTop: "auto", width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ fontSize: 13, color: "#6B6680" }}>You can also scan the same code again later. No new selfie is needed on this phone.</p>
-        <button type="button" onClick={onRetake} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>Take the selfie again</button>
+        <p style={{ fontSize: 13, color: "#6B6680" }}>{T("You can also scan the same code again later. No new selfie is needed on this phone.")}</p>
+        <button type="button" onClick={onRetake} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>{T("Take the selfie again")}</button>
       </div>
     </div>
   );
@@ -402,8 +425,8 @@ function Follow({ studio, pages, count, onDone }: { studio: string; pages: { sit
   return (
     <div className="gf-step" style={{ padding: "40px 22px 26px" }}>
       <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>One small thing first</h1>
-        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{studio} took these photos. Follow their page, then open your {count} photo{count === 1 ? "" : "s"}.</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{T("One small thing first")}</h1>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{T("{studio} took these photos. Follow their page, then open your {photos}.", { studio, photos: P(count) })}</p>
       </div>
       <div style={{ marginTop: 30, display: "flex", flexDirection: "column", gap: 12 }}>
         {pages.map(p => (
@@ -411,16 +434,16 @@ function Follow({ studio, pages, count, onDone }: { studio: string; pages: { sit
             style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 68, padding: "0 18px", borderRadius: 20, background: "#fff", color: "#17151F", textDecoration: "none", boxShadow: "0 10px 26px -18px rgba(40,28,96,.5)" }}>
             <span aria-hidden style={{ width: 40, height: 40, borderRadius: 13, background: TINT[p.site], flex: "none" }} />
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 16, fontWeight: 700 }}>Follow on {NAME[p.site]}</span>
-              <span style={{ display: "block", fontSize: 13, color: "#6B6680" }}>Opens in a new tab</span>
+              <span style={{ display: "block", fontSize: 16, fontWeight: 700 }}>{T("Follow on {site}", { site: NAME[p.site] })}</span>
+              <span style={{ display: "block", fontSize: 13, color: "#6B6680" }}>{T("Opens in a new tab")}</span>
             </span>
             <Ic d={<path d="M9 6l6 6-6 6" />} w={2.4} />
           </a>
         ))}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 8 }}>
-        <button type="button" className="gf-cta" disabled={!opened} onClick={onDone} style={{ opacity: opened ? 1 : .5 }}>See my {count === 1 ? "photo" : "photos"}</button>
-        {!opened && <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680" }}>Open a page first, then come back here.</p>}
+        <button type="button" className="gf-cta" disabled={!opened} onClick={onDone} style={{ opacity: opened ? 1 : .5 }}>{T(count === 1 ? "See my photo" : "See my photos")}</button>
+        {!opened && <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680" }}>{T("Open a page first, then come back here.")}</p>}
       </div>
     </div>
   );
@@ -494,7 +517,7 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
     } catch { alertBad(); }
   }
   const [bad, setBad] = useState("");
-  const alertBad = () => setBad("We could not open that photo. Please pick a JPG or PNG.");
+  const alertBad = () => setBad(T("We could not open that photo. Please pick a JPG or PNG."));
   const locked = pct >= 100;
   // A face is in the oval (even if it still needs a small fix): the mesh and the beam show only then.
   const seen = face !== "wait" && face !== "off" && face !== "none" && face !== "many";
@@ -508,11 +531,11 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
         <span style={{ width: 46 }} aria-hidden="true" />
       </div>
       <div className="gf-rise" style={{ padding: "16px 28px 0", textAlign: "center", display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.025em", lineHeight: 1.12 }}>{denied ? "Camera is off" : locked ? "Got it" : "Look at the camera"}</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.025em", lineHeight: 1.12 }}>{denied ? T("Camera is off") : locked ? T("Got it") : T("Look at the camera")}</h1>
         <p style={{ fontSize: 15, minHeight: 23, fontWeight: 600, color: note || bad ? "#FF9DB0" : face === "good" ? "#3DD68C" : "#C9C4D8" }} role={note || bad ? "alert" : "status"} aria-live="polite">
-          {bad || note || (denied ? "Allow the camera in your browser, or pick a photo of your face."
-            : face === "off" ? "Keep your face inside the oval, then press the round button."
-            : face === "wait" ? "Keep your face inside the oval."
+          {bad || note || (denied ? T("Allow the camera in your browser, or pick a photo of your face.")
+            : face === "off" ? T("Keep your face inside the oval, then press the round button.")
+            : face === "wait" ? T("Keep your face inside the oval.")
             : FACE_HINT[face])}
         </p>
       </div>
@@ -529,13 +552,13 @@ function Selfie({ title, note, onBack, onShot }: { title: string; note: string; 
       </div>
       <div style={{ padding: "0 22px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, flex: "none" }}>
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }} role="status" aria-live="polite">
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}><span>{denied ? "Waiting for the camera" : locked ? "Face found" : !live ? "Starting the camera" : face === "off" ? "Press the button when ready" : seen ? "Scanning your face" : "Looking for your face"}</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}><span>{denied ? T("Waiting for the camera") : locked ? T("Face found") : !live ? T("Starting the camera") : face === "off" ? T("Press the button when ready") : seen ? T("Scanning your face") : T("Looking for your face")}</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</span></div>
           <div className="gf-meter"><i style={{ transform: `scaleX(${pct / 100})` }} /></div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-          <button type="button" style={ghost} onClick={() => file.current?.click()}>Use a photo</button>
+          <button type="button" style={ghost} onClick={() => file.current?.click()}>{T("Use a photo")}</button>
           <button type="button" aria-label="Take the selfie now" onClick={shoot} disabled={!live} style={{ width: 72, height: 72, borderRadius: "50%", border: "5px solid #fff", background: "#7D5CEF", boxShadow: "0 0 0 6px rgba(125,92,239,.35)", opacity: live ? 1 : .4 }} />
-          <button type="button" style={ghost} onClick={() => setFacing(f => (f === "user" ? "environment" : "user"))}>Flip</button>
+          <button type="button" style={ghost} onClick={() => setFacing(f => (f === "user" ? "environment" : "user"))}>{T("Flip")}</button>
         </div>
         <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => picked(e.target.files?.[0])} />
       </div>
@@ -558,9 +581,9 @@ function Searching({ selfie, count }: { selfie: string; count: number }) {
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }} role="status" aria-live="polite">
-        <span key={count} className="gf-count gf-bump-a">{count}</span>
-        <span style={{ fontSize: 18, fontWeight: 700 }}>{count === 1 ? "photo of you so far" : "photos of you so far"}</span>
-        <span style={{ fontSize: 14, color: "#6B6680", marginTop: 6 }}>Matching your face with the event photos</span>
+        <span key={count} className="gf-count gf-bump-a">{N(count)}</span>
+        <span style={{ fontSize: 18, fontWeight: 700 }}>{count === 1 ? T("photo of you so far") : T("photos of you so far")}</span>
+        <span style={{ fontSize: 14, color: "#6B6680", marginTop: 6 }}>{T("Matching your face with the event photos")}</span>
       </div>
     </div>
   );
@@ -572,7 +595,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
   const n = res.photos.length;
   const [saving, setSaving] = useState(0);
   const frames = useRef<HTMLDivElement>(null);
-  const moreTitle = useMemo(() => (res.moreKind === "all" ? "All event photos" : "Highlights from the event"), [res.moreKind]);
+  const moreTitle = useMemo(() => (res.moreKind === "all" ? T("All event photos") : T("Highlights from the event")), [res.moreKind]);
 
   // Each file is fetched from Google Drive as a download; a short gap keeps phones from blocking them.
   /** Photos fetched and waiting for one more tap (phones: the share sheet's "Save images" needs a fresh tap). */
@@ -625,8 +648,8 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
         files.push(new File([await r.blob()], `${(p.fileName || `photo-${i + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }));
       }
       setSaving(0);
-      if (!files.length) return setSaveNote("The photos could not be downloaded. Please check your internet and try again.");
-      if (files.length < n) setSaveNote(`${n - files.length} photo${n - files.length === 1 ? "" : "s"} could not be downloaded. Open ${n - files.length === 1 ? "it" : "them"} and press Download.`);
+      if (!files.length) return setSaveNote(T("The photos could not be downloaded. Please check your internet and try again."));
+      if (files.length < n) setSaveNote(T("{photos} could not be downloaded. Open them and press Download.", { photos: P(n - files.length) }));
       // On a phone the photos are handed over on the next tap; on a computer they are saved straight away.
       if (toSheet(files)) return setHeld(files);
       return give(files);
@@ -663,19 +686,19 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
           ? <img className="gf-drop" src={selfie} alt="Your selfie" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 0 0 3px #fff", objectFit: "cover" }} />
           : <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#EEE8FD", flex: "none" }} aria-hidden="true" />}
         <div className="gf-rise" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.025em" }}>{n ? `${n} photo${n === 1 ? "" : "s"} of you` : "No photos of you yet"}</h1>
-          <span style={{ fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.title}, by {g.studio.name}</span>
+          <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.025em" }}>{n ? T("{photos} of you", { photos: P(n) }) : T("No photos of you yet")}</h1>
+          <span style={{ fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{T("{event}, by {studio}", { event: g.title, studio: g.studio.name })}</span>
         </div>
         {picking
-          ? <button type="button" onClick={() => { setHeld(null); setPicked(picked.length === everyone.length ? [] : everyone.map(p => p.id)); }} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#4B32B8", fontSize: 13, fontWeight: 700, flex: "none" }}>{picked.length === everyone.length ? "Clear all" : "Choose all"}</button>
-          : <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>New selfie</button>}
+          ? <button type="button" onClick={() => { setHeld(null); setPicked(picked.length === everyone.length ? [] : everyone.map(p => p.id)); }} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#4B32B8", fontSize: 13, fontWeight: 700, flex: "none" }}>{picked.length === everyone.length ? T("Clear all") : T("Choose all")}</button>
+          : <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>{T("New selfie")}</button>}
       </div>
-      {picking && <p role="status" style={{ flex: "none", margin: "0 18px 8px", padding: "9px 14px", borderRadius: 14, background: "rgba(125,92,239,.14)", color: "#4B32B8", fontSize: 14, fontWeight: 700 }}>{picked.length ? `${picked.length} chosen. Tap more, or press Download.` : "Tap the photos you want to download."}</p>}
+      {picking && <p role="status" style={{ flex: "none", margin: "0 18px 8px", padding: "9px 14px", borderRadius: 14, background: "rgba(125,92,239,.14)", color: "#4B32B8", fontSize: 14, fontWeight: 700 }}>{picked.length ? T("{n} chosen. Tap more, or press Download.", { n: N(picked.length) }) : T("Tap the photos you want to download.")}</p>}
       <div className="gf-scroll">
         {n === 0 && (
           <div className="gf-glass gf-rise" style={{ padding: "16px 16px", borderRadius: 22, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-            <b style={{ fontSize: 16 }}>We looked through every photo.</b>
-            <span style={{ fontSize: 14, lineHeight: 1.5, color: "#4A4658" }}>More photos may still be added. Open this page again later and your photos will show here by themselves. A clearer selfie also helps: face the light and take off sunglasses.</span>
+            <b style={{ fontSize: 16 }}>{T("We looked through every photo.")}</b>
+            <span style={{ fontSize: 14, lineHeight: 1.5, color: "#4A4658" }}>{T("More photos may still be added. Open this page again later and your photos will show here by themselves. A clearer selfie also helps: face the light and take off sunglasses.")}</span>
           </div>
         )}
         <div className="gf-cols">{res.photos.map((p, i) => tile(p, i, "mine"))}</div>
@@ -691,10 +714,10 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
           {saveNote && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A82743", textAlign: "center" }}>{saveNote}</p>}
           <div style={{ display: "flex", gap: 8, width: "100%" }}>
             {picking
-              ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Cancel</button>
-              : !held && !saving && n > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>Choose</button>}
+              ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
+              : !held && !saving && n > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
             <button type="button" className="gf-cta" onClick={() => (!picking && !n ? setPicking(true) : download(picking ? chosen : res.photos))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
-              <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${total}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : picking ? (chosen.length ? `Download ${chosen.length}` : "Download") : n ? `Download all ${n}` : "Choose photos to download"}
+              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos} to this phone", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : n ? T("Download all {n}", { n: N(n) }) : T("Choose photos to download")}
             </button>
           </div>
         </div>

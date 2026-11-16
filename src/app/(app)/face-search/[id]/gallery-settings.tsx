@@ -137,6 +137,9 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
 const shortDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 /** Saves a dragged or typed value a moment after the last change. */
+type Ask = "hide" | "optional" | "required";
+const ASK: { value: Ask; label: string }[] = [{ value: "hide", label: "Hide" }, { value: "optional", label: "Optional" }, { value: "required", label: "Required" }];
+
 function useLater() {
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   return (fn: () => void, ms = 700) => { if (t.current) clearTimeout(t.current); t.current = setTimeout(fn, ms); };
@@ -153,6 +156,9 @@ function PageSec({ g, s, save }: { g: FaceDetail; s: FaceSettings; save: Save })
       </Row>
       <Row stack label="Short note" hint="One line under the name. Leave it empty for none.">
         <TextArea label="Short note" value={s.welcome} rows={2} maxLength={300} placeholder="Thank you for celebrating with us" onCommit={v => save({ welcome: v })} />
+      </Row>
+      <Row label="Language" hint="The guest page and the emails to guests. A guest can still switch on the first screen. Your own note and message stay as you wrote them.">
+        <Segmented<"en" | "bn"> label="Guest page language" value={s.language ?? "en"} onChange={v => save({ language: v })} options={[{ value: "en", label: "English" }, { value: "bn", label: "বাংলা" }]} />
       </Row>
     </Group>
     <Group title="How long it stays open" note={"After the last day guests read \"This gallery is closed\". Nothing is deleted: you can open it again and pick a later day."}>
@@ -176,6 +182,7 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
   const [full, setFull] = useState(s.fullPin ?? "");
   const later = useLater();
   const reg = s.register ?? "off";
+  const phoneAsk: Ask = s.askPhone ?? "optional", mailAsk: Ask = s.askEmail ?? "optional";
   const same = full.length === 4 && full === pin;
   /** A new code that is not the other one. */
   const fresh = (other: string) => { let v = ""; do { v = String(Math.floor(1000 + Math.random() * 9000)); } while (v === other); return v; };
@@ -208,6 +215,14 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
           <Segmented<"off" | "optional" | "required"> label="Ask for name and number" value={reg} onChange={v => save({ register: v })}
             options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
         </Row>
+        {reg !== "off" && <>
+          <Row label="WhatsApp number" hint={phoneAsk === "hide" && mailAsk === "hide" ? "Guests must be reachable some way, so the number is still asked while Email is hidden." : "For the messages you send from your own WhatsApp."}>
+            <Segmented<Ask> label="WhatsApp number" value={phoneAsk} onChange={v => save({ askPhone: v })} options={ASK} />
+          </Row>
+          <Row label="Email" hint={mailAsk === "optional" && phoneAsk === "optional" ? "With both on Optional, a guest gives one or both." : "Guests with an email get their photos by themselves."}>
+            <Segmented<Ask> label="Email" value={mailAsk} onChange={v => save({ askEmail: v })} options={ASK} />
+          </Row>
+        </>}
       </Group>
 
       <Group title="Follow your pages" note="Shown once before the photos. Leave both empty for no such step. We can't check that they pressed Follow.">

@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  ChevronRight, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
+  CalendarClock, ChevronRight, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ import { Tile } from "@/components/ui/apple";
 import { Group, PaneHeader, Row, Segmented, SettingsCtx, Switch, TextArea, TextField, type SaveState } from "@/app/(app)/settings/_ui";
 import { DEFAULT_GUEST_MESSAGE, errText, type FaceDetail, type FaceSettings } from "@/lib/face";
 
-type Sec = "page" | "access" | "msgs" | "photos" | "match" | "mark" | "end";
+type Sec = "page" | "access" | "msgs" | "photos" | "dl" | "match" | "mark" | "end";
 type Save = (patch: Partial<FaceSettings>, extra?: { title?: string }) => Promise<void>;
 type Pane = { id: Sec; title: string; sub: string; now: string; icon: React.ElementType; color: string };
 
@@ -45,17 +45,20 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
 
   const asks = !!s.register && s.register !== "off";
   const groups: { title: string; panes: Pane[] }[] = [
+    { title: "Gallery", panes: [
+      { id: "page", title: "General", sub: "The name guests see, a short note, and how long the gallery stays open.", now: s.expiresAt ? `Open until ${shortDay(s.expiresAt)}` : s.welcome ? "Name and note" : "Name", icon: Type, color: "violet" },
+    ] },
     { title: "Guests", panes: [
-      { id: "page", title: "Guest page", sub: "What guests read when they open the link.", now: s.welcome ? "Name and note" : "Name", icon: Type, color: "violet" },
-      { id: "access", title: "Access", sub: "What a guest must do before the photos open.", now: [s.pin ? "Code" : "", asks ? "Name and number" : "", s.followFacebook || s.followInstagram ? "Follow" : ""].filter(Boolean).join(", ") || "Open to anyone with the link", icon: KeyRound, color: "teal" },
+      { id: "access", title: "Access and privacy", sub: "Who can open the photos, and what a guest must do first.", now: [s.pin ? "Code" : "", s.fullPin ? "All-photos code" : "", asks ? "Name and number" : "", s.followFacebook || s.followInstagram ? "Follow" : ""].filter(Boolean).join(", ") || "Open to anyone with the link", icon: KeyRound, color: "teal" },
       { id: "msgs", title: "Messages to guests", sub: "How guests are told that their photos are ready, and what the message says.", now: !asks ? "Nobody to send to" : s.notifyEmail === false ? "WhatsApp by hand" : s.notifyWhen === "manual" ? "Email when I press" : "Email by itself", icon: Send, color: "blue" },
     ] },
     { title: "Photos", panes: [
-      { id: "photos", title: "Photos guests get", sub: "Which photos a guest sees, and whether they can save them.", now: `${s.guestsSee === "all" ? "All photos" : "Only their own"}${s.downloads ? "" : ", no download"}`, icon: Images, color: "green" },
+      { id: "photos", title: "Photos guests get", sub: "Which photos a guest sees.", now: s.guestsSee === "all" ? "All photos" : "Only their own", icon: Images, color: "green" },
+      { id: "dl", title: "Downloads", sub: "Whether guests can save photos, one by one or many at once.", now: !s.downloads ? "Off" : s.downloadAll === false ? "One by one" : "One by one and all at once", icon: Download, color: "ink" },
       { id: "match", title: "Face matching", sub: "How sure the match must be before a photo is shown to a guest.", now: { strict: "Strict", balanced: "Balanced", loose: "Loose" }[s.strictness], icon: ScanFace, color: "deep" },
       { id: "mark", title: "Watermark", sub: "Your logo or name on every photo guests see or save.", now: s.watermark ? (s.watermarkKind === "logo" && s.watermarkLogo ? "Your logo" : "Text") : "Off", icon: Stamp, color: "orchid" },
     ] },
-    { title: "Gallery", panes: [
+    { title: "Danger zone", panes: [
       { id: "end", title: "Close or remove", sub: "Stop this gallery for a while, or take it away.", now: g.status === "closed" ? "Closed" : "Open", icon: TriangleAlert, color: "red" },
     ] },
   ];
@@ -120,6 +123,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
             {sec === "access" && <AccessSec s={s} save={save} />}
             {sec === "msgs" && <MsgSec g={g} s={s} save={save} toAccess={() => go("access")} />}
             {sec === "photos" && <PhotosSec s={s} save={save} />}
+            {sec === "dl" && <DownloadsSec s={s} save={save} />}
             {sec === "match" && <MatchSec s={s} save={save} />}
             {sec === "mark" && <MarkSec s={s} save={save} />}
             {sec === "end" && <EndSec g={g} onAct={onAct} onRemoved={onRemoved} />}
@@ -129,6 +133,8 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
     </SettingsCtx.Provider>
   );
 }
+
+const shortDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 /** Saves a dragged or typed value a moment after the last change. */
 function useLater() {
@@ -140,6 +146,7 @@ function useLater() {
 
 function PageSec({ g, s, save }: { g: FaceDetail; s: FaceSettings; save: Save }) {
   return (
+    <>
     <Group title="First screen" note="Guests see these when they scan the code or open the link.">
       <Row label="Name guests see" hint="The big line on the first screen and on the QR poster.">
         <TextField label="Name guests see" value={g.title} maxLength={150} onCommit={v => { if (v) void save({}, { title: v }); }} />
@@ -148,6 +155,17 @@ function PageSec({ g, s, save }: { g: FaceDetail; s: FaceSettings; save: Save })
         <TextArea label="Short note" value={s.welcome} rows={2} maxLength={300} placeholder="Thank you for celebrating with us" onCommit={v => save({ welcome: v })} />
       </Row>
     </Group>
+    <Group title="How long it stays open" note={"After the last day guests read \"This gallery is closed\". Nothing is deleted: you can open it again and pick a later day."}>
+      <Row label={<span className="inline-flex items-center gap-2"><CalendarClock className="w-4 h-4 text-[#5B3FD0]" aria-hidden />Last open day</span>}
+        hint={s.expiresAt ? `The gallery closes by itself after ${shortDay(s.expiresAt)}.` : "No end. The gallery stays open until you close it."}>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <input type="date" aria-label="Last open day" value={s.expiresAt ?? ""} min={new Date().toISOString().slice(0, 10)} onChange={e => save({ expiresAt: e.target.value })}
+            className="h-10 px-4 rounded-full bg-[#F5F3FA] text-sm font-semibold text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+          {s.expiresAt && <button type="button" onClick={() => save({ expiresAt: "" })} className={cn(pill, "bg-[#F5F3FA] text-[#17151F]")}>No end</button>}
+        </div>
+      </Row>
+    </Group>
+    </>
   );
 }
 
@@ -155,18 +173,31 @@ function PageSec({ g, s, save }: { g: FaceDetail; s: FaceSettings; save: Save })
 
 function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
   const [pin, setPin] = useState(s.pin);
+  const [full, setFull] = useState(s.fullPin ?? "");
   const later = useLater();
   const reg = s.register ?? "off";
+  const same = full.length === 4 && full === pin;
+  /** A new code that is not the other one. */
+  const fresh = (other: string) => { let v = ""; do { v = String(Math.floor(1000 + Math.random() * 9000)); } while (v === other); return v; };
   return (
     <>
-      <Group title="Code" note="Give the code to the couple, or print it on the poster (Share).">
-        <Row label="4-digit code" hint={pin.length === 4 ? "On. Guests type it before the selfie." : pin.length ? "Type all 4 digits." : "Off. Anyone with the link can take a selfie."}>
+      <Group title="Codes" note="The guests' code can be printed on the poster (Share). Keep the all-photos code for the couple and family only.">
+        <Row label="Guests' code" hint={pin.length === 4 ? "On. Guests type it before the selfie." : pin.length ? "Type all 4 digits." : "Off. Anyone with the link can take a selfie."}>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <input aria-label="4-digit code" inputMode="numeric" maxLength={4} placeholder="Off" value={pin}
               onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPin(v); if (v.length === 4 || v === "") later(() => save({ pin: v }), 400); }}
               className="h-10 w-[112px] rounded-full bg-[#F5F3FA] text-center text-[16px] font-bold tabular-nums tracking-[0.35em] text-[#17151F] placeholder:tracking-normal placeholder:font-semibold placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
-            <button type="button" onClick={() => { const v = String(Math.floor(1000 + Math.random() * 9000)); setPin(v); void save({ pin: v }); }} className={cn(pill, "bg-[#F5F3FA] text-[#17151F]")}>Make one</button>
+            <button type="button" onClick={() => { const v = fresh(full); setPin(v); void save({ pin: v }); }} className={cn(pill, "bg-[#F5F3FA] text-[#17151F]")}>Make one</button>
             {pin.length === 4 && <button type="button" onClick={() => { setPin(""); void save({ pin: "" }); }} className={cn(pill, "bg-[#F5F3FA] text-[#A82743]")}>Turn off</button>}
+          </div>
+        </Row>
+        <Row label="All-photos code" hint={same ? "This must be different from the guests' code." : full.length === 4 ? "On. Whoever types this code sees every photo, not only their own." : full.length ? "Type all 4 digits." : "Off. For the couple and family: one code that opens every photo."}>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <input aria-label="All-photos code" inputMode="numeric" maxLength={4} placeholder="Off" value={full} aria-invalid={same}
+              onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setFull(v); if ((v.length === 4 && v !== pin) || v === "") later(() => save({ fullPin: v }), 400); }}
+              className={cn("h-10 w-[112px] rounded-full bg-[#F5F3FA] text-center text-[16px] font-bold tabular-nums tracking-[0.35em] text-[#17151F] placeholder:tracking-normal placeholder:font-semibold placeholder:text-[#9893A8] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40", same && "ring-2 ring-[#C2304F]/60")} />
+            <button type="button" onClick={() => { const v = fresh(pin); setFull(v); void save({ fullPin: v }); }} className={cn(pill, "bg-[#F5F3FA] text-[#17151F]")}>Make one</button>
+            {full.length === 4 && <button type="button" onClick={() => { setFull(""); void save({ fullPin: "" }); }} className={cn(pill, "bg-[#F5F3FA] text-[#A82743]")}>Turn off</button>}
           </div>
         </Row>
       </Group>
@@ -202,8 +233,20 @@ function PhotosSec({ s, save }: { s: FaceSettings; save: Save }) {
       <Row label="Highlights for everyone" hint="Photos you mark as Highlights (the couple, the stage, the venue) are shown to every guest.">
         <Switch label="Highlights for everyone" on={s.highlightsForAll} onChange={v => save({ highlightsForAll: v })} />
       </Row>
+    </Group>
+  );
+}
+
+// ─── Downloads ───────────────────────────────────────────────────────────────
+
+function DownloadsSec({ s, save }: { s: FaceSettings; save: Save }) {
+  return (
+    <Group title="Saving photos" note={s.watermark ? "With the watermark on, guests save a copy with your mark on it (up to 2560 px wide)." : "Guests save your original files from Google Drive."}>
       <Row label="Guests can download" hint="Off means guests can look at their photos but get no Download button.">
         <Switch label="Guests can download" on={s.downloads} onChange={v => save({ downloads: v })} />
+      </Row>
+      <Row label="Many at once" hint={"\"Download all\" and \"Choose\" on the guest's photos. Off means one photo at a time, from the opened photo."} disabled={!s.downloads}>
+        <Switch label="Many at once" on={s.downloads && s.downloadAll !== false} disabled={!s.downloads} onChange={v => save({ downloadAll: v })} />
       </Row>
     </Group>
   );

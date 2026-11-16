@@ -475,7 +475,7 @@ function MarkEditor({ s, cover, save }: { s: FaceSettings; cover: Cover; save: S
           </div>
         )}
 
-        {useLogo && tight && size > 40 * tight.ar && <p className="text-xs text-[#8A5200] -mb-2">This logo is tall, so it stops growing at 60% of the photo&apos;s height.</p>}
+        {useLogo && tight && size > 40 * tight.ar && <p className="text-xs text-[#8A5200]">This logo is tall, so it stops growing at 60% of the photo&apos;s height.</p>}
         <Dial id="fs-wm-size" label="Size (share of the photo's width)" value={size} min={3} max={80} onChange={v => { setSize(v); later(() => save({ watermarkSize: v }), 500); }} />
         <Dial id="fs-wm-op" label="Strength (100 = solid)" value={opacity} min={5} max={100} onChange={v => { setOpacity(v); later(() => save({ watermarkOpacity: v }), 500); }} />
 

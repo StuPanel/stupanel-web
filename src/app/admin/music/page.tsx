@@ -106,6 +106,20 @@ export default function AdminMusicPage() {
       {tab === "tags" ? (
         !tags ? <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div> : (
           <div className="space-y-4">
+            {/* Instrumental music: one switch for the whole feature (it hides or shows the "Instrumental" language tag) */}
+            {(() => { const t = tags.languages.find(x => x.id === "instrumental"); if (!t) return null; const on = !t.hidden; return (
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">Instrumental music</p>
+                  <p className="text-xs text-slate-400 mt-1">On: studios see the Sound filter (With singing / Instrumental), the "Is there singing in it?" question when adding a song, and links are marked Instrumental by themselves. Off: all of that is hidden for every studio. Songs already marked keep their mark and it shows again when this is turned back on.</p>
+                </div>
+                <button type="button" role="switch" aria-checked={on} aria-label="Instrumental music"
+                  onClick={() => void tagCall("tags", { kind: "language", id: t.id, name: t.name, also: t.also, countries: t.countries, hidden: on }, on ? "Instrumental music is off for every studio" : "Instrumental music is on")}
+                  className={cn("relative w-12 h-7 rounded-full flex-shrink-0 transition-colors", on ? "bg-emerald-500" : "bg-slate-600")}>
+                  <span className={cn("absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white transition-transform", on && "translate-x-5")} />
+                </button>
+              </div>
+            ); })()}
             {tags.suggested.length > 0 && (
               <div className="bg-slate-800 border border-amber-500/40 rounded-xl overflow-hidden">
                 <p className="px-4 py-3 text-sm font-semibold text-amber-200 border-b border-slate-700/70">Suggested by studios</p>

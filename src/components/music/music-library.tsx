@@ -9,9 +9,9 @@
  * each can be turned off in Settings → Music. A song from outside is added to My songs with one press.
  * Search finds a song by its name, artist, any tag or other name of a tag (haldi → Holud), or a pasted YouTube link.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, Grid2x2, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Square, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -38,7 +38,11 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [sound, setSound] = useState<"" | "song" | "instrumental">("");
   /** A ritual under the chosen event (only events that have them, like Sanatani wedding). */
   const [ritual, setRitual] = useState("");
-  const [allEvents, setAllEvents] = useState(false);
+  /** Phones: the filters wait behind one button, and open as a sheet. */
+  const [sheet, setSheet] = useState(false);
+  /** Phones: one song in a row (the usual) or two small ones; kept on this device. */
+  const [mcols, setMcols] = useState<1 | 2>(() => { try { return localStorage.getItem("sp-music-cols-m") === "2" ? 2 : 1; } catch { return 1; } });
+  const pickMcols = (n: 1 | 2) => { setMcols(n); try { if (n === 2) localStorage.setItem("sp-music-cols-m", "2"); else localStorage.removeItem("sp-music-cols-m"); } catch { /* private window */ } };
   /** Songs in one row on a wide screen: 0 = the usual three; the studio's choice is kept on this device. */
   const [cols, setCols] = useState(() => { try { const n = Number(localStorage.getItem("sp-music-cols")); return n >= 2 && n <= 6 ? n : 0; } catch { return 0; } });
   const pickCols = (n: number) => { setCols(n); try { if (n) localStorage.setItem("sp-music-cols", String(n)); else localStorage.removeItem("sp-music-cols"); } catch { /* private window */ } };
@@ -95,8 +99,8 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   // Events on the top row: the ones that stand on their own and have songs. An event with rituals under it is always there.
   const usedEvents = cat.events.filter(t => !t.parent && (source.some(s => s.events.includes(t.id)) || cat.events.some(c => c.parent === t.id)));
   // The events usual in the studio's country come first; the rest wait behind "More events" (the chosen one always shows).
-  const moreEvents = usedEvents.filter(t => t.more);
-  const shownEvents = allEvents ? usedEvents : usedEvents.filter(t => !t.more || t.id === event);
+  /** StuPanel can switch instrumental music off for everyone (admin → Music → Tags): then nothing here asks about it. */
+  const hasInst = cat.languages.some(l => l.id === "instrumental");
   const rituals = event ? cat.events.filter(t => t.parent === event) : [];
   const eventName = cat.events.find(t => t.id === event)?.name ?? "";
   const filtering = !!(event || ritual || video || sound);
@@ -148,8 +152,49 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
     on ? "bg-[#17151F] border-[#17151F] text-white" : "bg-white border-[#DDD8E8] text-[#17151F] hover:border-[#7D5CEF]");
   /** The small number in a chip. */
   const count = (n: number, on: boolean) => <span className={cn("min-w-[22px] h-[20px] px-1.5 rounded-full text-[11.5px] font-bold tabular-nums inline-flex items-center justify-center", on ? "bg-white/25 text-white" : n ? "bg-[#EEE8FD] text-[#4B32B8]" : "bg-[#F1EFF6] text-[#6B6680]")}>{n}</span>;
+  /** How many filters are on (the number on the phone's Filters button). */
+  const active = [event, ritual, video, sound].filter(Boolean).length;
+  const hasRows = usedEvents.length > 0 || usedVideos.length > 0 || (hasInst && source.length > 0);
+  const clearAll = () => { setEvent(""); setRitual(""); setVideo(""); setSound(""); };
+  /** Event, Video and Sound. On a wide screen each stays on one line; in the phone's sheet each shows a few and the rest behind More. */
+  const filterRows = (inSheet: boolean) => (
+    <div className={inSheet ? "space-y-5" : "space-y-2.5"}>
+      {usedEvents.length > 0 && (
+        <div>
+          <ChipRow label="Event" aria="Event" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!event} onAll={() => { setEvent(""); setRitual(""); }}
+            items={usedEvents.map(t => { const on = event === t.id; return { id: t.id, on, onPick: () => { setEvent(on ? "" : t.id); setRitual(""); }, node: <>{t.name}{count(found.filter(s => s.events.includes(t.id)).length, on)}</> }; })} />
+          {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
+          {rituals.length > 0 && (
+            <div className={cn("rounded-[16px] bg-[#F3EEFF] border border-[#DDD3FA] p-2.5 mt-2", !inSheet && "sm:ml-[68px]")}>
+              <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
+              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
+                <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
+                {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; return (
+                  <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
+                    {t.name}{count(n, on)}
+                  </button>
+                ); })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {usedVideos.length > 0 && (
+        <ChipRow label="Video" aria="Kind of video" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!video} onAll={() => setVideo("")}
+          items={usedVideos.map(t => { const on = video === t.id; return { id: t.id, on, onPick: () => setVideo(on ? "" : t.id), node: <>{t.name}{count(found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length, on)}</> }; })} />
+      )}
+      {hasInst && source.length > 0 && (
+        <ChipRow label="Sound" aria="With singing or music only" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!sound} onAll={() => setSound("")}
+          items={[
+            { id: "song", on: sound === "song", onPick: () => setSound(sound === "song" ? "" : "song"), node: <><Mic2 className="w-4 h-4" aria-hidden />With singing{count(beforeSound.filter(s => !isInst(s)).length, sound === "song")}</> },
+            { id: "instrumental", on: sound === "instrumental", onPick: () => setSound(sound === "instrumental" ? "" : "instrumental"), node: <><Piano className="w-4 h-4" aria-hidden />Instrumental{count(beforeSound.filter(isInst).length, sound === "instrumental")}</> },
+          ]} />
+      )}
+    </div>
+  );
   // The studio's own count of songs in a row applies on wide screens; phones and tablets keep one and two.
-  const gridCls = cn("grid grid-cols-1 sm:grid-cols-2 gap-4", cols ? "lg:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" : "xl:grid-cols-3", cols >= 5 && "lg:gap-3");
+  const m2 = mcols === 2;
+  const gridCls = cn("grid sm:grid-cols-2 gap-4", m2 ? "grid-cols-2 max-sm:gap-2.5" : "grid-cols-1", cols ? "lg:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" : "xl:grid-cols-3", cols >= 5 && "lg:gap-3");
   const gridStyle = cols ? ({ ["--cols" as string]: cols } as React.CSSProperties) : undefined;
   /** Many small cards: the tags are left out so the title and the buttons still fit. */
   const small = cols >= 5;
@@ -201,7 +246,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       )}
 
       {/* Find: search, then what the songs are for. One panel, so it reads as one tool. */}
-      <section aria-label="Find songs" className="bg-white rounded-[22px] p-3 sm:p-4 mb-4 space-y-3.5 border border-[#E6E1F0] shadow-[0_10px_28px_-18px_rgba(40,28,96,.35)]">
+      <section aria-label="Find songs" className="bg-white rounded-[22px] p-3 sm:p-4 mb-4 flex flex-col gap-3.5 border border-[#E6E1F0] shadow-[0_10px_28px_-18px_rgba(40,28,96,.35)]">
         <div className="flex items-center gap-2.5">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B6680] pointer-events-none" />
@@ -218,67 +263,19 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           </div>
         </div>
 
-        {(usedEvents.length > 0 || usedVideos.length > 0 || source.length > 0) && (
-          <div className="space-y-2.5">
-            {usedEvents.length > 0 && (
-              <div className="sm:flex sm:items-start sm:gap-3">
-                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Event</p>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none]" role="group" aria-label="Event">
-                    <button type="button" aria-pressed={!event} onClick={() => { setEvent(""); setRitual(""); }} className={chip(!event)}>All</button>
-                    {shownEvents.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = event === t.id; return (
-                      <button key={t.id} type="button" aria-pressed={on} onClick={() => { setEvent(on ? "" : t.id); setRitual(""); }} className={chip(on)}>
-                        {t.name}{count(n, on)}
-                      </button>
-                    ); })}
-                    {moreEvents.length > 0 && <button type="button" aria-expanded={allEvents} onClick={() => setAllEvents(v => !v)} className="h-10 px-3.5 rounded-full text-[13.5px] font-semibold text-[#4B32B8] border border-dashed border-[#B9ADEB] hover:bg-[#F6F2FF] flex-shrink-0 whitespace-nowrap">{allEvents ? "Fewer" : `More events (${moreEvents.length})`}</button>}
-                  </div>
-                  {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
-                  {rituals.length > 0 && (
-                    <div className="rounded-[16px] bg-[#F3EEFF] border border-[#DDD3FA] p-2.5">
-                      <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
-                      <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
-                        <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
-                        {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; return (
-                          <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
-                            {t.name}{count(n, on)}
-                          </button>
-                        ); })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {usedVideos.length > 0 && (
-              <div className="sm:flex sm:items-start sm:gap-3">
-                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Video</p>
-                <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none] min-w-0 flex-1" role="group" aria-label="Kind of video">
-                  <button type="button" aria-pressed={!video} onClick={() => setVideo("")} className={chip(!video)}>All</button>
-                  {usedVideos.map(t => { const n = found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length; const on = video === t.id; return (
-                    <button key={t.id} type="button" aria-pressed={on} onClick={() => setVideo(on ? "" : t.id)} className={chip(on)}>
-                      {t.name}{count(n, on)}
-                    </button>
-                  ); })}
-                </div>
-              </div>
-            )}
-            {source.length > 0 && (
-              <div className="sm:flex sm:items-start sm:gap-3">
-                <p className="text-[13px] font-bold text-[#17151F] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Sound</p>
-                <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none] min-w-0 flex-1" role="group" aria-label="With singing or music only">
-                  <button type="button" aria-pressed={!sound} onClick={() => setSound("")} className={chip(!sound)}>All</button>
-                  <button type="button" aria-pressed={sound === "song"} onClick={() => setSound(sound === "song" ? "" : "song")} className={chip(sound === "song")}>
-                    <Mic2 className="w-4 h-4" aria-hidden />With singing{count(beforeSound.filter(s => !isInst(s)).length, sound === "song")}
-                  </button>
-                  <button type="button" aria-pressed={sound === "instrumental"} onClick={() => setSound(sound === "instrumental" ? "" : "instrumental")} className={chip(sound === "instrumental")}>
-                    <Piano className="w-4 h-4" aria-hidden />Instrumental{count(beforeSound.filter(isInst).length, sound === "instrumental")}
-                  </button>
-                </div>
-              </div>
-            )}
+        {/* Phones: one button for the filters, and one or two songs in a row */}
+        <div className="flex items-center gap-2 sm:hidden">
+          <button type="button" onClick={() => setSheet(true)} aria-haspopup="dialog" className={cn("flex-1 h-11 rounded-full border text-[14px] font-semibold inline-flex items-center justify-center gap-2", active ? "bg-[#F3EEFF] border-[#B9ADEB] text-[#4B32B8]" : "bg-white border-[#DDD8E8] text-[#17151F]")}>
+            <SlidersHorizontal className="w-4 h-4" aria-hidden />Filters{active > 0 && <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#7D5CEF] text-white text-[12px] font-bold tabular-nums inline-flex items-center justify-center">{active}</span>}
+          </button>
+          <div role="group" aria-label="Songs in a row" className="flex items-center gap-0.5 h-11 px-1 rounded-full bg-white border border-[#DDD8E8] flex-shrink-0">
+            <button type="button" aria-pressed={!m2} aria-label="One song in a row" onClick={() => pickMcols(1)} className={cn("w-9 h-9 rounded-full flex items-center justify-center", !m2 ? "bg-[#7D5CEF] text-white" : "text-[#4A4658]")}><Square className="w-4 h-4" /></button>
+            <button type="button" aria-pressed={m2} aria-label="Two songs in a row" onClick={() => pickMcols(2)} className={cn("w-9 h-9 rounded-full flex items-center justify-center", m2 ? "bg-[#7D5CEF] text-white" : "text-[#4A4658]")}><Grid2x2 className="w-4 h-4" /></button>
           </div>
-        )}
+        </div>
+
+        {/* Wider screens: the filters sit here, each on one line */}
+        {hasRows && <div className="hidden sm:block">{filterRows(false)}</div>}
 
         {(filtering || q) && !loading && (
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#F1EFF6]">
@@ -320,7 +317,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
             const key = lib?.id ?? s.youtubeId;
             const untagged = !s.events.length && !s.videos.length && !ownTags.length;
             return (
-              <li key={key} className={cn("bg-white rounded-[22px] p-2.5 flex flex-col min-w-0 sp-pop-in", CARD_SHADOW)} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+              <li key={key} className={cn("bg-white rounded-[22px] p-2.5 flex flex-col min-w-0 sp-pop-in", m2 && "max-sm:rounded-[18px] max-sm:p-2", CARD_SHADOW)} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
                 <div className="relative aspect-video rounded-[16px] overflow-hidden bg-[#17151F]">
                   {playing === key ? (
                     <>
@@ -345,11 +342,11 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                   )}
                 </div>
                 <div className="px-1.5 pt-3 flex-1">
-                  <p className="text-[14.5px] font-bold text-[#17151F] line-clamp-2 leading-snug [overflow-wrap:anywhere]">
+                  <p className={cn("text-[14.5px] font-bold text-[#17151F] line-clamp-2 leading-snug [overflow-wrap:anywhere]", m2 && "max-sm:text-[13px]")}>
                     {markMatch(s.title, q).map((m, k) => (m.hit ? <mark key={k} className="bg-[#EEE8FD] text-[#5B3FD0] rounded-[4px] px-0.5">{m.text}</mark> : <span key={k}>{m.text}</span>))}
                   </p>
                   {s.channel && <p className="text-[12.5px] text-[#6B6680] truncate mt-0.5">{s.channel}</p>}
-                  <div className={cn("flex flex-wrap gap-1 mt-2.5", small && "lg:hidden")}>
+                  <div className={cn("flex flex-wrap gap-1 mt-2.5", small && "lg:hidden", m2 && "max-sm:hidden")}>
                     {s.events.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.events, id)}</span>)}
                     {s.videos.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#E6EEF8] text-[#1F5C99] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.videos, id)}</span>)}
                     {ownTags.map(t => <span key={t} className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[11.5px] font-semibold inline-flex items-center">{t}</span>)}
@@ -360,15 +357,15 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                     {untagged && <span className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">Fits any part</span>}
                   </div>
                 </div>
-                <div className={cn("flex items-center gap-1 px-0.5 pt-2.5 mt-2.5 border-t border-[#F1EFF6]", small && "lg:flex-wrap")}>
-                  {lib ? <button type="button" onClick={() => setForm({ song: lib })} className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" />Edit tags</button>
-                    : o!.mine ? <span className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#1F8A5B] bg-[#E2F4EA] inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} />In my songs</span>
-                    : <button type="button" onClick={() => setForm({ url: s.url, from: o! })} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" />Add to my songs</button>}
+                <div className={cn("flex items-center gap-1 px-0.5 pt-2.5 mt-2.5 border-t border-[#F1EFF6]", small && "lg:flex-wrap", m2 && "max-sm:gap-0 max-sm:pt-2 max-sm:mt-2")}>
+                  {lib ? <button type="button" onClick={() => setForm({ song: lib })} aria-label={`Edit the tags of ${s.title}`} className={cn("h-9 px-3 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5", m2 && "max-sm:px-2.5")}><Pencil className="w-3.5 h-3.5" /><span className={cn(m2 && "max-sm:hidden")}>Edit tags</span></button>
+                    : o!.mine ? <span className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#1F8A5B] bg-[#E2F4EA] inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} /><span className={cn(m2 && "max-sm:hidden")}>In my songs</span><span className={cn("hidden", m2 && "max-sm:inline")}>Added</span></span>
+                    : <button type="button" onClick={() => setForm({ url: s.url, from: o! })} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /><span className={cn(m2 && "max-sm:hidden")}>Add to my songs</span><span className={cn("hidden", m2 && "max-sm:inline")}>Add</span></button>}
                   <span className="flex-1" />
                   <button type="button" onClick={() => toggleFav(s)} aria-pressed={favIds.has(s.youtubeId)} aria-label={favIds.has(s.youtubeId) ? `Take ${s.title} out of Favourites` : `Add ${s.title} to Favourites`} title={favIds.has(s.youtubeId) ? "In Favourites" : "Add to Favourites"}
                     className={cn("w-9 h-9 rounded-full flex items-center justify-center transition-colors", favIds.has(s.youtubeId) ? "text-[#C2304F] bg-[#FDECEF]" : "text-[#6B6680] hover:bg-[#F5F3FA]")}><Heart className="w-4 h-4" fill={favIds.has(s.youtubeId) ? "currentColor" : "none"} /></button>
-                  <button type="button" onClick={() => copyLink(s)} aria-label={`Copy the link of ${s.title}`} title="Copy link" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><Copy className="w-4 h-4" /></button>
-                  <a href={s.url} target="_blank" rel="noreferrer" aria-label="Open on YouTube" title="Open on YouTube" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><ExternalLink className="w-4 h-4" /></a>
+                  <button type="button" onClick={() => copyLink(s)} aria-label={`Copy the link of ${s.title}`} title="Copy link" className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]", m2 && !lib && "max-sm:hidden")}><Copy className="w-4 h-4" /></button>
+                  <a href={s.url} target="_blank" rel="noreferrer" aria-label="Open on YouTube" title="Open on YouTube" className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]", m2 && "max-sm:hidden")}><ExternalLink className="w-4 h-4" /></a>
                   {lib ? <button type="button" onClick={() => remove(lib)} aria-label={`Remove ${s.title}`} title="Remove" className="w-9 h-9 rounded-full flex items-center justify-center text-[#C2304F] hover:bg-[#FDECEF]"><Trash2 className="w-4 h-4" /></button>
                     : <button type="button" onClick={() => hide(o!)} aria-label={`Hide ${s.title}`} title="Don't show me this song" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><EyeOff className="w-4 h-4" /></button>}
                 </div>
@@ -376,6 +373,24 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
             );
           })}
         </ul>
+      )}
+
+      {/* Phones: the filters as a sheet from the bottom */}
+      {sheet && (
+        <div className="fixed inset-0 z-[1000] sm:hidden" role="dialog" aria-modal="true" aria-label="Filters">
+          <button type="button" aria-label="Close filters" onClick={() => setSheet(false)} className="absolute inset-0 bg-[#17151F]/45 sp-fade-in" />
+          <div className="absolute inset-x-0 bottom-0 max-h-[86dvh] flex flex-col bg-white rounded-t-[26px] shadow-[0_-18px_50px_-20px_rgba(23,21,31,.55)] sp-fade-in">
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#F1EFF6]">
+              <p className="text-[17px] font-bold text-[#17151F]">Filters</p>
+              <button type="button" onClick={() => setSheet(false)} aria-label="Close" className="w-10 h-10 rounded-full bg-[#F5F3FA] text-[#17151F] flex items-center justify-center"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">{hasRows ? filterRows(true) : <p className="text-[14px] text-[#6B6680]">There is nothing to filter in this list yet.</p>}</div>
+            <div className="flex items-center gap-2 px-5 pt-3 pb-[max(14px,env(safe-area-inset-bottom))] border-t border-[#F1EFF6]">
+              {filtering && <button type="button" onClick={clearAll} className="h-12 px-4 rounded-full bg-[#F5F3FA] text-[#17151F] text-[14px] font-semibold">Clear</button>}
+              <button type="button" onClick={() => setSheet(false)} className="flex-1 h-12 rounded-full bg-[#7D5CEF] text-white text-[15px] font-semibold">Show {shown.length} song{shown.length === 1 ? "" : "s"}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {form && <SongDrawer cat={cat} songs={songs} song={form.song} url={form.url} from={form.from} onClose={() => setForm(null)}
@@ -418,6 +433,57 @@ function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[];
           <div className="flex flex-wrap gap-1.5">{kidsOf(p.id).map(t => pill(t, value.includes(t.id), true))}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+type ChipItem = { id: string; on: boolean; onPick: () => void; node: React.ReactNode };
+/**
+ * One line of filter chips. What does not fit on the line waits behind "More" at its end; pressing it shows all of them.
+ * With `limit` (the phone's sheet) the first few show instead of measuring a line. The chosen chip is always in view.
+ */
+function ChipRow({ label, aria, items, allOn, onAll, chipCls, stacked, limit }: { label: string; aria: string; items: ChipItem[]; allOn: boolean; onAll: () => void; chipCls: (on: boolean) => string; stacked?: boolean; limit?: number }) {
+  const [open, setOpen] = useState(false);
+  const [fit, setFit] = useState(items.length);
+  const box = useRef<HTMLDivElement>(null);
+  const ruler = useRef<HTMLDivElement>(null);
+  const measure = useCallback(() => {
+    if (limit || !box.current || !ruler.current) return;
+    const kids = Array.from(ruler.current.children) as HTMLElement[];
+    const w = box.current.clientWidth, gap = 6, more = kids[kids.length - 1].offsetWidth;
+    let all = kids[0].offsetWidth;
+    for (let i = 1; i < kids.length - 1; i++) all += gap + kids[i].offsetWidth;
+    if (all <= w) { setFit(kids.length - 2); return; }
+    let used = kids[0].offsetWidth, k = 0;
+    for (let i = 1; i < kids.length - 1; i++) { const next = used + gap + kids[i].offsetWidth; if (next + gap + more > w) break; used = next; k++; }
+    setFit(k);
+  }, [limit]);
+  // After every draw (the numbers in the chips change their width) and whenever the line gets wider or narrower.
+  useLayoutEffect(() => { measure(); });
+  useEffect(() => { if (!box.current) return; const ro = new ResizeObserver(measure); ro.observe(box.current); return () => ro.disconnect(); }, [measure]);
+
+  const room = Math.min(items.length, limit ?? fit);
+  let shown = open ? items : items.slice(0, room);
+  const chosen = items.findIndex(t => t.on);
+  if (!open && chosen >= room) shown = room > 0 ? [...items.slice(0, room - 1), items[chosen]] : [items[chosen]];
+  const rest = items.length - shown.length;
+  const moreCls = "h-10 px-3.5 rounded-full text-[13.5px] font-semibold text-[#4B32B8] border border-dashed border-[#B9ADEB] hover:bg-[#F6F2FF] flex-shrink-0 whitespace-nowrap inline-flex items-center";
+  return (
+    <div className={cn(!stacked && "flex items-start gap-3")}>
+      <p className={cn("text-[13px] font-bold text-[#17151F] flex-shrink-0", stacked ? "mb-2" : "w-14 pt-2.5")}>{label}</p>
+      <div ref={box} className={cn("relative min-w-0 flex-1 flex gap-1.5", open || limit ? "flex-wrap" : "flex-nowrap overflow-hidden")} role="group" aria-label={aria}>
+        <button type="button" aria-pressed={allOn} onClick={onAll} className={chipCls(allOn)}>All</button>
+        {shown.map(t => <button key={t.id} type="button" aria-pressed={t.on} onClick={t.onPick} className={chipCls(t.on)}>{t.node}</button>)}
+        {(rest > 0 || open) && items.length > 0 && <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)} className={moreCls}>{open ? "Fewer" : `More (${rest})`}</button>}
+        {/* The same chips, unseen, to learn how wide each one is */}
+        {!limit && (
+          <div ref={ruler} aria-hidden className="absolute left-0 top-0 flex gap-1.5 invisible pointer-events-none h-0 overflow-hidden">
+            <span className={chipCls(false)}>All</span>
+            {items.map(t => <span key={t.id} className={chipCls(false)}>{t.node}</span>)}
+            <span className={moreCls}>More (99)</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -489,6 +555,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
 
   /** Music only, no singing. */
   const inst = language[0] === "instrumental";
+  const hasInst = cat.languages.some(l => l.id === "instrumental");
   // What is ticked right now, for the link check below (it must not undo the person's own ticks).
   const cur = useRef({ events, videos, moods, language, own });
   useEffect(() => { cur.current = { events, videos, moods, language, own }; });
@@ -597,7 +664,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
         </div>
       )}
 
-      <FormGroup title="Is there singing in it?" note="Instrumental is music only — good behind decoration shots, rituals and entries">
+      {(hasInst || inst) && <FormGroup title="Is there singing in it?" note="Instrumental is music only — good behind decoration shots, rituals and entries">
         <div className="grid grid-cols-2 gap-2" role="group" aria-label="With singing or music only">
           {([["song", "With singing", Mic2], ["instrumental", "Instrumental", Piano]] as const).map(([id, label, Icon]) => { const on = (id === "instrumental") === inst; return (
             <button key={id} type="button" aria-pressed={on} onClick={() => setLanguage(id === "instrumental" ? ["instrumental"] : inst ? [] : language)}
@@ -607,7 +674,7 @@ function SongDrawer({ cat, songs, song, url: startUrl, from, onClose, onSaved }:
             </button>
           ); })}
         </div>
-      </FormGroup>
+      </FormGroup>}
       <FormGroup title="Which event?" note="Leave empty if it fits any event">
         <TagPicker list={cat.events} value={events} onChange={setEvents} label="Event" />
       </FormGroup>

@@ -19,6 +19,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW, EmptyState, Group } from "@/components/ui/apple";
 import { FormDrawer, PillPicker, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { useTab } from "@/components/ui/profile-page";
+import { QrPoster } from "./qr-poster";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
@@ -638,6 +639,7 @@ function Share({ g }: { g: FaceDetail }) {
     try { await navigator.clipboard.writeText(g.link); notify("Link copied"); } catch { notify("Could not copy. Press and hold the link to copy it.", { error: true }); }
   }
   return (
+    <>
     <div className="grid lg:grid-cols-2 gap-5 items-start">
       <div>
         <Group title="Guest link" note="One link and one QR for every guest. Each guest takes a selfie and sees only the photos they are in.">
@@ -663,6 +665,8 @@ function Share({ g }: { g: FaceDetail }) {
         </div>
       </Group>
     </div>
+    <QrPoster link={g.link} title={g.title} pin={g.settings.pin} />
+    </>
   );
 }
 
@@ -673,6 +677,8 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
   const [title, setTitle] = useState(g.title);
   const [pin, setPin] = useState(g.settings.pin);
   const [welcome, setWelcome] = useState(g.settings.welcome);
+  const [fb, setFb] = useState(g.settings.followFacebook ?? "");
+  const [ig, setIg] = useState(g.settings.followInstagram ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function save(patch: Partial<FaceSettings>, extra: { title?: string } = {}) {
@@ -739,7 +745,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
       </section>
 
       <section id="fs-s-before" className="scroll-mt-24">
-      <Group title="Before guests get their photos" note="More choices (follow your pages first, watermark, lock while the client has dues) come in the next steps.">
+      <Group title="Before guests get their photos" note="Watermark and locking the gallery while the client has dues come later.">
         <div className="px-4 py-3.5">
           <label htmlFor="fs-pin" className="block text-[15px] font-medium text-[#17151F]">Ask for a 4-digit code</label>
           <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests type it before the selfie. Leave empty for no code.</p>
@@ -751,6 +757,20 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
           <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">{{ off: "Guests see their photos right after the selfie.", optional: "Guests are asked after the selfie and can skip it.", required: "Guests see how many photos were found, and must give their name and number to open them." }[s.register ?? "off"]}</p>
           <PillPicker<"off" | "optional" | "required"> label="Ask for name and number" value={s.register ?? "off"} onChange={v => save({ register: v })}
             options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
+        </div>
+        <div className="px-4 py-3.5">
+          <p className="text-[15px] font-medium text-[#17151F]">Ask guests to follow your pages</p>
+          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests open your page before their photos. Leave both empty to skip this step. We can&apos;t check that they pressed Follow.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="fs-fb" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Facebook page link</label>
+              <input id="fs-fb" className={inputCls} inputMode="url" maxLength={200} placeholder="facebook.com/yourstudio" value={fb} onChange={e => { const v = e.target.value; setFb(v); later(() => save({ followFacebook: v })); }} />
+            </div>
+            <div>
+              <label htmlFor="fs-ig" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Instagram link</label>
+              <input id="fs-ig" className={inputCls} inputMode="url" maxLength={200} placeholder="instagram.com/yourstudio" value={ig} onChange={e => { const v = e.target.value; setIg(v); later(() => save({ followInstagram: v })); }} />
+            </div>
+          </div>
         </div>
         <SwitchRow label="Guests can download" hint="Off = guests can only look at their photos." on={s.downloads} onChange={v => save({ downloads: v })} />
       </Group>

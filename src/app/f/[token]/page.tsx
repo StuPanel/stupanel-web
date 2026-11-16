@@ -12,9 +12,9 @@ import { faceDownloadUrl, facePhotoUrl, type Cover, type FacePhoto } from "@/lib
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import "./guest.css";
 
-type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required" };
+type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
-type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "results";
+type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
 const longDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
@@ -72,7 +72,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
       if (saved.key && d.status === "published") {
         const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
-        if (on && m?.ok) { const out: Result = await m.json(); setSelfie(saved.selfie || ""); setRes(out); return setStep(out.needsRegister ? "register" : "results"); }
+        if (on && m?.ok) { const out: Result = await m.json(); setSelfie(saved.selfie || ""); setRes(out);
+          let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
+          return setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
       }
       if (on) setStep("land");
     })();
@@ -101,8 +103,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     await new Promise(ok => setTimeout(ok, n ? 500 : 200));
     setRes(out);
     // The studio asks for a name and number: before the photos (required), or as a step the guest can skip (optional).
-    setStep(n > 0 && !out.registered && (out.needsRegister || g?.register === "optional") ? "register" : "results");
-  }, [base, store, pin, g?.register]);
+    const follow = !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
+    setStep(n > 0 && !out.registered && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
+  }, [base, store, pin, g?.register, g?.follow]);
 
   // After the guest gave their details: photos that were held back are fetched now.
   const registered = useCallback(async () => {
@@ -111,8 +114,16 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
       if (m?.ok) setRes(await m.json()); else setRes({ ...res, registered: true });
     } else setRes({ ...res, registered: true });
-    setStep("results");
-  }, [base, res]);
+    const follow = !!g?.follow?.length && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
+    setStep(follow ? "follow" : "results");
+  }, [base, res, g?.follow, store]);
+
+  // The follow step is shown once per browser, and only when there are photos to open.
+  const wantsFollow = (out: Result) => {
+    if (!g?.follow?.length || !(out.count ?? out.photos.length)) return false;
+    try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; }
+  };
+  const afterDetails = (out: Result) => setStep(wantsFollow(out) ? "follow" : "results");
 
   if (step === "bad") return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>Photos not found</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
   if (step === "load" || !g) return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
@@ -126,7 +137,11 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
-        <Register base={base} res={res} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister} onDone={registered} onSkip={() => setStep("results")} />
+        <Register base={base} res={res} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister} onDone={registered} onSkip={() => afterDetails(res)} />
+      )}
+      {step === "follow" && res && g.follow && (
+        <Follow studio={g.studio.name} pages={g.follow} count={res.count ?? res.photos.length}
+          onDone={() => { try { localStorage.setItem(`${store}:followed`, "1"); } catch { /* private window */ } setStep("results"); }} />
       )}
       {step === "results" && res && (
         <Results g={g} res={res} selfie={selfie} onOpen={(list, i) => setView({ list, i })} onRetake={() => { setNote(""); setStep("selfie"); }} base={base} />
@@ -285,6 +300,39 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
         <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : `See my ${n === 1 ? "photo" : "photos"}`}</button>
         {!must && <button type="button" onClick={onSkip} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>Not now</button>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Follow the studio ───────────────────────────────────────────────────────
+
+function Follow({ studio, pages, count, onDone }: { studio: string; pages: { site: "facebook" | "instagram"; url: string }[]; count: number; onDone: () => void }) {
+  const [opened, setOpened] = useState(false);
+  const NAME = { facebook: "Facebook", instagram: "Instagram" } as const;
+  const TINT = { facebook: "#1877F2", instagram: "#C13584" } as const;
+  return (
+    <div className="gf-step" style={{ padding: "40px 22px 26px" }}>
+      <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>One small thing first</h1>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{studio} took these photos. Follow their page, then open your {count} photo{count === 1 ? "" : "s"}.</p>
+      </div>
+      <div style={{ marginTop: 30, display: "flex", flexDirection: "column", gap: 12 }}>
+        {pages.map(p => (
+          <a key={p.site} href={p.url} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)}
+            style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 68, padding: "0 18px", borderRadius: 20, background: "#fff", color: "#17151F", textDecoration: "none", boxShadow: "0 10px 26px -18px rgba(40,28,96,.5)" }}>
+            <span aria-hidden style={{ width: 40, height: 40, borderRadius: 13, background: TINT[p.site], flex: "none" }} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 16, fontWeight: 700 }}>Follow on {NAME[p.site]}</span>
+              <span style={{ display: "block", fontSize: 13, color: "#6B6680" }}>Opens in a new tab</span>
+            </span>
+            <Ic d={<path d="M9 6l6 6-6 6" />} w={2.4} />
+          </a>
+        ))}
+      </div>
+      <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 8 }}>
+        <button type="button" className="gf-cta" disabled={!opened} onClick={onDone} style={{ opacity: opened ? 1 : .5 }}>See my {count === 1 ? "photo" : "photos"}</button>
+        {!opened && <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680" }}>Open a page first, then come back here.</p>}
       </div>
     </div>
   );

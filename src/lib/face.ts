@@ -16,7 +16,7 @@ export type Cover = { driveFileId: string; width: number | null; height: number 
 export type FaceGallery = {
   id: string; title: string; status: FaceStatus; bookingId: string; link: string; settings: FaceSettings;
   publishedAt: string | null; closedAt: string | null; createdAt: string;
-  program: { number: string; eventName: string | null; eventDate: string | null; client: string } | null;
+  program: { id?: string; number: string; eventName: string | null; eventDate: string | null; client: string } | null;
   counts: FaceCounts; cover: Cover;
 };
 export type FaceDetail = FaceGallery & { ready: boolean; folders: { name: string; photos: number }[]; creditsUsed: number; credits: Credits };
@@ -47,3 +47,6 @@ export const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString("e
 export const dayTime = (d?: string | null) => (d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }) : "");
 export const errText = (d: { message?: string | string[] } | null | undefined, fallback: string) =>
   (Array.isArray(d?.message) ? d?.message[0] : d?.message) || fallback;
+
+/** Where photos uploaded from a phone or computer go inside the program's raw files on Drive. */
+export const FACE_UPLOAD_PATH = "Face search";

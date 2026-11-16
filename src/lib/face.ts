@@ -19,6 +19,10 @@ export type FaceSettings = {
   /** Share of the photo's width, 5–60 */ watermarkSize?: number; /** 5–100 */ watermarkOpacity?: number;
   /** Placed by hand: how far across and down, 0–100 each (null = use watermarkPos) */
   watermarkX?: number | null; watermarkY?: number | null;
+  /** Email a guest when their photos are ready; auto = by itself, manual = when the studio presses the button */
+  notifyEmail?: boolean; notifyWhen?: "auto" | "manual";
+  /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */
+  message?: string;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };
@@ -44,7 +48,15 @@ export type FaceGuest = {
   id: string; name: string | null; phone: string | null; email: string | null; channel: string | null;
   matchCount: number; searches: number; lastSearchAt: string | null; registeredAt: string | null;
   linkSentAt: string | null; openedAt: string | null; downloads: number; createdAt: string;
+  /** Photos the guest had when they were last told */ notifiedCount?: number;
+  /** New photos since they were told (or never told): the link can be sent now */ due?: boolean;
+  /** Came back after the message went out */ opened?: boolean;
+  /** The ready WhatsApp message with the guest's own link (guests with a number) */ text?: string;
 };
+/** What the Guests tab gets: the guests and how messages are set for this gallery. */
+export type FaceGuestList = { guests: FaceGuest[]; status?: FaceStatus; message?: string; notifyEmail?: boolean; notifyWhen?: "auto" | "manual" };
+/** The message guests get when the studio writes none of its own (the same words as on the server). */
+export const DEFAULT_GUEST_MESSAGE = "Hi {name}, your photos from {event} are ready. We found {count} of you. See them here: {link}";
 
 export const FACE_STATUS: Record<FaceStatus, { label: string; badge: string; dot: string }> = {
   draft: { label: "Not published", badge: "bg-[#F1EFF6] text-[#4A4658]", dot: "bg-[#B5B0C4]" },

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import {
   AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, Copy, Download, ExternalLink, EyeOff, FolderOpen, FolderUp, HardDrive,
-  ImagePlus, Images, Loader2, Mail, MessageCircle, MonitorUp, PackageCheck, QrCode, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
+  ImagePlus, Images, Loader2, MonitorUp, PackageCheck, QrCode, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
   Star, Trash2, Users, X,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -21,11 +21,12 @@ import { FormDrawer, inputCls } from "@/components/ui/form-kit";
 import { useTab } from "@/components/ui/profile-page";
 import { QrPoster } from "./qr-poster";
 import { GallerySettings } from "./gallery-settings";
+import { GuestsTab } from "./guests-tab";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
-  FACE_STATUS, FACE_UPLOAD_PATH, day, dayTime, errText, facePhotoUrl, num,
-  type Credits, type FaceDetail, type FaceGuest, type FacePhoto,
+  FACE_STATUS, FACE_UPLOAD_PATH, day, errText, facePhotoUrl, num,
+  type Credits, type FaceDetail, type FacePhoto,
 } from "@/lib/face";
 
 type Tab = "photos" | "guests" | "share" | "settings";
@@ -135,7 +136,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
       )}
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
-      {tab === "guests" && <Guests id={g.id} title={g.title} />}
+      {tab === "guests" && <GuestsTab id={g.id} title={g.title} status={g.status} onSettings={() => setTab("settings")} />}
       {tab === "share" && <Share g={g} />}
       {tab === "settings" && <GallerySettings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
@@ -565,69 +566,6 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
         </div>
       )}
     </FormDrawer>
-  );
-}
-
-// ─── Guests ───────────────────────────────────────────────────────────────────
-
-function Guests({ id, title }: { id: string; title: string }) {
-  const [list, setList] = useState<FaceGuest[] | null>(null);
-  const [only, setOnly] = useState<"all" | "contact">("all");
-  useEffect(() => { apiFetch(`${API}/face-search/${id}/guests`).then(r => (r.ok ? r.json() : { guests: [] })).then(d => setList(d.guests)).catch(() => setList([])); }, [id]);
-  if (list === null) return <div className="py-16 flex justify-center text-[#A29DB3]"><Loader2 className="w-6 h-6 animate-spin" /></div>;
-  if (!list.length) return <EmptyState icon={ScanFace} title="No guests yet" text="Everyone who takes a selfie on the guest page shows up here, with how many photos they found." />;
-
-  const withContact = list.filter(u => u.phone || u.email);
-  const shown = only === "contact" ? withContact : list;
-  const phones = [...new Set(withContact.map(u => u.phone).filter(Boolean))] as string[];
-
-  async function copyNumbers() {
-    try { await navigator.clipboard.writeText(phones.join("\n")); notify(`${num(phones.length)} number${phones.length === 1 ? "" : "s"} copied`); } catch { notify("Could not copy. Use Download list.", { error: true }); }
-  }
-  function download() {
-    const esc = (v: string | number | null | undefined) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    const rows = [["Name", "WhatsApp", "Email", "Photos found", "Downloads", "Last search"], ...withContact.map(u => [u.name, u.phone, u.email, u.matchCount, u.downloads, dayTime(u.lastSearchAt ?? u.createdAt)])];
-    const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(r => r.map(esc).join(",")).join("\n")], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/[^\w\- ]+/g, "").trim() || "gallery"} guests.csv`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  }
-
-  return (
-    <>
-      <div className={cn("bg-white rounded-[18px] p-2 mb-3 flex flex-col sm:flex-row sm:items-center gap-2", CARD_SHADOW)}>
-        <div role="group" aria-label="Show guests" className="flex gap-1 flex-1 min-w-0">
-          {([["all", "All guests", list.length], ["contact", "Gave name and number", withContact.length]] as const).map(([v, label, n]) => (
-            <button key={v} type="button" aria-pressed={only === v} onClick={() => setOnly(v)}
-              className={cn("h-10 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40", only === v ? "bg-[#EEE8FD] text-[#4B32B8]" : "text-[#4A4658] hover:bg-[#F5F3FA]")}>
-              {label}<span className={cn("text-[12px] tabular-nums", only === v ? "text-[#4B32B8]/80" : "text-[#6B6680]")}>{num(n)}</span>
-            </button>
-          ))}
-        </div>
-        {withContact.length > 0 && (
-          <div className="flex gap-2">
-            {phones.length > 0 && <button type="button" onClick={copyNumbers} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5"><Copy className="w-4 h-4" />Copy numbers</button>}
-            <button type="button" onClick={download} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" />Download list</button>
-          </div>
-        )}
-      </div>
-      {shown.length === 0 ? <p className="text-center text-sm text-[#6B6680] py-12">No guest has given a name and number yet. Turn on &quot;Ask for name and WhatsApp number&quot; in Settings.</p> : (
-        <Group>
-          {shown.map(u => (
-            <div key={u.id} className="px-4 sm:px-5 py-3 flex items-center gap-3 min-h-[64px]">
-              <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#4B32B8] flex items-center justify-center flex-shrink-0">
-                {u.channel === "email" ? <Mail className="w-4 h-4" /> : u.channel === "whatsapp" ? <MessageCircle className="w-4 h-4" /> : <ScanFace className="w-4 h-4" />}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#17151F] truncate">{u.name || u.phone || u.email || "Guest (no details)"}</p>
-                <p className="text-xs text-[#6B6680] truncate">{[u.name ? u.phone || u.email : "", `Searched ${dayTime(u.lastSearchAt ?? u.createdAt)}`, u.downloads ? `${num(u.downloads)} downloads` : ""].filter(Boolean).join(" · ")}</p>
-              </div>
-              {u.phone && <a href={`https://wa.me/${u.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" aria-label={`Message ${u.name || u.phone} on WhatsApp`} className="w-10 h-10 rounded-full bg-[#E2F4EA] text-[#176B47] flex items-center justify-center flex-shrink-0"><MessageCircle className="w-4 h-4" /></a>}
-              <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap tabular-nums", u.matchCount ? "bg-[#E2F4EA] text-[#176B47]" : "bg-[#F1EFF6] text-[#4A4658]")}>{u.matchCount ? `${num(u.matchCount)} photos` : "No photos yet"}</span>
-            </div>
-          ))}
-        </Group>
-      )}
-    </>
   );
 }
 

@@ -13,8 +13,8 @@ import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import "./guest.css";
 
 type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
-type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
-type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "follow" | "results";
+type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
+type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
 const longDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
@@ -77,9 +77,17 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       // Came back in the same browser: show the photos again without a selfie.
       let saved: { key?: string; selfie?: string } = {};
       try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
-      if (saved.key && d.status === "published") {
+      // The guest's own link (sent by email or WhatsApp) carries their key: keep it, and take it out of the address bar.
+      const own = new URLSearchParams(window.location.search).get("k");
+      if (own && /^[\w-]{16,64}$/.test(own)) {
+        if (own !== saved.key) saved = { key: own };
+        try { localStorage.setItem(store, JSON.stringify(saved)); } catch { /* private window */ }
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      if (saved.key && d.status !== "closed") {
         const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
         if (on && m?.ok) { const out = stamp(await m.json()); setSelfie(saved.selfie || ""); setRes(out);
+          if (out.waiting) return setStep(out.registered ? "wait" : "register");
           let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
           return setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
       }
@@ -107,6 +115,8 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     }
     const out = stamp(d as Result);
     try { localStorage.setItem(store, JSON.stringify({ key: out.key, selfie: await thumbOfSelfie(image) })); } catch { /* private window */ }
+    // The photos are not out yet: the selfie is kept, and the guest says where to send them.
+    if (out.waiting) { await new Promise(ok => setTimeout(ok, Math.max(0, 1200 - (Date.now() - started)))); setRes(out); return setStep(out.registered ? "wait" : "register"); }
     // Let the search screen be seen for a moment, then count up to the number found.
     await new Promise(ok => setTimeout(ok, Math.max(0, 1400 - (Date.now() - started))));
     const n = out.count ?? out.photos.length;
@@ -121,6 +131,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   // After the guest gave their details: photos that were held back are fetched now.
   const registered = useCallback(async () => {
     if (!res) return;
+    if (res.waiting) { setRes({ ...res, registered: true }); return setStep("wait"); }
     if (res.needsRegister) {
       const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
       if (m?.ok) setRes(stamp(await m.json())); else setRes({ ...res, registered: true });
@@ -150,8 +161,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
-        <Register base={base} res={res} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister} onDone={registered} onSkip={() => afterDetails(res)} />
+        <Register base={base} res={res} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
       )}
+      {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} onRetake={() => { setNote(""); setStep("selfie"); }} />}
       {step === "follow" && res && g.follow && (
         <Follow studio={g.studio.name} pages={g.follow} count={res.count ?? res.photos.length}
           onDone={() => { try { localStorage.setItem(`${store}:followed`, "1"); } catch { /* private window */ } setStep("results"); }} />
@@ -195,9 +207,14 @@ function counted(base: string, key: string, n: number) {
 // ─── Landing ──────────────────────────────────────────────────────────────────
 
 function Landing({ g, note, onStart }: { g: Open; note: string; onStart: () => void }) {
-  const open = g.status === "published" && g.ready;
-  const title = open ? "Find your photos in seconds" : g.status === "closed" ? "This gallery is closed" : "The photos are on their way";
-  const body = open ? (g.welcome || "Take one selfie. We show you every photo you are in.") : g.status === "closed" ? `Please ask ${g.studio.name} if you still need your photos.` : `${g.studio.name} is still adding the photos. Please scan again a little later.`;
+  const live = g.status === "published" && g.ready;
+  // Before the photos are out: a guest can leave a selfie and a number, and is told when they are ready.
+  const early = g.status === "draft" && g.ready && !!g.register && g.register !== "off";
+  const open = live || early;
+  const title = live ? "Find your photos in seconds" : early ? "Get your photos as soon as they are ready" : g.status === "closed" ? "This gallery is closed" : "The photos are on their way";
+  const body = live ? (g.welcome || "Take one selfie. We show you every photo you are in.")
+    : early ? `Take one selfie now and say where to send them. ${g.studio.name} sends your photos to you when they are ready.`
+    : g.status === "closed" ? `Please ask ${g.studio.name} if you still need your photos.` : `${g.studio.name} is still adding the photos. Please scan again a little later.`;
   return (
     <div className="gf-step">
       <div style={{ position: "relative", flex: "1 1 54%", minHeight: 300, overflow: "hidden", borderRadius: "0 0 40px 40px", background: "#2A2140" }}>
@@ -228,7 +245,7 @@ function Landing({ g, note, onStart }: { g: Open; note: string; onStart: () => v
           {open && (
             <button type="button" className="gf-cta gf-pulse" onClick={onStart}>
               <Ic size={22} d={<><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="3" /><path d="M7.5 17c1-2 2.600-3 4.500-3s3.500 1 4.500 3" /></>} />
-              Find my photos
+              {early ? "Send me my photos" : "Find my photos"}
             </button>
           )}
           <p style={{ fontSize: 12, color: "#6B6680", textAlign: "center" }}>Your selfie is used only to find your photos. The picture itself is not kept.</p>
@@ -285,18 +302,23 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
 function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [mail, setMail] = useState("");
+  /** Where the photos go: the guest's WhatsApp, or their email. */
+  const [by, setBy] = useState<"whatsapp" | "email">("whatsapp");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const n = res.count ?? res.photos.length;
+  const waiting = !!res.waiting;
 
   async function send() {
     const digits = phone.replace(/[^\d+]/g, "");
     if (name.trim().length < 2) return setErr("Please type your name.");
-    if (digits.replace(/\D/g, "").length < 10) return setErr("Please type your WhatsApp number, like 01712345678.");
+    if (by === "whatsapp" && digits.replace(/\D/g, "").length < 10) return setErr("Please type your WhatsApp number, like 01712345678.");
+    if (by === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr("Please check your email address.");
     setErr(""); setBusy(true);
     // A local number (01…) is sent with Bangladesh's country code.
-    const value = digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
-    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), channel: "whatsapp", value }) }).catch(() => null);
+    const value = by === "email" ? mail.trim() : digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
+    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), channel: by, value }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     setBusy(false);
     if (!r?.ok) return setErr(r?.status === 429 ? "Too many tries. Please wait a minute." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Could not save. Please check your internet and try again.");
@@ -311,8 +333,8 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={selfie} alt="" style={{ width: 76, height: 76, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 4px #fff, 0 10px 24px -10px rgba(40,28,96,.5)" }} />
           : null}
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>We found {n} photo{n === 1 ? "" : "s"} of you</h1>
-        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{must ? "Tell us who you are to see them." : "Add your name and number, and the studio can send you new photos too."}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? "Where should we send your photos?" : `We found ${n} photo${n === 1 ? "" : "s"} of you`}</h1>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? `Your selfie is saved. ${studio} sends your photos here when they are ready.` : must ? "Tell us who you are to see them." : "Add your name and number, and the studio can send you new photos too."}</p>
       </div>
       <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
@@ -320,16 +342,56 @@ function Register({ base, res, studio, selfie, must, onDone, onSkip }: { base: s
           <input id="gf-name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={120} placeholder="Nadia Rahman" style={field} />
         </div>
         <div>
-          <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>WhatsApp number</label>
-          <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
-            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+          <div role="radiogroup" aria-label="Send my photos by" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: 5, borderRadius: 18, background: "rgba(125,92,239,.12)", marginBottom: 12 }}>
+            {(["whatsapp", "email"] as const).map(c => (
+              <button key={c} type="button" role="radio" aria-checked={by === c} onClick={() => { setBy(c); setErr(""); }}
+                style={{ height: 44, border: 0, borderRadius: 14, fontSize: 15, fontWeight: 700, background: by === c ? "#fff" : "transparent", color: by === c ? "#17151F" : "#4A4658", boxShadow: by === c ? "0 6px 14px -8px rgba(40,28,96,.5)" : "none" }}>
+                {c === "whatsapp" ? "WhatsApp" : "Email"}
+              </button>
+            ))}
+          </div>
+          {by === "whatsapp" ? <>
+            <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>WhatsApp number</label>
+            <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
+              aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+          </> : <>
+            <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>Email address</label>
+            <input id="gf-mail" value={mail} onChange={e => setMail(e.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="nadia@example.com" style={field}
+              aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+          </>}
         </div>
         {err ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{err}</p>
           : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>Only {studio} sees this. It is used to send you your photos.</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : `See my ${n === 1 ? "photo" : "photos"}`}</button>
+        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : waiting ? "Tell me when they are ready" : `See my ${n === 1 ? "photo" : "photos"}`}</button>
         {!must && <button type="button" onClick={onSkip} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>Not now</button>}
+      </div>
+    </div>
+  );
+}
+
+// ─── On the list (the photos are not out yet) ────────────────────────────────
+
+function Waiting({ studio, title, selfie, onRetake }: { studio: string; title: string; selfie: string; onRetake: () => void }) {
+  return (
+    <div className="gf-step" style={{ padding: "26px 22px 26px", alignItems: "center", textAlign: "center" }}>
+      <div className="gf-rise" style={{ marginTop: "12vh", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <div style={{ position: "relative" }}>
+          {selfie
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={selfie} alt="" style={{ width: 104, height: 104, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 5px #fff, 0 16px 34px -14px rgba(40,28,96,.6)" }} />
+            : <span style={{ width: 104, height: 104, borderRadius: "50%", background: "#EEE8FD", display: "block" }} />}
+          <span style={{ position: "absolute", right: -2, bottom: -2, width: 36, height: 36, borderRadius: "50%", background: "#1F8A5B", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 4px #fff" }}>
+            <Ic size={18} w={3} d={<path d="M5 12.5l4.5 4.500L19 7.500" />} />
+          </span>
+        </div>
+        <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.12 }}>You are on the list</h1>
+        <p style={{ fontSize: 16, lineHeight: 1.5, color: "#4A4658", maxWidth: 320 }}>{studio} will send you your photos from {title} when they are ready. You can close this page now.</p>
+      </div>
+      <div style={{ marginTop: "auto", width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+        <p style={{ fontSize: 13, color: "#6B6680" }}>You can also scan the same code again later. No new selfie is needed on this phone.</p>
+        <button type="button" onClick={onRetake} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>Take the selfie again</button>
       </div>
     </div>
   );

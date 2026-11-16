@@ -2,21 +2,21 @@
 
 /**
  * A face gallery's settings, one section at a time:
- *   Guest page · Access · Photos · Face matching · Watermark · Close or remove
+ *   Guest page · Access · Photos · Face matching · Watermark · Messages · Close or remove
  * The list on the left shows each section's state at a glance. Everything saves by itself.
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  Check, Images, ImageUp, KeyRound, Loader2, Minus, Plus, ScanFace, Stamp, Trash2, TriangleAlert, Type,
+  Check, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
-import { errText, facePhotoUrl, type Cover, type FaceDetail, type FaceSettings } from "@/lib/face";
+import { DEFAULT_GUEST_MESSAGE, errText, facePhotoUrl, type Cover, type FaceDetail, type FaceSettings } from "@/lib/face";
 
-type Sec = "page" | "access" | "photos" | "match" | "mark" | "end";
+type Sec = "page" | "access" | "photos" | "match" | "mark" | "msgs" | "end";
 type Save = (patch: Partial<FaceSettings>, extra?: { title?: string }) => Promise<void>;
 
 export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g: FaceDetail) => void; onRemoved: () => void; onAct: (a: "close" | "reopen") => void }) {
@@ -43,6 +43,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
     { id: "photos", label: "Photos guests get", icon: Images, now: `${s.guestsSee === "all" ? "All photos" : "Only their own"}${s.downloads ? "" : ", no download"}` },
     { id: "match", label: "Face matching", icon: ScanFace, now: { strict: "Strict", balanced: "Balanced", loose: "Loose" }[s.strictness] },
     { id: "mark", label: "Watermark", icon: Stamp, now: s.watermark ? (s.watermarkKind === "logo" && s.watermarkLogo ? "Your logo" : "Text") : "Off" },
+    { id: "msgs", label: "Messages to guests", icon: Send, now: !s.register || s.register === "off" ? "Nobody to send to" : s.notifyEmail === false ? "WhatsApp by hand" : s.notifyWhen === "manual" ? "Email when I press" : "Email by itself" },
     { id: "end", label: "Close or remove", icon: TriangleAlert, now: g.status === "closed" ? "Closed" : "Open", danger: true },
   ];
   const cur = sections.find(x => x.id === sec)!;
@@ -78,6 +79,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
               photos: "Which photos a guest sees, and whether they can save them.",
               match: "How sure the match must be before a photo is shown to a guest.",
               mark: "Your logo or name on every photo guests see or save.",
+              msgs: "How guests are told that their photos are ready, and what the message says.",
               end: "Stop this gallery for a while, or take it away.",
             }[sec]}</p>
           </div>
@@ -93,6 +95,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
           {sec === "photos" && <PhotosSec s={s} save={save} />}
           {sec === "match" && <MatchSec s={s} save={save} />}
           {sec === "mark" && <MarkSec g={g} s={s} save={save} />}
+          {sec === "msgs" && <MsgSec g={g} s={s} save={save} toAccess={() => setSec("access")} />}
           {sec === "end" && <EndSec g={g} onAct={onAct} onRemoved={onRemoved} />}
         </div>
       </section>
@@ -239,6 +242,88 @@ function MatchSec({ s, save }: { s: FaceSettings; save: Save }) {
         { value: "loose", title: "Loose", text: "Finds more photos. A similar face may slip in now and then." },
       ]} />
     </Row>
+  );
+}
+
+/** Fills the blanks of a message with sample values, to show what a guest will read. */
+function sampleMessage(t: string, event: string, studio: string) {
+  const body = (t.trim() || DEFAULT_GUEST_MESSAGE).replace(/\{name\}/gi, "Nadia").replace(/\{event\}/gi, event).replace(/\{studio\}/gi, studio).replace(/\{count\}/gi, "12 photos");
+  const link = "app.stupanel.com/f/…";
+  return /\{link\}/i.test(t.trim() || DEFAULT_GUEST_MESSAGE) ? body.replace(/\{link\}/gi, link) : `${body}\n${link}`;
+}
+
+function MsgSec({ g, s, save, toAccess }: { g: FaceDetail; s: FaceSettings; save: Save; toAccess: () => void }) {
+  const [msg, setMsg] = useState(s.message ?? "");
+  const box = useRef<HTMLTextAreaElement>(null);
+  const later = useLater();
+  const asks = !!s.register && s.register !== "off";
+  const set = (v: string) => { setMsg(v); later(() => save({ message: v })); };
+  /** Put a blank where the cursor is. */
+  const add = (word: string) => {
+    const el = box.current; const at = el ? el.selectionStart : msg.length; const base = msg || DEFAULT_GUEST_MESSAGE;
+    const pos = msg ? at : base.length; const next = `${base.slice(0, pos)}${word}${base.slice(pos)}`.slice(0, 400);
+    set(next); requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos + word.length, pos + word.length); });
+  };
+  return (
+    <>
+      {!asks && (
+        <div className="px-5 sm:px-6 py-4">
+          <div className="rounded-[16px] bg-[#FFF3E0] px-4 py-3.5 text-[14px] text-[#6B4100] flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="flex-1"><b>There is nobody to send to yet.</b> Guests are not asked for a number or an email. Ask for it, and every guest can be told when their photos are ready.</p>
+            <button type="button" onClick={toAccess} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13.5px] font-semibold flex-shrink-0">Open Access</button>
+          </div>
+        </div>
+      )}
+      <Row wide label="How guests are told" hint="Both cost nothing. A guest chooses WhatsApp or email when they leave their details.">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-[16px] bg-[#F7F5FB] p-4">
+            <p className="flex items-center gap-2 text-[14px] font-bold text-[#17151F]"><span className="w-8 h-8 rounded-[10px] bg-[#E6EEF8] text-[#1F5C99] flex items-center justify-center"><Mail className="w-4 h-4" /></span>Email</p>
+            <p className="text-[13px] leading-snug text-[#4A4658] mt-2">StuPanel sends it. The email has a button that opens the guest&apos;s own photos, with no selfie and no code.</p>
+          </div>
+          <div className="rounded-[16px] bg-[#F7F5FB] p-4">
+            <p className="flex items-center gap-2 text-[14px] font-bold text-[#17151F]"><span className="w-8 h-8 rounded-[10px] bg-[#E2F4EA] text-[#176B47] flex items-center justify-center"><MessageCircle className="w-4 h-4" /></span>WhatsApp, from your own number</p>
+            <p className="text-[13px] leading-snug text-[#4A4658] mt-2">You send it. In Guests, press Send for each guest: your WhatsApp opens with the message and their link already written.</p>
+          </div>
+        </div>
+        <p className="text-xs text-[#6B6680] mt-2.5">WhatsApp messages that go by themselves will come later as a paid extra.</p>
+      </Row>
+      <Row label="Email guests their photos" hint="For guests who gave an email. Off means no guest is emailed.">
+        <Toggle label="Email guests their photos" on={s.notifyEmail !== false} onChange={v => save({ notifyEmail: v })} />
+      </Row>
+      {s.notifyEmail !== false && (
+        <Row wide label="When the emails go">
+          <div className="sm:max-w-[560px]">
+            <Choices<"auto" | "manual"> label="When the emails go" value={s.notifyWhen ?? "auto"} onChange={v => save({ notifyWhen: v })} options={[
+              { value: "auto", title: "By themselves", text: "When you publish, and again when new photos of a guest are added." },
+              { value: "manual", title: "When I press", text: "Only when you press \"Check for new photos\" in Guests." },
+            ]} />
+          </div>
+        </Row>
+      )}
+      <Row wide label="The WhatsApp message" hint="The blanks are filled in for each guest. The link is always added, even if you take it out.">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)] items-start">
+          <div>
+            <label htmlFor="fs-msg" className="sr-only">Message</label>
+            <textarea id="fs-msg" ref={box} rows={5} maxLength={400} className={cn(inputCls, "h-auto py-3 leading-relaxed resize-y min-h-[132px]")} placeholder={DEFAULT_GUEST_MESSAGE} value={msg} onChange={e => set(e.target.value)} />
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-xs font-semibold text-[#6B6680] mr-1">Add a blank:</span>
+              {[["{name}", "Guest's name"], ["{event}", "Event"], ["{count}", "Number of photos"], ["{studio}", "Your studio"], ["{link}", "Their link"]].map(([w, label]) => (
+                <button key={w} type="button" onClick={() => add(w)} className="h-9 px-3 rounded-full bg-[#F1EFF6] hover:bg-[#EEE8FD] text-[12.5px] font-semibold text-[#17151F]">{label}</button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-[#6B6680] tabular-nums">{msg.length} / 400</p>
+              {msg && <button type="button" onClick={() => { setMsg(""); void save({ message: "" }); }} className="text-[13px] font-semibold text-[#4B32B8] hover:underline">Use the usual message</button>}
+            </div>
+          </div>
+          {/* What the guest reads */}
+          <div aria-label="What the guest reads" className="rounded-[20px] bg-[#EDE8E1] p-3.5">
+            <p className="text-[11.5px] font-semibold text-[#6B6680] text-center mb-2">What the guest reads</p>
+            <p className="rounded-[16px] rounded-tr-[5px] bg-[#DCF7C5] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#17151F] whitespace-pre-wrap [overflow-wrap:anywhere] shadow-[0_1px_1px_rgba(0,0,0,.08)]">{sampleMessage(msg, g.title, "your studio")}</p>
+          </div>
+        </div>
+      </Row>
+    </>
   );
 }
 

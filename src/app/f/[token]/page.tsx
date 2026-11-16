@@ -8,12 +8,12 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
-import { faceDownloadUrl, facePhotoUrl, type Cover, type FacePhoto } from "@/lib/face";
+import { facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/face";
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import "./guest.css";
 
 type Open = { title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
-type Result = { key: string; registered: boolean; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
+type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
@@ -58,6 +58,13 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   const [count, setCount] = useState(0);
   const [view, setView] = useState<{ list: "mine" | "more"; i: number } | null>(null);
 
+  // A gallery with a watermark: every photo is asked from StuPanel (with the watermark), not from Google Drive.
+  const stamp = useCallback((o: Result): Result => {
+    if (!o.watermark) return o;
+    const tag = (p: FacePhoto) => ({ ...p, wm: `${base}/photo/${p.id}/{size}.jpg?v=${o.watermark}` });
+    return { ...o, photos: o.photos.map(tag), more: o.more.map(tag) };
+  }, [base]);
+
   // ── open ──
   useEffect(() => {
     let on = true;
@@ -72,14 +79,14 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
       if (saved.key && d.status === "published") {
         const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
-        if (on && m?.ok) { const out: Result = await m.json(); setSelfie(saved.selfie || ""); setRes(out);
+        if (on && m?.ok) { const out = stamp(await m.json()); setSelfie(saved.selfie || ""); setRes(out);
           let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
           return setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
       }
       if (on) setStep("land");
     })();
     return () => { on = false; };
-  }, [base, store]);
+  }, [base, store, stamp]);
 
   // ── search ──
   const search = useCallback(async (image: string) => {
@@ -94,7 +101,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       setNote(r?.status === 429 ? "Too many tries. Please wait a minute and try again." : (Array.isArray(d?.message) ? d.message[0] : d?.message) || "Something went wrong. Please check your internet and try again.");
       return setStep(code === "WRONG_PIN" ? "pin" : r?.status === 403 ? "land" : "selfie");
     }
-    const out = d as Result;
+    const out = stamp(d as Result);
     try { localStorage.setItem(store, JSON.stringify({ key: out.key, selfie: await thumbOfSelfie(image) })); } catch { /* private window */ }
     // Let the search screen be seen for a moment, then count up to the number found.
     await new Promise(ok => setTimeout(ok, Math.max(0, 1400 - (Date.now() - started))));
@@ -105,18 +112,18 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     // The studio asks for a name and number: before the photos (required), or as a step the guest can skip (optional).
     const follow = !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
     setStep(n > 0 && !out.registered && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
-  }, [base, store, pin, g?.register, g?.follow]);
+  }, [base, store, pin, g?.register, g?.follow, stamp]);
 
   // After the guest gave their details: photos that were held back are fetched now.
   const registered = useCallback(async () => {
     if (!res) return;
     if (res.needsRegister) {
       const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
-      if (m?.ok) setRes(await m.json()); else setRes({ ...res, registered: true });
+      if (m?.ok) setRes(stamp(await m.json())); else setRes({ ...res, registered: true });
     } else setRes({ ...res, registered: true });
     const follow = !!g?.follow?.length && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
     setStep(follow ? "follow" : "results");
-  }, [base, res, g?.follow, store]);
+  }, [base, res, g?.follow, store, stamp]);
 
   // The follow step is shown once per browser, and only when there are photos to open.
   const wantsFollow = (out: Result) => {
@@ -155,7 +162,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
             src={facePhotoUrl(p, 1600)} srcAt={i => facePhotoUrl(list[i], 1600)} thumbAt={i => facePhotoUrl(list[i], 480)} zoomAt={i => facePhotoUrl(list[i], 2560)}
             title={g.title} sub={`${view.i + 1} of ${list.length}`}
             footer={res.downloads ? (
-              <a href={faceDownloadUrl(p.driveFileId)} onClick={() => counted(base, res.key, 1)} target="_blank" rel="noreferrer"
+              <a href={faceSaveUrl(p)} onClick={() => counted(base, res.key, 1)} target="_blank" rel="noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none" }}>
                 <Ic d={DL} />Download
               </a>
@@ -493,7 +500,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
     for (let i = 0; i < n; i++) {
       setSaving(i + 1);
       const f = document.createElement("iframe");
-      f.style.display = "none"; f.src = faceDownloadUrl(res.photos[i].driveFileId);
+      f.style.display = "none"; f.src = faceSaveUrl(res.photos[i]);
       frames.current?.appendChild(f);
       await new Promise(ok => setTimeout(ok, 900));
     }

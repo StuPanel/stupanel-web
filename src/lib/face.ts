@@ -12,6 +12,8 @@ export type FaceSettings = {
   register?: "off" | "optional" | "required";
   /** The studio's pages guests are asked to follow before the photos ("" = none) */
   followFacebook?: string; followInstagram?: string;
+  /** Put the studio's name on every photo guests see or save ("" text = the studio's name) */
+  watermark?: boolean; watermarkText?: string;
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };
@@ -28,6 +30,8 @@ export type FaceDetail = FaceGallery & { ready: boolean; /** Set while StuPanel 
 export type FacePhoto = {
   id: string; fileName: string; folder: string | null; driveFileId: string; width: number | null; height: number | null;
   highlight: boolean; takenAt: string | null;
+  /** Guest side, when the gallery has a watermark: where this photo is served with the watermark (no Drive id is sent then) */
+  wm?: string;
   status?: "pending" | "processing" | "ready" | "failed"; error?: string | null; faceCount?: number; skippedFaces?: number; hidden?: boolean;
 };
 
@@ -44,7 +48,10 @@ export const FACE_STATUS: Record<FaceStatus, { label: string; badge: string; dot
 };
 
 export const num = (n: number) => n.toLocaleString("en");
-export const facePhotoUrl = (p: { driveFileId: string }, width = 480) => drivePhoto(p.driveFileId, width);
+export const facePhotoUrl = (p: { driveFileId: string; wm?: string }, width = 480) =>
+  p.wm ? p.wm.replace("{size}", String(width <= 480 ? 480 : width <= 1600 ? 1600 : 2560)) : drivePhoto(p.driveFileId, width);
+/** The file a guest saves: the original from Drive, or the watermarked copy when the gallery has a watermark. */
+export const faceSaveUrl = (p: { driveFileId: string; wm?: string }) => (p.wm ? `${p.wm.replace("{size}", "2560")}&dl=1` : faceDownloadUrl(p.driveFileId));
 /** The original file, for saving. */
 export const faceDownloadUrl = (driveFileId: string) => `https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveFileId)}`;
 export const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");

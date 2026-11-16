@@ -487,7 +487,7 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
           <>
             <div className="mb-4 rounded-[16px] bg-[#EEE8FD] px-3.5 py-3 flex gap-3">
               <Coins className="w-5 h-5 text-[#4B32B8] flex-shrink-0 mt-0.5" />
-              <p className="text-[13px] leading-snug text-[#33268A]"><b>Each photo uses 1 credit.</b> Pick your good photos only. Leave out blurred, repeated and test shots, and you pay for less.</p>
+              <p className="text-[13px] leading-snug text-[#33268A]"><b>Each photo uses 1 credit.</b> Pick your good photos only. Leave out blurred, repeated and test shots, and you pay for less. Want your logo on them? Export with your watermark before you upload.</p>
             </div>
 
             {waiting > 0 && (
@@ -677,6 +677,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
   const [title, setTitle] = useState(g.title);
   const [pin, setPin] = useState(g.settings.pin);
   const [welcome, setWelcome] = useState(g.settings.welcome);
+  const [wm, setWm] = useState(g.settings.watermarkText ?? "");
   const [fb, setFb] = useState(g.settings.followFacebook ?? "");
   const [ig, setIg] = useState(g.settings.followInstagram ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -691,6 +692,17 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
   }
   // Typed fields save a moment after the last key.
   function later(fn: () => void) { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(fn, 700); }
+
+  /** Turning the watermark on changes how every photo reaches the guest, so the studio is told first. */
+  async function watermark(on: boolean) {
+    if (!on) return save({ watermark: false });
+    const ok = await askConfirm({
+      title: "Turn on the watermark?",
+      message: "What changes for guests:\n• Photos open a little slower, because each one passes through StuPanel to get the watermark.\n• They get a copy up to 2560 px wide, not your original file.\n• The text sits small in the bottom-right corner. You can't move or style it.\n\nOur advice: keep this off and export your photos with your own watermark from Lightroom or Photoshop. Guests then get them fast, in full quality, with the look you chose.",
+      confirmLabel: "Turn on anyway",
+    });
+    if (ok) await save({ watermark: true });
+  }
 
   async function remove() {
     if (!(await askConfirm({ title: "Remove this gallery?", message: "Guests can't open the link any more and the face data is deleted. Your photos stay on Google Drive. Credits already used are not given back.", confirmLabel: "Remove gallery", danger: true }))) return;
@@ -745,7 +757,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
       </section>
 
       <section id="fs-s-before" className="scroll-mt-24">
-      <Group title="Before guests get their photos" note="Watermark and locking the gallery while the client has dues come later.">
+      <Group title="Before guests get their photos" note="Locking the gallery while the client has dues comes later.">
         <div className="px-4 py-3.5">
           <label htmlFor="fs-pin" className="block text-[15px] font-medium text-[#17151F]">Ask for a 4-digit code</label>
           <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests type it before the selfie. Leave empty for no code.</p>
@@ -772,6 +784,14 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
             </div>
           </div>
         </div>
+        <SwitchRow label="Watermark on guest photos" hint="Off is best: export your photos with your own watermark, then guests get them fast and sharp." on={!!s.watermark} onChange={v => watermark(v)} />
+        {s.watermark && (
+          <div className="px-4 py-3.5">
+            <label htmlFor="fs-wm" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Watermark text</label>
+            <input id="fs-wm" className={cn(inputCls, "max-w-[320px]")} maxLength={40} placeholder="Your studio name" value={wm} onChange={e => { const v = e.target.value; setWm(v); later(() => save({ watermarkText: v })); }} />
+            <p className="text-xs text-[#6B6680] mt-1.5">Shown small in the bottom-right corner of every photo. Leave empty to use your studio name.</p>
+          </div>
+        )}
         <SwitchRow label="Guests can download" hint="Off = guests can only look at their photos." on={s.downloads} onChange={v => save({ downloads: v })} />
       </Group>
       </section>

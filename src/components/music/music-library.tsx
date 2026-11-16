@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, Loader2, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, LayoutGrid, Loader2, Minus, Music2, Pencil, Play, Plus, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -34,6 +34,11 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [q, setQ] = useState("");
   const [event, setEvent] = useState("");
   const [video, setVideo] = useState("");
+  /** A ritual under the chosen event (only events that have them, like Sanatani wedding). */
+  const [ritual, setRitual] = useState("");
+  /** Songs in one row on a wide screen: 0 = the usual three; the studio's choice is kept on this device. */
+  const [cols, setCols] = useState(() => { try { const n = Number(localStorage.getItem("sp-music-cols")); return n >= 2 && n <= 6 ? n : 0; } catch { return 0; } });
+  const pickCols = (n: number) => { setCols(n); try { if (n) localStorage.setItem("sp-music-cols", String(n)); else localStorage.removeItem("sp-music-cols"); } catch { /* private window */ } };
   const [playing, setPlaying] = useState<string | null>(null);
   /** The add / edit drawer: a song to edit, or a link to start a new one with. */
   const [form, setForm] = useState<{ song?: LibrarySong; url?: string; from?: OutsideSong } | null>(null);
@@ -80,8 +85,12 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   }), [lists, q, cat]);
   const source = lists[tab];
   const found = foundIn[tab];
-  const shown = useMemo(() => found.filter(s => (!event || s.events.includes(event)) && (!video || s.videos.includes(video))), [found, event, video]);
-  const usedEvents = cat.events.filter(t => source.some(s => s.events.includes(t.id)));
+  const shown = useMemo(() => found.filter(s => (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual)) && (!video || s.videos.includes(video))), [found, event, ritual, video]);
+  // Events on the top row: the ones that stand on their own and have songs. An event with rituals under it is always there.
+  const usedEvents = cat.events.filter(t => !t.parent && (source.some(s => s.events.includes(t.id)) || cat.events.some(c => c.parent === t.id)));
+  const rituals = event ? cat.events.filter(t => t.parent === event) : [];
+  const eventName = cat.events.find(t => t.id === event)?.name ?? "";
+  const filtering = !!(event || ritual || video);
   const usedVideos = cat.videos.filter(t => source.some(s => s.videos.includes(t.id)));
   const pasted = youtubeIdOf(q);
   const tabs = [
@@ -123,8 +132,15 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
     setSongs(p => p.filter(x => x.id !== s.id)); notify("Removed");
   }
 
-  const chip = (on: boolean) => cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0",
-    on ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]");
+  const chip = (on: boolean) => cn("h-10 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+    on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4] hover:text-[#17151F]");
+  const subChip = (on: boolean) => cn("h-9 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+    on ? "bg-[#7D5CEF] text-white" : "bg-white text-[#4A4658] hover:text-[#17151F]");
+  // The studio's own count of songs in a row applies on wide screens; phones and tablets keep one and two.
+  const gridCls = cn("grid grid-cols-1 sm:grid-cols-2 gap-4", cols ? "lg:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" : "xl:grid-cols-3", cols >= 5 && "lg:gap-3");
+  const gridStyle = cols ? ({ ["--cols" as string]: cols } as React.CSSProperties) : undefined;
+  /** Many small cards: the tags are left out so the title and the buttons still fit. */
+  const small = cols >= 5;
 
   return (
     <div>
@@ -172,43 +188,81 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative mb-3">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B6680] pointer-events-none" />
-        <input value={q} onChange={e => setQ(e.target.value)} type="search" enterKeyHint="search" aria-label="Search songs"
-          placeholder="Search a song, artist or tag — or paste a YouTube link"
-          className={cn("w-full h-12 pl-11 pr-11 rounded-full bg-white text-[15px] text-[#17151F] outline-none border border-transparent focus:border-[#7D5CEF] placeholder:text-[#A29DB3] [&::-webkit-search-cancel-button]:hidden", CARD_SHADOW)} />
-        {q && <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-[#F5F3FA] text-[#6B6680] flex items-center justify-center"><X className="w-4 h-4" /></button>}
-      </div>
-
-      {/* Filters: only tags that have songs */}
-      {(usedEvents.length > 0 || usedVideos.length > 0) && (
-        <div className="space-y-2 mb-4">
-          {usedEvents.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5 [scrollbar-width:none]" role="tablist" aria-label="Event">
-              <button type="button" role="tab" aria-selected={!event} onClick={() => setEvent("")} className={chip(!event)}>All events</button>
-              {usedEvents.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; return (
-                <button key={t.id} type="button" role="tab" aria-selected={event === t.id} onClick={() => setEvent(event === t.id ? "" : t.id)} className={chip(event === t.id)}>
-                  {t.name}<span className={cn("text-[12px] tabular-nums", event === t.id ? "text-white/70" : "text-[#A29DB3]")}>{n}</span>
-                </button>
-              ); })}
-            </div>
-          )}
-          {usedVideos.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5 [scrollbar-width:none]" role="tablist" aria-label="Kind of video">
-              <button type="button" role="tab" aria-selected={!video} onClick={() => setVideo("")} className={chip(!video)}>All videos</button>
-              {usedVideos.map(t => { const n = found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event))).length; return (
-                <button key={t.id} type="button" role="tab" aria-selected={video === t.id} onClick={() => setVideo(video === t.id ? "" : t.id)} className={chip(video === t.id)}>
-                  {t.name}<span className={cn("text-[12px] tabular-nums", video === t.id ? "text-white/70" : "text-[#A29DB3]")}>{n}</span>
-                </button>
-              ); })}
-            </div>
-          )}
+      {/* Find: search, then what the songs are for. One panel, so it reads as one tool. */}
+      <section aria-label="Find songs" className={cn("bg-white rounded-[22px] p-3 sm:p-4 mb-4 space-y-3", CARD_SHADOW)}>
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#6B6680] pointer-events-none" />
+            <input value={q} onChange={e => setQ(e.target.value)} type="search" enterKeyHint="search" aria-label="Search songs"
+              placeholder="Search a song, artist or tag, or paste a YouTube link"
+              className="w-full h-12 pl-11 pr-11 rounded-full bg-[#F5F3FA] text-[15px] text-[#17151F] outline-none border border-transparent focus:border-[#7D5CEF] focus:bg-white placeholder:text-[#8A8599] [&::-webkit-search-cancel-button]:hidden" />
+            {q && <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-white text-[#6B6680] flex items-center justify-center"><X className="w-4 h-4" /></button>}
+          </div>
+          {/* How many songs sit in one row (wide screens). The usual is three. */}
+          <div role="group" aria-label="Songs in a row" className="hidden lg:flex items-center gap-1 h-12 px-1.5 rounded-full bg-[#F5F3FA] flex-shrink-0">
+            <button type="button" aria-label="Bigger cards" title="Bigger cards" disabled={(cols || 3) <= 2} onClick={() => pickCols((cols || 3) - 1)} className="w-9 h-9 rounded-full bg-white text-[#17151F] flex items-center justify-center disabled:opacity-40"><Minus className="w-4 h-4" /></button>
+            <span className="px-1.5 text-[13px] font-semibold text-[#17151F] tabular-nums whitespace-nowrap inline-flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-[#6B6680]" />{cols || 3} in a row</span>
+            <button type="button" aria-label="Smaller cards" title="Smaller cards" disabled={(cols || 3) >= 6} onClick={() => pickCols((cols || 3) + 1)} className="w-9 h-9 rounded-full bg-white text-[#17151F] flex items-center justify-center disabled:opacity-40"><Plus className="w-4 h-4" /></button>
+          </div>
         </div>
-      )}
+
+        {(usedEvents.length > 0 || usedVideos.length > 0) && (
+          <div className="space-y-2.5">
+            {usedEvents.length > 0 && (
+              <div className="sm:flex sm:items-start sm:gap-3">
+                <p className="text-xs font-bold text-[#6B6680] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Event</p>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none]" role="group" aria-label="Event">
+                    <button type="button" aria-pressed={!event} onClick={() => { setEvent(""); setRitual(""); }} className={chip(!event)}>All</button>
+                    {usedEvents.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = event === t.id; return (
+                      <button key={t.id} type="button" aria-pressed={on} onClick={() => { setEvent(on ? "" : t.id); setRitual(""); }} className={chip(on)}>
+                        {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/70" : "text-[#8A8599]")}>{n}</span>
+                      </button>
+                    ); })}
+                  </div>
+                  {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
+                  {rituals.length > 0 && (
+                    <div className="rounded-[16px] bg-[#F6F2FF] p-2.5">
+                      <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
+                      <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
+                        <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
+                        {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; return (
+                          <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
+                            {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/75" : "text-[#8A8599]")}>{n}</span>
+                          </button>
+                        ); })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {usedVideos.length > 0 && (
+              <div className="sm:flex sm:items-start sm:gap-3">
+                <p className="text-xs font-bold text-[#6B6680] sm:w-14 sm:pt-2.5 mb-1.5 sm:mb-0 flex-shrink-0">Video</p>
+                <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-0.5 [scrollbar-width:none] min-w-0 flex-1" role="group" aria-label="Kind of video">
+                  <button type="button" aria-pressed={!video} onClick={() => setVideo("")} className={chip(!video)}>All</button>
+                  {usedVideos.map(t => { const n = found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length; const on = video === t.id; return (
+                    <button key={t.id} type="button" aria-pressed={on} onClick={() => setVideo(on ? "" : t.id)} className={chip(on)}>
+                      {t.name}<span className={cn("text-[12px] tabular-nums", on ? "text-white/70" : "text-[#8A8599]")}>{n}</span>
+                    </button>
+                  ); })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(filtering || q) && !loading && (
+          <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#F1EFF6]">
+            <p className="text-[13px] text-[#4A4658]" role="status"><b className="text-[#17151F] tabular-nums">{shown.length}</b> song{shown.length === 1 ? "" : "s"}{filtering ? ` for ${[eventName, cat.events.find(t => t.id === ritual)?.name, cat.videos.find(t => t.id === video)?.name].filter(Boolean).join(" · ")}` : ""}</p>
+            {filtering && <button type="button" onClick={() => { setEvent(""); setRitual(""); setVideo(""); }} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-shrink-0"><X className="w-3.5 h-3.5" />Clear filters</button>}
+          </div>
+        )}
+      </section>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{[0, 1, 2].map(i => <div key={i} className={cn("bg-white rounded-[22px] p-2.5", CARD_SHADOW)}><div className="sp-skel aspect-video rounded-[16px]" /><div className="sp-skel h-4 w-2/3 rounded-full mt-4 mx-1" /><div className="sp-skel h-3 w-1/3 rounded-full mt-2 mb-2 mx-1" /></div>)}</div>
+        <div className={gridCls} style={gridStyle}>{[0, 1, 2].map(i => <div key={i} className={cn("bg-white rounded-[22px] p-2.5", CARD_SHADOW)}><div className="sp-skel aspect-video rounded-[16px]" /><div className="sp-skel h-4 w-2/3 rounded-full mt-4 mx-1" /><div className="sp-skel h-3 w-1/3 rounded-full mt-2 mb-2 mx-1" /></div>)}</div>
       ) : tab === "favs" && source.length === 0 ? (
         <EmptyState icon={Heart} title="No favourites yet" text="Tap ♥ on any song — in My songs, StuPanel picks or the other lists — and it shows here." />
       ) : tab !== "mine" && source.length === 0 ? (
@@ -231,7 +285,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           </div>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <ul className={gridCls} style={gridStyle}>
           {shown.map((s, i) => {
             const lib = "id" in s ? (s as LibrarySong) : null;
             const o = lib ? null : (s as OutsideSong);
@@ -268,7 +322,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                     {markMatch(s.title, q).map((m, k) => (m.hit ? <mark key={k} className="bg-[#EEE8FD] text-[#5B3FD0] rounded-[4px] px-0.5">{m.text}</mark> : <span key={k}>{m.text}</span>))}
                   </p>
                   {s.channel && <p className="text-[12.5px] text-[#6B6680] truncate mt-0.5">{s.channel}</p>}
-                  <div className="flex flex-wrap gap-1 mt-2.5">
+                  <div className={cn("flex flex-wrap gap-1 mt-2.5", small && "lg:hidden")}>
                     {s.events.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.events, id)}</span>)}
                     {s.videos.map(id => <span key={id} className="h-6 px-2 rounded-full bg-[#E6EEF8] text-[#1F5C99] text-[11.5px] font-semibold inline-flex items-center">{tagName(cat.videos, id)}</span>)}
                     {ownTags.map(t => <span key={t} className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[11.5px] font-semibold inline-flex items-center">{t}</span>)}
@@ -277,7 +331,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                     {untagged && <span className="h-6 px-2 rounded-full bg-[#F5F3FA] text-[#6B6680] text-[11.5px] font-semibold inline-flex items-center">Fits any part</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 px-0.5 pt-2.5 mt-2.5 border-t border-[#F1EFF6]">
+                <div className={cn("flex items-center gap-1 px-0.5 pt-2.5 mt-2.5 border-t border-[#F1EFF6]", small && "lg:flex-wrap")}>
                   {lib ? <button type="button" onClick={() => setForm({ song: lib })} className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" />Edit tags</button>
                     : o!.mine ? <span className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#1F8A5B] bg-[#E2F4EA] inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} />In my songs</span>
                     : <button type="button" onClick={() => setForm({ url: s.url, from: o! })} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" />Add to my songs</button>}
@@ -304,18 +358,37 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
 /** Chips to pick tags from one list; tags that are not usual in the studio's country sit behind "More". */
 function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[]; value: string[]; onChange: (v: string[]) => void; single?: boolean; label: string }) {
   const [more, setMore] = useState(false);
-  const shown = list.filter(t => more || !t.more || value.includes(t.id));
-  const hidden = list.length - shown.length;
-  const toggle = (id: string) => onChange(value.includes(id) ? value.filter(x => x !== id) : single ? [id] : [...value, id]);
+  // Tags that sit under another one (the rituals of a Sanatani wedding) are shown under it, once it is chosen.
+  const top = list.filter(t => !t.parent);
+  const shown = top.filter(t => more || !t.more || value.includes(t.id));
+  const hidden = top.length - shown.length;
+  const kidsOf = (id: string) => list.filter(t => t.parent === id);
+  const toggle = (id: string) => {
+    if (!value.includes(id)) return onChange(single ? [id] : [...value, id]);
+    // Taking an event off also takes its rituals off.
+    const kids = new Set(kidsOf(id).map(t => t.id));
+    onChange(value.filter(x => x !== id && !kids.has(x)));
+  };
+  const pill = (t: MusicTag, on: boolean, small?: boolean) => (
+    <button key={t.id} type="button" aria-pressed={on} onClick={() => toggle(t.id)}
+      className={cn("rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 transition-all active:scale-95", small ? "h-8 px-3" : "h-9 px-3.5",
+        on ? "bg-[#7D5CEF] text-white shadow-[0_6px_14px_-8px_rgba(125,92,239,.9)]" : small ? "bg-white text-[#4A4658] hover:text-[#17151F]" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>
+      {on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}{t.name}
+    </button>
+  );
+  const open = top.filter(t => value.includes(t.id) && kidsOf(t.id).length > 0);
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
-      {shown.map(t => { const on = value.includes(t.id); return (
-        <button key={t.id} type="button" aria-pressed={on} onClick={() => toggle(t.id)}
-          className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 transition-all active:scale-95", on ? "bg-[#7D5CEF] text-white shadow-[0_6px_14px_-8px_rgba(125,92,239,.9)]" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>
-          {on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}{t.name}
-        </button>
-      ); })}
-      {hidden > 0 && <button type="button" onClick={() => setMore(true)} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-[#5B3FD0] border border-dashed border-[#CFC8DD] hover:bg-[#F3EFFE]">More ({hidden})</button>}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+        {shown.map(t => pill(t, value.includes(t.id)))}
+        {hidden > 0 && <button type="button" onClick={() => setMore(true)} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-[#5B3FD0] border border-dashed border-[#CFC8DD] hover:bg-[#F3EFFE]">More ({hidden})</button>}
+      </div>
+      {open.map(p => (
+        <div key={p.id} className="rounded-[14px] bg-[#F6F2FF] p-2.5" role="group" aria-label={`Rituals of ${p.name}`}>
+          <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{p.name}: which rituals? (none = the whole wedding)</p>
+          <div className="flex flex-wrap gap-1.5">{kidsOf(p.id).map(t => pill(t, value.includes(t.id), true))}</div>
+        </div>
+      ))}
     </div>
   );
 }

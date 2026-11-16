@@ -23,7 +23,7 @@ type Row = {
 };
 type Data = { catalog: Row[]; community: Row[]; studiosSharing: number };
 
-type FullTag = Tag & { also: string[]; countries: string[]; hidden: boolean; added: boolean };
+type FullTag = Tag & { also: string[]; countries: string[]; hidden: boolean; added: boolean; parent?: string | null };
 type TagKind = "event" | "video" | "mood" | "language";
 type Suggested = { kind: TagKind; id: string; name: string; studios: number; at: string };
 type TagData = { events: FullTag[]; videos: FullTag[]; moods: FullTag[]; languages: FullTag[]; suggested: Suggested[] };
@@ -136,7 +136,7 @@ export default function AdminMusicPage() {
                   {tags[k.key].map(t => (
                     <button key={t.id} type="button" onClick={() => setTagForm({ kind: k.kind, tag: t })} title={[...t.also].join(", ") || "No other names"}
                       className={cn("h-8 px-3 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5", t.hidden ? "bg-slate-900 text-slate-500 line-through" : "bg-slate-700 text-slate-200 hover:bg-slate-600")}>
-                      {t.name}{t.countries.length > 0 && <span className="text-emerald-300 font-normal no-underline">{t.countries.length > 3 ? `${t.countries.length} countries` : t.countries.join(" ")}</span>}{t.added && <span className="text-indigo-300 font-normal">new</span>}
+                      {t.parent && <span className="text-indigo-300 font-normal no-underline">↳</span>}{t.name}{t.countries.length > 0 && <span className="text-emerald-300 font-normal no-underline">{t.countries.length > 3 ? `${t.countries.length} countries` : t.countries.join(" ")}</span>}{t.added && <span className="text-indigo-300 font-normal">new</span>}
                     </button>
                   ))}
                 </div>
@@ -194,13 +194,28 @@ export default function AdminMusicPage() {
   );
 }
 
-function Chips({ list, value, onChange, single }: { list: Tag[]; value: string[]; onChange: (v: string[]) => void; single?: boolean }) {
+function Chips({ list, value, onChange, single }: { list: (Tag & { parent?: string | null })[]; value: string[]; onChange: (v: string[]) => void; single?: boolean }) {
+  // Tags under another one (the rituals of a Sanatani wedding) show under it once it is ticked.
+  const top = list.filter(t => !t.parent);
+  const kidsOf = (id: string) => list.filter(t => t.parent === id);
+  const toggle = (id: string) => {
+    if (!value.includes(id)) return onChange(single ? [id] : [...value, id]);
+    const kids = new Set(kidsOf(id).map(t => t.id));
+    onChange(value.filter(x => x !== id && !kids.has(x)));
+  };
+  const chip = (t: Tag) => { const on = value.includes(t.id); return (
+    <button key={t.id} type="button" aria-pressed={on} onClick={() => toggle(t.id)}
+      className={cn("h-8 px-3 rounded-lg text-xs font-semibold inline-flex items-center gap-1", on ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600")}>{on && <Check className="w-3 h-3" strokeWidth={3} />}{t.name}</button>
+  ); };
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {list.map(t => { const on = value.includes(t.id); return (
-        <button key={t.id} type="button" aria-pressed={on} onClick={() => onChange(on ? value.filter(x => x !== t.id) : single ? [t.id] : [...value, t.id])}
-          className={cn("h-8 px-3 rounded-lg text-xs font-semibold inline-flex items-center gap-1", on ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600")}>{on && <Check className="w-3 h-3" strokeWidth={3} />}{t.name}</button>
-      ); })}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">{top.map(chip)}</div>
+      {top.filter(t => value.includes(t.id) && kidsOf(t.id).length > 0).map(p => (
+        <div key={p.id} className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 p-2.5">
+          <p className="text-xs font-semibold text-indigo-200 mb-1.5">{p.name}: which rituals? (none = the whole wedding)</p>
+          <div className="flex flex-wrap gap-1.5">{kidsOf(p.id).map(chip)}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -213,6 +228,7 @@ function TagForm({ kind, tag, suggestion, list, onClose, onSave }: {
   const [also, setAlso] = useState((tag?.also ?? []).join(", "));
   const [countries, setCountries] = useState((tag?.countries ?? []).join(", "));
   const [hidden, setHidden] = useState(tag?.hidden ?? false);
+  const [parent, setParent] = useState(tag?.parent ?? "");
   const [sameAs, setSameAs] = useState("");
   const [busy, setBusy] = useState(false);
   const label = "block text-xs font-semibold text-slate-400 mb-1.5";
@@ -238,6 +254,16 @@ function TagForm({ kind, tag, suggestion, list, onClose, onSave }: {
             <div><label className={label}>Name (what studios see)</label><input value={name} onChange={e => setName(e.target.value)} autoFocus={!tag} maxLength={60} placeholder="e.g. Cake cutting" className={input} /></div>
             <div><label className={label}>Other names, with commas (any language)</label><textarea value={also} onChange={e => setAlso(e.target.value)} rows={3} placeholder="cake, কেক কাটা" className={cn(input, "h-auto py-2")} /></div>
             <div><label className={label}>Countries where it is shown first (empty = everywhere)</label><input value={countries} onChange={e => setCountries(e.target.value)} placeholder="BD, IN or Bangladesh, India" className={input} /></div>
+            {kind === "event" && (!tag || tag.added) && (
+              <div>
+                <label htmlFor="tag-under" className={label}>Sits under (a ritual of…)</label>
+                <select id="tag-under" value={parent} onChange={e => setParent(e.target.value)} className={input}>
+                  <option value="">Nothing: an event of its own</option>
+                  {list.filter(t => !t.parent && t.id !== tag?.id && !t.hidden).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <p className="text-xs text-slate-500 mt-1.5">Choose Sanatani wedding to add a ritual to it. Studios see it after they choose that event.</p>
+              </div>
+            )}
             {tag && <label className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={hidden} onChange={e => setHidden(e.target.checked)} className="w-4 h-4 accent-indigo-500" />Hide from the pickers (songs that have it keep it)</label>}
           </>
         )}
@@ -248,7 +274,7 @@ function TagForm({ kind, tag, suggestion, list, onClose, onSave }: {
               setBusy(true);
               try {
                 if (suggestion) await onSave("tags/resolve", { kind, id: suggestion.id, action: "same", sameAs }, "Added as another name");
-                else await onSave("tags", { kind, id: tag?.id, name, also: also.split(","), countries: countries.split(","), hidden }, tag ? "Tag saved" : "Tag added for every studio");
+                else await onSave("tags", { kind, id: tag?.id, name, also: also.split(","), countries: countries.split(","), hidden, ...(kind === "event" && (!tag || tag.added) ? { parent: parent || null } : {}) }, tag ? "Tag saved" : "Tag added for every studio");
               } finally { setBusy(false); }
             }}
             className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50">

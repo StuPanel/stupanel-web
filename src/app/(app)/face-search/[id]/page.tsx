@@ -133,7 +133,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
       )}
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
-      {tab === "guests" && <Guests id={g.id} />}
+      {tab === "guests" && <Guests id={g.id} title={g.title} />}
       {tab === "share" && <Share g={g} />}
       {tab === "settings" && <Settings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
@@ -568,26 +568,64 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
 
 // ─── Guests ───────────────────────────────────────────────────────────────────
 
-function Guests({ id }: { id: string }) {
+function Guests({ id, title }: { id: string; title: string }) {
   const [list, setList] = useState<FaceGuest[] | null>(null);
+  const [only, setOnly] = useState<"all" | "contact">("all");
   useEffect(() => { apiFetch(`${API}/face-search/${id}/guests`).then(r => (r.ok ? r.json() : { guests: [] })).then(d => setList(d.guests)).catch(() => setList([])); }, [id]);
   if (list === null) return <div className="py-16 flex justify-center text-[#A29DB3]"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   if (!list.length) return <EmptyState icon={ScanFace} title="No guests yet" text="Everyone who takes a selfie on the guest page shows up here, with how many photos they found." />;
+
+  const withContact = list.filter(u => u.phone || u.email);
+  const shown = only === "contact" ? withContact : list;
+  const phones = [...new Set(withContact.map(u => u.phone).filter(Boolean))] as string[];
+
+  async function copyNumbers() {
+    try { await navigator.clipboard.writeText(phones.join("\n")); notify(`${num(phones.length)} number${phones.length === 1 ? "" : "s"} copied`); } catch { notify("Could not copy. Use Download list.", { error: true }); }
+  }
+  function download() {
+    const esc = (v: string | number | null | undefined) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const rows = [["Name", "WhatsApp", "Email", "Photos found", "Downloads", "Last search"], ...withContact.map(u => [u.name, u.phone, u.email, u.matchCount, u.downloads, dayTime(u.lastSearchAt ?? u.createdAt)])];
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(r => r.map(esc).join(",")).join("\n")], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/[^\w\- ]+/g, "").trim() || "gallery"} guests.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
   return (
-    <Group>
-      {list.map(u => (
-        <div key={u.id} className="px-4 sm:px-5 py-3 flex items-center gap-3 min-h-[64px]">
-          <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#4B32B8] flex items-center justify-center flex-shrink-0">
-            {u.channel === "email" ? <Mail className="w-4 h-4" /> : u.channel === "whatsapp" ? <MessageCircle className="w-4 h-4" /> : <ScanFace className="w-4 h-4" />}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#17151F] truncate">{u.name || u.phone || u.email || "Guest (no details)"}</p>
-            <p className="text-xs text-[#6B6680] truncate">{[u.name ? u.phone || u.email : "", `Searched ${dayTime(u.lastSearchAt ?? u.createdAt)}`, u.downloads ? `${num(u.downloads)} downloads` : ""].filter(Boolean).join(" · ")}</p>
-          </div>
-          <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap tabular-nums", u.matchCount ? "bg-[#E2F4EA] text-[#176B47]" : "bg-[#F1EFF6] text-[#4A4658]")}>{u.matchCount ? `${num(u.matchCount)} photos` : "No photos yet"}</span>
+    <>
+      <div className={cn("bg-white rounded-[18px] p-2 mb-3 flex flex-col sm:flex-row sm:items-center gap-2", CARD_SHADOW)}>
+        <div role="group" aria-label="Show guests" className="flex gap-1 flex-1 min-w-0">
+          {([["all", "All guests", list.length], ["contact", "Gave name and number", withContact.length]] as const).map(([v, label, n]) => (
+            <button key={v} type="button" aria-pressed={only === v} onClick={() => setOnly(v)}
+              className={cn("h-10 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40", only === v ? "bg-[#EEE8FD] text-[#4B32B8]" : "text-[#4A4658] hover:bg-[#F5F3FA]")}>
+              {label}<span className={cn("text-[12px] tabular-nums", only === v ? "text-[#4B32B8]/80" : "text-[#6B6680]")}>{num(n)}</span>
+            </button>
+          ))}
         </div>
-      ))}
-    </Group>
+        {withContact.length > 0 && (
+          <div className="flex gap-2">
+            {phones.length > 0 && <button type="button" onClick={copyNumbers} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5"><Copy className="w-4 h-4" />Copy numbers</button>}
+            <button type="button" onClick={download} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" />Download list</button>
+          </div>
+        )}
+      </div>
+      {shown.length === 0 ? <p className="text-center text-sm text-[#6B6680] py-12">No guest has given a name and number yet. Turn on &quot;Ask for name and WhatsApp number&quot; in Settings.</p> : (
+        <Group>
+          {shown.map(u => (
+            <div key={u.id} className="px-4 sm:px-5 py-3 flex items-center gap-3 min-h-[64px]">
+              <span className="w-10 h-10 rounded-full bg-[#EEE8FD] text-[#4B32B8] flex items-center justify-center flex-shrink-0">
+                {u.channel === "email" ? <Mail className="w-4 h-4" /> : u.channel === "whatsapp" ? <MessageCircle className="w-4 h-4" /> : <ScanFace className="w-4 h-4" />}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#17151F] truncate">{u.name || u.phone || u.email || "Guest (no details)"}</p>
+                <p className="text-xs text-[#6B6680] truncate">{[u.name ? u.phone || u.email : "", `Searched ${dayTime(u.lastSearchAt ?? u.createdAt)}`, u.downloads ? `${num(u.downloads)} downloads` : ""].filter(Boolean).join(" · ")}</p>
+              </div>
+              {u.phone && <a href={`https://wa.me/${u.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" aria-label={`Message ${u.name || u.phone} on WhatsApp`} className="w-10 h-10 rounded-full bg-[#E2F4EA] text-[#176B47] flex items-center justify-center flex-shrink-0"><MessageCircle className="w-4 h-4" /></a>}
+              <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap tabular-nums", u.matchCount ? "bg-[#E2F4EA] text-[#176B47]" : "bg-[#F1EFF6] text-[#4A4658]")}>{u.matchCount ? `${num(u.matchCount)} photos` : "No photos yet"}</span>
+            </div>
+          ))}
+        </Group>
+      )}
+    </>
   );
 }
 
@@ -660,7 +698,7 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
   return (
     <div className="lg:grid lg:grid-cols-[200px_minmax(0,720px)] lg:gap-6 lg:items-start">
       <nav aria-label="Settings sections" className={cn("hidden lg:flex flex-col gap-0.5 bg-white rounded-[20px] p-2 sticky top-20", CARD_SHADOW)}>
-        {[["fs-s-name", "Guest page"], ["fs-s-see", "Who sees what"], ["fs-s-match", "Face matching"], ["fs-s-before", "Code and downloads"], ["fs-s-close", "Close or remove"]].map(([to, label]) => (
+        {[["fs-s-name", "Guest page"], ["fs-s-see", "Who sees what"], ["fs-s-match", "Face matching"], ["fs-s-before", "Before the photos"], ["fs-s-close", "Close or remove"]].map(([to, label]) => (
           <a key={to} href={`#${to}`} className="h-10 px-3 rounded-[12px] text-[13.5px] font-semibold text-[#4A4658] hover:bg-[#F5F3FA] hover:text-[#17151F] flex items-center">{label}</a>
         ))}
       </nav>
@@ -701,12 +739,18 @@ function Settings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g
       </section>
 
       <section id="fs-s-before" className="scroll-mt-24">
-      <Group title="Code and downloads" note="More choices (follow your pages first, watermark, lock while the client has dues) come in the next steps.">
+      <Group title="Before guests get their photos" note="More choices (follow your pages first, watermark, lock while the client has dues) come in the next steps.">
         <div className="px-4 py-3.5">
           <label htmlFor="fs-pin" className="block text-[15px] font-medium text-[#17151F]">Ask for a 4-digit code</label>
           <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">Guests type it before the selfie. Leave empty for no code.</p>
           <input id="fs-pin" className={cn(inputCls, "max-w-[140px] tabular-nums tracking-[0.3em] text-center")} inputMode="numeric" maxLength={4} placeholder="None" value={pin}
             onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setPin(v); if (v.length === 4 || v === "") later(() => save({ pin: v })); }} />
+        </div>
+        <div className="px-4 py-3.5">
+          <p className="text-[15px] font-medium text-[#17151F]">Ask for name and WhatsApp number</p>
+          <p className="text-xs text-[#6B6680] mt-0.5 mb-2.5">{{ off: "Guests see their photos right after the selfie.", optional: "Guests are asked after the selfie and can skip it.", required: "Guests see how many photos were found, and must give their name and number to open them." }[s.register ?? "off"]}</p>
+          <PillPicker<"off" | "optional" | "required"> label="Ask for name and number" value={s.register ?? "off"} onChange={v => save({ register: v })}
+            options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
         </div>
         <SwitchRow label="Guests can download" hint="Off = guests can only look at their photos." on={s.downloads} onChange={v => save({ downloads: v })} />
       </Group>

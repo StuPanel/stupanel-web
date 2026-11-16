@@ -8,6 +8,8 @@ export type Strictness = "strict" | "balanced" | "loose";
 export type FaceSettings = {
   guestsSee: "own" | "all"; highlightsForAll: boolean; strictness: Strictness;
   downloads: boolean; pin: string; welcome: string;
+  /** Ask guests for a name and WhatsApp number: off, optional (they can skip), required (before any photo) */
+  register?: "off" | "optional" | "required";
 };
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };

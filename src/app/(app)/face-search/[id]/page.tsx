@@ -578,9 +578,9 @@ function Share({ g }: { g: FaceDetail }) {
     try { await navigator.clipboard.writeText(g.link); notify("Link copied"); } catch { notify("Could not copy. Press and hold the link to copy it.", { error: true }); }
   }
   return (
-    <>
-    <div className="grid lg:grid-cols-2 gap-5 items-start">
-      <div>
+    <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-5 items-start">
+      {/* The link and the poster on the left, the plain QR on the right: nothing sits beside an empty space */}
+      <div className="min-w-0">
         <Group title="Guest link" note="One link and one QR for every guest. Each guest takes a selfie and sees only the photos they are in.">
           <div className="px-4 py-3.5 flex items-center gap-3">
             <p className="flex-1 min-w-0 text-[14px] font-semibold text-[#17151F] break-all">{g.link}</p>
@@ -588,8 +588,9 @@ function Share({ g }: { g: FaceDetail }) {
           </div>
         </Group>
         {g.status !== "published" && (
-          <div className="rounded-[18px] bg-[#FFF3E0] p-4 text-[14px] text-[#6B4100] mb-5"><b>Not published yet.</b> The link opens, but guests are told the photos are not ready. Press Publish when the photos are in.</div>
+          <div className="rounded-[18px] bg-[#FFF3E0] p-4 text-[14px] text-[#6B4100] mb-5"><b>Not published yet.</b> {g.settings.register && g.settings.register !== "off" ? "Guests who scan now can leave a selfie and a number or email, and are told when you publish." : "The link opens, but guests are told the photos are not ready. Press Publish when the photos are in."}</div>
         )}
+        <QrPoster link={g.link} title={g.title} pin={g.settings.pin} />
       </div>
       <Group title="QR code" note="Print it on table cards or a standee. It is the same link.">
         <div className="p-5 flex flex-col items-center gap-4">
@@ -604,7 +605,5 @@ function Share({ g }: { g: FaceDetail }) {
         </div>
       </Group>
     </div>
-    <QrPoster link={g.link} title={g.title} pin={g.settings.pin} />
-    </>
   );
 }

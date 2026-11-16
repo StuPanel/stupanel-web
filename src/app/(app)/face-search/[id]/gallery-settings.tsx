@@ -189,7 +189,7 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
         </div>
         <p className={cn("text-xs mt-1.5", pin.length > 0 && pin.length < 4 ? "text-[#8A5200]" : "text-[#6B6680]")}>{pin.length === 4 ? "On. Guests need this code." : pin.length ? "Type all 4 digits." : "Off. Anyone with the link can take a selfie."}</p>
       </Row>
-      <Row wide label="Ask for name and WhatsApp number" hint="You see the answers in Guests, and can copy the numbers or download the list.">
+      <Row wide label="Ask for a name and a WhatsApp number or email" hint="You see the answers in Guests, and can send every guest their photos from there.">
         <Choices<"off" | "optional" | "required"> label="Ask for name and number" value={s.register ?? "off"} onChange={v => save({ register: v })} options={[
           { value: "off", title: "Don't ask", text: "Photos open right after the selfie." },
           { value: "optional", title: "Ask, can skip", text: "Asked after the selfie. \"Not now\" still opens the photos." },

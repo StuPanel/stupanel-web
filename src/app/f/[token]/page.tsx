@@ -579,9 +579,47 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
   const moreTitle = useMemo(() => (res.moreKind === "all" ? "All event photos" : "Highlights from the event"), [res.moreKind]);
 
   // Each file is fetched from Google Drive as a download; a short gap keeps phones from blocking them.
+  /** Photos fetched and waiting for one more tap (phones: the share sheet's "Save images" needs a fresh tap). */
+  const [held, setHeld] = useState<File[] | null>(null);
+  const [saveNote, setSaveNote] = useState("");
+
+  /** Hand the fetched photos to the phone ("Save images"), or save them one by one. */
+  async function give(files: File[]) {
+    if (navigator.canShare?.({ files })) {
+      try { await navigator.share({ files }); setHeld(null); return; }
+      catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
+    }
+    for (const f of files) {
+      const url = URL.createObjectURL(f); const a = document.createElement("a");
+      a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      await new Promise(ok => setTimeout(ok, 350));
+    }
+    setHeld(null);
+  }
+
   async function downloadAll() {
     if (saving || !n) return;
+    if (held) return give(held);
+    setSaveNote("");
     counted(base, res.key, n);
+    // Photos with the studio's watermark come from StuPanel: they are fetched here, then saved together.
+    if (res.photos[0]?.wm) {
+      const files: File[] = [];
+      for (let i = 0; i < n; i++) {
+        setSaving(i + 1);
+        const p = res.photos[i];
+        const r = await fetch(faceSaveUrl(p)).catch(() => null);
+        if (!r?.ok) continue;
+        files.push(new File([await r.blob()], `${(p.fileName || `photo-${i + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }));
+      }
+      setSaving(0);
+      if (!files.length) return setSaveNote("The photos could not be downloaded. Please check your internet and try again.");
+      if (files.length < n) setSaveNote(`${n - files.length} photo${n - files.length === 1 ? "" : "s"} could not be downloaded. Open ${n - files.length === 1 ? "it" : "them"} and press Download.`);
+      // On a phone the photos are handed over on the next tap; on a computer they are saved straight away.
+      if (navigator.canShare?.({ files })) return setHeld(files);
+      return give(files);
+    }
     for (let i = 0; i < n; i++) {
       setSaving(i + 1);
       const f = document.createElement("iframe");
@@ -630,9 +668,10 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
         )}
       </div>
       {n > 0 && res.downloads && (
-        <div className="gf-bar gf-glass">
+        <div className="gf-bar gf-glass" style={saveNote ? { flexDirection: "column", gap: 6 } : undefined}>
+          {saveNote && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A82743", textAlign: "center" }}>{saveNote}</p>}
           <button type="button" className="gf-cta" onClick={downloadAll} disabled={!!saving} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18 }}>
-            <Ic d={DL} w={2.3} />{saving ? `Saving ${saving} of ${n}` : `Download all ${n}`}
+            <Ic d={DL} w={2.3} />{saving ? `Getting ${saving} of ${n}` : held ? `Save ${held.length} photo${held.length === 1 ? "" : "s"} to this phone` : `Download all ${n}`}
           </button>
         </div>
       )}

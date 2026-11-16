@@ -4,8 +4,9 @@
   width:390px;height:844px;position:relative;overflow:hidden;background:var(--base);color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .gf *{box-sizing:border-box}
 .gf h1,.gf h2,.gf p{margin:0}
-/* :where keeps this weak, so a photo that must be shown whole (the opened photo: object-contain) is not cropped */
-:where(.gf) img{display:block;object-fit:cover}
+/* Pictures fill their frame, except one that asks to be shown whole (the opened photo). These rules sit outside
+   Tailwind's layers, so they would win over its object-contain: the opened photo is left out by name. */
+:where(.gf) img:not(.object-contain){display:block;object-fit:cover}
 .gf button{font-family:inherit;cursor:pointer;touch-action:manipulation}
 .gf button:focus-visible,.gf a:focus-visible{outline:3px solid var(--v);outline-offset:3px}
 .gf-scene{position:absolute;inset:0;pointer-events:none;background:radial-gradient(60% 55% at 12% 4%,rgba(245,165,50,.48),transparent 72%),radial-gradient(55% 55% at 96% 100%,rgba(232,92,120,.40),transparent 72%),radial-gradient(45% 35% at 100% 0%,rgba(255,228,190,.95),transparent 72%)}

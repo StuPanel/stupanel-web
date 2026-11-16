@@ -584,8 +584,11 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
   const [saveNote, setSaveNote] = useState("");
 
   /** Hand the fetched photos to the phone ("Save images"), or save them one by one. */
+  /** Phones and tablets: the share sheet has "Save images". A computer saves the files straight to Downloads. */
+  const toSheet = (files: File[]) => window.matchMedia("(pointer: coarse)").matches && !!navigator.canShare?.({ files });
+
   async function give(files: File[]) {
-    if (navigator.canShare?.({ files })) {
+    if (toSheet(files)) {
       try { await navigator.share({ files }); setHeld(null); return; }
       catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
     }
@@ -617,7 +620,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
       if (!files.length) return setSaveNote("The photos could not be downloaded. Please check your internet and try again.");
       if (files.length < n) setSaveNote(`${n - files.length} photo${n - files.length === 1 ? "" : "s"} could not be downloaded. Open ${n - files.length === 1 ? "it" : "them"} and press Download.`);
       // On a phone the photos are handed over on the next tap; on a computer they are saved straight away.
-      if (navigator.canShare?.({ files })) return setHeld(files);
+      if (toSheet(files)) return setHeld(files);
       return give(files);
     }
     for (let i = 0; i < n; i++) {

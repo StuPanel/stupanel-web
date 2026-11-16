@@ -153,3 +153,7 @@
 .gf-live .gf-cols > *{break-inside:avoid;margin-bottom:10px;display:block;width:100%;border:0;cursor:pointer}
 .gf-page{min-height:100dvh;background:#17151F}
 @media (min-width:481px){.gf-page{display:flex;align-items:center}.gf.gf-live{height:min(100dvh,920px);border-radius:28px}}
+
+/* Typed fields: the hint text is clearly lighter than what the guest types */
+.gf-step input::placeholder{color:#A29DB3;font-weight:500}
+.gf-step input:focus-visible{border-color:#7D5CEF !important}

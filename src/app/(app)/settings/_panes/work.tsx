@@ -2,6 +2,7 @@
 
 import { ProgramRulesGroup, ShiftsGroup } from "./studio-setup";
 import { Group, NumberField, Row, Switch, TextArea, useSettings } from "../_ui";
+import { EmailUsageGroup } from "./email-usage";
 
 // ─── Programs ────────────────────────────────────────────────────────────────
 export function BookingsPane() {
@@ -89,6 +90,7 @@ export function NotificationsPane() {
 
   return (
     <>
+      <EmailUsageGroup />
       <Group title="Emails to you" note={`Sent to ${data.email ?? "your studio email"} when someone else does it — a manager, a team member or the client. Not for things you do yourself.`}>
         {STUDIO_ROWS.map(r => (
           <Row key={r.key} id={`n-${r.key}`} label={r.label}>

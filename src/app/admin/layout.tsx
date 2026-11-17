@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Flag,
   Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
+  HardDrive, Mail, MailCheck, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
@@ -63,6 +63,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Monitoring",
     items: [
       { label: "Storage",    href: "/admin/storage", icon: HardDrive, perm: "reports.view" },
+      { label: "Emails",     href: "/admin/emails", icon: MailCheck, perm: "reports.view" },
       { label: "Email Logs", href: "/admin/email-logs", icon: Mail, perm: "reports.view" },
       { label: "Security",   href: "/admin/security", icon: ShieldAlert, perm: "security.manage" },
       { label: "System",     href: "/admin/system",   icon: Server,      perm: "settings.manage" },

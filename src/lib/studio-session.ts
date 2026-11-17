@@ -28,16 +28,18 @@ export function saveSession(d: Session) {
 
 /** Google sign-in leaves the page: keep where to go after it (only an invite link). */
 export function rememberAfterLogin(path: string | null) {
-  try { if (path?.startsWith("/invite/")) sessionStorage.setItem("after_login", path); else sessionStorage.removeItem("after_login"); } catch { /* ignore */ }
+  try { if (path?.startsWith("/invite/") || path === "/app-login") sessionStorage.setItem("after_login", path); else sessionStorage.removeItem("after_login"); } catch { /* ignore */ }
 }
 export function takeAfterLogin(): string | null {
-  try { const p = sessionStorage.getItem("after_login"); sessionStorage.removeItem("after_login"); return p?.startsWith("/invite/") ? p : null; } catch { return null; }
+  try { const p = sessionStorage.getItem("after_login"); sessionStorage.removeItem("after_login"); return p?.startsWith("/invite/") || p === "/app-login" ? p : null; } catch { return null; }
 }
 
 /** Where this session starts: member panel for staff, otherwise the studio app. */
 export function homeFor(d: Session, redirectTo?: string | null) {
   // An invite link the person came from always wins.
   if (redirectTo?.startsWith("/invite/")) return redirectTo;
+  // Signing in for the StuPanel Live phone app: back to the hand-off page, whatever the role.
+  if (redirectTo === "/app-login") return redirectTo;
   if (d.user.role === "staff") return "/member/dashboard";
   // A manager opens the panel they used last (their own work, or the studio).
   if (d.user.role === "manager" && !redirectTo) { try { if (localStorage.getItem("sp_last_panel") === "member") return "/member/dashboard"; } catch { /* ignore */ } }

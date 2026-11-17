@@ -110,7 +110,7 @@ function PayDrawer({ pack, numbers, onClose, onSent }: { pack: Pack; numbers: Sh
     const e: typeof err = {};
     const s = sender.replace(/[\s-]/g, "").replace(/^\+?88/, "");
     const t = trx.trim().toUpperCase();
-    if (!/^01[3-9]\d{8,9}$/.test(s)) e.sender = "Type the 11-digit number you sent the money from (like 01712345678).";
+    if (!/^01[3-9]\d{8,9}$/.test(s)) e.sender = "Type the 11-digit number you sent the money from (like 01XXXXXXXXX).";
     if (!/^[A-Z0-9]{6,20}$/.test(t)) e.trx = "The transaction ID is 6 to 20 letters or numbers. It is in the payment message.";
     setErr(e);
     if (e.sender || e.trx || saving) return;
@@ -155,7 +155,7 @@ function PayDrawer({ pack, numbers, onClose, onSent }: { pack: Pack; numbers: Sh
           <p className="text-[13px] font-bold text-[#17151F]">3. Tell us about the payment</p>
           <div>
             <label htmlFor="bc-sender" className="block text-xs font-semibold text-[#6B6680] mb-1.5">Number you sent from</label>
-            <input id="bc-sender" className={inputCls} inputMode="tel" autoComplete="tel" placeholder="01712345678" value={sender} aria-invalid={!!err.sender} aria-describedby={err.sender ? "bc-sender-err" : undefined}
+            <input id="bc-sender" className={inputCls} inputMode="tel" autoComplete="tel" placeholder="01XXXXXXXXX" value={sender} aria-invalid={!!err.sender} aria-describedby={err.sender ? "bc-sender-err" : undefined}
               onChange={e => setSender(e.target.value)} />
             {err.sender && <p id="bc-sender-err" role="alert" className="text-xs text-[#A82743] mt-1.5">{err.sender}</p>}
           </div>

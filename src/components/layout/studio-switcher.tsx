@@ -2,12 +2,11 @@
 
 /**
  * The studio name and logo in the sidebar. For someone in several studios (or with an
- * invite waiting) it opens "Your studios": switch with one tap, accept or decline invites,
- * or create one more studio of your own (same login).
+ * invite waiting) it opens "Your studios": switch with one tap, accept or decline invites.
  */
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronsUpDown, Loader2, Plus, X } from "lucide-react";
+import { ChevronsUpDown, X } from "lucide-react";
 import { StudioLogo } from "@/components/studio-logo";
 import { InviteList, StudioList } from "@/components/studio-list";
 import { notify } from "@/components/feedback";
@@ -34,9 +33,6 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
   const [mine, setMine] = useState<Mine | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  /** "Create a new studio": closed, typing a name, or saving. */
-  const [making, setMaking] = useState<"" | "form" | "saving">("");
-  const [newName, setNewName] = useState("");
 
   useEffect(() => { loadMine().then(setMine); }, []);
   const refresh = useCallback(() => loadMine(true).then(setMine), []);
@@ -44,8 +40,7 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
   const current = mine?.studios.find(s => s.userId === mine.currentUserId);
   const others = (mine?.studios.length ?? 1) > 1;
   const invites = mine?.invites.length ?? 0;
-  // Everyone can open it: to switch, answer an invite, or create another studio.
-  const canOpen = !!mine;
+  const canOpen = others || invites > 0;
   const shownName = current?.name || name || "Your studio";
   const shownLogo = current?.logoUrl ?? logo;
 
@@ -70,19 +65,6 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
     refresh();
   }
 
-  async function create() {
-    const name = newName.trim();
-    if (name.length < 2) { notify("Type your new studio's name.", { error: true }); return; }
-    setMaking("saving");
-    const r = await apiFetch(`${API}/auth/studios`, {
-      method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyName: name }),
-    }).catch(() => null);
-    const d = await r?.json().catch(() => ({}));
-    if (!r?.ok) { setMaking("form"); notify(Array.isArray(d?.message) ? d.message[0] : d?.message || "Couldn't create the studio. Please try again.", { error: true }); return; }
-    enterSession(d as Session);
-  }
-
   const card = (
     <span className={cn("flex items-center rounded-xl bg-[#F7F5FB] border border-[#F1EFF6] text-left w-full",
       compact ? "p-1.5 justify-center" : "gap-2.5 p-2", canOpen && "hover:border-[#CFC2F8] transition-colors")}>
@@ -94,7 +76,7 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold text-[#17151F] truncate leading-tight">{shownName}</span>
           <span className="block text-xs text-[#6B6680] leading-tight mt-0.5 truncate">
-            {invites > 0 ? `${invites} invite${invites > 1 ? "s" : ""} waiting` : others ? "Switch studio" : sub || "Your studios"}
+            {invites > 0 ? `${invites} invite${invites > 1 ? "s" : ""} waiting` : others ? "Switch studio" : sub}
           </span>
         </span>
       )}
@@ -125,29 +107,6 @@ export function StudioSwitcher({ name, logo, sub, compact, onOpen }: {
               </div>
               <StudioList studios={mine.studios} currentUserId={mine.currentUserId} busyId={busy} onPick={pick} />
               <InviteList invites={mine.invites} busyId={busy} onAnswer={answer} />
-              <div className="mt-4 pt-4 border-t border-[#F1EFF6]">
-                {making === "" ? (
-                  <button type="button" onClick={() => setMaking("form")}
-                    className="w-full h-12 rounded-2xl border-2 border-dashed border-[#DCD3F7] text-[#5B3FD0] text-[14px] font-semibold inline-flex items-center justify-center gap-2 hover:bg-[#F7F4FE] transition-colors">
-                    <Plus className="w-4 h-4" />Create a new studio
-                  </button>
-                ) : (
-                  <form className="sp-pop-in" onSubmit={e => { e.preventDefault(); void create(); }}>
-                    <label htmlFor="new-studio" className="block text-[13px] font-semibold text-[#17151F]">New studio name</label>
-                    <p className="text-[12.5px] text-[#6B6680] mt-0.5">You are its owner. Same login and password; it starts empty with its own 14-day trial.</p>
-                    <input id="new-studio" autoFocus value={newName} onChange={e => setNewName(e.target.value)} maxLength={120} placeholder="e.g. Studio name"
-                      className="mt-2 w-full h-11 px-3.5 rounded-xl bg-[#F5F3FA] border border-transparent focus:bg-white focus:border-[#7D5CEF] outline-none text-[15px] text-[#17151F]" />
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => { setMaking(""); setNewName(""); }} disabled={making === "saving"}
-                        className="h-11 px-4 rounded-full bg-[#F5F3FA] text-[#4A4658] text-[14px] font-semibold">Cancel</button>
-                      <button type="submit" disabled={making === "saving" || newName.trim().length < 2}
-                        className="flex-1 h-11 rounded-full bg-[#7D5CEF] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
-                        {making === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Create studio
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
             </div>
           </div>
         </>,

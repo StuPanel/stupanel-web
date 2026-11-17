@@ -8,7 +8,7 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
-import { facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/face";
+import { faceFileUrl, facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/face";
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
 import { N, P, T, setGuestLang, type Lang } from "./i18n";
 import "./guest.css";
@@ -145,6 +145,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       return false;
     }
     const out = stamp(o as Result);
+    warm(out);
     try { localStorage.setItem(store, JSON.stringify({ ...saved, key: out.key })); } catch { /* private window */ }
     setSelfie(saved.selfie || ""); setRes(out);
     let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
@@ -180,7 +181,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       if (d.link === "full" && d.status === "published" && !d.needsPin) { if (on && !(await openAll(d))) setStep("land"); return; }
       if (saved.key && d.status !== "closed") {
         const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
-        if (on && m?.ok) { const out = stamp(await m.json()); setSelfie(saved.selfie || ""); setRes(out);
+        if (on && m?.ok) { const out = stamp(await m.json()); warm(out); setSelfie(saved.selfie || ""); setRes(out);
           if (out.waiting) return setStep(out.registered ? "wait" : "register");
           let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
           return setStep(out.needsRegister ? "register" : d.followWhen === "before" && d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
@@ -208,6 +209,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       return setStep(r?.status === 403 ? "land" : "selfie");
     }
     const out = stamp(d as Result);
+    warm(out);
     try { localStorage.setItem(store, JSON.stringify({ key: out.key, selfie: await thumbOfSelfie(image) })); } catch { /* private window */ }
     // The photos are not out yet: the selfie is kept, and the guest says where to send them.
     if (out.waiting) { await new Promise(ok => setTimeout(ok, Math.max(0, 1200 - (Date.now() - started)))); setRes(out); return setStep(out.registered ? "wait" : "register"); }
@@ -315,7 +317,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
             title={g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
             footer={res.downloads || g.shareButton !== false ? (
               <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center" }}>
-                {res.downloads && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
+                {res.downloads && phoneSave() && <SaveOne key={p.id} photo={p} gate={run => moment("download", run)} onSaved={() => { counted(base, res.key, 1); setTimeout(() => moment("downloaded"), 900); }} />}
+                {res.downloads && !phoneSave() && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
                   onClick={e => {
                     // "When Download is pressed": the card first; the photo is saved from its button (same tap, so phones allow it).
                     if (gates()) { e.preventDefault(); const url = faceSaveUrl(p); moment("download", () => { counted(base, res.key, 1); window.open(url, "_blank", "noopener"); }); return; }
@@ -343,6 +346,21 @@ async function thumbOfSelfie(dataUrl: string) {
   await new Promise<void>(ok => { img.onload = () => ok(); img.onerror = () => ok(); img.src = dataUrl; });
   return img.naturalWidth ? shrink(img, img.naturalWidth, img.naturalHeight, 160) : "";
 }
+/** Start loading the first pictures of the grid at once (during the count-up), so they are there when the grid shows. */
+function warm(out: Result) {
+  if (typeof window === "undefined") return;
+  for (const p of [...(out.photos ?? []), ...(out.more ?? [])].slice(0, 24)) { const i = new Image(); i.referrerPolicy = "no-referrer"; i.decoding = "async"; i.src = facePhotoUrl(p, 480); }
+}
+/** A phone or tablet that can hand files to its share sheet ("Save image"). */
+const phoneSave = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches && !!navigator.canShare?.({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] });
+/** One photo as a file for the share sheet. */
+async function fileOf(p: FacePhoto, i = 0) {
+  const r = await fetch(faceFileUrl(p)).catch(() => null);
+  if (!r?.ok) return null;
+  const b = await r.blob();
+  return new File([b], `${(p.fileName || `photo-${i + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: b.type || "image/jpeg" });
+}
+
 function counted(base: string, key: string, n: number) {
   fetch(`${base}/downloaded`, { method: "POST", headers: { "Content-Type": "application/json", "x-guest-key": key }, body: JSON.stringify({ count: n }), keepalive: true }).catch(() => undefined);
 }
@@ -787,6 +805,39 @@ function Follow({ g, count, onFollowed, onSkip }: { g: Open; count: number; onFo
 }
 
 /**
+ * Download on a phone: the photo is fetched when it opens, so one tap hands it to the share sheet ("Save image").
+ * If the phone still asks for a fresh tap, the button turns into "Save photo" (ready) for that tap.
+ */
+function SaveOne({ photo, gate, onSaved }: { photo: FacePhoto; gate: (run: () => void) => void; onSaved: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [state, setState] = useState<"" | "getting" | "ready">("");
+  const want = useRef(false);
+  useEffect(() => {
+    // Fetched once the photo has stayed open a moment (not for every photo swiped past).
+    let on = true;
+    const t = setTimeout(() => { void fileOf(photo).then(f => { if (on && f) setFile(f); }); }, 700);
+    return () => { on = false; clearTimeout(t); };
+  }, [photo]);
+  const hand = useCallback(async (f: File) => {
+    try { await navigator.share({ files: [f] }); setState(""); onSaved(); }
+    catch (e) { setState((e as Error).name === "AbortError" ? "" : "ready"); }
+  }, [onSaved]);
+  // Tapped before the photo was here: it is handed over the moment it arrives.
+  useEffect(() => { if (file && want.current) { want.current = false; void hand(file); } }, [file, hand]);
+  const go = () => {
+    if (file) return void hand(file);
+    want.current = true; setState("getting");
+  };
+  return (
+    <button type="button" className={state === "ready" ? "gf-ready" : undefined} onClick={() => (state === "ready" ? go() : gate(go))} disabled={state === "getting"}
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, border: 0, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16 }}>
+      {state === "getting" ? <span className="gf-dots" aria-hidden="true"><i style={{ background: "#fff" }} /><i style={{ background: "#fff" }} /><i style={{ background: "#fff" }} /></span> : <Ic d={DL} />}
+      {state === "getting" ? T("Getting the photo") : state === "ready" ? T("Save photo") : T("Download")}
+    </button>
+  );
+}
+
+/**
  * Share: the photo goes to the phone's share sheet (Instagram, Facebook, WhatsApp…). The caption with the studio's
  * tag is copied first, because Instagram does not take text: the guest pastes it.
  */
@@ -985,7 +1036,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
 
   async function give(files: File[]) {
     if (toSheet(files)) {
-      try { await navigator.share({ files }); setHeld(null); onDownloaded?.(); return; }
+      try { await navigator.share({ files }); setHeld(null); setSaveNote(""); onDownloaded?.(); return; }
       catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
     }
     for (const f of files) {
@@ -1014,22 +1065,28 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
     if (saving || !n) return;
     setSaveNote(""); setTotal(n);
     counted(base, res.key, n);
-    // Photos with the studio's watermark come from StuPanel: they are fetched here, then saved together.
-    if (list[0]?.wm) {
-      const files: File[] = [];
-      for (let i = 0; i < n; i++) {
-        setSaving(i + 1);
-        const p = list[i];
-        const r = await fetch(faceSaveUrl(p)).catch(() => null);
-        if (!r?.ok) continue;
-        files.push(new File([await r.blob()], `${(p.fileName || `photo-${i + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }));
+    // Phones: the photos are fetched (several at once) and handed to the share sheet ("Save images").
+    // Computers: watermarked photos are fetched and saved; originals come straight from Google Drive.
+    const phone = phoneSave();
+    if (list[0]?.wm || phone) {
+      const files: (File | null)[] = new Array(n).fill(null);
+      let done = 0;
+      for (let i = 0; i < n; i += 4) {
+        await Promise.all(list.slice(i, i + 4).map(async (p, k) => {
+          files[i + k] = phone ? await fileOf(p, i + k) : await fetch(faceSaveUrl(p)).then(async r => (r.ok ? new File([await r.blob()], `${(p.fileName || `photo-${i + k + 1}`).replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }) : null)).catch(() => null);
+          setSaving(++done);
+        }));
       }
       setSaving(0);
-      if (!files.length) return setSaveNote(T("The photos could not be downloaded. Please check your internet and try again."));
-      if (files.length < n) setSaveNote(T("{photos} could not be downloaded. Open them and press Download.", { photos: P(n - files.length) }));
-      // On a phone the photos are handed over on the next tap; on a computer they are saved straight away.
-      if (toSheet(files)) return setHeld(files);
-      await give(files); onDownloaded?.(); return;
+      const got = files.filter((f): f is File => !!f);
+      if (!got.length) return setSaveNote(T("The photos could not be downloaded. Please check your internet and try again."));
+      if (got.length < n) setSaveNote(T("{photos} could not be downloaded. Open them and press Download.", { photos: P(n - got.length) }));
+      if (toSheet(got)) {
+        // Most phones still allow the share sheet from the same tap; if this one does not, one more tap is asked for, clearly.
+        try { await navigator.share({ files: got }); onDownloaded?.(); return; }
+        catch (e) { if ((e as Error).name === "AbortError") { setHeld(got); return; } setHeld(got); setSaveNote(T("Your photos are ready. Tap Save to keep them.")); return; }
+      }
+      await give(got); onDownloaded?.(); return;
     }
     for (let i = 0; i < n; i++) {
       setSaving(i + 1);
@@ -1049,7 +1106,8 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
         aria-label={picking ? `${on ? "Take out" : "Choose"} photo ${i + 1}` : `Open photo ${i + 1}`} aria-pressed={picking ? on : undefined}
         style={{ ["--r" as string]: `${i % 2 ? 7 : -7}deg`, animationDelay: `${Math.min(i, 10) * 0.07}s`, padding: 5 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={facePhotoUrl(p, 480)} alt="" loading={i > 5 ? "lazy" : undefined} referrerPolicy="no-referrer"
+        <img src={facePhotoUrl(p, 480)} alt="" loading={i > 11 ? "lazy" : undefined} decoding="async" referrerPolicy="no-referrer" className="gf-wait"
+          onLoad={e => e.currentTarget.classList.remove("gf-wait")}
           style={{ aspectRatio: p.width && p.height ? `${p.width} / ${p.height}` : "4 / 5", background: "#F1EFF6" }} />
         {picking && <span className="gf-tick" aria-hidden="true">{on && <Ic size={16} w={3.2} d={<path d="M5 12.5l4.5 4.500L19 7.500" />} />}</span>}
       </button>
@@ -1094,8 +1152,8 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
             {picking
               ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
               : !held && !saving && m > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
-            <button type="button" className="gf-cta" onClick={() => (!picking && !m ? setPicking(true) : held ? download([]) : gate(() => void download(picking ? chosen : mainList)))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
-              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos} to this phone", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
+            <button type="button" className={`gf-cta${held ? " gf-ready" : ""}`} onClick={() => (!picking && !m ? setPicking(true) : held ? download([]) : gate(() => void download(picking ? chosen : mainList)))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos}", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
             </button>
           </div>
         </div>

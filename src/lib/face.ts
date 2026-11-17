@@ -92,6 +92,11 @@ export const facePhotoUrl = (p: { driveFileId: string; wm?: string }, width = 48
   p.wm ? p.wm.replace("{size}", String(width <= 480 ? 480 : width <= 1600 ? 1600 : 2560)) : drivePhoto(p.driveFileId, width);
 /** The file a guest saves: the original from Drive, or the watermarked copy when the gallery has a watermark. */
 export const faceSaveUrl = (p: { driveFileId: string; wm?: string }) => (p.wm ? `${p.wm.replace("{size}", "2560")}&dl=1` : faceDownloadUrl(p.driveFileId));
+/**
+ * The file a phone fetches to hand to its share sheet ("Save image"): the watermarked copy, or the full-size
+ * picture from Google (the Drive download link cannot be fetched by a page).
+ */
+export const faceFileUrl = (p: { driveFileId: string; wm?: string }) => (p.wm ? p.wm.replace("{size}", "2560") : `https://lh3.googleusercontent.com/d/${p.driveFileId}=s0`);
 /** The original file, for saving. */
 export const faceDownloadUrl = (driveFileId: string) => `https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveFileId)}`;
 export const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");

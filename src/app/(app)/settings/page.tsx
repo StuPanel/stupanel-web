@@ -113,6 +113,8 @@ export default function SettingsPage() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save");
       setStudio(d as StudioSettings);
+      // The sidebar hides switched-off features: tell it at once.
+      if (key === "features") window.dispatchEvent(new CustomEvent("sp:features", { detail: (d as StudioSettings).features }));
       savedOk();
       return true;
     } catch (e) {

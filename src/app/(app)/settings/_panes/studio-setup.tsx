@@ -38,17 +38,16 @@ function Features() {
   const set = (k: keyof typeof f, v: boolean) => patchStudio("features", { ...f, [k]: v });
   return (
     <>
-      <Group title="Client features" note="Turn off what your studio doesn't use — it disappears from programs and the client portal. You can turn it back on any time.">
-        <Row id="f-photoSelection" label="Photo selection" hint="Clients pick the photos for their albums in their portal — from the program's Drive files or your upload">
+      <Group title="Client features" note="Turn off what your studio doesn't use — it disappears from your menu, programs and the client portal. You can turn it back on any time.">
+        <Row id="f-photoSelection" label="Photo selection" hint="Clients pick the photos for their albums in their portal — from the program's Drive files or your upload. Off: it also leaves your menu.">
           <Switch label="Photo selection" on={f.photoSelection} onChange={v => set("photoSelection", v)} />
         </Row>
-        <Row id="f-musicSelection" label="Music selection" hint="Clients choose songs for their video from your list or a YouTube link">
+        <Row id="f-musicSelection" label="Music selection" hint="Clients choose songs for their video from your list or a YouTube link. Off: Music Library also leaves your menu.">
           <Switch label="Music selection" on={f.musicSelection} onChange={v => set("musicSelection", v)} />
         </Row>
       </Group>
       <Group title="Coming soon">
         <SoonRow id="f-albumTracking" label="Album tracking" hint="Follow each album from design to print to hand-over" />
-        <SoonRow id="f-faceRecognition" label="Face recognition" hint="Guests take a selfie and see only their own photos" />
       </Group>
     </>
   );

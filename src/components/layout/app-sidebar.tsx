@@ -12,7 +12,7 @@ import {
   MessageSquareText, Target, Music2, Images, ScanFace, FileSignature } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
-import { API_URL as API } from "@/lib/api";
+import { API_URL as API, apiFetch } from "@/lib/api";
 import { canOpen, homeFor } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
 import { StudioSwitcher } from "@/components/layout/studio-switcher";
@@ -90,12 +90,30 @@ export function BrandMark({ size = 32, className }: { size?: number; className?:
   );
 }
 
+type Features = { photoSelection?: boolean; musicSelection?: boolean };
+/** Kept for the session, so the menu doesn't flicker on every page. */
+let featuresCache: Features | null = null;
+
 export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
   const { companyLogo, companyName, user } = useAuth();
   // Managers only see the parts the owner gave them.
+  // Features the studio switched off (Settings → Features) are not in the menu.
+  const [features, setFeatures] = useState<Features | null>(featuresCache);
+  useEffect(() => {
+    let alive = true;
+    if (!featuresCache && localStorage.getItem("access_token")) {
+      apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null))
+        .then(d => { if (alive && d?.features) { featuresCache = d.features; setFeatures(d.features); } }).catch(() => {});
+    }
+    const on = (e: Event) => { featuresCache = (e as CustomEvent<Features>).detail; setFeatures(featuresCache); };
+    window.addEventListener("sp:features", on);
+    return () => { alive = false; window.removeEventListener("sp:features", on); };
+  }, []);
+  const switchedOff = (href: string) =>
+    (href === "/photo-selection" && features?.photoSelection === false) || (href === "/music" && features?.musicSelection === false);
   const groups = navigation
-    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href) && !(("managersOnly" in i) && i.managersOnly && user?.role === "owner")) }))
+    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href) && !switchedOff(i.href) && !(("managersOnly" in i) && i.managersOnly && user?.role === "owner")) }))
     .filter(g => g.items.length > 0);
   const [chatUnread, setChatUnread] = useState(0);
 

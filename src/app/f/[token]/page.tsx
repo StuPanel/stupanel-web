@@ -361,7 +361,7 @@ const touch = () => typeof window !== "undefined" && window.matchMedia("(pointer
 function saveFile(f: File) {
   const url = URL.createObjectURL(f); const a = document.createElement("a");
   a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 8000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 /** One photo as a file for the share sheet. */
 async function fileOf(p: FacePhoto, i = 0) {
@@ -1041,6 +1041,8 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
   /** Photos fetched and waiting for one more tap (phones: the share sheet's "Save images" needs a fresh tap). */
   const [held, setHeld] = useState<File[] | null>(null);
   const [saveNote, setSaveNote] = useState("");
+  /** Saving file i of the ones fetched (Android, computers). */
+  const [storing, setStoring] = useState(0);
 
   /** Hand the fetched photos to the phone ("Save images"), or save them one by one. */
   /** Phones and tablets: the share sheet has "Save images". A computer saves the files straight to Downloads. */
@@ -1051,11 +1053,18 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
       try { await navigator.share({ files }); setHeld(null); setSaveNote(""); onDownloaded?.(); return; }
       catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
     }
-    for (const f of files) {
-      saveFile(f);
-      await new Promise(ok => setTimeout(ok, 350));
+    // One at a time with a pause: Android drops a download that starts before the one before it was taken,
+    // and may ask once to allow several downloads.
+    const gap = touch() ? 1500 : 600;
+    if (files.length > 1 && touch()) setSaveNote(T("If your phone asks, tap Allow to save all photos."));
+    for (let i = 0; i < files.length; i++) {
+      setStoring(i + 1);
+      saveFile(files[i]);
+      if (i < files.length - 1) await new Promise(ok => setTimeout(ok, gap));
     }
+    setStoring(0);
     setHeld(null);
+    if (files.length > 1) { setSaveNote(T("{photos} saved to Downloads.", { photos: P(files.length) })); setTimeout(() => setSaveNote(""), 5000); }
   }
 
   /** Choosing mode: a tap ticks a photo instead of opening it, and only the ticked ones are downloaded. */
@@ -1072,7 +1081,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
   async function download(list: FacePhoto[]) {
     const n = list.length;
     if (held) return give(held);
-    if (saving || !n) return;
+    if (saving || storing || !n) return;
     setSaveNote(""); setTotal(n);
     counted(base, res.key, n);
     // Phones: the photos are fetched (several at once) and handed to the share sheet ("Save images").
@@ -1160,10 +1169,10 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
           {saveNote && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: "#A82743", textAlign: "center" }}>{saveNote}</p>}
           <div style={{ display: "flex", gap: 8, width: "100%" }}>
             {picking
-              ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
+              ? <button type="button" onClick={stopPicking} disabled={!!saving || !!storing} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
               : !held && !saving && m > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
-            <button type="button" className={`gf-cta${held ? " gf-ready" : ""}`} onClick={() => (!picking && !m ? setPicking(true) : held ? download([]) : gate(() => void download(picking ? chosen : mainList)))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
-              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos}", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
+            <button type="button" className={`gf-cta${held ? " gf-ready" : ""}`} onClick={() => (!picking && !m ? setPicking(true) : held ? download([]) : gate(() => void download(picking ? chosen : mainList)))} disabled={!!saving || !!storing || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : storing ? T("Saving {a} of {b}", { a: N(storing), b: N(total) }) : held ? T("Save {photos}", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
             </button>
           </div>
         </div>

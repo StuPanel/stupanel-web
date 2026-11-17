@@ -645,7 +645,13 @@ function emailFix(v: string) {
 type Page = { site: "facebook" | "instagram"; url: string };
 const SITE = { facebook: "Facebook", instagram: "Instagram" } as const;
 /** "instagram.com/pickphoto" → "pickphoto" (the name shown, and the tag in the share caption). */
-const handleOf = (url: string) => { try { return new URL(url).pathname.split("/").filter(Boolean)[0] ?? ""; } catch { return ""; } };
+const handleOf = (url: string) => {
+  try {
+    const first = new URL(url).pathname.split("/").filter(Boolean)[0] ?? "";
+    // Share links and id links ("facebook.com/share/…", "profile.php?id=…") have no name to show.
+    return /^(share|profile\.php|pages|people|p|reel|groups)$/i.test(first) ? "" : first;
+  } catch { return ""; }
+};
 /** The words copied when a guest shares a photo. */
 function captionFor(g: Open) {
   const ig = g.follow?.find(p => p.site === "instagram");

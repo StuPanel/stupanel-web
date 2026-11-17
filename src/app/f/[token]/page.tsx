@@ -10,7 +10,7 @@ import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { faceFileUrl, facePhotoUrl, faceSaveUrl, type Cover, type FacePhoto } from "@/lib/face";
 import { FACE_HINT, loadFaceCheck, type FaceState } from "@/lib/face-check";
-import { N, P, T, setGuestLang, type Lang } from "./i18n";
+import { N, P, T } from "./i18n";
 import "./guest.css";
 
 type Ask = "hide" | "optional" | "required";
@@ -19,12 +19,12 @@ type Rules = { name: Ask; phone: Ask; email: Ask; oneOf: boolean };
 type DownloadSize = "original" | "medium" | "small";
 type BookWhen = "end" | "results" | "downloaded" | "afterFollow";
 type FollowWhen = "off" | "before" | "results" | "open" | "download" | "downloaded";
-type Open = { /** When the Book us card shows, and whether it is asked again / kept at the end */ bookWhen?: BookWhen; bookAgain?: boolean; bookKeepCard?: boolean; /** "Book us" card after the photos, and the review link */ bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string; /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Open = { /** When the Book us card shows, and whether it is asked again / kept at the end */ bookWhen?: BookWhen; bookAgain?: boolean; bookKeepCard?: boolean; /** "Book us" card after the photos, and the review link */ bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string; /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
-const longDate = (d: string | null, lang: Lang = "en") => (d ? new Date(d).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
+const longDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "");
 
 /** A simple face mesh (same on every face): brow, eyes, nose, mouth, jaw. */
 const PTS: [number, number][] = [[124, 96], [70, 132], [178, 132], [96, 150], [152, 150], [124, 140], [124, 186], [100, 190], [148, 190], [88, 226], [160, 226], [124, 222], [124, 244], [104, 268], [144, 268], [124, 290], [58, 190], [190, 190]];
@@ -65,18 +65,15 @@ type PreviewData = { open: Open; screen: "land" | "register" | "wait" | "results
 /** The guest page as the studio's settings make it, with sample answers. Nothing is sent anywhere. */
 function PreviewHost() {
   const [d, setD] = useState<PreviewData | null>(null);
-  const [lang, setLang] = useState<Lang | null>(null);
   useEffect(() => {
     const on = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.type !== "sp-face-preview") return;
-      setD(e.data.data as PreviewData); setLang(null);
+      setD(e.data.data as PreviewData);
     };
     window.addEventListener("message", on);
     window.parent.postMessage({ type: "sp-face-preview-ready" }, window.location.origin);
     return () => window.removeEventListener("message", on);
   }, []);
-  const now: Lang = lang ?? d?.open.language ?? "en";
-  setGuestLang(now);
   if (!d) return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
   const g = d.open;
   const n = d.photos.length;
@@ -85,8 +82,8 @@ function PreviewHost() {
   const res: Result = { key: "", registered: false, needsRegister: g.register === "required", waiting: early, count: n, photos: d.photos, more: [], moreKind: "highlights", downloads: g.downloads, downloadAll: true };
   const noForm = !g.register || g.register === "off";
   return (
-    <Shell bn={now === "bn"}>
-      {d.screen === "land" && <Landing g={g} base="" lang={now} onLang={() => setLang(now === "bn" ? "en" : "bn")} note="" onStart={() => undefined} onCode={() => undefined} />}
+    <Shell>
+      {d.screen === "land" && <Landing g={g} base="" note="" onStart={() => undefined} onCode={() => undefined} />}
       {d.screen === "register" && (noForm
         ? <div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 22, fontWeight: 800 }}>{T("No details are asked")}</h1><p style={{ color: "#4A4658", fontSize: 15 }}>{T("Guests go straight to their photos after the selfie.")}</p></div>
         : <Register key={JSON.stringify(rules) + g.register} base="" dry res={res} rules={rules} studio={g.studio.name} selfie="" must={g.register === "required" || early} onDone={() => undefined} onSkip={() => undefined} />)}
@@ -132,12 +129,6 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   const bookWaits = useRef(false);
   const followOpen = useRef(false);
   const askedNow = useRef(false);
-  // The studio picks the page's language; a guest can switch, and this browser remembers it.
-  const [lang, setLang] = useState<Lang | null>(null);
-  const now: Lang = lang ?? g?.language ?? "en";
-  setGuestLang(now);
-  useEffect(() => { document.documentElement.lang = now; }, [now]);
-  const swap = () => { const l: Lang = now === "bn" ? "en" : "bn"; setLang(l); try { localStorage.setItem("sp-face-lang", l); } catch { /* private window */ } };
 
   /** The secret of the share link the guest came by (all photos / VIP); "" = the guests' link. */
   const via = useRef("");
@@ -186,7 +177,6 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       const r = await fetch(via.current ? `${base}?a=${via.current}` : base).catch(() => null);
       if (!on) return;
       setLinkKey(via.current);
-      try { const l = localStorage.getItem("sp-face-lang"); if (l === "bn" || l === "en") setLang(l); } catch { /* private window */ }
       if (!r?.ok) { setErr(T("This link is not working. Please ask the studio for a new one.")); return setStep("bad"); }
       const d: Open = await r.json();
       size.current = d.downloadSize ?? "original";
@@ -337,8 +327,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, nPhotos]);
 
-  if (step === "bad") return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>{T("Photos not found")}</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
-  if (step === "load" || !g) return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
+  if (step === "bad") return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>{T("Photos not found")}</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
+  if (step === "load" || !g) return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
 
   const all = g.link === "full";
   const start = () => {
@@ -348,8 +338,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   };
 
   return (
-    <Shell bn={now === "bn"}>
-      {step === "land" && <Landing g={g} base={base} lang={now} onLang={swap} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
+    <Shell>
+      {step === "land" && <Landing g={g} base={base} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
       {step === "pin" && <Pin base={base} link={linkKey} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
         // A selfie taken before the code was asked for is used straight away.
         onDone={code => { setNote(""); if (selfie) void search(selfie, code); else if (all) void openAll(g, code).then(ok => { if (!ok) setStep("land"); }); else setStep("selfie"); }} />}
@@ -398,8 +388,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   );
 }
 
-function Shell({ children, bn }: { children: React.ReactNode; bn?: boolean }) {
-  return <div className="gf-page"><div className={`gf gf-live${bn ? " gf-bn" : ""}`}><div className="gf-scene" aria-hidden="true" />{children}</div></div>;
+function Shell({ children }: { children: React.ReactNode }) {
+  return <div className="gf-page"><div className="gf gf-live"><div className="gf-scene" aria-hidden="true" />{children}</div></div>;
 }
 
 async function thumbOfSelfie(dataUrl: string) {
@@ -441,7 +431,7 @@ function counted(base: string, key: string, n: number) {
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
 
-function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; base: string; lang: Lang; onLang: () => void; note: string; onStart: () => void; onCode: () => void }) {
+function Landing({ g, base, note, onStart, onCode }: { g: Open; base: string; note: string; onStart: () => void; onCode: () => void }) {
   // A gallery with a watermark: the cover comes from StuPanel with the watermark on it.
   const cover = g.cover ? (g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : facePhotoUrl(g.cover, 1200)) : "";
   const live = g.status === "published" && g.ready;
@@ -468,12 +458,8 @@ function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; ba
             : <span style={{ width: 34, height: 34, borderRadius: 12, background: "#17151F", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{initials(g.studio.name)}</span>}
           <span style={{ fontWeight: 700, fontSize: 14 }}>{g.studio.name}</span>
         </div>
-        <button type="button" className="gf-drop gf-glass" onClick={onLang} lang={lang === "bn" ? "en" : "bn"} aria-label={lang === "bn" ? "Switch to English" : "বাংলায় দেখুন"}
-          style={{ position: "absolute", top: 18, right: 18, height: 48, minWidth: 48, padding: "0 16px", borderRadius: 18, border: 0, fontWeight: 700, fontSize: 14, color: "#17151F", animationDelay: ".15s" }}>
-          {lang === "bn" ? "English" : "বাংলা"}
-        </button>
         <div style={{ position: "absolute", left: 22, right: 22, bottom: 26, color: "#fff", display: "flex", flexDirection: "column", gap: 8 }}>
-          {g.eventDate && <span className="gf-rise" style={{ fontSize: 14, fontWeight: 600, opacity: .9, animationDelay: ".3s" }}>{longDate(g.eventDate, lang)}</span>}
+          {g.eventDate && <span className="gf-rise" style={{ fontSize: 14, fontWeight: 600, opacity: .9, animationDelay: ".3s" }}>{longDate(g.eventDate)}</span>}
           <h1 className="gf-rise" style={{ fontSize: 36, lineHeight: 1.04, fontWeight: 800, letterSpacing: "-.035em", animationDelay: ".4s", overflowWrap: "anywhere" }}>{g.title}</h1>
         </div>
       </div>

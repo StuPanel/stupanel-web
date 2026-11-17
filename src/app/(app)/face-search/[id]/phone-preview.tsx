@@ -47,7 +47,7 @@ function Frame({ g, s, screen, before, scale }: { g: FaceDetail; s: FaceSettings
       eventDate: pub?.eventDate ?? g.program?.eventDate ?? null,
       studio: pub?.studio ?? { name: "Your studio", logoUrl: null },
       cover: pub?.cover ?? g.cover ?? null, watermark: null,
-      welcome: s.welcome ?? "", language: s.language ?? "en",
+      welcome: s.welcome ?? "",
       register: asks ? s.register ?? "off" : "off",
       askName: s.askName ?? "required", askPhone: s.askPhone ?? "optional", askEmail: s.askEmail ?? "optional", contactOne: s.contactOne ?? true,
       needsPin: !!s.pin, hasFullCode: !!s.fullPin, downloads: s.downloads !== false, downloadAll: s.downloadAll !== false,

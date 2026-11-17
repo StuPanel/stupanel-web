@@ -21,12 +21,8 @@ import type { FaceDetail, FaceSettings } from "@/lib/face";
 type Kind = "guest" | "full" | "vip";
 const NAME: Record<Kind, string> = { guest: "Guests", full: "All photos", vip: "VIP guests" };
 
-/** The text that goes with a link, in the gallery's language. */
-export function shareMessage(kind: Kind, title: string, link: string, code: string, lang: "en" | "bn" = "en") {
-  if (lang === "bn") {
-    const top = kind === "full" ? `${title}-এর সব ছবি এখানে:` : `${title}-এর ছবি নিন।\nএই লিংক খুলে একটি সেলফি তুলুন, আপনি যে যে ছবিতে আছেন সব দেখতে পাবেন:`;
-    return `${top}\n${link}${code ? `\nকোড: ${code}` : ""}`;
-  }
+/** The text that goes with a link. */
+export function shareMessage(kind: Kind, title: string, link: string, code: string) {
   const top = kind === "full" ? `All the photos from ${title} are here:` : `Get your photos from ${title}.\nOpen this link, take one selfie and see every photo you are in:`;
   return `${top}\n${link}${code ? `\nCode: ${code}` : ""}`;
 }
@@ -91,7 +87,7 @@ export function ShareTab({ g, onSaved, onSettings }: { g: FaceDetail; onSaved: (
         <p className="mt-3.5 rounded-[14px] bg-[#F5F3FA] px-3.5 py-3 text-[13px] font-semibold text-[#17151F] break-all select-all">{link[kind] || "Making the link…"}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" disabled={!link[kind]} onClick={() => copy(link[kind], "Link copied")} className="h-11 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"><Copy className="w-4 h-4" aria-hidden />Copy link</button>
-          <button type="button" disabled={!link[kind]} onClick={() => copy(shareMessage(kind, g.title, link[kind], code[kind], s.language ?? "en"), "Message copied")} className="h-11 px-4 rounded-full bg-[#F5F3FA] text-[#17151F] text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"><MessageSquareText className="w-4 h-4" aria-hidden />Copy with message</button>
+          <button type="button" disabled={!link[kind]} onClick={() => copy(shareMessage(kind, g.title, link[kind], code[kind]), "Message copied")} className="h-11 px-4 rounded-full bg-[#F5F3FA] text-[#17151F] text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"><MessageSquareText className="w-4 h-4" aria-hidden />Copy with message</button>
           <button type="button" disabled={!link[kind]} aria-pressed={which === kind} onClick={() => showQr(kind)} className={cn("h-11 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50", which === kind ? "bg-[#EFEAFE] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#17151F]")}><QrCode className="w-4 h-4" aria-hidden />QR code</button>
         </div>
       </div>

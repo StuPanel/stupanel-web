@@ -29,8 +29,6 @@ export type FaceSettings = {
   watermarkX?: number | null; watermarkY?: number | null;
   /** Email a guest when their photos are ready; auto = by itself, manual = when the studio presses the button */
   notifyEmail?: boolean; notifyWhen?: "auto" | "manual";
-  /** The guest page's (and guest emails') language; guests can still switch */
-  language?: "en" | "bn";
   /** What the details form asks for besides the name (both hidden = the number is asked) */
   askPhone?: "hide" | "optional" | "required"; askEmail?: "hide" | "optional" | "required";
   /** The guest's name in the details form */

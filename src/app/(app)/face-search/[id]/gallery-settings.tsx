@@ -203,9 +203,6 @@ function PageSec({ g, s, save, go }: { g: FaceDetail; s: FaceSettings; save: Sav
       <Row stack label="Short note" hint="One line under the name. Leave it empty for none.">
         <TextArea label="Short note" value={s.welcome} rows={2} maxLength={300} placeholder="Thank you for celebrating with us" onCommit={v => save({ welcome: v })} />
       </Row>
-      <Row label="Language" hint="The guest page and the emails to guests. A guest can still switch on the first screen. Your own note and message stay as you wrote them.">
-        <Segmented<"en" | "bn"> label="Guest page language" value={s.language ?? "en"} onChange={v => save({ language: v })} options={[{ value: "en", label: "English" }, { value: "bn", label: "বাংলা" }]} />
-      </Row>
     </Group>
     <Group title="How long it stays open" note={"After the last day guests read \"This gallery is closed\". Nothing is deleted: you can open it again and pick a later day."}>
       <Row label={<span className="inline-flex items-center gap-2"><CalendarClock className="w-4 h-4 text-[#5B3FD0]" aria-hidden />Last open day</span>}
@@ -481,7 +478,7 @@ function GrowSec({ g, s, save, onScreen }: { g: FaceDetail; s: FaceSettings; sav
       )}
 
       {pages && when !== "off" && (
-        <Group title="The words on the card" note="Leave empty for the usual words. The guest page language decides the usual words; yours stay as you write them.">
+        <Group title="The words on the card" note="Leave empty for the usual words.">
           <Row stack label="Title">
             <TextField label="Card title" value={s.followTitle ?? ""} maxLength={80} placeholder="Enjoying your photos?" onCommit={v => { save({ followTitle: v }); onScreen("follow"); }} />
           </Row>

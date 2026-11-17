@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, ExternalLink, EyeOff, FolderOpen, FolderUp, HardDrive,
-  ImagePlus, Images, Loader2, MonitorUp, PackageCheck, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
+  ImagePlus, Images, Loader2, MonitorUp, PackageCheck, Radio, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
   Star, Trash2, Users, X,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -21,6 +21,7 @@ import { useTab } from "@/components/ui/profile-page";
 import { ShareTab } from "./share-tab";
 import { GallerySettings } from "./gallery-settings";
 import { GuestsTab } from "./guests-tab";
+import { LiveTab } from "./live-tab";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
@@ -28,8 +29,8 @@ import {
   type Credits, type FaceDetail, type FacePhoto,
 } from "@/lib/face";
 
-type Tab = "photos" | "guests" | "share" | "settings";
-const TABS = ["photos", "guests", "share", "settings"] as const;
+type Tab = "photos" | "guests" | "live" | "share" | "settings";
+const TABS = ["photos", "guests", "live", "share", "settings"] as const;
 type Filter = "" | "ready" | "waiting" | "noface" | "failed" | "hidden" | "highlights";
 const json = (body: unknown, method = "POST") => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -121,7 +122,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
 
       <Sections value={tab} onChange={setTab} tabs={[
         { id: "photos", label: "Photos", icon: Images, count: c.photos }, { id: "guests", label: "Guests", icon: Users, count: c.guests },
-        { id: "share", label: "Share", icon: Share2 }, { id: "settings", label: "Settings", icon: SettingsIcon },
+        { id: "live", label: "Live", icon: Radio }, { id: "share", label: "Share", icon: Share2 }, { id: "settings", label: "Settings", icon: SettingsIcon },
       ]} />
 
       {(tab === "photos" || tab === "guests") && (
@@ -136,6 +137,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
       {tab === "guests" && <GuestsTab id={g.id} title={g.title} status={g.status} onSettings={() => setTab("settings")} />}
+      {tab === "live" && <LiveTab g={g} onSettings={() => setTab("settings")} onChanged={() => { load(); setTick(n => n + 1); }} />}
       {tab === "share" && <ShareTab g={g} onSaved={setG} onSettings={() => setTab("settings")} />}
       {tab === "settings" && <GallerySettings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
@@ -148,7 +150,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
 /** The four parts of a gallery. One bar, always fully visible: icon and name, so Settings is never out of sight. */
 function Sections({ tabs, value, onChange }: { tabs: { id: Tab; label: string; icon: React.ElementType; count?: number }[]; value: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div role="tablist" aria-label="Gallery sections" className={cn("bg-white rounded-[20px] p-1.5 grid grid-cols-4 gap-1 mb-5", CARD_SHADOW)}>
+    <div role="tablist" aria-label="Gallery sections" className={cn("bg-white rounded-[20px] p-1.5 grid grid-cols-5 gap-1 mb-5", CARD_SHADOW)}>
       {tabs.map(t => {
         const on = t.id === value;
         return (

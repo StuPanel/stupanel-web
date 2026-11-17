@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  CalendarClock, Check, ChevronRight, Megaphone, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
+  CalendarClock, Check, ChevronRight, Radio, Megaphone, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { Group, PaneHeader, Row, Segmented, SettingsCtx, Switch, TextArea, TextF
 import { DEFAULT_GUEST_MESSAGE, errText, type FaceDetail, type FaceSettings } from "@/lib/face";
 import { PhonePreview, type Screen } from "./phone-preview";
 
-type Sec = "page" | "access" | "msgs" | "grow" | "photos" | "dl" | "match" | "mark" | "end";
+type Sec = "page" | "access" | "msgs" | "grow" | "photos" | "dl" | "match" | "mark" | "live" | "end";
 type Save = (patch: Partial<FaceSettings>, extra?: { title?: string }) => Promise<void>;
 type Pane = { id: Sec; title: string; sub: string; now: string; icon: React.ElementType; color: string };
 
@@ -62,12 +62,15 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
       { id: "match", title: "Face matching", sub: "How sure the match must be before a photo is shown to a guest.", now: { strict: "Strict", balanced: "Balanced", loose: "Loose" }[s.strictness], icon: ScanFace, color: "deep" },
       { id: "mark", title: "Watermark", sub: "Your logo or name on every photo guests see or save.", now: s.watermark ? (s.watermarkKind === "logo" && s.watermarkLogo ? "Your logo" : "Text") : "Off", icon: Stamp, color: "orchid" },
     ] },
+    { title: "Live", panes: [
+      { id: "live", title: "StuPanel Live", sub: "Photos sent from the phone app while you shoot: who may send, checking them first, limits.", now: [s.liveReview ? "Check first" : "Straight to guests", { team: "Program team", studio: "Owner and managers", chosen: "Chosen people" }[s.liveWho ?? "team"], s.liveMax ? `max ${s.liveMax.toLocaleString("en")}` : ""].filter(Boolean).join(", "), icon: Radio, color: "green" },
+    ] },
     { title: "Danger zone", panes: [
       { id: "end", title: "Close or remove", sub: "Stop this gallery for a while, or take it away.", now: g.status === "closed" ? "Closed" : "Open", icon: TriangleAlert, color: "red" },
     ] },
   ];
   const cur = groups.flatMap(x => x.panes).find(x => x.id === sec)!;
-  const SCREEN_OF: Record<Sec, Screen> = { page: "land", access: "register", msgs: "wait", grow: "follow", photos: "results", dl: "results", match: "results", mark: "results", end: "land" };
+  const SCREEN_OF: Record<Sec, Screen> = { page: "land", access: "register", msgs: "wait", grow: "follow", photos: "results", dl: "results", match: "results", mark: "results", live: "results", end: "land" };
   const go = (id: Sec) => { setSec(id); setOpen(true); setScreen(SCREEN_OF[id]); };
 
   return (
@@ -132,6 +135,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
             {sec === "dl" && <DownloadsSec s={s} save={save} />}
             {sec === "match" && <MatchSec s={s} save={save} />}
             {sec === "mark" && <MarkSec s={s} save={save} />}
+            {sec === "live" && <LiveSec s={s} save={save} />}
             {sec === "end" && <EndSec g={g} onAct={onAct} onRemoved={onRemoved} />}
           </div>
         </div>
@@ -907,5 +911,59 @@ function Frame({ ratio, label, className, at, size, opacity, back, useLogo, logo
       </div>
       <figcaption className="mt-1.5 text-[11.5px] font-semibold text-[#6B6680] text-center">{label}</figcaption>
     </figure>
+  );
+}
+
+// ─── StuPanel Live ───────────────────────────────────────────────────────────
+
+type TeamPerson = { id: string; firstName?: string | null; lastName?: string | null; role?: string; isActive?: boolean; memberType?: string };
+const GAPS = [{ value: "0", label: "As they come" }, { value: "15", label: "15 min" }, { value: "30", label: "30 min" }, { value: "60", label: "1 hour" }];
+
+function LiveSec({ s, save }: { s: FaceSettings; save: Save }) {
+  const who = s.liveWho ?? "team";
+  const [team, setTeam] = useState<TeamPerson[] | null>(null);
+  useEffect(() => {
+    if (who !== "chosen" || team) return;
+    apiFetch(`${API}/team`).then(r => (r.ok ? r.json() : [])).then(d => setTeam(Array.isArray(d) ? d.filter((x: TeamPerson) => x.role === "staff" && x.isActive !== false && x.memberType !== "freelancer") : [])).catch(() => setTeam([]));
+  }, [who, team]);
+  const chosen = new Set(s.liveMembers ?? []);
+  const gap = String(s.liveNotifyMin ?? 30);
+  return (
+    <>
+      <Group title="Before guests see them" note="The Live tab shows the photos waiting, with Approve all.">
+        <Row label="Check photos first" hint={s.liveReview ? "Photos from the app wait hidden until you approve them in the Live tab. Nobody sees a closed-eye or blurry shot." : "Photos from the app reach the guests at once — the fastest."}>
+          <Switch label="Check photos first" on={!!s.liveReview} onChange={v => save({ liveReview: v })} />
+        </Row>
+      </Group>
+      <Group title="Who can send with the app" note="You and your managers can always send. Anyone sending is listed in the Live tab, where you can stop a phone.">
+        <Row label="Allowed" stack>
+          <Segmented<NonNullable<FaceSettings["liveWho"]>> label="Who can send" value={who} onChange={v => save({ liveWho: v })}
+            options={[{ value: "team", label: "Program team" }, { value: "studio", label: "Only owner and managers" }, { value: "chosen", label: "Chosen people" }]} />
+        </Row>
+        {who === "chosen" && (
+          !team ? <div className="px-5 py-4 text-[13px] text-[#6B6680] inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading the team…</div>
+            : !team.length ? <div className="px-5 py-4 text-[13px] text-[#6B6680]">No team members with a login yet.</div>
+            : team.map(t => {
+              const on = chosen.has(t.id);
+              const name = [t.firstName, t.lastName].filter(Boolean).join(" ") || "Team member";
+              return (
+                <Row key={t.id} label={name}>
+                  <Switch label={name} on={on} onChange={v => save({ liveMembers: v ? [...chosen, t.id] : [...chosen].filter(x => x !== t.id) })} />
+                </Row>
+              );
+            })
+        )}
+      </Group>
+      <Group title="Limits" note="Each photo costs 1 credit. A limit stops the app at that many photos, so a mistake can't use up your credits.">
+        <Row label="Most photos from the app" hint={s.liveMax ? `The app stops at ${s.liveMax.toLocaleString("en")} photos for this event.` : "No limit."}>
+          <TextField label="Most photos from the app" type="number" align="right" placeholder="No limit" value={s.liveMax ? String(s.liveMax) : ""} onCommit={v => save({ liveMax: Math.max(0, Math.min(50000, Math.round(Number(v) || 0))) })} />
+        </Row>
+      </Group>
+      <Group title="Emails to guests while photos keep coming" note={'With "Email by itself" on (Messages to guests), a guest gets one email for the first photos, then at most one every so often with the new ones.'}>
+        <Row label="At most one email every" stack>
+          <Segmented<string> label="Email spacing" value={GAPS.some(x => x.value === gap) ? gap : "30"} onChange={v => save({ liveNotifyMin: Number(v) })} options={GAPS} />
+        </Row>
+      </Group>
+    </>
   );
 }

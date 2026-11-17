@@ -42,6 +42,8 @@ export type FaceSettings = {
   /** When guests are asked to follow the studio's pages, and the card's rules and words */
   followWhen?: "off" | "before" | "results" | "open" | "download" | "downloaded";
   followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string;
+  /** "Book us" card after the photos (WhatsApp with a ready message) and a review link */
+  bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string;
   /** Share button in the opened photo, and the caption copied with it ("" = Photo by @handle) */
   shareButton?: boolean; shareCaption?: string;
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */

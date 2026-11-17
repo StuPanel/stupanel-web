@@ -24,13 +24,13 @@ type Pane = { id: Sec; title: string; sub: string; now: string; icon: React.Elem
 const CARD = "bg-white rounded-[22px] shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]";
 const pill = "h-10 px-4 rounded-full text-[13.5px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B3FD0]/50";
 
-export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g: FaceDetail) => void; onRemoved: () => void; onAct: (a: "close" | "reopen") => void }) {
+export function GallerySettings({ g, onSaved, onRemoved, onAct, start }: { g: FaceDetail; onSaved: (g: FaceDetail) => void; onRemoved: () => void; onAct: (a: "close" | "reopen") => void; start?: "live" }) {
   const [s, setS] = useState<FaceSettings>(g.settings);
-  const [sec, setSec] = useState<Sec>("page");
+  const [sec, setSec] = useState<Sec>(start ?? "page");
   /** The screen shown in the phone preview: follows the section, and the studio can pick another. */
   const [screen, setScreen] = useState<Screen>("land");
   /** Phones: the list of sections first, one section after a tap. */
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!start);
   const [state, setState] = useState<SaveState>("idle");
   const latest = useRef(g.settings);
   const calm = useRef<ReturnType<typeof setTimeout> | null>(null);

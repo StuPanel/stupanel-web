@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import { CARD_SHADOW, EmptyState, StatCard } from "@/components/ui/apple";
 import {
-  INV_STATUS, QUOTE_STATUS, dueOf, isUpcoming, money, programName, quoteOpen, todosFor,
+  INV_STATUS, QUOTE_STATUS, deliveryStatus, dueOf, isUpcoming, money, programName, quoteOpen, todosFor,
   type PortalBooking, type PortalData, type Todo,
 } from "./portal-data";
 import { ProgramCard } from "./portal-program";
@@ -45,7 +45,8 @@ export function HomeView({ data, todos, brand, onTodo, onOpen, onView }: {
 }) {
   const upcoming = data.bookings.filter(isUpcoming).sort(byDate(1));
   const past = data.bookings.filter(b => !isUpcoming(b));
-  const totalDue = data.bookings.reduce((s, b) => s + dueOf(b), 0);
+  // Same rule as Money: a cancelled program asks for nothing.
+  const totalDue = data.bookings.filter(b => deliveryStatus(b) !== "cancelled").reduce((s, b) => s + dueOf(b), 0);
   const c = data.company.currency;
   return (
     <div className="space-y-6">
@@ -95,7 +96,7 @@ export function ProgramsView({ data, todos, brand, onOpen }: { data: PortalData;
 
 export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: string, part?: string) => void }) {
   const c = data.company.currency;
-  const live = data.bookings.filter(b => b.deliveryStatus !== "cancelled" && Number(b.grandTotal) > 0);
+  const live = data.bookings.filter(b => deliveryStatus(b) !== "cancelled" && Number(b.grandTotal) > 0);
   const totalDue = live.reduce((s, b) => s + dueOf(b), 0);
   const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
   const name = new Map(data.bookings.map(b => [b.id, programName(b)]));

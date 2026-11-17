@@ -423,6 +423,28 @@ html:not([data-backdrop="plain"]) .sp-glass {
 }
 .sp-topbar { background: color-mix(in srgb, var(--sp-base) 38%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
 html[data-backdrop="plain"] .sp-topbar { background: color-mix(in srgb, var(--sp-base) 88%, transparent); }
+/* The app's top bar (search): no strip or box of its own (it used to leave square corners on every backdrop).
+   When the page scrolls under it, a soft glass fades in and melts away at the bottom and left — no hard edges. */
+.sp-appbar { isolation: isolate; }
+.sp-appbar::before {
+  content: ""; position: absolute; inset: 0 0 -14px 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--sp-base) 55%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  opacity: 0; transition: opacity .2s ease;
+}
+.sp-appbar[data-scrolled]::before { opacity: 1; }
+html[data-backdrop="plain"] .sp-appbar::before { background: color-mix(in srgb, var(--sp-base) 90%, transparent); }
+@media (min-width: 1024px) {
+  .sp-appbar::before {
+    -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent), linear-gradient(to right, transparent, #000 28px);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to bottom, #000 62%, transparent), linear-gradient(to right, transparent, #000 28px);
+    mask-composite: intersect;
+  }
+}
+@media (prefers-reduced-motion: reduce) { .sp-appbar::before { transition: none; } }
 html:not([data-backdrop="plain"]) .sp-card {
   background: rgba(255, 255, 255, .72) !important;
   outline: 1px solid rgba(255, 255, 255, .75); outline-offset: -1px;

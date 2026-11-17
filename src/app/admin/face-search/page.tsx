@@ -54,6 +54,13 @@ const KIND: Record<string, string> = { grant: "Given", use: "Used", purchase: "B
 export default function AdminFaceSearchPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
+  // A link like /admin/face-search?tab=orders (the new-order email) opens that tab.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (!t || !["overview", "orders", "studios", "history", "packs", "settings"].includes(t)) return;
+    const id = setTimeout(() => setTab(t as Tab), 0);
+    return () => clearTimeout(id);
+  }, []);
   const [o, setO] = useState<Overview | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<string | null>(null);

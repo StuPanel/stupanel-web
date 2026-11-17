@@ -24,6 +24,7 @@ interface Plan {
   maxClients: number;
   maxTeamMembers: number;
   maxBookingsPerMonth: number;
+  maxEmailsPerMonth?: number;
   trialDays: number;
   isActive: boolean;
   isPopular: boolean;
@@ -34,7 +35,7 @@ const emptyForm = {
   name: "", slug: "",
   priceMonthly: "", priceYearly: "",
   maxClients: "50", maxTeamMembers: "3",
-  maxBookingsPerMonth: "20", trialDays: "14",
+  maxBookingsPerMonth: "20", maxEmailsPerMonth: "0", trialDays: "14",
   isActive: true, isPopular: false,
 };
 
@@ -74,6 +75,7 @@ export default function AdminPlansPage() {
       maxClients: String(plan.maxClients),
       maxTeamMembers: String(plan.maxTeamMembers),
       maxBookingsPerMonth: String(plan.maxBookingsPerMonth),
+      maxEmailsPerMonth: String(plan.maxEmailsPerMonth ?? 0),
       trialDays: String(plan.trialDays),
       isActive: plan.isActive,
       isPopular: plan.isPopular,
@@ -91,6 +93,7 @@ export default function AdminPlansPage() {
       maxClients: parseInt(form.maxClients) || 50,
       maxTeamMembers: parseInt(form.maxTeamMembers) || 3,
       maxBookingsPerMonth: parseInt(form.maxBookingsPerMonth) || 20,
+      maxEmailsPerMonth: Math.max(0, parseInt(form.maxEmailsPerMonth) || 0),
       trialDays: parseInt(form.trialDays) || 14,
       isActive: form.isActive,
       isPopular: form.isPopular,
@@ -179,6 +182,7 @@ export default function AdminPlansPage() {
                 <span>👥 {plan.maxTeamMembers} team members</span>
                 <span>🙍 {plan.maxClients} clients</span>
                 <span>📅 {plan.maxBookingsPerMonth} bookings/mo</span>
+                <span>✉️ {plan.maxEmailsPerMonth ? `${plan.maxEmailsPerMonth.toLocaleString()} emails/mo` : "Unlimited emails"}</span>
                 <span>🎁 {plan.trialDays}d trial</span>
               </div>
             </div>
@@ -231,6 +235,11 @@ export default function AdminPlansPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-slate-400">Max Bookings/Month</label>
                 <Input type="number" value={form.maxBookingsPerMonth} onChange={e => setForm(p => ({ ...p, maxBookingsPerMonth: e.target.value }))}
+                  className="bg-slate-800 border-slate-700 text-white h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Emails / Month (0 = no limit)</label>
+                <Input type="number" min={0} value={form.maxEmailsPerMonth} onChange={e => setForm(p => ({ ...p, maxEmailsPerMonth: e.target.value }))}
                   className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>
               <div className="space-y-1.5">

@@ -169,6 +169,7 @@ export const ENTRIES: Entry[] = [
   { id: "portalShowMessages", pane: "portal", section: "Tabs clients see", label: "Messages tab", keywords: "chat" },
 
   // Notifications
+  { id: "email-usage", pane: "notifications", section: "Email use", label: "Emails used this month", keywords: "email limit usage count quota how many sent" },
   { id: "n-onNewBooking", pane: "notifications", section: "Emails to you", label: "New program created", keywords: "booking" },
   { id: "n-onBookingConfirmed", pane: "notifications", section: "Emails to you", label: "Program confirmed", keywords: "booking" },
   { id: "n-onBookingCancelled", pane: "notifications", section: "Emails to you", label: "Program cancelled", keywords: "booking" },

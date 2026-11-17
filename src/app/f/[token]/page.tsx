@@ -16,8 +16,9 @@ import "./guest.css";
 type Ask = "hide" | "optional" | "required";
 /** What the details form asks for: each field off (hide), optional or required; oneOf = with WhatsApp and Email both optional, one of the two is needed. */
 type Rules = { name: Ask; phone: Ask; email: Ask; oneOf: boolean };
+type DownloadSize = "original" | "medium" | "small";
 type FollowWhen = "off" | "before" | "results" | "open" | "download" | "downloaded";
-type Open = { /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Open = { /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
@@ -127,9 +128,17 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   const via = useRef("");
   const [linkKey, setLinkKey] = useState("");
   // A gallery with a watermark: every photo is asked from StuPanel (with the watermark), not from Google Drive.
+  /** The gallery's download size (known once the page opened). */
+  const size = useRef<DownloadSize>("original");
   const stamp = useCallback((o: Result): Result => {
-    if (!o.watermark) return o;
-    const tag = (p: FacePhoto) => ({ ...p, wm: `${base}/photo/${p.id}/{size}.jpg?v=${o.watermark}` });
+    const small = size.current !== "original";
+    if (!o.watermark && !small) return o;
+    const tag = (p: FacePhoto) => ({
+      ...p,
+      ...(o.watermark ? { wm: `${base}/photo/${p.id}/{size}.jpg?v=${o.watermark}` } : {}),
+      // Medium / Small: the saved file comes from StuPanel, the same pixels in a smaller file.
+      ...(small ? { file: `${base}/file/${p.id}.jpg?s=${size.current}${o.watermark ? `&v=${o.watermark}` : ""}` } : {}),
+    });
     return { ...o, photos: o.photos.map(tag), more: o.more.map(tag) };
   }, [base]);
 
@@ -165,6 +174,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       try { const l = localStorage.getItem("sp-face-lang"); if (l === "bn" || l === "en") setLang(l); } catch { /* private window */ }
       if (!r?.ok) { setErr(T("This link is not working. Please ask the studio for a new one.")); return setStep("bad"); }
       const d: Open = await r.json();
+      size.current = d.downloadSize ?? "original";
       setG(d);
       // Came back in the same browser: show the photos again without a selfie.
       let saved: { key?: string; selfie?: string; sentTo?: SentTo } = {};
@@ -1087,7 +1097,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
     // Phones: the photos are fetched (several at once) and handed to the share sheet ("Save images").
     // Computers: watermarked photos are fetched and saved; originals come straight from Google Drive.
     const phone = touch();
-    if (list[0]?.wm || phone) {
+    if (list[0]?.wm || list[0]?.file || phone) {
       const files: (File | null)[] = new Array(n).fill(null);
       let done = 0;
       for (let i = 0; i < n; i += 4) {

@@ -347,9 +347,8 @@ function Act({ icon: Icon, label, onClick, danger }: { icon: React.ElementType; 
 // ─── Add photos ───────────────────────────────────────────────────────────────
 
 type Folder = { path: string; photos: number; added: number; raw: number; other: number };
-type Sources = { driveConnected: boolean; credits: Credits; raw: Folder[]; delivery: Folder[]; uploaded?: Folder[] };
+type Sources = { driveConnected: boolean; credits: Credits; raw?: Folder[]; delivery?: Folder[]; uploaded?: Folder[] };
 type Way = "upload" | "raw" | "delivery";
-const NO_SOURCES: Sources = { driveConnected: false, credits: { plan: 0, purchased: 0, total: 0, planResetAt: null }, raw: [], delivery: [], uploaded: [] };
 const cleanFolder = (s: string) => s.replace(/[\\/]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120);
 
 /** Bring in the photos that reached the program's Drive upload folder but are not in the gallery yet. */
@@ -367,7 +366,11 @@ async function syncFaceUploads(id: string): Promise<{ added: number; short: numb
  */
 function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose: () => void; onAdded: () => void; onRefresh: () => void }) {
   const id = g.id;
-  const [src, setSrc] = useState<Sources | null>(null);
+  // Each Drive list is asked for on its own and shown as soon as it arrives; Upload needs neither.
+  const [raw, setRaw] = useState<{ folders: Folder[]; uploaded: Folder[] } | null>(null);
+  const [delivery, setDelivery] = useState<Folder[] | null>(null);
+  const [driveOk, setDriveOk] = useState<boolean | null>(null);
+  const [credits, setCredits] = useState<Credits | null>(g.credits ?? null);
   const [way, setWay] = useState<Way>("upload");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [files, setFiles] = useState<File[]>([]);
@@ -377,16 +380,29 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
   const folderInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    apiFetch(`${API}/face-search/${id}/sources`).then(r => (r.ok ? r.json() : null)).then((d: Sources | null) => setSrc(d ?? NO_SOURCES)).catch(() => setSrc(NO_SOURCES));
+    let on = true;
+    const ask = (only: "raw" | "delivery") => apiFetch(`${API}/face-search/${id}/sources?only=${only}`).then(r => (r.ok ? r.json() : null)).catch(() => null) as Promise<Sources | null>;
+    void ask("raw").then(d => {
+      if (!on) return;
+      setRaw({ folders: d?.raw ?? [], uploaded: d?.uploaded ?? [] });
+      if (d) { setDriveOk(d.driveConnected); setCredits(d.credits); } else setDriveOk(v => v ?? true);
+    });
+    void ask("delivery").then(d => {
+      if (!on) return;
+      setDelivery(d?.delivery ?? []);
+      if (d) setDriveOk(d.driveConnected);
+    });
+    return () => { on = false; };
   }, [id]);
 
-  const have = src?.credits.total ?? 0;
-  const folders = src && way !== "upload" ? src[way] : [];
+  const have = credits?.total ?? 0;
+  const list = way === "raw" ? raw?.folders ?? null : way === "delivery" ? delivery : [];
+  const folders = list ?? [];
   const good = files.filter(canUpload);
   const rawLeft = files.filter(f => isRawName(f.name)).length;
   const otherLeft = files.length - good.length - rawLeft;
   const groups = [...byFolder(good).entries()];
-  const waiting = (src?.uploaded ?? []).reduce((n, f) => n + (f.photos - f.added), 0);
+  const waiting = (raw?.uploaded ?? []).reduce((n, f) => n + (f.photos - f.added), 0);
   const toAdd = way === "upload" ? good.length : folders.filter(f => picked.has(f.path)).reduce((n, f) => n + (f.photos - f.added), 0);
   const short = toAdd > have;
 
@@ -466,8 +482,8 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
       <div role="radiogroup" aria-label="Where are the photos?" className="grid grid-cols-3 gap-2 mb-4">
         {([
           { v: "upload", label: "Upload", hint: "Best: only good photos", icon: MonitorUp },
-          { v: "raw", label: "Raw files", hint: src ? `${src.raw.length} folder${src.raw.length === 1 ? "" : "s"}` : "On Drive", icon: HardDrive },
-          { v: "delivery", label: "Delivery files", hint: src ? `${src.delivery.length} folder${src.delivery.length === 1 ? "" : "s"}` : "On Drive", icon: PackageCheck },
+          { v: "raw", label: "Raw files", hint: raw ? `${raw.folders.length} folder${raw.folders.length === 1 ? "" : "s"}` : "On Drive", icon: HardDrive },
+          { v: "delivery", label: "Delivery files", hint: delivery ? `${delivery.length} folder${delivery.length === 1 ? "" : "s"}` : "On Drive", icon: PackageCheck },
         ] as { v: Way; label: string; hint: string; icon: React.ElementType }[]).map(o => {
           const on = way === o.v;
           return (
@@ -482,8 +498,7 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
         })}
       </div>
 
-      {src === null ? <div className="py-12 flex justify-center text-[#A29DB3]"><Loader2 className="w-6 h-6 animate-spin" /></div>
-        : !src.driveConnected ? <p className={cn("bg-white rounded-[20px] p-4 text-sm text-[#4A4658]", CARD_SHADOW)}>Google Drive is not connected. Connect it in <Link href="/settings?pane=drive" className="font-semibold text-[#5B3FD0]">Settings</Link> first.</p>
+      {driveOk === false ? <p className={cn("bg-white rounded-[20px] p-4 text-sm text-[#4A4658]", CARD_SHADOW)}>Google Drive is not connected. Connect it in <Link href="/settings?pane=drive" className="font-semibold text-[#5B3FD0]">Settings</Link> first.</p>
         : way === "upload" ? (
           <>
             <div className="mb-4 rounded-[16px] bg-[#EEE8FD] px-3.5 py-3 flex gap-3">
@@ -531,6 +546,12 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
             )}
           </>
         )
+        : list === null ? (
+          <div className="py-10 flex flex-col items-center gap-2 text-[#6B6680]" role="status">
+            <Loader2 className="w-6 h-6 animate-spin text-[#A29DB3]" aria-hidden />
+            <p className="text-[13px]">Looking in this program&apos;s {way === "raw" ? "raw files" : "delivery files"} on Drive…</p>
+          </div>
+        )
         : folders.length === 0 ? <p className={cn("bg-white rounded-[20px] p-4 text-sm text-[#4A4658]", CARD_SHADOW)}>No photos in this program&apos;s {way === "raw" ? "raw files" : "delivery files"} yet. Use Upload, or add them from the program page first.</p>
         : (
           <Group title={`${g.program?.number ? `${g.program.number}: ` : ""}${way === "raw" ? "raw files" : "delivery files"}`} note="RAW camera files (CR3, ARW, NEF) and videos are left out and cost nothing.">
@@ -555,7 +576,7 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
           </Group>
         )}
 
-      {src?.driveConnected && (
+      {driveOk !== false && (
         <div className={cn("bg-white rounded-[20px] px-4 py-3.5 text-[13.5px] space-y-2 mt-4", CARD_SHADOW)}>
           <p className="flex justify-between"><span className="text-[#6B6680]">Photos to add</span><b className="tabular-nums">{num(toAdd)}</b></p>
           <p className="flex justify-between"><span className="text-[#6B6680]">Credits needed (1 per photo)</span><b className="tabular-nums">{num(toAdd)}</b></p>

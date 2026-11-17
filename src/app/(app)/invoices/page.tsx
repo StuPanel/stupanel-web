@@ -2,7 +2,7 @@
 
 import { apiFetch } from "@/lib/api";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Plus, X, Loader2, Search, Eye, Trash2, Send, CheckCircle2,
   FileText, Link2, Copy, AlertCircle,
@@ -20,6 +20,8 @@ import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit
 import { DocCard, DocDrawer, DocLine, PillButton, StatusChip } from "@/components/ui/doc-drawer";
 import { InvoicePreview, type InvoicePreviewData } from "@/components/invoice-preview";
 import { askConfirm } from "@/components/feedback";
+import { loadDraft, useFormDraft } from "@/lib/form-draft";
+import { UnfinishedCard, useUnfinished } from "@/components/ui/unfinished-card";
 import { AccountPicker } from "@/components/account-picker";
 import { jumpToField } from "@/lib/jump-to-field";
 
@@ -348,7 +350,7 @@ function RecordPaymentForm({ inv, onDone, onClose }: { inv: Invoice; onDone: () 
 }
 
 // ─── Create Drawer ─────────────────────────────────────────────────────────────
-function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv: Invoice) => void }) {
+function CreateDrawer({ onClose, onSaved, resume }: { onClose: () => void; onSaved: (inv: Invoice) => void; resume?: boolean }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [clientSearch, setClientSearch] = useState("");
@@ -370,6 +372,37 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   const [nextNumber, setNextNumber] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
 
+  // ── Unfinished invoice: kept on the server while it is typed ──
+  const snapshot = useMemo(
+    () => JSON.stringify({ selectedClient, selectedBookingId, currency, issueDate, dueDate, items, taxLabel, taxPercent, discountAmount, notes, terms }),
+    [selectedClient, selectedBookingId, currency, issueDate, dueDate, items, taxLabel, taxPercent, discountAmount, notes, terms],
+  );
+  const draft = useFormDraft("invoice", snapshot, { enabled: true, what: "invoice" });
+  const close = () => draft.requestClose(onClose, saving);
+  /** A kept draft was put back: the studio's defaults must not overwrite it. */
+  const fromDraft = useRef(false);
+  useEffect(() => {
+    let alive = true;
+    loadDraft<Record<string, unknown>>("invoice").then(async d => {
+      if (!alive || !d) return;
+      const o = d.data as Partial<{ selectedClient: Client | null; selectedBookingId: string; currency: string; issueDate: string; dueDate: string; items: InvoiceItem[]; taxLabel: string; taxPercent: number; discountAmount: number; notes: string; terms: string }>;
+      const name = o.selectedClient ? `${o.selectedClient.firstName} ${o.selectedClient.lastName ?? ""}`.trim() : "No client yet";
+      if (!resume && !(await askConfirm({ title: "Continue your unfinished invoice?", message: `${name}${d.when ? ` — saved ${d.when}` : ""}.\nStarting a new one replaces it once you begin typing.`, confirmLabel: "Continue", cancelLabel: "Start new" }))) return;
+      if (!alive) return;
+      fromDraft.current = true;
+      setSelectedClient(o.selectedClient ?? null); setSelectedBookingId(o.selectedBookingId ?? "");
+      if (o.currency) setCurrency(o.currency);
+      if (o.issueDate) setIssueDate(o.issueDate);
+      setDueDate(o.dueDate ?? "");
+      if (Array.isArray(o.items) && o.items.length) setItems(o.items);
+      if (o.taxLabel) setTaxLabel(o.taxLabel);
+      setTaxPercent(Number(o.taxPercent) || 0); setDiscountAmount(Number(o.discountAmount) || 0);
+      setNotes(o.notes ?? ""); setTerms(o.terms ?? "");
+      draft.reset();
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const subtotal = items.reduce((s, i) => s + i.total, 0);
   const afterDisc = Math.max(0, subtotal - discountAmount);
   const taxAmt = afterDisc * (taxPercent / 100);
@@ -380,6 +413,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
     apiFetch(`${API}/clients?limit=200`).then(r => r.json()).then(d => setClients(d.data ?? []));
     apiFetch(`${API}/bookings?limit=200`).then(r => r.json()).then(d => setBookings(d.data ?? []));
     apiFetch(`${API}/companies/me`).then(r => r.json()).then(d => {
+      setCompanyData(d);
+      if (fromDraft.current) return;
       // The studio's one tax setting (Settings → Tax).
       const vat = d.invoiceDesign?.vat;
       if (vat?.on && Number(vat.percent) > 0) { setTaxPercent(Number(vat.percent)); if (vat.label) setTaxLabel(vat.label); }
@@ -390,7 +425,6 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
         dd.setDate(dd.getDate() + Number(d.invoiceDueDays));
         setDueDate(localDateStr(dd));
       }
-      setCompanyData(d);
     }).catch(() => {});
     // The number this invoice will get (nothing is used up until it is saved).
     apiFetch(`${API}/numbering`).then(r => (r.ok ? r.json() : null)).then(n => { if (n?.next?.invoice) setNextNumber(n.next.invoice); }).catch(() => {});
@@ -436,6 +470,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
       });
       const d = await r.json();
       if (!r.ok) { setError(d.message || "Failed."); return; }
+      await draft.drop(); // it is a real invoice now
       onSaved(d);
     } catch { setError("Something went wrong."); }
     finally { setSaving(false); }
@@ -477,8 +512,8 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
   return (
     <>
       {catalogOpen && <CatalogModal currency={currency} onSelect={addFromCatalog} onClose={() => setCatalogOpen(false)} />}
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-stretch justify-end">
+      <div className="sp-backdrop z-40" onClick={close} />
+      <div className="fixed inset-0 z-50 flex items-stretch justify-end" {...draft.guard}>
         <div className="w-full max-w-[1160px] bg-white shadow-[-16px_0_48px_rgba(22,18,40,.22)] flex sm:rounded-l-[24px] overflow-hidden">
 
           {/* ── LEFT: Form panel ── */}
@@ -489,7 +524,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
                 <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">New invoice</h2>
                 <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">The preview on the right updates as you type</p>
               </div>
-              <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={close} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {error && <p role="alert" className="text-xs text-[#C2304F] bg-[#FEF5F7] border border-[#FDECEF] px-3 py-2 rounded-lg">{error}</p>}
@@ -623,7 +658,7 @@ function CreateDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: (inv
 
             {/* Footer buttons */}
             <div className="px-6 py-4 border-t border-[#E4E0EC] flex gap-3 flex-shrink-0">
-              <Button variant="outline" onClick={onClose} className="flex-1 h-11 border-[#E4E0EC] text-[#4A4658]">Cancel</Button>
+              <Button variant="outline" onClick={close} className="flex-1 h-11 border-[#E4E0EC] text-[#4A4658]">Cancel</Button>
               <Button disabled={saving} onClick={save} className="flex-1 h-11 bg-[#7D5CEF] hover:bg-[#5B3FD0] text-white gap-2">
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : <><FileText className="w-4 h-4" />Create Invoice</>}
               </Button>
@@ -917,6 +952,11 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [resume, setResume] = useState(false);
+  const unfinished = useUnfinished("invoice", d => {
+    const c = d.selectedClient as { firstName?: string; lastName?: string } | null | undefined;
+    return [c?.firstName, c?.lastName].filter(Boolean).join(" ");
+  }, createOpen);
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success"|"error" } | null>(null);
@@ -947,6 +987,9 @@ export default function InvoicesPage() {
         <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search invoice or client" />
         <MainButton icon={Plus} onClick={() => setCreateOpen(true)}>New invoice</MainButton>
       </PageHeader>
+
+      <UnfinishedCard kind="invoice" what="invoice" kept={unfinished.kept} onDeleted={unfinished.clear}
+        onContinue={() => { setResume(true); setCreateOpen(true); }} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
         <StatCard icon={FileText} color="orchid" label="Total billed" value={formatCurrency(Number(stats.totalValue))} />
@@ -994,7 +1037,7 @@ export default function InvoicesPage() {
 
       <Pager page={page} pages={totalPages} onChange={setPage} />
 
-      {createOpen && <CreateDrawer onClose={() => setCreateOpen(false)} onSaved={inv => { setCreateOpen(false); setViewing(inv); fetch_(); setToast({ msg: "Invoice created!", type: "success" }); }} />}
+      {createOpen && <CreateDrawer resume={resume} onClose={() => { setCreateOpen(false); setResume(false); }} onSaved={inv => { setCreateOpen(false); setResume(false); setViewing(inv); fetch_(); setToast({ msg: "Invoice created!", type: "success" }); }} />}
       {viewing && <ViewDrawer inv={viewing} onClose={() => setViewing(null)} onRefresh={() => { fetch_(); setViewing(null); }} />}
     </div>
   );

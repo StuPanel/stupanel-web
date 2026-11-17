@@ -23,6 +23,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { Chips, DateBox, EmptyState, Group, MainButton, PageHeader, Pager, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 import { jumpToField } from "@/lib/jump-to-field";
 import { descLines } from "@/lib/desc-lines";
+import { UnfinishedCard, useUnfinished } from "@/components/ui/unfinished-card";
 import { QuoteForm, type QDay, type QLine, type QuoteForForm, type QuotePrefill } from "./_components/quote-form";
 
 const SITE = typeof window !== "undefined" ? window.location.origin : "";
@@ -446,6 +447,13 @@ function QuotesPageInner() {
   const [editTarget, setEditTarget] = useState<Quote | null>(null);
   const [viewTarget, setViewTarget] = useState<Quote | null>(null);
   const [prefill, setPrefill] = useState<QuotePrefill | null>(null);
+  const [resume, setResume] = useState(false);
+  const formOpen = showCreate || !!editTarget;
+  const unfinished = useUnfinished("quote", d => {
+    const c = d.client as { firstName?: string; lastName?: string } | null | undefined;
+    const n = d.newClient as { firstName?: string } | undefined;
+    return [c?.firstName, c?.lastName].filter(Boolean).join(" ") || n?.firstName || "";
+  }, formOpen);
   const params = useSearchParams();
   const router = useRouter();
 
@@ -524,6 +532,9 @@ function QuotesPageInner() {
         <MainButton icon={Plus} onClick={() => setShowCreate(true)}>New quote</MainButton>
       </PageHeader>
 
+      <UnfinishedCard kind="quote" what="quote" kept={unfinished.kept} onDeleted={unfinished.clear}
+        onContinue={() => { setPrefill(null); setEditTarget(null); setResume(true); setShowCreate(true); }} />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
         <StatCard icon={Send} color="blue" label="Sent" value={String((sc.sent ?? 0) + (sc.viewed ?? 0))} sub="Waiting for an answer" />
         <StatCard icon={CheckCircle2} color="green" label="Accepted" value={String(sc.accepted ?? 0)} />
@@ -560,7 +571,7 @@ function QuotesPageInner() {
       <Pager page={page} pages={meta.totalPages} onChange={setPage} />
 
       {(showCreate || editTarget) && (
-        <QuoteForm quote={editTarget as QuoteForForm | null} prefill={editTarget ? null : prefill} onClose={() => { setShowCreate(false); setEditTarget(null); setPrefill(null); }} onSaved={onSaved} />
+        <QuoteForm quote={editTarget as QuoteForForm | null} prefill={editTarget ? null : prefill} resume={!editTarget && resume} onClose={() => { setShowCreate(false); setEditTarget(null); setPrefill(null); setResume(false); }} onSaved={(q) => { setResume(false); onSaved(q); }} />
       )}
       <ViewDrawer quote={viewTarget} onClose={() => setViewTarget(null)} onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }} onRefresh={load} />
     </div>

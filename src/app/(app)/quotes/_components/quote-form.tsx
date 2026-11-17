@@ -6,12 +6,13 @@
  * · 4 Price (package line, extras from Packages → Extras, own lines) · 5 Terms.
  */
 import { SidePicker, cleanSide, typeHasSides, type Side } from "@/lib/coverage-side";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, Check, FileText, Loader2, MapPin, Minus, Package as PackageIcon, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { CURRENCY_OPTIONS, currencyPad, currencySymbol, fmtDate, formatCurrency, getStudioCurrency, localDateStr } from "@/lib/format";
-import { notify } from "@/components/feedback";
+import { askConfirm, notify } from "@/components/feedback";
+import { loadDraft, useFormDraft } from "@/lib/form-draft";
 import { Tile } from "@/components/ui/apple";
 import { Field, inputCls } from "@/components/ui/form-kit";
 import { blankClientForm, type ClientFormData } from "@/components/client-form-fields";
@@ -47,8 +48,10 @@ const fullName = (c: { firstName: string; lastName?: string | null }) => `${c.fi
 const DEFAULT_TERMS = "1. 50% advance payment required to confirm booking.\n2. Full payment due on event day.\n3. Edited photos delivered within 30 working days.\n4. This quote is valid until the date mentioned above.";
 const lineOf = (l: QLine): QLine => ({ ...l, total: r2(l.qty * l.unitPrice) });
 
-export function QuoteForm({ quote, prefill, onClose, onSaved }: {
+export function QuoteForm({ quote, prefill, onClose, onSaved, resume }: {
   quote: QuoteForForm | null; prefill?: QuotePrefill | null; onClose: () => void; onSaved: (q: { id: string }) => void;
+  /** Open straight on the kept unfinished quote (the "Continue" on the Quotes page). */
+  resume?: boolean;
 }) {
   const isEdit = !!quote;
   // ── who ──
@@ -88,6 +91,38 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [flashId, setFlashId] = useState<string | null>(null);
+  /** A kept draft was put back: the studio's defaults (terms, validity, tax) must not overwrite it. */
+  const fromDraft = useRef(false);
+
+  // ── Unfinished quote: kept on the server while a new one is typed ──
+  const snapshot = useMemo(
+    () => JSON.stringify({ client, clientMode, newClient, days, programType, side, packageId, lines, currency, discountType, discountValue, taxPercent, advance, advanceTouched, validUntil, notes, terms }),
+    [client, clientMode, newClient, days, programType, side, packageId, lines, currency, discountType, discountValue, taxPercent, advance, advanceTouched, validUntil, notes, terms],
+  );
+  const draft = useFormDraft("quote", snapshot, { enabled: !isEdit, what: "quote" });
+  const close = () => draft.requestClose(onClose, saving);
+  useEffect(() => {
+    if (isEdit || prefill) return;
+    let alive = true;
+    loadDraft<Record<string, unknown>>("quote").then(async d => {
+      if (!alive || !d) return;
+      const o = d.data as Partial<{ client: QClient | null; clientMode: "search" | "new"; newClient: ClientFormData; days: QDay[]; programType: string; side: Side | null; packageId: string; lines: QLine[]; currency: string; discountType: "" | "percent" | "fixed"; discountValue: string; taxPercent: string; advance: string; advanceTouched: boolean; validUntil: string; notes: string; terms: string }>;
+      const name = (o.client ? fullName(o.client) : o.newClient?.firstName) || "No name yet";
+      if (!resume && !(await askConfirm({ title: "Continue your unfinished quote?", message: `${name}${d.when ? ` — saved ${d.when}` : ""}.\nStarting a new one replaces it once you begin typing.`, confirmLabel: "Continue", cancelLabel: "Start new" }))) return;
+      if (!alive) return;
+      fromDraft.current = true;
+      setClient(o.client ?? null); setClientMode(o.clientMode === "new" ? "new" : "search"); setNewClient({ ...blankClientForm, ...(o.newClient ?? {}) });
+      if (Array.isArray(o.days)) setDays(o.days);
+      setProgramType(o.programType ?? ""); setSide(cleanSide(o.side)); setPackageId(o.packageId ?? "");
+      if (Array.isArray(o.lines)) setLines(o.lines.map(lineOf));
+      if (o.currency) setCurrency(o.currency);
+      setDiscountType(o.discountType ?? "percent"); setDiscountValue(o.discountValue ?? ""); setTaxPercent(o.taxPercent ?? "");
+      setAdvance(o.advance ?? ""); setAdvanceTouched(!!o.advanceTouched);
+      setValidUntil(o.validUntil ?? ""); setNotes(o.notes ?? ""); if (o.terms) setTerms(o.terms);
+      draft.reset();
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null)).then(d => {
@@ -104,7 +139,7 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
     loadExtras().then(setExtras).catch(() => {});
     if (!isEdit) {
       apiFetch(`${API}/companies/me`).then(r => (r.ok ? r.json() : null)).then(d => {
-        if (!d) return;
+        if (!d || fromDraft.current) return;
         if (d.defaultTerms) setTerms(d.defaultTerms);
         if (d.defaultValidityDays) { const dt = new Date(); dt.setDate(dt.getDate() + Number(d.defaultValidityDays)); setValidUntil(localDateStr(dt)); }
         if (d.defaultAdvancePercent) setAdvancePct(Number(d.defaultAdvancePercent));
@@ -253,6 +288,7 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
       const r = await apiFetch(isEdit ? `${API}/quotes/${quote!.id}` : `${API}/quotes`, { method: isEdit ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { stop((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save the quote."); return; }
+      if (!isEdit) await draft.drop(); // it is a real quote now
       notify(isEdit ? "Quote saved" : "Quote created");
       onSaved(d);
     } catch { setError("Something went wrong. Please try again."); }
@@ -282,15 +318,15 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
 
   return (
     <>
-      <div className="sp-backdrop z-40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Edit quote" : "New quote"} className="sp-drawer z-50 sm:max-w-[1100px] flex flex-col bg-[#F5F3FA]">
+      <div className="sp-backdrop z-40" onClick={close} />
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? "Edit quote" : "New quote"} className="sp-drawer z-50 sm:max-w-[1100px] flex flex-col bg-[#F5F3FA]" {...draft.guard}>
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           <Tile icon={FileText} color="deep" size={40} />
           <div className="flex-1 min-w-0">
             <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit quote" : "New quote"}</h2>
             <p className="text-[13px] text-[#6B6680] truncate">{isEdit ? `${quote!.quoteNumber} · version ${quote!.version}` : "Pick the package and extras — the days and price fill in."}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={close} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-6">
@@ -498,7 +534,7 @@ export function QuoteForm({ quote, prefill, onClose, onSaved }: {
 
         <div className="px-4 sm:px-5 py-4 bg-white/80 backdrop-blur border-t border-[#EEEBF4] flex items-center gap-3">
           <p className="hidden sm:block flex-1 min-w-0 text-[13px] text-[#6B6680] truncate">Total <span className="font-bold text-[#17151F] tabular-nums">{money(grand)}</span>{advanceAmt > 0 && <> · Advance <span className="font-bold text-[#9A5B00] tabular-nums">{money(advanceAmt)}</span></>}{datedDays.length > 0 && <> · {fmtDate(datedDays[0].date)}{datedDays.length > 1 ? ` – ${fmtDate(datedDays[datedDays.length - 1].date)}` : ""}</>}</p>
-          <button type="button" onClick={onClose} className="h-12 px-6 rounded-full bg-[#EEEBF4] hover:bg-[#E4E0EC] text-[#17151F] text-[15px] font-semibold">Cancel</button>
+          <button type="button" onClick={close} className="h-12 px-6 rounded-full bg-[#EEEBF4] hover:bg-[#E4E0EC] text-[#17151F] text-[15px] font-semibold">Cancel</button>
           <button type="button" onClick={save} disabled={saving} className="flex-1 sm:flex-none sm:min-w-[200px] h-12 px-6 rounded-full bg-[#7D5CEF] hover:bg-[#6B4AE0] disabled:opacity-60 text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{isEdit ? "Save changes" : "Create quote"}
           </button>

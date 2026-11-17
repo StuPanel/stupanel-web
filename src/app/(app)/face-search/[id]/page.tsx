@@ -7,10 +7,9 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
 import {
-  AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, Copy, Download, ExternalLink, EyeOff, FolderOpen, FolderUp, HardDrive,
-  ImagePlus, Images, Loader2, MonitorUp, PackageCheck, QrCode, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
+  AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, ExternalLink, EyeOff, FolderOpen, FolderUp, HardDrive,
+  ImagePlus, Images, Loader2, MonitorUp, PackageCheck, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
   Star, Trash2, Users, X,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -19,7 +18,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW, EmptyState, Group } from "@/components/ui/apple";
 import { FormDrawer, inputCls } from "@/components/ui/form-kit";
 import { useTab } from "@/components/ui/profile-page";
-import { QrPoster } from "./qr-poster";
+import { ShareTab } from "./share-tab";
 import { GallerySettings } from "./gallery-settings";
 import { GuestsTab } from "./guests-tab";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
@@ -137,7 +136,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
       {tab === "guests" && <GuestsTab id={g.id} title={g.title} status={g.status} onSettings={() => setTab("settings")} />}
-      {tab === "share" && <Share g={g} />}
+      {tab === "share" && <ShareTab g={g} onSaved={setG} onSettings={() => setTab("settings")} />}
       {tab === "settings" && <GallerySettings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
       {adding && <AddPhotos g={g} onClose={() => setAdding(false)} onRefresh={() => { load(); setTick(n => n + 1); }}
@@ -566,44 +565,5 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
         </div>
       )}
     </FormDrawer>
-  );
-}
-
-// ─── Share ────────────────────────────────────────────────────────────────────
-
-function Share({ g }: { g: FaceDetail }) {
-  const [qr, setQr] = useState("");
-  useEffect(() => { QRCode.toDataURL(g.link, { margin: 2, width: 960, errorCorrectionLevel: "M", color: { dark: "#17151F", light: "#FFFFFF" } }).then(setQr).catch(() => setQr("")); }, [g.link]);
-  async function copy() {
-    try { await navigator.clipboard.writeText(g.link); notify("Link copied"); } catch { notify("Could not copy. Press and hold the link to copy it.", { error: true }); }
-  }
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-5 items-start">
-      {/* The link and the poster on the left, the plain QR on the right: nothing sits beside an empty space */}
-      <div className="min-w-0">
-        <Group title="Guest link" note="One link and one QR for every guest. Each guest takes a selfie and sees only the photos they are in.">
-          <div className="px-4 py-3.5 flex items-center gap-3">
-            <p className="flex-1 min-w-0 text-[14px] font-semibold text-[#17151F] break-all">{g.link}</p>
-            <button type="button" onClick={copy} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0"><Copy className="w-4 h-4" />Copy</button>
-          </div>
-        </Group>
-        {g.status !== "published" && (
-          <div className="rounded-[18px] bg-[#FFF3E0] p-4 text-[14px] text-[#6B4100] mb-5"><b>Not published yet.</b> {g.settings.register && g.settings.register !== "off" ? "Guests who scan now can leave a selfie and a number or email, and are told when you publish." : "The link opens, but guests are told the photos are not ready. Press Publish when the photos are in."}</div>
-        )}
-        <QrPoster link={g.link} title={g.title} pin={g.settings.pin} />
-      </div>
-      <Group title="QR code" note="Print it on table cards or a standee. It is the same link.">
-        <div className="p-5 flex flex-col items-center gap-4">
-          <div className="w-[220px] h-[220px] rounded-[18px] bg-white ring-1 ring-[#EEEBF4] flex items-center justify-center overflow-hidden">
-            {qr
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={qr} alt={`QR code for ${g.title}`} className="w-full h-full" />
-              : <QrCode className="w-10 h-10 text-[#C9C2DA]" />}
-          </div>
-          <p className="text-[15px] font-bold text-[#17151F] text-center">Scan to get your photos</p>
-          {qr && <a href={qr} download={`${g.title.replace(/[^\w\- ]+/g, "").trim() || "gallery"} QR.png`} className="h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" />Download QR</a>}
-        </div>
-      </Group>
-    </div>
   );
 }

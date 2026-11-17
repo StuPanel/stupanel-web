@@ -31,6 +31,8 @@ export type FaceSettings = {
   language?: "en" | "bn";
   /** What the details form asks for besides the name (both hidden = the number is asked) */
   askPhone?: "hide" | "optional" | "required"; askEmail?: "hide" | "optional" | "required";
+  /** The all-photos link: also ask its code; ask for details first. The VIP link: also ask the guests' code. */
+  fullAskPin?: boolean; fullRegister?: boolean; vipAskPin?: boolean;
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */
   message?: string;
 };
@@ -40,6 +42,8 @@ export type Cover = { /** Set for guests when the cover carries the watermark */
 
 export type FaceGallery = {
   id: string; title: string; status: FaceStatus; bookingId: string; link: string; settings: FaceSettings;
+  /** The two other share links: every photo (couple and family), and VIP (no details asked) */
+  links?: { full: string | null; vip: string | null };
   publishedAt: string | null; closedAt: string | null; createdAt: string;
   program: { id?: string; number: string; eventName: string | null; eventDate: string | null; client: string } | null;
   counts: FaceCounts; cover: Cover;

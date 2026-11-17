@@ -48,7 +48,19 @@ export type FaceSettings = {
   shareButton?: boolean; shareCaption?: string;
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */
   message?: string;
+  /** StuPanel Live (phone app): photos wait hidden until approved; who may send; most photos (0 = no limit); minutes between "new photos" emails */
+  liveReview?: boolean; liveWho?: "team" | "studio" | "chosen"; liveMembers?: string[]; liveMax?: number; liveNotifyMin?: number;
 };
+
+/** One phone sending with StuPanel Live, as the gallery's Live tab shows it. */
+export type LiveDevice = {
+  id: string; userName: string | null; deviceName: string | null; appVersion: string | null; photos: number;
+  startedAt: string; lastSeenAt: string; lastPhotoAt: string | null; blocked: boolean; state: "sending" | "idle" | "ended" | "stopped";
+};
+export type LivePanel = { review: boolean; max: number | null; totals: { sent: number; waitingReview: number; guestsWithPhotos: number; creditsUsed: number }; devices: LiveDevice[] };
+
+/** Where the StuPanel Live Android app is downloaded from until it is on Google Play (public, any studio). */
+export const LIVE_APP_PAGE = "/live-app";
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };
 export type Cover = { /** Set for guests when the cover carries the watermark */ id?: string; driveFileId: string; width: number | null; height: number | null } | null;

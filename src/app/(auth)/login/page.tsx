@@ -45,6 +45,7 @@ function LoginForm() {
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token || searchParams.get("from")?.startsWith("/invite/")) return;
+    if (searchParams.get("from") === "/app-login") { router.replace("/app-login"); return; }
     const role = localStorage.getItem("user_role");
     if (role === "staff" || managerStartsInMember()) { router.replace("/member/dashboard"); return; }
     router.replace("/dashboard");

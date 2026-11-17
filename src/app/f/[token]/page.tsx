@@ -828,7 +828,7 @@ function BookBody({ g, onTap }: { g: Open; onTap?: (kind: "book" | "review") => 
   );
 }
 
-/** The Book us card in the list, after the photos. Comes in softly when scrolled into view. */
+/** The Book us card in the list, after the photos: rises in when scrolled to, fades away when scrolled back up. */
 function BookCard({ g }: { g: Open }) {
   const ref = useRef<HTMLElement>(null);
   const [seen, setSeen] = useState(false);
@@ -836,7 +836,8 @@ function BookCard({ g }: { g: Open }) {
     const el = ref.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") { el.classList.add("gf-book-in"); return; }
-    const o = new IntersectionObserver(e => { if (e[0]?.isIntersecting) { setSeen(true); o.disconnect(); } }, { threshold: 0.35 });
+    // In view: it rises in; scrolled back up: it fades away, and comes again next time.
+    const o = new IntersectionObserver(e => setSeen(!!e[0]?.isIntersecting), { threshold: 0.3 });
     o.observe(el); return () => o.disconnect();
   }, []);
   if (!(g.bookButton && g.bookWhatsApp) && !g.reviewUrl) return null;

@@ -16,7 +16,8 @@ import "./guest.css";
 type Ask = "hide" | "optional" | "required";
 /** What the details form asks for: each field off (hide), optional or required; oneOf = with WhatsApp and Email both optional, one of the two is needed. */
 type Rules = { name: Ask; phone: Ask; email: Ask; oneOf: boolean };
-type Open = { /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type FollowWhen = "off" | "before" | "results" | "open" | "download" | "downloaded";
+type Open = { /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
@@ -57,7 +58,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   return preview ? <PreviewHost /> : <GuestLive params={params} />;
 }
 
-type PreviewData = { open: Open; screen: "land" | "register" | "wait" | "results"; photos: FacePhoto[] };
+type PreviewData = { open: Open; screen: "land" | "register" | "wait" | "results" | "follow"; photos: FacePhoto[] };
 
 /** The guest page as the studio's settings make it, with sample answers. Nothing is sent anywhere. */
 function PreviewHost() {
@@ -88,7 +89,11 @@ function PreviewHost() {
         ? <div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 22, fontWeight: 800 }}>{T("No details are asked")}</h1><p style={{ color: "#4A4658", fontSize: 15 }}>{T("Guests go straight to their photos after the selfie.")}</p></div>
         : <Register key={JSON.stringify(rules) + g.register} base="" dry res={res} rules={rules} studio={g.studio.name} selfie="" must={g.register === "required" || early} onDone={() => undefined} onSkip={() => undefined} />)}
       {d.screen === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie="" sentTo={rules.email !== "hide" ? { email: "name@example.com" } : { phone: "01XXXXXXXXX" }} onRetake={() => undefined} />}
-      {d.screen === "results" && <div inert style={{ display: "contents" }}><Results g={g} res={{ ...res, waiting: false, needsRegister: false }} selfie="" base="" onOpen={() => undefined} onRetake={() => undefined} /></div>}
+      {(d.screen === "results" || d.screen === "follow") && <div inert style={{ display: "contents" }}><Results g={g} res={{ ...res, waiting: false, needsRegister: false }} selfie="" base="" onOpen={() => undefined} onRetake={() => undefined} /></div>}
+      {d.screen === "follow" && (g.follow?.length
+        ? (g.followWhen === "before" ? <div style={{ position: "absolute", inset: 0, zIndex: 5, background: "var(--base)" }}><Follow g={g} count={n || 12} onFollowed={() => undefined} onSkip={() => undefined} /></div>
+          : <FollowSheet key={JSON.stringify([g.followTitle, g.followText, g.followSkip, g.followWhen, g.follow])} g={g} gate={g.followWhen === "download" ? () => undefined : undefined} onFollowed={() => undefined} onSkip={() => undefined} onClose={() => undefined} />)
+        : <div className="gf-sheet-wrap"><div className="gf-sheet" style={{ textAlign: "center" }}><b style={{ fontSize: 17 }}>{g.followWhen === "off" ? T("The follow card is off. Guests are not asked to follow.") : T("Add your Instagram or Facebook page to ask guests to follow.")}</b></div></div>)}
     </Shell>
   );
 }
@@ -107,6 +112,10 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   const [count, setCount] = useState(0);
   const [view, setView] = useState<{ list: "mine" | "more"; i: number } | null>(null);
   const [sentTo, setSentTo] = useState<SentTo>({});
+  /** The follow card on screen; `gate` = a download waiting for the answer. */
+  const [ask, setAsk] = useState<null | { gate?: () => void }>(null);
+  const visitStart = useRef(Date.now());
+  const askedNow = useRef(false);
   // The studio picks the page's language; a guest can switch, and this browser remembers it.
   const [lang, setLang] = useState<Lang | null>(null);
   const now: Lang = lang ?? g?.language ?? "en";
@@ -139,7 +148,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
     try { localStorage.setItem(store, JSON.stringify({ ...saved, key: out.key })); } catch { /* private window */ }
     setSelfie(saved.selfie || ""); setRes(out);
     let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
-    setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results");
+    setStep(out.needsRegister ? "register" : d.followWhen === "before" && d.follow?.length && (out.count ?? out.photos.length + out.more.length) && !followed ? "follow" : "results");
     return true;
   }, [base, store, stamp]);
 
@@ -174,7 +183,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
         if (on && m?.ok) { const out = stamp(await m.json()); setSelfie(saved.selfie || ""); setRes(out);
           if (out.waiting) return setStep(out.registered ? "wait" : "register");
           let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
-          return setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
+          return setStep(out.needsRegister ? "register" : d.followWhen === "before" && d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results"); }
       }
       if (on) setStep("land");
     })();
@@ -209,7 +218,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
     await new Promise(ok => setTimeout(ok, n ? 500 : 200));
     setRes(out);
     // The studio asks for a name and number: before the photos (required), or as a step the guest can skip (optional).
-    const follow = !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
+    const follow = g?.followWhen === "before" && !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
     setStep(n > 0 && !out.registered && !out.noDetails && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
   }, [base, store, pin, g?.register, g?.follow, stamp]);
 
@@ -225,16 +234,46 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
       if (m?.ok) setRes(stamp(await m.json())); else setRes({ ...res, registered: true });
     } else setRes({ ...res, registered: true });
-    const follow = !!g?.follow?.length && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
+    const follow = g?.followWhen === "before" && !!g?.follow?.length && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
     setStep(follow ? "follow" : "results");
   }, [base, res, g?.follow, store, stamp]);
 
   // The follow step is shown once per browser, and only when there are photos to open.
   const wantsFollow = (out: Result) => {
-    if (!g?.follow?.length || !(out.count ?? out.photos.length)) return false;
+    if (!g?.follow?.length || g.followWhen !== "before" || !(out.count ?? out.photos.length + out.more.length)) return false;
     try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; }
   };
   const afterDetails = (out: Result) => setStep(wantsFollow(out) ? "follow" : "results");
+
+  /** Should the follow card show now? Not after a page was opened; after "Not now" only on a later visit (if the studio wants that). */
+  const wantsCard = () => {
+    if (!g?.follow?.length || !g.followWhen || g.followWhen === "off" || askedNow.current) return false;
+    try {
+      if (localStorage.getItem(`${store}:followed`) === "1") return false;
+      const skipped = Number(localStorage.getItem(`${store}:followSkip`) || 0);
+      if (skipped && (g.followAgain === false || skipped > visitStart.current)) return false;
+    } catch { /* private window: ask once per visit */ }
+    return true;
+  };
+  /** A moment in the guest's visit: shows the card when it is the studio's chosen one. `then` runs after (a download waits). */
+  const moment = (m: FollowWhen, then?: () => void) => {
+    if (g?.followWhen !== m || !wantsCard()) { then?.(); return; }
+    askedNow.current = true;
+    setAsk({ gate: then });
+  };
+  /** Does this download have to wait for the card? (for links that must be opened in the same tap) */
+  const gates = () => g?.followWhen === "download" && wantsCard();
+  const followed = () => { try { localStorage.setItem(`${store}:followed`, "1"); } catch { /* private window */ } };
+  const skipped = () => { try { localStorage.setItem(`${store}:followSkip`, String(Date.now())); } catch { /* private window */ } };
+
+  // "When the photos appear": a moment after the photos are on screen.
+  const nPhotos = res ? (res.count ?? res.photos.length) + res.more.length : 0;
+  useEffect(() => {
+    if (step !== "results" || !nPhotos) return;
+    const t = setTimeout(() => moment("results"), 1600);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, nPhotos]);
 
   if (step === "bad") return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>{T("Photos not found")}</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
   if (step === "load" || !g) return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
@@ -259,11 +298,12 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       )}
       {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} sentTo={sentTo} onRetake={() => { setNote(""); setStep("selfie"); }} />}
       {step === "follow" && res && g.follow && (
-        <Follow studio={g.studio.name} pages={g.follow} count={res.count ?? res.photos.length}
-          onDone={() => { try { localStorage.setItem(`${store}:followed`, "1"); } catch { /* private window */ } setStep("results"); }} />
+        <Follow g={g} count={res.count ?? res.photos.length}
+          onFollowed={() => { followed(); setStep("results"); }} onSkip={() => { skipped(); askedNow.current = true; setStep("results"); }} />
       )}
       {step === "results" && res && (
-        <Results g={g} res={res} selfie={selfie} onOpen={(list, i) => setView({ list, i })} onRetake={() => { setNote(""); setStep("selfie"); }} base={base} />
+        <Results g={g} res={res} selfie={selfie} onOpen={(list, i) => { setView({ list, i }); setTimeout(() => moment("open"), 700); }} onRetake={() => { setNote(""); setStep("selfie"); }} base={base}
+          gate={then => moment("download", then)} onDownloaded={() => setTimeout(() => moment("downloaded"), 900)} />
       )}
       {view && res && (() => {
         const list = view.list === "mine" ? res.photos : res.more;
@@ -273,14 +313,23 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
           <PhotoViewer count={list.length} index={view.i} onIndex={i => setView({ list: view.list, i })} onClose={() => setView(null)}
             src={facePhotoUrl(p, 1600)} srcAt={i => facePhotoUrl(list[i], 1600)} thumbAt={i => facePhotoUrl(list[i], 480)} zoomAt={i => facePhotoUrl(list[i], 2560)}
             title={g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
-            footer={res.downloads ? (
-              <a href={faceSaveUrl(p)} onClick={() => counted(base, res.key, 1)} target="_blank" rel="noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none" }}>
-                <Ic d={DL} />{T("Download")}
-              </a>
+            footer={res.downloads || g.shareButton !== false ? (
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center" }}>
+                {res.downloads && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
+                  onClick={e => {
+                    // "When Download is pressed": the card first; the photo is saved from its button (same tap, so phones allow it).
+                    if (gates()) { e.preventDefault(); const url = faceSaveUrl(p); moment("download", () => { counted(base, res.key, 1); window.open(url, "_blank", "noopener"); }); return; }
+                    counted(base, res.key, 1); setTimeout(() => moment("downloaded"), 1200);
+                  }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none" }}>
+                  <Ic d={DL} />{T("Download")}
+                </a>}
+                {g.shareButton !== false && <ShareButton photo={p} caption={captionFor(g)} />}
+              </div>
             ) : undefined} />
         );
       })()}
+      {ask && g.follow && <FollowSheet g={g} gate={ask.gate} onFollowed={followed} onSkip={skipped} onClose={() => setAsk(null)} />}
     </Shell>
   );
 }
@@ -593,34 +642,175 @@ function emailFix(v: string) {
 
 // ─── Follow the studio ───────────────────────────────────────────────────────
 
-function Follow({ studio, pages, count, onDone }: { studio: string; pages: { site: "facebook" | "instagram"; url: string }[]; count: number; onDone: () => void }) {
-  const [opened, setOpened] = useState(false);
-  const NAME = { facebook: "Facebook", instagram: "Instagram" } as const;
-  const TINT = { facebook: "#1877F2", instagram: "#C13584" } as const;
+type Page = { site: "facebook" | "instagram"; url: string };
+const SITE = { facebook: "Facebook", instagram: "Instagram" } as const;
+/** "instagram.com/pickphoto" → "pickphoto" (the name shown, and the tag in the share caption). */
+const handleOf = (url: string) => { try { return new URL(url).pathname.split("/").filter(Boolean)[0] ?? ""; } catch { return ""; } };
+/** The words copied when a guest shares a photo. */
+function captionFor(g: Open) {
+  const ig = g.follow?.find(p => p.site === "instagram");
+  const handle = ig ? handleOf(ig.url) : "";
+  const t = (g.shareCaption || "").trim() || (handle ? "📸 Photo by @{handle}" : "📸 Photo by {studio}");
+  return t.replace(/\{studio\}/gi, g.studio.name).replace(/\{event\}/gi, g.title).replace(/\{handle\}/gi, handle ? `@${handle}` : g.studio.name).replace(/@@/g, "@");
+}
+
+/** One page to follow: a big row that opens Instagram or Facebook (the app itself on a phone, through the normal link). */
+function PageRow({ p, onOpened }: { p: Page; onOpened: () => void }) {
+  const handle = handleOf(p.url);
   return (
-    <div className="gf-step" style={{ padding: "40px 22px 26px" }}>
-      <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{T("One small thing first")}</h1>
-        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{T("{studio} took these photos. Follow their page, then open your {photos}.", { studio, photos: P(count) })}</p>
-      </div>
-      <div style={{ marginTop: 30, display: "flex", flexDirection: "column", gap: 12 }}>
-        {pages.map(p => (
-          <a key={p.site} href={p.url} target="_blank" rel="noopener noreferrer" onClick={() => setOpened(true)}
-            style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 68, padding: "0 18px", borderRadius: 20, background: "#fff", color: "#17151F", textDecoration: "none", boxShadow: "0 10px 26px -18px rgba(40,28,96,.5)" }}>
-            <span aria-hidden style={{ width: 40, height: 40, borderRadius: 13, background: TINT[p.site], flex: "none" }} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 16, fontWeight: 700 }}>{T("Follow on {site}", { site: NAME[p.site] })}</span>
-              <span style={{ display: "block", fontSize: 13, color: "#6B6680" }}>{T("Opens in a new tab")}</span>
-            </span>
-            <Ic d={<path d="M9 6l6 6-6 6" />} w={2.4} />
-          </a>
-        ))}
-      </div>
-      <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 8 }}>
-        <button type="button" className="gf-cta" disabled={!opened} onClick={onDone} style={{ opacity: opened ? 1 : .5 }}>{T(count === 1 ? "See my photo" : "See my photos")}</button>
-        {!opened && <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680" }}>{T("Open a page first, then come back here.")}</p>}
+    <a href={p.url} target="_blank" rel="noopener noreferrer" onClick={onOpened} className={`gf-follow gf-follow-${p.site}`}>
+      <span className="gf-follow-tile" aria-hidden="true">
+        <Ic size={22} w={2.2} d={<><circle cx="10" cy="8" r="3.4" /><path d="M3.8 19.5c.9-3.300 3.400-5 6.200-5s5.300 1.700 6.200 5" /><path d="M18.5 8v6M15.5 11h6" /></>} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+        <span style={{ display: "block", fontSize: 16, fontWeight: 700, color: "#17151F" }}>{T("Follow on {site}", { site: SITE[p.site] })}</span>
+        {handle && <span style={{ display: "block", fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.site === "instagram" ? `@${handle}` : handle}</span>}
+      </span>
+      <Ic d={<path d="M9 6l6 6-6 6" />} w={2.4} />
+    </a>
+  );
+}
+
+/** Watches for the guest coming back from the page they opened (the app or a new tab). */
+function useCameBack(onBack: () => void) {
+  const away = useRef(false);
+  const fired = useRef(false);
+  useEffect(() => {
+    const back = () => { if (away.current && document.visibilityState === "visible" && !fired.current) { fired.current = true; onBack(); } };
+    document.addEventListener("visibilitychange", back); window.addEventListener("focus", back);
+    return () => { document.removeEventListener("visibilitychange", back); window.removeEventListener("focus", back); };
+  }, [onBack]);
+  return () => {
+    away.current = true;
+    // A page that opened in the same window, or a blocked new tab: thank them anyway after a moment.
+    setTimeout(() => { if (!fired.current) { fired.current = true; onBack(); } }, 2600);
+  };
+}
+
+function Avatar({ g, size = 64 }: { g: Open; size?: number }) {
+  return g.studio.logoUrl
+    // eslint-disable-next-line @next/next/no-img-element
+    ? <img src={g.studio.logoUrl} alt="" className="gf-ava" style={{ width: size, height: size }} />
+    : <span className="gf-ava" style={{ width: size, height: size, fontSize: size * 0.32 }}>{initials(g.studio.name)}</span>;
+}
+
+/** The tick after following: a ring draws, a check follows. */
+const Thanks = ({ studio }: { studio: string }) => (
+  <div className="gf-thanks" role="status">
+    <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
+      <circle className="gf-thanks-ring" cx="32" cy="32" r="28" fill="none" stroke="#1F8A5B" strokeWidth="5" pathLength={1} />
+      <path className="gf-thanks-tick" d="M20 33l8 8 16-17" fill="none" stroke="#1F8A5B" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" pathLength={1} />
+    </svg>
+    <b style={{ fontSize: 20 }}>{T("Thank you!")}</b>
+    <span style={{ fontSize: 14, color: "#4A4658" }}>{T("You will see new work from {studio}.", { studio })}</span>
+  </div>
+);
+
+/**
+ * The follow card: slides up over the photos at the moment the studio chose. Once per guest.
+ * With `gate` (a download waiting), the card ends with the download; without, it closes by itself after the thanks.
+ */
+function FollowSheet({ g, gate, onFollowed, onSkip, onClose }: { g: Open; gate?: () => void; onFollowed: () => void; onSkip: () => void; onClose: () => void }) {
+  const [state, setState] = useState<"ask" | "thanks">("ask");
+  const [out, setOut] = useState(false);
+  const must = !!gate && g.followSkip === false;
+  const close = useCallback(() => { setOut(true); setTimeout(onClose, 240); }, [onClose]);
+  const back = useCallback(() => {
+    onFollowed(); setState("thanks");
+    if (!gate) setTimeout(close, 1700);
+  }, [gate, onFollowed, close]);
+  const opened = useCameBack(back);
+  // Focus goes into the card (screen readers start there) without lighting up a button.
+  useEffect(() => { const t = setTimeout(() => (document.querySelector(".gf-sheet") as HTMLElement | null)?.focus({ preventScroll: true }), 420); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && !must) { if (state === "ask") onSkip(); close(); } };
+    window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
+  }, [must, state, onSkip, close]);
+  const skip = () => { onSkip(); close(); gate?.(); };
+  const go = () => { close(); gate?.(); };
+  return (
+    <div className={`gf-sheet-wrap${out ? " gf-sheet-out" : ""}`} onClick={e => { if (e.target === e.currentTarget && !must) skip(); }}>
+      <div className="gf-sheet" role="dialog" aria-modal="true" aria-labelledby="gf-sheet-t" tabIndex={-1} style={{ outline: "none" }}>
+        <span className="gf-sheet-grip" aria-hidden="true" />
+        {state === "ask" ? <>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
+            <span className="gf-ava-ring"><Avatar g={g} /></span>
+            <h2 id="gf-sheet-t" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.2 }}>{g.followTitle || T("Enjoying your photos?")}</h2>
+            <p style={{ fontSize: 15, lineHeight: 1.5, color: "#4A4658", maxWidth: 320 }}>{g.followText || T("Follow {studio} to see more of their work.", { studio: g.studio.name })}</p>
+          </div>
+          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+            {g.follow!.map(p => <PageRow key={p.site} p={p} onOpened={opened} />)}
+          </div>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column" }}>
+            {must
+              ? <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680", padding: "10px 0 2px" }}>{T("Open a page, then come back here for your download.")}</p>
+              : <button type="button" onClick={skip} className="gf-sheet-skip">{gate ? T("Skip and download") : T("Not now")}</button>}
+          </div>
+        </> : <>
+          <Thanks studio={g.studio.name} />
+          {gate && <button type="button" className="gf-cta" onClick={go} style={{ marginTop: 18 }}><Ic d={DL} />{T("Download")}</button>}
+        </>}
       </div>
     </div>
+  );
+}
+
+/** "Before the photos": the same card as a whole screen. */
+function Follow({ g, count, onFollowed, onSkip }: { g: Open; count: number; onFollowed: () => void; onSkip: () => void }) {
+  const [done, setDone] = useState(false);
+  const back = useCallback(() => setDone(true), []);
+  const opened = useCameBack(back);
+  return (
+    <div className="gf-step" style={{ padding: "34px 22px 26px" }}>
+      <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
+        <span className="gf-ava-ring"><Avatar g={g} size={76} /></span>
+        <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{g.followTitle || T("One small thing first")}</h1>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{g.followText || T("{studio} took these photos. Follow their page, then open your {photos}.", { studio: g.studio.name, photos: P(count) })}</p>
+      </div>
+      <div className="gf-rise" style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 10, animationDelay: ".12s" }}>
+        {done ? <Thanks studio={g.studio.name} /> : g.follow!.map(p => <PageRow key={p.site} p={p} onOpened={opened} />)}
+      </div>
+      <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 4 }}>
+        <button type="button" className="gf-cta" disabled={!done && g.followSkip === false} onClick={done ? onFollowed : onSkip} style={{ opacity: !done && g.followSkip === false ? .5 : 1 }}>
+          {T(count === 1 ? "See my photo" : "See my photos")}
+        </button>
+        {!done && g.followSkip === false && <p style={{ textAlign: "center", fontSize: 13, color: "#6B6680", paddingTop: 6 }}>{T("Open a page first, then come back here.")}</p>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Share: the photo goes to the phone's share sheet (Instagram, Facebook, WhatsApp…). The caption with the studio's
+ * tag is copied first, because Instagram does not take text: the guest pastes it.
+ */
+function ShareButton({ photo, caption }: { photo: FacePhoto; caption: string }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [note, setNote] = useState("");
+  const can = typeof navigator !== "undefined" && !!navigator.canShare && navigator.canShare({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] });
+  // Fetched as soon as the photo is open, so the tap goes straight to the share sheet (phones need that).
+  useEffect(() => {
+    if (!can) return;
+    let on = true; setFile(null);
+    fetch(facePhotoUrl(photo, 1600)).then(r => (r.ok ? r.blob() : null)).then(b => { if (on && b) setFile(new File([b], `${(photo.fileName || "photo").replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" })); }).catch(() => undefined);
+    return () => { on = false; };
+  }, [photo, can]);
+  if (!can) return null;
+  async function share() {
+    if (!file) return;
+    try { await navigator.clipboard.writeText(caption); } catch { /* the share still works */ }
+    setNote(T("Caption copied. Paste it when you post."));
+    setTimeout(() => setNote(""), 3600);
+    try { await navigator.share({ files: [file], text: caption }); } catch { /* closed the sheet */ }
+  }
+  return (
+    <>
+      <button type="button" onClick={share} disabled={!file} aria-label={T("Share")}
+        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 20px", borderRadius: 18, border: 0, background: "rgba(255,255,255,.14)", color: "#fff", fontWeight: 700, fontSize: 16, opacity: file ? 1 : .55 }}>
+        <Ic d={<><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>} />{T("Share")}
+      </button>
+      {note && <p role="status" className="gf-toast">{note}</p>}
+    </>
   );
 }
 
@@ -766,7 +956,8 @@ function Searching({ selfie, count }: { selfie: string; count: number }) {
 
 // ─── Results ──────────────────────────────────────────────────────────────────
 
-function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Result; selfie: string; base: string; onOpen: (list: "mine" | "more", i: number) => void; onRetake: () => void }) {
+function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), onDownloaded }: { g: Open; res: Result; selfie: string; base: string; onOpen: (list: "mine" | "more", i: number) => void; onRetake: () => void;
+  /** "When Download is pressed": the studio's card first, then `run` */ gate?: (run: () => void) => void; /** After photos were saved */ onDownloaded?: () => void }) {
   const n = res.photos.length;
   const [saving, setSaving] = useState(0);
   const frames = useRef<HTMLDivElement>(null);
@@ -788,7 +979,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
 
   async function give(files: File[]) {
     if (toSheet(files)) {
-      try { await navigator.share({ files }); setHeld(null); return; }
+      try { await navigator.share({ files }); setHeld(null); onDownloaded?.(); return; }
       catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
     }
     for (const f of files) {
@@ -813,8 +1004,8 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
   /** Download these photos: all of the guest's own, or the ones they ticked. */
   async function download(list: FacePhoto[]) {
     const n = list.length;
-    if (saving || !n) return;
     if (held) return give(held);
+    if (saving || !n) return;
     setSaveNote(""); setTotal(n);
     counted(base, res.key, n);
     // Photos with the studio's watermark come from StuPanel: they are fetched here, then saved together.
@@ -832,7 +1023,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
       if (files.length < n) setSaveNote(T("{photos} could not be downloaded. Open them and press Download.", { photos: P(n - files.length) }));
       // On a phone the photos are handed over on the next tap; on a computer they are saved straight away.
       if (toSheet(files)) return setHeld(files);
-      return give(files);
+      await give(files); onDownloaded?.(); return;
     }
     for (let i = 0; i < n; i++) {
       setSaving(i + 1);
@@ -842,6 +1033,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
       await new Promise(ok => setTimeout(ok, 900));
     }
     setSaving(0);
+    onDownloaded?.();
   }
 
   const tile = (p: FacePhoto, i: number, list: "mine" | "more") => {
@@ -896,7 +1088,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
             {picking
               ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
               : !held && !saving && m > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
-            <button type="button" className="gf-cta" onClick={() => (!picking && !m ? setPicking(true) : download(picking ? chosen : mainList))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+            <button type="button" className="gf-cta" onClick={() => (!picking && !m ? setPicking(true) : held ? download([]) : gate(() => void download(picking ? chosen : mainList)))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
               <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos} to this phone", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
             </button>
           </div>

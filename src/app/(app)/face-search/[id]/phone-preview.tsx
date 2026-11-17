@@ -10,9 +10,9 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { FaceDetail, FacePhoto, FaceSettings } from "@/lib/face";
 
-export type Screen = "land" | "register" | "wait" | "results";
+export type Screen = "land" | "register" | "wait" | "results" | "follow";
 const SCREENS: { id: Screen; label: string }[] = [
-  { id: "land", label: "First screen" }, { id: "register", label: "Details" }, { id: "wait", label: "On the list" }, { id: "results", label: "Photos" },
+  { id: "land", label: "First screen" }, { id: "register", label: "Details" }, { id: "wait", label: "On the list" }, { id: "results", label: "Photos" }, { id: "follow", label: "Follow" },
 ];
 const W = 390, H = 844;
 
@@ -51,7 +51,9 @@ function Frame({ g, s, screen, before, scale }: { g: FaceDetail; s: FaceSettings
       register: asks ? s.register ?? "off" : "off",
       askName: s.askName ?? "required", askPhone: s.askPhone ?? "optional", askEmail: s.askEmail ?? "optional", contactOne: s.contactOne ?? true,
       needsPin: !!s.pin, hasFullCode: !!s.fullPin, downloads: s.downloads !== false, downloadAll: s.downloadAll !== false,
-      follow: [s.followFacebook ? { site: "facebook", url: s.followFacebook } : null, s.followInstagram ? { site: "instagram", url: s.followInstagram } : null].filter(Boolean),
+      follow: (s.followWhen ?? "downloaded") === "off" ? [] : [s.followInstagram ? { site: "instagram", url: s.followInstagram } : null, s.followFacebook ? { site: "facebook", url: s.followFacebook } : null].filter(Boolean),
+      followWhen: s.followWhen ?? "downloaded", followSkip: s.followSkip !== false, followAgain: s.followAgain !== false, followTitle: s.followTitle ?? "", followText: s.followText ?? "",
+      shareButton: s.shareButton !== false, shareCaption: s.shareCaption ?? "",
     };
     const sample = photos.map(p => ({ ...p, wm: undefined }));
     frame.current.contentWindow.postMessage({ type: "sp-face-preview", data: { open, screen, photos: sample } }, window.location.origin);
@@ -70,7 +72,7 @@ function Frame({ g, s, screen, before, scale }: { g: FaceDetail; s: FaceSettings
 function Controls({ screen, onScreen, before, onBefore, canEarly }: { screen: Screen; onScreen: (s: Screen) => void; before: boolean; onBefore: (b: boolean) => void; canEarly: boolean }) {
   return (
     <div className="flex flex-col gap-2">
-      <div role="tablist" aria-label="Which screen" className="grid grid-cols-2 gap-1.5">
+      <div role="tablist" aria-label="Which screen" className="grid grid-cols-3 gap-1.5">
         {SCREENS.map(x => {
           const off = x.id === "wait" && !canEarly;
           return (
@@ -98,13 +100,13 @@ export function PhonePreview({ g, s, screen, onScreen }: { g: FaceDetail; s: Fac
   const canEarly = asks;
   // "On the list" only exists before publishing; Photos only after.
   const shown: Screen = screen === "wait" && !canEarly ? "register" : screen;
-  const pick = (x: Screen) => { onScreen(x); if (x === "wait") setBefore(true); if (x === "results") setBefore(false); };
-  const note = shown === "wait" ? "What a guest sees after giving their details before you publish." : shown === "register" ? (asks ? "Try it: type in the form to see the checks." : "Guest details are off.") : shown === "results" ? "Sample: a few photos of this gallery." : before ? "Before you publish: guests can sign up." : "After you publish.";
+  const pick = (x: Screen) => { onScreen(x); if (x === "wait") setBefore(true); if (x === "results" || x === "follow") setBefore(false); };
+  const note = shown === "follow" ? "The follow card, as guests get it at the moment you picked." : shown === "wait" ? "What a guest sees after giving their details before you publish." : shown === "register" ? (asks ? "Try it: type in the form to see the checks." : "Guest details are off.") : shown === "results" ? "Sample: a few photos of this gallery." : before ? "Before you publish: guests can sign up." : "After you publish.";
 
   const panel = (scale: number) => (
     <div className="flex flex-col gap-3">
       <Controls screen={shown} onScreen={pick} before={before} onBefore={setBefore} canEarly={canEarly} />
-      <Frame g={g} s={s} screen={shown} before={shown === "wait" ? true : shown === "results" ? false : before} scale={scale} />
+      <Frame g={g} s={s} screen={shown} before={shown === "wait" ? true : shown === "results" || shown === "follow" ? false : before} scale={scale} />
       <p className="text-[12px] leading-snug text-[#6B6680] text-center px-2">{note} Nothing here is saved or sent.</p>
     </div>
   );

@@ -190,3 +190,34 @@
 .gf-dot{flex:none;width:26px;height:26px;border-radius:50%;background:#EEE8FD;color:#4B32B8;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
 .gf-dot-ok{background:#1F8A5B;color:#fff}
 @media (prefers-reduced-motion:reduce){.gf-mail-env{opacity:0}.gf-mail-done{transform:none;opacity:1}}
+
+/* ── Follow the studio: the card slides up, the avatar glows once, a tick thanks the guest ── */
+.gf-sheet-wrap{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(23,21,31,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:gf-fade .28s ease both}
+.gf-sheet{width:100%;max-width:440px;background:#FFFBF6;color:#17151F;border-radius:30px 30px 0 0;padding:10px 20px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -24px 60px -24px rgba(23,21,31,.45);animation:gf-sheet-in .46s cubic-bezier(.2,.9,.25,1.04) both;font-family:inherit}
+@media (min-width:481px){.gf-sheet-wrap{align-items:center}.gf-sheet{border-radius:30px;padding-bottom:20px;animation-name:gf-sheet-pop}}
+.gf-sheet-out{animation:gf-fade-out .24s ease both}.gf-sheet-out .gf-sheet{animation:gf-sheet-down .24s cubic-bezier(.5,0,.75,0) both}
+.gf-sheet-grip{display:block;width:40px;height:5px;border-radius:9px;background:#E3DEEC;margin:0 auto 14px}
+.gf-ava{display:flex;align-items:center;justify-content:center;border-radius:22px;background:#17151F;color:#fff;font-weight:800;object-fit:cover}
+.gf-ava-ring{display:inline-flex;padding:4px;border-radius:26px;background:conic-gradient(from 210deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5,#FEDA75);animation:gf-glow 1.6s ease-out .35s both}
+.gf-ava-ring .gf-ava{border:3px solid #FFFBF6}
+.gf-follow{display:flex;align-items:center;gap:14px;min-height:68px;padding:0 16px 0 12px;border-radius:20px;background:#fff;color:#17151F;text-decoration:none;box-shadow:0 1px 0 rgba(23,21,31,.04),0 12px 26px -20px rgba(40,28,96,.55);transition:transform .16s ease,box-shadow .2s ease;animation:gf-up .4s cubic-bezier(.2,.8,.2,1) both}
+.gf-follow:nth-child(2){animation-delay:.08s}
+.gf-follow:active{transform:scale(.98)}
+@media (hover:hover){.gf-follow:hover{transform:translateY(-1px);box-shadow:0 1px 0 rgba(23,21,31,.04),0 16px 30px -18px rgba(40,28,96,.6)}}
+.gf-follow:focus-visible,.gf-sheet-skip:focus-visible{outline:3px solid rgba(125,92,239,.5);outline-offset:2px}
+.gf-follow-tile{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;flex:none}
+.gf-follow-instagram .gf-follow-tile{background:linear-gradient(135deg,#FEDA75 0%,#FA7E1E 25%,#D62976 55%,#962FBF 80%,#4F5BD5 100%)}
+.gf-follow-facebook .gf-follow-tile{background:#1877F2}
+.gf-sheet-skip{height:48px;border:0;background:transparent;font-size:15px;font-weight:700;color:#4A4658;border-radius:14px}
+.gf-thanks{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px 0 4px;animation:gf-up .35s cubic-bezier(.2,.8,.2,1) both}
+.gf-thanks-ring{stroke-dasharray:1;stroke-dashoffset:1;transform:rotate(-90deg);transform-origin:50% 50%;animation:gf-draw .5s cubic-bezier(.4,0,.2,1) .05s forwards}
+.gf-thanks-tick{stroke-dasharray:1;stroke-dashoffset:1;animation:gf-draw .32s cubic-bezier(.4,0,.2,1) .45s forwards}
+.gf-toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:95;max-width:min(360px,calc(100vw - 32px));padding:11px 16px;border-radius:16px;background:#fff;color:#17151F;font-size:14px;font-weight:600;text-align:center;box-shadow:0 14px 34px -14px rgba(0,0,0,.5);animation:gf-up .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes gf-fade{from{opacity:0}to{opacity:1}}
+@keyframes gf-fade-out{from{opacity:1}to{opacity:0}}
+@keyframes gf-sheet-in{from{transform:translateY(100%)}to{transform:none}}
+@keyframes gf-sheet-pop{from{transform:translateY(24px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+@keyframes gf-sheet-down{from{transform:none}to{transform:translateY(100%)}}
+@keyframes gf-glow{0%{box-shadow:0 0 0 0 rgba(214,41,118,.45)}100%{box-shadow:0 0 0 16px rgba(214,41,118,0)}}
+@keyframes gf-draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.gf-thanks-ring,.gf-thanks-tick{stroke-dashoffset:0}}

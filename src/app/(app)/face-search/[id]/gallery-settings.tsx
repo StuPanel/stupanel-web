@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  CalendarClock, ChevronRight, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
+  CalendarClock, Check, ChevronRight, Megaphone, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { Group, PaneHeader, Row, Segmented, SettingsCtx, Switch, TextArea, TextF
 import { DEFAULT_GUEST_MESSAGE, errText, type FaceDetail, type FaceSettings } from "@/lib/face";
 import { PhonePreview, type Screen } from "./phone-preview";
 
-type Sec = "page" | "access" | "msgs" | "photos" | "dl" | "match" | "mark" | "end";
+type Sec = "page" | "access" | "msgs" | "grow" | "photos" | "dl" | "match" | "mark" | "end";
 type Save = (patch: Partial<FaceSettings>, extra?: { title?: string }) => Promise<void>;
 type Pane = { id: Sec; title: string; sub: string; now: string; icon: React.ElementType; color: string };
 
@@ -52,8 +52,9 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
       { id: "page", title: "General", sub: "The name guests see, a short note, and how long the gallery stays open.", now: s.expiresAt ? `Open until ${shortDay(s.expiresAt)}` : s.welcome ? "Name and note" : "Name", icon: Type, color: "violet" },
     ] },
     { title: "Guests", panes: [
-      { id: "access", title: "Access and privacy", sub: "Who can open the photos, and what a guest must do first.", now: [s.pin ? "Code" : "", s.fullPin ? "All-photos code" : "", asks ? "Name and number" : "", s.followFacebook || s.followInstagram ? "Follow" : ""].filter(Boolean).join(", ") || "Open to anyone with the link", icon: KeyRound, color: "teal" },
+      { id: "access", title: "Access and privacy", sub: "Who can open the photos, and what a guest must do first.", now: [s.pin ? "Code" : "", s.fullPin ? "All-photos code" : "", asks ? "Guest details" : ""].filter(Boolean).join(", ") || "Open to anyone with the link", icon: KeyRound, color: "teal" },
       { id: "msgs", title: "Messages to guests", sub: "How guests are told that their photos are ready, and what the message says.", now: !asks ? "Nobody to send to" : s.notifyEmail === false ? "WhatsApp by hand" : s.notifyWhen === "manual" ? "Email when I press" : "Email by itself", icon: Send, color: "blue" },
+      { id: "grow", title: "Grow your studio", sub: "Ask guests to follow your pages, and let them share photos with your tag.", now: !(s.followFacebook || s.followInstagram) || (s.followWhen ?? "downloaded") === "off" ? (s.shareButton === false ? "Off" : "Share on") : FOLLOW_SHORT[s.followWhen ?? "downloaded"], icon: Megaphone, color: "orchid" },
     ] },
     { title: "Photos", panes: [
       { id: "photos", title: "Photos guests get", sub: "Which photos a guest sees.", now: s.guestsSee === "all" ? "All photos" : "Only their own", icon: Images, color: "green" },
@@ -66,7 +67,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
     ] },
   ];
   const cur = groups.flatMap(x => x.panes).find(x => x.id === sec)!;
-  const SCREEN_OF: Record<Sec, Screen> = { page: "land", access: "register", msgs: "wait", photos: "results", dl: "results", match: "results", mark: "results", end: "land" };
+  const SCREEN_OF: Record<Sec, Screen> = { page: "land", access: "register", msgs: "wait", grow: "follow", photos: "results", dl: "results", match: "results", mark: "results", end: "land" };
   const go = (id: Sec) => { setSec(id); setOpen(true); setScreen(SCREEN_OF[id]); };
 
   return (
@@ -125,6 +126,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
             <PaneHeader icon={cur.icon} color={cur.color} title={cur.title} sub={cur.sub} onBack={() => setOpen(false)} />
             {sec === "page" && <PageSec g={g} s={s} save={save} go={go} />}
             {sec === "access" && <AccessSec s={s} save={save} />}
+            {sec === "grow" && <GrowSec s={s} save={save} />}
             {sec === "msgs" && <MsgSec g={g} s={s} save={save} toAccess={() => go("access")} />}
             {sec === "photos" && <PhotosSec s={s} save={save} />}
             {sec === "dl" && <DownloadsSec s={s} save={save} />}
@@ -294,14 +296,6 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
         </>}
       </Group>
 
-      <Group title="Follow your pages" note="Shown once before the photos. Leave both empty for no such step. We can't check that they pressed Follow.">
-        <Row label="Facebook page">
-          <TextField label="Facebook page" value={s.followFacebook ?? ""} maxLength={200} placeholder="facebook.com/yourstudio" onCommit={v => save({ followFacebook: v })} />
-        </Row>
-        <Row label="Instagram">
-          <TextField label="Instagram" value={s.followInstagram ?? ""} maxLength={200} placeholder="instagram.com/yourstudio" onCommit={v => save({ followInstagram: v })} />
-        </Row>
-      </Group>
     </>
   );
 }
@@ -357,6 +351,90 @@ function sampleMessage(t: string, event: string, studio: string) {
   const body = (t.trim() || DEFAULT_GUEST_MESSAGE).replace(/\{name\}/gi, "Guest").replace(/\{event\}/gi, event).replace(/\{studio\}/gi, studio).replace(/\{count\}/gi, "12 photos");
   const link = "app.stupanel.com/f/…";
   return /\{link\}/i.test(t.trim() || DEFAULT_GUEST_MESSAGE) ? body.replace(/\{link\}/gi, link) : `${body}\n${link}`;
+}
+
+type FollowWhen = NonNullable<FaceSettings["followWhen"]>;
+const FOLLOW_SHORT: Record<FollowWhen, string> = { off: "Follow off", before: "Follow before photos", results: "Follow when photos appear", open: "Follow on opening a photo", download: "Follow on Download", downloaded: "Follow after a download" };
+const MOMENTS: { v: FollowWhen; title: string; text: string; tag?: string }[] = [
+  { v: "downloaded", title: "After a download", text: "The guest has their photo, then a card asks to follow. The happiest moment, so the most follows and no annoyance.", tag: "Best" },
+  { v: "results", title: "When the photos appear", text: "A moment after the guest sees their photos, the card slides up over them." },
+  { v: "open", title: "When a photo is opened", text: "The card comes up over the first photo the guest opens." },
+  { v: "download", title: "When Download is pressed", text: "The card comes first; the photo saves from the card's button." },
+  { v: "before", title: "Before the photos", text: "A whole screen before the photos open. Guests see it first, but some find it annoying." },
+  { v: "off", title: "Don't ask", text: "No follow card. The Share button still works if it is on." },
+];
+
+/** Marketing: when guests are asked to follow the studio, the words, and sharing with the studio's tag. */
+function GrowSec({ s, save }: { s: FaceSettings; save: Save }) {
+  const when: FollowWhen = s.followWhen ?? "downloaded";
+  const pages = !!(s.followFacebook || s.followInstagram);
+  const holds = when === "before" || when === "download";
+  const handle = (() => { try { return s.followInstagram ? new URL(s.followInstagram).pathname.split("/").filter(Boolean)[0] ?? "" : ""; } catch { return ""; } })();
+  return (
+    <>
+      <Group title="Your pages" note="Instagram is shown first. On a phone the link opens the Instagram or Facebook app. We can't see whether a guest really followed: the card thanks them when they come back.">
+        <Row label="Instagram">
+          <TextField label="Instagram" value={s.followInstagram ?? ""} maxLength={200} placeholder="instagram.com/yourstudio" onCommit={v => save({ followInstagram: v })} />
+        </Row>
+        <Row label="Facebook page">
+          <TextField label="Facebook page" value={s.followFacebook ?? ""} maxLength={200} placeholder="facebook.com/yourstudio" onCommit={v => save({ followFacebook: v })} />
+        </Row>
+      </Group>
+
+      <Group title="When to ask guests to follow" note={pages ? "Each guest is asked once. After they open your page they are never asked again on that phone." : "Add a page above first."}>
+        <div role="radiogroup" aria-label="When to ask guests to follow" className="p-2 grid gap-1.5">
+          {MOMENTS.map(m => {
+            const on = when === m.v;
+            return (
+              <button key={m.v} type="button" role="radio" aria-checked={on} disabled={!pages && m.v !== "off"} onClick={() => save({ followWhen: m.v })}
+                className={cn("w-full text-left rounded-[16px] px-3.5 py-3 flex items-start gap-3 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B3FD0]/50", on ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "hover:bg-[#F7F5FB]")}>
+                <span aria-hidden className={cn("mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "border-[#CFC9DC]")}>{on && <Check className="w-3 h-3" strokeWidth={3.5} />}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn("text-[14px] font-semibold flex items-center gap-2", on ? "text-[#4B32B8]" : "text-[#17151F]")}>{m.title}{m.tag && <span className="text-[10.5px] font-bold text-[#0B7A47] bg-[#E6F6EE] rounded-full px-2 py-0.5">{m.tag}</span>}</span>
+                  <span className="block text-[12.5px] leading-snug text-[#6B6680] mt-0.5">{m.text}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Group>
+
+      {pages && when !== "off" && (
+        <Group title="Rules">
+          <Row label="Guests can skip" hint={holds
+            ? (s.followSkip === false ? (when === "before" ? "Off. The photos open only after a page was opened." : "Off. The download goes on only after a page was opened.") : "On. The card has \"Not now\" (or \"Skip and download\").")
+            : "This moment never holds anything back, so guests can always close the card."}>
+            <Switch label="Guests can skip" on={s.followSkip !== false || !holds} disabled={!holds} onChange={v => save({ followSkip: v })} />
+          </Row>
+          <Row label="Ask again on a later visit" hint={s.followAgain === false ? "Off. A guest who pressed Not now is not asked again on that phone." : "On. A guest who pressed Not now is asked once more when they come back."}>
+            <Switch label="Ask again on a later visit" on={s.followAgain !== false} onChange={v => save({ followAgain: v })} />
+          </Row>
+        </Group>
+      )}
+
+      {pages && when !== "off" && (
+        <Group title="The words on the card" note="Leave empty for the usual words. The guest page language decides the usual words; yours stay as you write them.">
+          <Row stack label="Title">
+            <TextField label="Card title" value={s.followTitle ?? ""} maxLength={80} placeholder="Enjoying your photos?" onCommit={v => save({ followTitle: v })} />
+          </Row>
+          <Row stack label="Text">
+            <TextArea label="Card text" value={s.followText ?? ""} rows={2} maxLength={200} placeholder="Follow us to see more of our work." onCommit={v => save({ followText: v })} />
+          </Row>
+        </Group>
+      )}
+
+      <Group title="Share with your tag" note="Instagram does not let apps add text to a post, so the caption is copied and the guest pastes it. With the watermark on, your name is on every shared photo too.">
+        <Row label="Share button" hint={s.shareButton === false ? "Off." : "On. In the opened photo, next to Download (phones and tablets)."}>
+          <Switch label="Share button" on={s.shareButton !== false} onChange={v => save({ shareButton: v })} />
+        </Row>
+        {s.shareButton !== false && (
+          <Row stack label="Caption" hint={<>Leave empty for &quot;📸 Photo by {handle ? `@${handle}` : "your studio name"}&quot;. You can use {"{handle}"}, {"{studio}"} and {"{event}"}.</>}>
+            <TextField label="Share caption" value={s.shareCaption ?? ""} maxLength={200} placeholder={`📸 Photo by ${handle ? `@${handle}` : "{studio}"}`} onCommit={v => save({ shareCaption: v })} />
+          </Row>
+        )}
+      </Group>
+    </>
+  );
 }
 
 function MsgSec({ g, s, save, toAccess }: { g: FaceDetail; s: FaceSettings; save: Save; toAccess: () => void }) {

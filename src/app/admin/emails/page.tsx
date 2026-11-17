@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, Mail, RefreshCw, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, DownloadCloud, Loader2, Mail, RefreshCw, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { Btn, Msg, Page, Panel, fmtWhen, inp } from "../_components/staff-kit";
@@ -35,6 +35,20 @@ export default function AdminEmailsPage() {
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [okMsg, setOkMsg] = useState("");
+
+  /** Emails sent before counting started (17 Nov 2026) are brought in from Resend's own list. */
+  async function importPast() {
+    setImporting(true); setErr(""); setOkMsg("");
+    try {
+      const r = await fetch(`${API}/admin/email-usage/import`, { method: "POST", headers: H() });
+      const x = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(r.status === 403 ? "Only staff who manage plans can do this." : x.message || "Couldn't bring in past emails."); return; }
+      setOkMsg(x.imported ? `Brought in ${n(x.imported)} past emails${x.oldest ? ` (oldest ${fmtWhen(x.oldest)})` : ""}.` : "Nothing new — all emails Resend still has are already counted.");
+      setPeriod("all"); setBack(0); void load();
+    } finally { setImporting(false); }
+  }
 
   const load = useCallback(async () => {
     setErr("");
@@ -51,9 +65,9 @@ export default function AdminEmailsPage() {
   const list = (o?.studios ?? []).filter(s => !q.trim() || s.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <Page title="Emails" sub="How many emails each studio sends, to whom, and its monthly limit. Each person an email goes to counts as one."
-      right={<Btn variant="ghost" onClick={() => void load()}><RefreshCw className="w-3.5 h-3.5" />Refresh</Btn>}>
+      right={<div className="flex gap-2"><Btn variant="ghost" loading={importing} onClick={importPast} title="Bring in emails sent before counting started, from Resend"><DownloadCloud className="w-3.5 h-3.5" />Past emails</Btn><Btn variant="ghost" onClick={() => void load()}><RefreshCw className="w-3.5 h-3.5" />Refresh</Btn></div>}>
       <PeriodBar period={period} back={back} label={o?.label ?? ""} onPeriod={p => { setPeriod(p); setBack(0); }} onBack={setBack} />
-      <Msg error={err} />
+      <Msg error={err} ok={okMsg} />
       {!o ? <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div> : (
         <>
           <Totals c={o.totals} />
@@ -157,7 +171,7 @@ function Bars({ bars }: { bars: EmailBar[] }) {
       <div className="h-44 flex items-end gap-[3px]" role="img" aria-label={`Emails sent: ${bars.map(b => `${b.label} ${b.total}`).join(", ")}`}>
         {bars.map(b => (
           <div key={b.key} className="group flex-1 min-w-0 h-full flex flex-col justify-end relative" title={`${b.label}: ${n(b.total)} sent${WHO.filter(w => b[w.id]).map(w => `\n${w.short}: ${n(b[w.id])}`).join("")}`}>
-            <div className="w-full rounded-t-[3px] overflow-hidden flex flex-col-reverse transition-[height] duration-500 ease-out group-hover:opacity-80" style={{ height: `${(b.total / max) * 100}%` }}>
+            <div className="w-full max-w-[56px] mx-auto rounded-t-[3px] overflow-hidden flex flex-col-reverse transition-[height] duration-500 ease-out group-hover:opacity-80" style={{ height: `${(b.total / max) * 100}%` }}>
               {WHO.map(w => b[w.id] ? <div key={w.id} style={{ height: `${(b[w.id] / b.total) * 100}%`, background: w.color }} /> : null)}
             </div>
             {b.total === 0 && <div className="w-full h-[2px] bg-slate-700 rounded" />}

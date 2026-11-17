@@ -43,6 +43,8 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
+  /** "Live settings" in the Live tab opens Settings on its StuPanel Live section. */
+  const [settingsAt, setSettingsAt] = useState<"live" | undefined>(undefined);
 
   const load = useCallback(async () => {
     const r = await apiFetch(`${API}/face-search/${id}`).catch(() => null);
@@ -102,7 +104,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
             ? <button type="button" disabled={busy} onClick={() => act("unpublish")} className={cn("h-11 px-4 rounded-full bg-white text-[13px] font-semibold text-[#17151F] disabled:opacity-50", CARD_SHADOW)}>Unpublish</button>
             : <button type="button" disabled={busy || !c.ready} onClick={() => act("publish")} title={c.ready ? "" : "Add photos first"} className="h-11 px-5 rounded-full bg-[#1F8A5B] text-white text-[13px] font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Publish</button>}
           <button type="button" onClick={() => setAdding(true)} className="h-11 px-5 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />Add photos</button>
-          <button type="button" onClick={() => setTab("settings")} aria-label="Gallery settings" title="Gallery settings"
+          <button type="button" onClick={() => { setSettingsAt(undefined); setTab("settings"); }} aria-label="Gallery settings" title="Gallery settings"
             className={cn("w-11 h-11 rounded-full bg-white text-[#17151F] inline-flex items-center justify-center", CARD_SHADOW, tab === "settings" && "ring-2 ring-[#7D5CEF]")}><SettingsIcon className="w-[18px] h-[18px]" /></button>
         </div>
       </div>
@@ -120,7 +122,7 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <Sections value={tab} onChange={setTab} tabs={[
+      <Sections value={tab} onChange={t => { setSettingsAt(undefined); setTab(t); }} tabs={[
         { id: "photos", label: "Photos", icon: Images, count: c.photos }, { id: "guests", label: "Guests", icon: Users, count: c.guests },
         { id: "live", label: "Live", icon: Radio }, { id: "share", label: "Share", icon: Share2 }, { id: "settings", label: "Settings", icon: SettingsIcon },
       ]} />
@@ -137,9 +139,9 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
       {tab === "guests" && <GuestsTab id={g.id} title={g.title} status={g.status} onSettings={() => setTab("settings")} />}
-      {tab === "live" && <LiveTab g={g} onSettings={() => setTab("settings")} onChanged={() => { load(); setTick(n => n + 1); }} />}
+      {tab === "live" && <LiveTab g={g} onSettings={() => { setSettingsAt("live"); setTab("settings"); }} onChanged={() => { load(); setTick(n => n + 1); }} />}
       {tab === "share" && <ShareTab g={g} onSaved={setG} onSettings={() => setTab("settings")} />}
-      {tab === "settings" && <GallerySettings g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
+      {tab === "settings" && <GallerySettings key={settingsAt ?? "page"} start={settingsAt} g={g} onSaved={setG} onRemoved={() => router.replace("/face-search")} onAct={act} />}
 
       {adding && <AddPhotos g={g} onClose={() => setAdding(false)} onRefresh={() => { load(); setTick(n => n + 1); }}
         onAdded={() => { setAdding(false); setTab("photos"); load(); setTick(n => n + 1); }} />}

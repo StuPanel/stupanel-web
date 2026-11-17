@@ -226,7 +226,8 @@ export default function DashboardPage() {
         {recent === null ? <RowsSkeleton n={5} /> : recent.length === 0 ? (
           <Empty icon={Camera} title="No programs yet" text="Add your first program to see it here." cta={{ href: "/programs", label: "Add program" }} />
         ) : recent.map(b => {
-          const due = Math.max(0, b.grandTotal - b.paidAmount);
+          // A cancelled program asks for nothing (same as the Programs list and "Still due").
+          const due = b.status === "cancelled" || b.status === "refunded" ? 0 : Math.max(0, b.grandTotal - b.paidAmount);
           return (
             <Link key={b.id} href={`/programs?view=${b.id}`}
               className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[64px] hover:bg-[#F7F5FB] transition-colors">

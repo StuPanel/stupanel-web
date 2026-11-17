@@ -327,7 +327,7 @@ function DownloadsSec({ s, save }: { s: FaceSettings; save: Save }) {
   const size = s.downloadSize ?? "original";
   return (
     <>
-    <Group title="Size of the saved photos" note={s.watermark ? "With the watermark on, guests save a 2560 px copy with your mark; the size sets how small its file is." : "Measured on real wedding photos. The photo's width and height never change; only the file gets lighter."}>
+    <Group title="Size of the saved photos" note={s.watermark ? "With the watermark on, guests save a 2560 px copy with your mark; the size sets how small its file is." : "The photo's width and height never change; only the file gets lighter."}>
       <div role="radiogroup" aria-label="Size of the saved photos" className="p-2 grid gap-1.5">
         {SIZES.map(x => {
           const on = size === x.v;

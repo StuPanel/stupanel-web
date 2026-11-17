@@ -229,3 +229,14 @@
 .gf-ready{animation:gf-breathe 1.4s ease-in-out 2}
 @keyframes gf-breathe{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(125,92,239,.45)}50%{transform:scale(1.03);box-shadow:0 0 0 10px rgba(125,92,239,0)}}
 @media (prefers-reduced-motion:reduce){.gf-print img.gf-wait{animation:none}.gf-ready{animation:none}}
+
+/* After the photos: the studio's "Book us" card. Comes in softly once scrolled into view. */
+.gf-book{margin:22px 2px 8px;padding:16px;border-radius:24px;background:#fff;box-shadow:0 1px 0 rgba(23,21,31,.04),0 14px 30px -22px rgba(40,28,96,.55);opacity:0;transform:translateY(14px);transition:opacity .45s ease,transform .5s cubic-bezier(.2,.8,.2,1)}
+.gf-book-in{opacity:1;transform:none}
+.gf-book .gf-ava{border-radius:16px;flex:none}
+.gf-book-wa,.gf-book-review{display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;border-radius:16px;font-weight:700;font-size:16px;text-decoration:none;transition:transform .15s ease}
+.gf-book-wa{background:#1E8E4E;color:#fff}
+.gf-book-review{background:#F4F1EA;color:#17151F}
+.gf-book-wa:active,.gf-book-review:active{transform:scale(.98)}
+.gf-book-wa:focus-visible,.gf-book-review:focus-visible{outline:3px solid rgba(125,92,239,.5);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.gf-book{opacity:1;transform:none;transition:none}}

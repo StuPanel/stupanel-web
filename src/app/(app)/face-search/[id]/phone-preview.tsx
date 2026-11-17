@@ -10,9 +10,9 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { FaceDetail, FacePhoto, FaceSettings } from "@/lib/face";
 
-export type Screen = "land" | "register" | "wait" | "results" | "follow";
+export type Screen = "land" | "register" | "wait" | "results" | "follow" | "book";
 const SCREENS: { id: Screen; label: string }[] = [
-  { id: "land", label: "First screen" }, { id: "register", label: "Details" }, { id: "wait", label: "On the list" }, { id: "results", label: "Photos" }, { id: "follow", label: "Follow" },
+  { id: "land", label: "First screen" }, { id: "register", label: "Details" }, { id: "wait", label: "On the list" }, { id: "results", label: "Photos" }, { id: "follow", label: "Follow" }, { id: "book", label: "Book us" },
 ];
 const W = 390, H = 844;
 
@@ -54,6 +54,7 @@ function Frame({ g, s, screen, before, scale }: { g: FaceDetail; s: FaceSettings
       follow: (s.followWhen ?? "downloaded") === "off" ? [] : [s.followInstagram ? { site: "instagram", url: s.followInstagram } : null, s.followFacebook ? { site: "facebook", url: s.followFacebook } : null].filter(Boolean),
       followWhen: s.followWhen ?? "downloaded", followSkip: s.followSkip !== false, followAgain: s.followAgain !== false, followTitle: s.followTitle ?? "", followText: s.followText ?? "",
       shareButton: s.shareButton !== false, shareCaption: s.shareCaption ?? "",
+      bookButton: s.bookButton !== false && !!s.bookWhatsApp, bookWhatsApp: s.bookButton !== false ? s.bookWhatsApp ?? "" : "", bookText: s.bookText ?? "", reviewUrl: s.reviewUrl ?? "",
     };
     const sample = photos.map(p => ({ ...p, wm: undefined }));
     frame.current.contentWindow.postMessage({ type: "sp-face-preview", data: { open, screen, photos: sample } }, window.location.origin);
@@ -100,13 +101,13 @@ export function PhonePreview({ g, s, screen, onScreen }: { g: FaceDetail; s: Fac
   const canEarly = asks;
   // "On the list" only exists before publishing; Photos only after.
   const shown: Screen = screen === "wait" && !canEarly ? "register" : screen;
-  const pick = (x: Screen) => { onScreen(x); if (x === "wait") setBefore(true); if (x === "results" || x === "follow") setBefore(false); };
-  const note = shown === "follow" ? "The follow card, as guests get it at the moment you picked." : shown === "wait" ? "What a guest sees after giving their details before you publish." : shown === "register" ? (asks ? "Try it: type in the form to see the checks." : "Guest details are off.") : shown === "results" ? "Sample: a few photos of this gallery." : before ? "Before you publish: guests can sign up." : "After you publish.";
+  const pick = (x: Screen) => { onScreen(x); if (x === "wait") setBefore(true); if (x === "results" || x === "follow" || x === "book") setBefore(false); };
+  const note = shown === "book" ? "The card after the photos: booking on WhatsApp and your review link." : shown === "follow" ? "The follow card, as guests get it at the moment you picked." : shown === "wait" ? "What a guest sees after giving their details before you publish." : shown === "register" ? (asks ? "Try it: type in the form to see the checks." : "Guest details are off.") : shown === "results" ? "Sample: a few photos of this gallery." : before ? "Before you publish: guests can sign up." : "After you publish.";
 
   const panel = (scale: number) => (
     <div className="flex flex-col gap-3">
       <Controls screen={shown} onScreen={pick} before={before} onBefore={setBefore} canEarly={canEarly} />
-      <Frame g={g} s={s} screen={shown} before={shown === "wait" ? true : shown === "results" || shown === "follow" ? false : before} scale={scale} />
+      <Frame g={g} s={s} screen={shown} before={shown === "wait" ? true : shown === "results" || shown === "follow" || shown === "book" ? false : before} scale={scale} />
       <p className="text-[12px] leading-snug text-[#6B6680] text-center px-2">{note} Nothing here is saved or sent.</p>
     </div>
   );

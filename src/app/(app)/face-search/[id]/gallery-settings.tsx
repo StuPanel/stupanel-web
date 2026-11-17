@@ -126,7 +126,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
             <PaneHeader icon={cur.icon} color={cur.color} title={cur.title} sub={cur.sub} onBack={() => setOpen(false)} />
             {sec === "page" && <PageSec g={g} s={s} save={save} go={go} />}
             {sec === "access" && <AccessSec s={s} save={save} />}
-            {sec === "grow" && <GrowSec s={s} save={save} />}
+            {sec === "grow" && <GrowSec g={g} s={s} save={save} onScreen={setScreen} />}
             {sec === "msgs" && <MsgSec g={g} s={s} save={save} toAccess={() => go("access")} />}
             {sec === "photos" && <PhotosSec s={s} save={save} />}
             {sec === "dl" && <DownloadsSec s={s} save={save} />}
@@ -391,19 +391,54 @@ const MOMENTS: { v: FollowWhen; title: string; text: string; tag?: string }[] = 
 ];
 
 /** Marketing: when guests are asked to follow the studio, the words, and sharing with the studio's tag. */
-function GrowSec({ s, save }: { s: FaceSettings; save: Save }) {
+/** A saved WhatsApp number as people write it: "8801712…" → "01712…", other countries with "+". */
+const localNumber = (v: string) => (v.startsWith("880") ? `0${v.slice(3)}` : /^\d{8,15}$/.test(v) && !v.startsWith("0") ? `+${v}` : v);
+
+type Grow = { follow: number; instagram: number; facebook: number; share: number; book: number; review: number };
+
+/** What guests did for the studio in this gallery: people, each counted once. */
+function GrowNumbers({ id }: { id: string }) {
+  const [n, setN] = useState<Grow | null>(null);
+  useEffect(() => {
+    let on = true;
+    apiFetch(`${API}/face-search/${id}/grow`).then(r => (r.ok ? r.json() : null)).then(d => { if (on) setN(d); }).catch(() => undefined);
+    return () => { on = false; };
+  }, [id]);
+  const tiles: { label: string; value: number | undefined; sub?: string }[] = [
+    { label: "Followed", value: n?.follow, sub: n && (n.instagram || n.facebook) ? [n.instagram ? `Instagram ${n.instagram}` : "", n.facebook ? `Facebook ${n.facebook}` : ""].filter(Boolean).join(", ") : undefined },
+    { label: "Shared a photo", value: n?.share }, { label: "Asked to book", value: n?.book }, { label: "Opened reviews", value: n?.review },
+  ];
+  return (
+    <section aria-label="What guests did" className="mb-7">
+      <h2 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658]">What guests did</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {tiles.map(t => (
+          <div key={t.label} className="rounded-[18px] bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(23,21,31,.04),0_10px_26px_-18px_rgba(40,28,96,.2)]">
+            <p className="text-[24px] font-extrabold tabular-nums text-[#17151F] leading-none">{n ? t.value : "–"}</p>
+            <p className="text-[12.5px] font-semibold text-[#4A4658] mt-1.5">{t.label}</p>
+            {t.sub && <p className="text-[11.5px] text-[#6B6680] mt-0.5">{t.sub}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="px-1 mt-2 text-[12px] text-[#6B6680]">Each guest is counted once. Instagram and Facebook do not tell us who really followed: this counts guests who opened your page from here.</p>
+    </section>
+  );
+}
+
+function GrowSec({ g, s, save, onScreen }: { g: FaceDetail; s: FaceSettings; save: Save; onScreen: (x: Screen) => void }) {
   const when: FollowWhen = s.followWhen ?? "downloaded";
   const pages = !!(s.followFacebook || s.followInstagram);
   const holds = when === "before" || when === "download";
   const handle = (() => { try { return s.followInstagram ? new URL(s.followInstagram).pathname.split("/").filter(Boolean)[0] ?? "" : ""; } catch { return ""; } })();
   return (
     <>
+      <GrowNumbers id={g.id} />
       <Group title="Your pages" note="Instagram is shown first. On a phone the link opens the Instagram or Facebook app. We can't see whether a guest really followed: the card thanks them when they come back.">
         <Row label="Instagram">
-          <TextField label="Instagram" value={s.followInstagram ?? ""} maxLength={200} placeholder="instagram.com/yourstudio" onCommit={v => save({ followInstagram: v })} />
+          <TextField label="Instagram" value={s.followInstagram ?? ""} maxLength={200} placeholder="instagram.com/yourstudio" onCommit={v => { save({ followInstagram: v }); onScreen("follow"); }} />
         </Row>
         <Row label="Facebook page">
-          <TextField label="Facebook page" value={s.followFacebook ?? ""} maxLength={200} placeholder="facebook.com/yourstudio" onCommit={v => save({ followFacebook: v })} />
+          <TextField label="Facebook page" value={s.followFacebook ?? ""} maxLength={200} placeholder="facebook.com/yourstudio" onCommit={v => { save({ followFacebook: v }); onScreen("follow"); }} />
         </Row>
       </Group>
 
@@ -412,7 +447,7 @@ function GrowSec({ s, save }: { s: FaceSettings; save: Save }) {
           {MOMENTS.map(m => {
             const on = when === m.v;
             return (
-              <button key={m.v} type="button" role="radio" aria-checked={on} disabled={!pages && m.v !== "off"} onClick={() => save({ followWhen: m.v })}
+              <button key={m.v} type="button" role="radio" aria-checked={on} disabled={!pages && m.v !== "off"} onClick={() => { save({ followWhen: m.v }); onScreen("follow"); }}
                 className={cn("w-full text-left rounded-[16px] px-3.5 py-3 flex items-start gap-3 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B3FD0]/50", on ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "hover:bg-[#F7F5FB]")}>
                 <span aria-hidden className={cn("mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "border-[#CFC9DC]")}>{on && <Check className="w-3 h-3" strokeWidth={3.5} />}</span>
                 <span className="min-w-0 flex-1">
@@ -430,7 +465,7 @@ function GrowSec({ s, save }: { s: FaceSettings; save: Save }) {
           <Row label="Guests can skip" hint={holds
             ? (s.followSkip === false ? (when === "before" ? "Off. The photos open only after a page was opened." : "Off. The download goes on only after a page was opened.") : "On. The card has \"Not now\" (or \"Skip and download\").")
             : "This moment never holds anything back, so guests can always close the card."}>
-            <Switch label="Guests can skip" on={s.followSkip !== false || !holds} disabled={!holds} onChange={v => save({ followSkip: v })} />
+            <Switch label="Guests can skip" on={s.followSkip !== false || !holds} disabled={!holds} onChange={v => { save({ followSkip: v }); onScreen("follow"); }} />
           </Row>
           <Row label="Ask again on a later visit" hint={s.followAgain === false ? "Off. A guest who pressed Not now is not asked again on that phone." : "On. A guest who pressed Not now is asked once more when they come back."}>
             <Switch label="Ask again on a later visit" on={s.followAgain !== false} onChange={v => save({ followAgain: v })} />
@@ -441,13 +476,33 @@ function GrowSec({ s, save }: { s: FaceSettings; save: Save }) {
       {pages && when !== "off" && (
         <Group title="The words on the card" note="Leave empty for the usual words. The guest page language decides the usual words; yours stay as you write them.">
           <Row stack label="Title">
-            <TextField label="Card title" value={s.followTitle ?? ""} maxLength={80} placeholder="Enjoying your photos?" onCommit={v => save({ followTitle: v })} />
+            <TextField label="Card title" value={s.followTitle ?? ""} maxLength={80} placeholder="Enjoying your photos?" onCommit={v => { save({ followTitle: v }); onScreen("follow"); }} />
           </Row>
           <Row stack label="Text">
-            <TextArea label="Card text" value={s.followText ?? ""} rows={2} maxLength={200} placeholder="Follow us to see more of our work." onCommit={v => save({ followText: v })} />
+            <TextArea label="Card text" value={s.followText ?? ""} rows={2} maxLength={200} placeholder="Follow us to see more of our work." onCommit={v => { save({ followText: v }); onScreen("follow"); }} />
           </Row>
         </Group>
       )}
+
+      <Group title="Book us" note="Shown after the photos. The guest's WhatsApp opens with the message ready; they only press Send.">
+        <Row label="Book us card" hint={s.bookButton === false ? "Off." : s.bookWhatsApp ? "On." : "Add your WhatsApp number to show it."}>
+          <Switch label="Book us card" on={s.bookButton !== false} onChange={v => { save({ bookButton: v }); onScreen("book"); }} />
+        </Row>
+        {s.bookButton !== false && <>
+          <Row label="WhatsApp number" hint="The number that gets the booking messages, like 01XXXXXXXXX.">
+            <TextField label="Booking WhatsApp number" value={localNumber(s.bookWhatsApp ?? "")} maxLength={20} placeholder="01XXXXXXXXX" onCommit={v => { save({ bookWhatsApp: v }); onScreen("book"); }} />
+          </Row>
+          <Row stack label="Message" hint={<>Leave empty for the usual one. You can use {"{studio}"} and {"{event}"}.</>}>
+            <TextArea label="Booking message" value={s.bookText ?? ""} rows={2} maxLength={300} placeholder="Hi {studio}, I saw my photos from {event}. I would like to book you for my event." onCommit={v => { save({ bookText: v }); onScreen("book"); }} />
+          </Row>
+        </>}
+      </Group>
+
+      <Group title="Reviews" note="A Google review link (Google Business Profile → Ask for reviews) or your Facebook page's reviews. Leave empty for none.">
+        <Row label="Review link">
+          <TextField label="Review link" value={s.reviewUrl ?? ""} maxLength={300} placeholder="g.page/r/…/review" onCommit={v => { save({ reviewUrl: v }); onScreen("book"); }} />
+        </Row>
+      </Group>
 
       <Group title="Share with your tag" note="Instagram does not let apps add text to a post, so the caption is copied and the guest pastes it. With the watermark on, your name is on every shared photo too.">
         <Row label="Share button" hint={s.shareButton === false ? "Off." : "On. In the opened photo, next to Download (phones and tablets)."}>

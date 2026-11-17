@@ -298,7 +298,7 @@ function EntryForm({ dir, line, accounts, onDone }: { dir: "income" | "expense";
           </select>
         </Field>
         {goesNegative && <p className="flex items-center gap-1.5 text-[13px] text-[#9E3A8C] bg-[#FBF2FA] rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4" />{acc?.name} will go below zero. You can still save.</p>}
-        <Field label="What for"><input value={f.description} onChange={e => setF({ ...f, description: e.target.value })} placeholder={dir === "expense" ? "e.g. Office rent — November" : "e.g. Drone rent to Rahim"} className={inputCls} /></Field>
+        <Field label="What for"><input value={f.description} onChange={e => setF({ ...f, description: e.target.value })} placeholder={dir === "expense" ? "e.g. Office rent — November" : "e.g. Drone rent from a client"} className={inputCls} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category">
             <EditableSelect value={f.category} onChange={v => setF({ ...f, category: v })} options={(dir === "expense" ? EXPENSE_CATS : INCOME_CATS).map(c => ({ value: c, label: label(c) }))} />

@@ -14,7 +14,9 @@ import { N, P, T, setGuestLang, type Lang } from "./i18n";
 import "./guest.css";
 
 type Ask = "hide" | "optional" | "required";
-type Open = { /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+/** What the details form asks for: each field off (hide), optional or required; oneOf = with WhatsApp and Email both optional, one of the two is needed. */
+type Rules = { name: Ask; phone: Ask; email: Ask; oneOf: boolean };
+type Open = { /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
@@ -202,7 +204,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
-        <Register base={base} res={res} askPhone={g.askPhone} askEmail={g.askEmail} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
+        <Register base={base} res={res} rules={{ name: g.askName ?? "required", phone: g.askPhone ?? "optional", email: g.askEmail ?? "optional", oneOf: g.contactOne ?? true }} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
       )}
       {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} onRetake={() => { setNote(""); setStep("selfie"); }} />}
       {step === "follow" && res && g.follow && (
@@ -351,44 +353,73 @@ function Pin({ base, link, value, note, onChange, onBack, onDone }: { base: stri
 
 // ─── Name and number ─────────────────────────────────────────────────────────
 
-function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; askPhone?: Ask; askEmail?: Ask; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
+function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; rules: Rules; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
-  const [err, setErr] = useState("");
+  /** Errors next to each field, and one for the form (one-of-two, server). */
+  const [errs, setErrs] = useState<{ name?: string; phone?: string; mail?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
   const n = res.count ?? res.photos.length;
   const waiting = !!res.waiting;
   /** Came by the all-photos link without a selfie: there is no "photos of you" number to show. */
   const noSelfie = res.selfie === false;
-  // What the studio asks for. A guest must be reachable some way, so with both hidden the number is asked.
-  const mailAsk: Ask = askEmail ?? "optional";
-  const phoneAsk: Ask = (askPhone ?? "optional") === "hide" && mailAsk === "hide" ? "optional" : askPhone ?? "optional";
-  const both = phoneAsk !== "hide" && mailAsk !== "hide";
-  const either = both && phoneAsk === "optional" && mailAsk === "optional";
-  const opt = (a: Ask) => (a === "optional" && both && !either ? ` ${T("(optional)")}` : "");
+  const { name: nameAsk, phone: phoneAsk, email: mailAsk } = rules;
+  /** WhatsApp and Email both optional, and one of the two is needed. */
+  const oneOf = rules.oneOf && phoneAsk === "optional" && mailAsk === "optional";
+  const opt = (a: Ask, contact = false) => (a === "optional" && !(contact && oneOf) ? ` ${T("(optional)")}` : "");
 
   async function send() {
     const digits = phone.replace(/[^\d+]/g, "");
-    if (name.trim().length < 2) return setErr(T("Please type your name."));
-    // One of the two is enough; both is best. Whatever is typed must be right.
+    const hasName = nameAsk !== "hide" && name.trim().length > 0;
     const hasPhone = phoneAsk !== "hide" && digits.replace(/\D/g, "").length > 0, hasMail = mailAsk !== "hide" && mail.trim().length > 0;
-    if (!hasPhone && (phoneAsk === "required" || mailAsk === "hide")) return setErr(T("Please give your WhatsApp number."));
-    if (!hasMail && (mailAsk === "required" || phoneAsk === "hide")) return setErr(T("Please give your email address."));
-    if (!hasPhone && !hasMail) return setErr(T("Please give your WhatsApp number or your email, or both."));
-    if (hasPhone && digits.replace(/\D/g, "").length < 10) return setErr(T("Please check your WhatsApp number, like 01712345678."));
-    if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) return setErr(T("Please check your email address."));
-    setErr(""); setBusy(true);
+    const e: typeof errs = {};
+    if (nameAsk === "required" && name.trim().length < 2) e.name = T("Please type your name.");
+    if (hasPhone && digits.replace(/\D/g, "").length < 10) e.phone = T("Please check your WhatsApp number, like 01XXXXXXXXX.");
+    else if (!hasPhone && phoneAsk === "required") e.phone = T("Please give your WhatsApp number.");
+    if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) e.mail = T("Please check your email address.");
+    else if (!hasMail && mailAsk === "required") e.mail = T("Please give your email address.");
+    if (!e.phone && !e.mail && oneOf && !hasPhone && !hasMail) e.form = T("Please give your WhatsApp number or your email, or both.");
+    if (!Object.keys(e).length && !hasName && !hasPhone && !hasMail) e.form = T("Please fill in at least one field.");
+    setErrs(e);
+    if (Object.keys(e).length) {
+      // The first field with a problem gets the focus.
+      const first = e.name ? "gf-name" : e.phone ? "gf-phone" : e.mail ? "gf-mail" : nameAsk !== "hide" ? "gf-name" : phoneAsk !== "hide" ? "gf-phone" : "gf-mail";
+      document.getElementById(first)?.focus();
+      return;
+    }
+    setBusy(true);
     // A local number (01…) is sent with Bangladesh's country code.
     const number = digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
-    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, name: name.trim(), ...(hasPhone ? { phone: number } : {}), ...(hasMail ? { email: mail.trim() } : {}) }) }).catch(() => null);
+    const r = await fetch(`${base}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: res.key, ...(hasName ? { name: name.trim() } : {}), ...(hasPhone ? { phone: number } : {}), ...(hasMail ? { email: mail.trim() } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     setBusy(false);
-    if (!r?.ok) return setErr(r?.status === 429 ? T("Too many tries. Please wait a minute.") : (Array.isArray(d?.message) ? d.message[0] : d?.message) || T("Could not save. Please check your internet and try again."));
+    if (!r?.ok) {
+      const m = Array.isArray(d?.message) ? d.message[0] : d?.message;
+      return setErrs({ form: r?.status === 429 ? T("Too many tries. Please wait a minute.") : m ? T(m) : T("Could not save. Please check your internet and try again.") });
+    }
     onDone();
   }
 
-  const field: React.CSSProperties = { width: "100%", height: 56, borderRadius: 18, border: "2px solid transparent", background: "#fff", padding: "0 18px", fontSize: 17, fontWeight: 600, color: "#17151F", outline: "none" };
+  const field = (bad?: string): React.CSSProperties => ({ width: "100%", height: 56, borderRadius: 18, border: `2px solid ${bad ? "#E0607A" : "transparent"}`, background: "#fff", padding: "0 18px", fontSize: 17, fontWeight: 600, color: "#17151F", outline: "none" });
+  const label: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 };
+  const errText = (id: string, m?: string) => (m ? <p id={id} role="alert" style={{ marginTop: 6, fontSize: 13.5, fontWeight: 600, color: "#C2304F" }}>{m}</p> : null);
+  const contactFields = (
+    <>
+      {phoneAsk !== "hide" && <div>
+        <label htmlFor="gf-phone" style={label}>{T("WhatsApp number")}{opt(phoneAsk, true)}</label>
+        <input id="gf-phone" value={phone} onChange={e => { setPhone(e.target.value); if (errs.phone || errs.form) setErrs({ ...errs, phone: undefined, form: undefined }); }} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01XXXXXXXXX"
+          style={field(errs.phone)} aria-invalid={!!errs.phone} aria-describedby={errs.phone ? "gf-phone-err" : undefined} onKeyDown={e => { if (e.key === "Enter" && mailAsk === "hide") void send(); }} />
+        {errText("gf-phone-err", errs.phone)}
+      </div>}
+      {mailAsk !== "hide" && <div>
+        <label htmlFor="gf-mail" style={label}>{T("Email address")}{opt(mailAsk, true)}</label>
+        <input id="gf-mail" value={mail} onChange={e => { setMail(e.target.value); if (errs.mail || errs.form) setErrs({ ...errs, mail: undefined, form: undefined }); }} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="name@example.com"
+          style={field(errs.mail)} aria-invalid={!!errs.mail} aria-describedby={errs.mail ? "gf-mail-err" : undefined} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+        {errText("gf-mail-err", errs.mail)}
+      </div>}
+    </>
+  );
   return (
     <div className="gf-step" style={{ padding: "26px 22px 26px" }}>
       <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
@@ -397,25 +428,25 @@ function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone,
           ? <img src={selfie} alt="" style={{ width: 76, height: 76, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 4px #fff, 0 10px 24px -10px rgba(40,28,96,.5)" }} />
           : null}
         <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? T("Where should we send your photos?") : noSelfie ? T("Almost there") : T("We found {photos} of you", { photos: P(n) })}</h1>
-        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? T("Your selfie is saved. {studio} sends your photos here when they are ready.", { studio }) : must ? T("Tell us who you are to see them.") : T("Add your name and number, and the studio can send you new photos too.")}</p>
+        <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? T("Your selfie is saved. {studio} sends your photos here when they are ready.", { studio }) : must ? T("Tell us who you are to see them.") : T("Add your details, and the studio can send you new photos too.")}</p>
       </div>
       <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label htmlFor="gf-name" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("Your name")}</label>
-          <input id="gf-name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={120} placeholder="Nadia Rahman" style={field} />
-        </div>
-        {phoneAsk !== "hide" && <div>
-          <label htmlFor="gf-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("WhatsApp number")}{opt(phoneAsk)}</label>
-          <input id="gf-phone" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01712345678" style={field}
-            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter" && mailAsk === "hide") void send(); }} />
+        {nameAsk !== "hide" && <div>
+          <label htmlFor="gf-name" style={label}>{T("Your name")}{opt(nameAsk)}</label>
+          <input id="gf-name" value={name} onChange={e => { setName(e.target.value); if (errs.name || errs.form) setErrs({ ...errs, name: undefined, form: undefined }); }} autoComplete="name" maxLength={120} placeholder={T("Full name")}
+            style={field(errs.name)} aria-invalid={!!errs.name} aria-describedby={errs.name ? "gf-name-err" : undefined} onKeyDown={e => { if (e.key === "Enter" && phoneAsk === "hide" && mailAsk === "hide") void send(); }} />
+          {errText("gf-name-err", errs.name)}
         </div>}
-        {mailAsk !== "hide" && <div>
-          <label htmlFor="gf-mail" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 }}>{T("Email address")}{opt(mailAsk)}</label>
-          <input id="gf-mail" value={mail} onChange={e => setMail(e.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="nadia@gmail.com" style={field}
-            aria-describedby={err ? "gf-reg-err" : "gf-reg-help"} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
-        </div>}
-        {err ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{err}</p>
-          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{either ? T("Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.", { studio }) : T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
+        {/* WhatsApp or Email, one is enough: the two sit together under one line that says so */}
+        {oneOf ? (
+          <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+            <legend style={{ fontSize: 13.5, fontWeight: 700, color: "#4B32B8", marginBottom: 10, padding: 0 }}>{T("WhatsApp or email: give one or both")}</legend>
+            {contactFields}
+          </fieldset>
+        ) : contactFields}
+        {errs.form
+          ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{errs.form}</p>
+          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{mailAsk !== "hide" ? T("With an email, your photos come to your inbox by themselves. Only {studio} sees this.", { studio }) : T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
         <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? T("Saving…") : waiting ? T("Tell me when they are ready") : noSelfie ? T("See all photos") : T(n === 1 ? "See my photo" : "See my photos")}</button>

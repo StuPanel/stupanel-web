@@ -31,6 +31,10 @@ export type FaceSettings = {
   language?: "en" | "bn";
   /** What the details form asks for besides the name (both hidden = the number is asked) */
   askPhone?: "hide" | "optional" | "required"; askEmail?: "hide" | "optional" | "required";
+  /** The guest's name in the details form */
+  askName?: "hide" | "optional" | "required";
+  /** With WhatsApp and Email both optional: one of the two is needed */
+  contactOne?: boolean;
   /** The all-photos link: also ask its code; ask for details first. The VIP link: also ask the guests' code. */
   fullAskPin?: boolean; fullRegister?: boolean; vipAskPin?: boolean;
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */

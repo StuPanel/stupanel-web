@@ -138,7 +138,7 @@ const shortDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("en
 
 /** Saves a dragged or typed value a moment after the last change. */
 type Ask = "hide" | "optional" | "required";
-const ASK: { value: Ask; label: string }[] = [{ value: "hide", label: "Hide" }, { value: "optional", label: "Optional" }, { value: "required", label: "Required" }];
+const ASK: { value: Ask; label: string }[] = [{ value: "hide", label: "Off" }, { value: "optional", label: "Optional" }, { value: "required", label: "Required" }];
 
 function useLater() {
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -182,7 +182,16 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
   const [full, setFull] = useState(s.fullPin ?? "");
   const later = useLater();
   const reg = s.register ?? "off";
-  const phoneAsk: Ask = s.askPhone ?? "optional", mailAsk: Ask = s.askEmail ?? "optional";
+  const phoneAsk: Ask = s.askPhone ?? "optional", mailAsk: Ask = s.askEmail ?? "optional", nameAsk: Ask = s.askName ?? "required";
+  const oneOf = s.contactOne ?? true;
+  // One plain sentence with the form as guests will get it.
+  const summary = (() => {
+    if (nameAsk === "hide" && phoneAsk === "hide" && mailAsk === "hide") return "Every field is off, so guests are not asked anything.";
+    const part = (label: string, a: Ask) => (a === "hide" ? "" : a === "required" ? `${label} (required)` : `${label} (optional)`);
+    const contact = phoneAsk === "optional" && mailAsk === "optional" && oneOf ? "WhatsApp or Email (one of the two, or both)" : [part("WhatsApp", phoneAsk), part("Email", mailAsk)].filter(Boolean).join(", ");
+    const all = [part("Name", nameAsk), contact].filter(Boolean).join(", ");
+    return `${all}. ${reg === "required" ? "Asked before the photos open." : "Asked after the selfie; guests can press Not now."}`;
+  })();
   const same = full.length === 4 && full === pin;
   /** A new code that is not the other one. */
   const fresh = (other: string) => { let v = ""; do { v = String(Math.floor(1000 + Math.random() * 9000)); } while (v === other); return v; };
@@ -210,18 +219,30 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
       </Group>
 
       <Group title="Guest details" note="You see the answers in Guests, and can send every guest their photos from there.">
-        <Row stack label="Ask for a name and a WhatsApp number or email"
+        <Row stack label="Ask guests for their details"
           hint={{ off: "Photos open right after the selfie. Nobody can be told about new photos.", optional: "Asked after the selfie. \"Not now\" still opens the photos.", required: "Guests see how many photos were found, then must fill it in. Before you publish, guests can leave their details and be told when the photos are ready." }[reg]}>
-          <Segmented<"off" | "optional" | "required"> label="Ask for name and number" value={reg} onChange={v => save({ register: v })}
+          <Segmented<"off" | "optional" | "required"> label="Ask guests for their details" value={reg} onChange={v => save({ register: v })}
             options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
         </Row>
         {reg !== "off" && <>
-          <Row label="WhatsApp number" hint={phoneAsk === "hide" && mailAsk === "hide" ? "Guests must be reachable some way, so the number is still asked while Email is hidden." : "For the messages you send from your own WhatsApp."}>
+          <Row label="Name" hint={nameAsk === "hide" ? "Not asked." : nameAsk === "optional" ? "Guests can leave it empty." : "Guests must type it."}>
+            <Segmented<Ask> label="Name" value={nameAsk} onChange={v => save({ askName: v })} options={ASK} />
+          </Row>
+          <Row label="WhatsApp number" hint={phoneAsk === "hide" ? "Not asked." : phoneAsk === "optional" ? "Guests can leave it empty." : "Guests must give it."}>
             <Segmented<Ask> label="WhatsApp number" value={phoneAsk} onChange={v => save({ askPhone: v })} options={ASK} />
           </Row>
-          <Row label="Email" hint={mailAsk === "optional" && phoneAsk === "optional" ? "With both on Optional, a guest gives one or both." : "Guests with an email get their photos by themselves."}>
+          <Row label="Email" hint={mailAsk === "hide" ? "Not asked." : mailAsk === "optional" ? "Guests can leave it empty. Guests with an email get their photos by themselves." : "Guests must give it. They get their photos by email by themselves."}>
             <Segmented<Ask> label="Email" value={mailAsk} onChange={v => save({ askEmail: v })} options={ASK} />
           </Row>
+          {phoneAsk === "optional" && mailAsk === "optional" && (
+            <Row label="One of WhatsApp or Email is needed" hint={oneOf ? "On. Guests give one of the two, or both." : "Off. Guests can leave both empty."}>
+              <Switch label="One of WhatsApp or Email is needed" on={oneOf} onChange={v => save({ contactOne: v })} />
+            </Row>
+          )}
+          <div className="px-4 py-3.5 bg-[#F7F5FB]" role="status">
+            <p className="text-[12px] font-bold text-[#4A4658] mb-1">What guests see</p>
+            <p className="text-[13.5px] leading-snug text-[#17151F]">{summary}</p>
+          </div>
         </>}
       </Group>
 
@@ -285,7 +306,7 @@ function MatchSec({ s, save }: { s: FaceSettings; save: Save }) {
 
 /** Fills the blanks of a message with sample values, to show what a guest will read. */
 function sampleMessage(t: string, event: string, studio: string) {
-  const body = (t.trim() || DEFAULT_GUEST_MESSAGE).replace(/\{name\}/gi, "Nadia").replace(/\{event\}/gi, event).replace(/\{studio\}/gi, studio).replace(/\{count\}/gi, "12 photos");
+  const body = (t.trim() || DEFAULT_GUEST_MESSAGE).replace(/\{name\}/gi, "Guest").replace(/\{event\}/gi, event).replace(/\{studio\}/gi, studio).replace(/\{count\}/gi, "12 photos");
   const link = "app.stupanel.com/f/…";
   return /\{link\}/i.test(t.trim() || DEFAULT_GUEST_MESSAGE) ? body.replace(/\{link\}/gi, link) : `${body}\n${link}`;
 }

@@ -165,7 +165,7 @@ function NewGallery({ onClose, onCreated }: { onClose: () => void; onCreated: (i
         </div>
       </div>
       <label className="block px-1 mb-1.5 text-[13px] font-bold text-[#4A4658]" htmlFor="fs-title">Name guests see (optional)</label>
-      <input id="fs-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={150} placeholder={program?.eventName || "Akash and Nadia's Wedding"} className={cn(inputCls, "bg-white")} />
+      <input id="fs-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={150} placeholder={program?.eventName || "Wedding photos"} className={cn(inputCls, "bg-white")} />
     </FormDrawer>
   );
 }

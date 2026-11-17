@@ -48,7 +48,52 @@ async function shrink(src: CanvasImageSource, w: number, h: number, max = 1280) 
   return c.toDataURL("image/jpeg", 0.86);
 }
 
+/** Where the guest's link goes: shown on "You are on the list" (kept in this browser). */
+type SentTo = { email?: string; phone?: string };
+
 export default function GuestFacePage({ params }: { params: Promise<{ token: string }> }) {
+  // ?preview=1: the studio's Settings shows this page in a phone frame and sends what to show.
+  const [preview] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview") && window.parent !== window);
+  return preview ? <PreviewHost /> : <GuestLive params={params} />;
+}
+
+type PreviewData = { open: Open; screen: "land" | "register" | "wait" | "results"; photos: FacePhoto[] };
+
+/** The guest page as the studio's settings make it, with sample answers. Nothing is sent anywhere. */
+function PreviewHost() {
+  const [d, setD] = useState<PreviewData | null>(null);
+  const [lang, setLang] = useState<Lang | null>(null);
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.data?.type !== "sp-face-preview") return;
+      setD(e.data.data as PreviewData); setLang(null);
+    };
+    window.addEventListener("message", on);
+    window.parent.postMessage({ type: "sp-face-preview-ready" }, window.location.origin);
+    return () => window.removeEventListener("message", on);
+  }, []);
+  const now: Lang = lang ?? d?.open.language ?? "en";
+  setGuestLang(now);
+  if (!d) return <Shell><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
+  const g = d.open;
+  const n = d.photos.length;
+  const early = g.status === "draft";
+  const rules: Rules = { name: g.askName ?? "required", phone: g.askPhone ?? "optional", email: g.askEmail ?? "optional", oneOf: g.contactOne ?? true };
+  const res: Result = { key: "", registered: false, needsRegister: g.register === "required", waiting: early, count: n, photos: d.photos, more: [], moreKind: "highlights", downloads: g.downloads, downloadAll: true };
+  const noForm = !g.register || g.register === "off";
+  return (
+    <Shell bn={now === "bn"}>
+      {d.screen === "land" && <Landing g={g} base="" lang={now} onLang={() => setLang(now === "bn" ? "en" : "bn")} note="" onStart={() => undefined} onCode={() => undefined} />}
+      {d.screen === "register" && (noForm
+        ? <div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 22, fontWeight: 800 }}>{T("No details are asked")}</h1><p style={{ color: "#4A4658", fontSize: 15 }}>{T("Guests go straight to their photos after the selfie.")}</p></div>
+        : <Register key={JSON.stringify(rules) + g.register} base="" dry res={res} rules={rules} studio={g.studio.name} selfie="" must={g.register === "required" || early} onDone={() => undefined} onSkip={() => undefined} />)}
+      {d.screen === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie="" sentTo={rules.email !== "hide" ? { email: "name@example.com" } : { phone: "01XXXXXXXXX" }} onRetake={() => undefined} />}
+      {d.screen === "results" && <div inert style={{ display: "contents" }}><Results g={g} res={{ ...res, waiting: false, needsRegister: false }} selfie="" base="" onOpen={() => undefined} onRetake={() => undefined} /></div>}
+    </Shell>
+  );
+}
+
+function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const base = `${API}/public/face/${encodeURIComponent(token)}`;
   const store = `sp-face:${token}`;
@@ -61,6 +106,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   const [res, setRes] = useState<Result | null>(null);
   const [count, setCount] = useState(0);
   const [view, setView] = useState<{ list: "mine" | "more"; i: number } | null>(null);
+  const [sentTo, setSentTo] = useState<SentTo>({});
   // The studio picks the page's language; a guest can switch, and this browser remembers it.
   const [lang, setLang] = useState<Lang | null>(null);
   const now: Lang = lang ?? g?.language ?? "en";
@@ -111,8 +157,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       const d: Open = await r.json();
       setG(d);
       // Came back in the same browser: show the photos again without a selfie.
-      let saved: { key?: string; selfie?: string } = {};
+      let saved: { key?: string; selfie?: string; sentTo?: SentTo } = {};
       try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
+      if (saved.sentTo) setSentTo(saved.sentTo);
       // The guest's own link (sent by email or WhatsApp) carries their key: keep it, and take it out of the address bar.
       const own = new URLSearchParams(window.location.search).get("k");
       if (own && /^[\w-]{16,64}$/.test(own)) {
@@ -167,8 +214,12 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   }, [base, store, pin, g?.register, g?.follow, stamp]);
 
   // After the guest gave their details: photos that were held back are fetched now.
-  const registered = useCallback(async () => {
+  const registered = useCallback(async (to?: SentTo) => {
     if (!res) return;
+    if (to) {
+      setSentTo(to);
+      try { localStorage.setItem(store, JSON.stringify({ ...JSON.parse(localStorage.getItem(store) || "{}"), sentTo: to })); } catch { /* private window */ }
+    }
     if (res.waiting) { setRes({ ...res, registered: true }); return setStep("wait"); }
     if (res.needsRegister) {
       const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
@@ -206,7 +257,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       {step === "register" && res && (
         <Register base={base} res={res} rules={{ name: g.askName ?? "required", phone: g.askPhone ?? "optional", email: g.askEmail ?? "optional", oneOf: g.contactOne ?? true }} studio={g.studio.name} selfie={selfie} must={!!res.needsRegister || !!res.waiting} onDone={registered} onSkip={() => afterDetails(res)} />
       )}
-      {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} onRetake={() => { setNote(""); setStep("selfie"); }} />}
+      {step === "wait" && <Waiting studio={g.studio.name} title={g.title} selfie={selfie} sentTo={sentTo} onRetake={() => { setNote(""); setStep("selfie"); }} />}
       {step === "follow" && res && g.follow && (
         <Follow studio={g.studio.name} pages={g.follow} count={res.count ?? res.photos.length}
           onDone={() => { try { localStorage.setItem(`${store}:followed`, "1"); } catch { /* private window */ } setStep("results"); }} />
@@ -353,13 +404,16 @@ function Pin({ base, link, value, note, onChange, onBack, onDone }: { base: stri
 
 // ─── Name and number ─────────────────────────────────────────────────────────
 
-function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { base: string; res: Result; rules: Rules; studio: string; selfie: string; must: boolean; onDone: () => void; onSkip: () => void }) {
+function Register({ base, res, rules, studio, selfie, must, onDone, onSkip, dry }: { base: string; res: Result; rules: Rules; studio: string; selfie: string; must: boolean; onDone: (to?: SentTo) => void; onSkip: () => void; /** Preview: check the form, send nothing */ dry?: boolean }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
   /** Errors next to each field, and one for the form (one-of-two, server). */
   const [errs, setErrs] = useState<{ name?: string; phone?: string; mail?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
+  /** A likely typo in the email ("gmial.com"): offered once, the guest picks. */
+  const [fix, setFix] = useState("");
+  const [fixSeen, setFixSeen] = useState("");
   const n = res.count ?? res.photos.length;
   const waiting = !!res.waiting;
   /** Came by the all-photos link without a selfie: there is no "photos of you" number to show. */
@@ -378,6 +432,8 @@ function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { 
     if (hasPhone && digits.replace(/\D/g, "").length < 10) e.phone = T("Please check your WhatsApp number, like 01XXXXXXXXX.");
     else if (!hasPhone && phoneAsk === "required") e.phone = T("Please give your WhatsApp number.");
     if (hasMail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.trim())) e.mail = T("Please check your email address.");
+    // The link goes to this email, so a likely typo is shown once before sending.
+    else if (hasMail && emailFix(mail) && fixSeen !== mail.trim()) { setFix(emailFix(mail)); setFixSeen(mail.trim()); e.mail = T("Please check your email address."); }
     else if (!hasMail && mailAsk === "required") e.mail = T("Please give your email address.");
     if (!e.phone && !e.mail && oneOf && !hasPhone && !hasMail) e.form = T("Please give your WhatsApp number or your email, or both.");
     if (!Object.keys(e).length && !hasName && !hasPhone && !hasMail) e.form = T("Please fill in at least one field.");
@@ -388,6 +444,7 @@ function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { 
       document.getElementById(first)?.focus();
       return;
     }
+    if (dry) return onDone();
     setBusy(true);
     // A local number (01…) is sent with Bangladesh's country code.
     const number = digits.startsWith("+") ? digits : digits.startsWith("01") ? `+88${digits}` : digits.startsWith("880") ? `+${digits}` : digits;
@@ -398,28 +455,40 @@ function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { 
       const m = Array.isArray(d?.message) ? d.message[0] : d?.message;
       return setErrs({ form: r?.status === 429 ? T("Too many tries. Please wait a minute.") : m ? T(m) : T("Could not save. Please check your internet and try again.") });
     }
-    onDone();
+    onDone({ ...(hasMail ? { email: mail.trim().toLowerCase() } : {}), ...(hasPhone ? { phone: digits } : {}) });
   }
 
   const field = (bad?: string): React.CSSProperties => ({ width: "100%", height: 56, borderRadius: 18, border: `2px solid ${bad ? "#E0607A" : "transparent"}`, background: "#fff", padding: "0 18px", fontSize: 17, fontWeight: 600, color: "#17151F", outline: "none" });
   const label: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 700, color: "#4A4658", marginBottom: 6 };
   const errText = (id: string, m?: string) => (m ? <p id={id} role="alert" style={{ marginTop: 6, fontSize: 13.5, fontWeight: 600, color: "#C2304F" }}>{m}</p> : null);
-  const contactFields = (
-    <>
-      {phoneAsk !== "hide" && <div>
-        <label htmlFor="gf-phone" style={label}>{T("WhatsApp number")}{opt(phoneAsk, true)}</label>
-        <input id="gf-phone" value={phone} onChange={e => { setPhone(e.target.value); if (errs.phone || errs.form) setErrs({ ...errs, phone: undefined, form: undefined }); }} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01XXXXXXXXX"
-          style={field(errs.phone)} aria-invalid={!!errs.phone} aria-describedby={errs.phone ? "gf-phone-err" : undefined} onKeyDown={e => { if (e.key === "Enter" && mailAsk === "hide") void send(); }} />
-        {errText("gf-phone-err", errs.phone)}
-      </div>}
-      {mailAsk !== "hide" && <div>
-        <label htmlFor="gf-mail" style={label}>{T("Email address")}{opt(mailAsk, true)}</label>
-        <input id="gf-mail" value={mail} onChange={e => { setMail(e.target.value); if (errs.mail || errs.form) setErrs({ ...errs, mail: undefined, form: undefined }); }} type="email" inputMode="email" autoComplete="email" maxLength={200} placeholder="name@example.com"
-          style={field(errs.mail)} aria-invalid={!!errs.mail} aria-describedby={errs.mail ? "gf-mail-err" : undefined} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
-        {errText("gf-mail-err", errs.mail)}
-      </div>}
-    </>
+  // Email first: with an email the photos arrive by themselves, so it is the one we ask for first.
+  const emailField = mailAsk !== "hide" && (
+    <div>
+      <label htmlFor="gf-mail" style={label}>{T("Email address")}{opt(mailAsk, true)}</label>
+      <input id="gf-mail" value={mail} onChange={e => { setMail(e.target.value); setFix(""); if (errs.mail || errs.form) setErrs({ ...errs, mail: undefined, form: undefined }); }}
+        onBlur={() => { const f = emailFix(mail); if (f && fixSeen !== mail.trim()) { setFix(f); setFixSeen(mail.trim()); } }}
+        type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={200} placeholder="name@example.com"
+        style={field(errs.mail)} aria-invalid={!!errs.mail} aria-describedby={`gf-mail-note${errs.mail ? " gf-mail-err" : ""}`} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+      {fix
+        ? <button type="button" onClick={() => { setMail(fix); setFix(""); setErrs({ ...errs, mail: undefined }); }} style={{ marginTop: 8, width: "100%", minHeight: 44, padding: "8px 14px", borderRadius: 14, border: 0, background: "#FFF3E0", color: "#6B4100", fontSize: 14, textAlign: "left" }}>
+            {T("Did you mean")} <b style={{ overflowWrap: "anywhere" }}>{fix}</b>? <span style={{ color: "#4B32B8", fontWeight: 700 }}>{T("Use this")}</span>
+          </button>
+        : errText("gf-mail-err", errs.mail)}
+      {!fix && !errs.mail && <p id="gf-mail-note" style={{ marginTop: 6, fontSize: 12.5, lineHeight: 1.45, color: "#4B32B8", display: "flex", gap: 6 }}>
+        <Ic size={15} w={2.2} d={<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M4 7l8 6 8-6" /></>} />
+        <span>{T("Your private link to your photos is sent to this email. Please check it is right.")}</span>
+      </p>}
+    </div>
   );
+  const phoneField = phoneAsk !== "hide" && (
+    <div>
+      <label htmlFor="gf-phone" style={label}>{T("WhatsApp number")}{opt(phoneAsk, true)}</label>
+      <input id="gf-phone" value={phone} onChange={e => { setPhone(e.target.value); if (errs.phone || errs.form) setErrs({ ...errs, phone: undefined, form: undefined }); }} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="01XXXXXXXXX"
+        style={field(errs.phone)} aria-invalid={!!errs.phone} aria-describedby={errs.phone ? "gf-phone-err" : undefined} onKeyDown={e => { if (e.key === "Enter") void send(); }} />
+      {errText("gf-phone-err", errs.phone)}
+    </div>
+  );
+  const contactFields = <>{emailField}{phoneField}</>;
   return (
     <div className="gf-step" style={{ padding: "26px 22px 26px" }}>
       <div className="gf-rise" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
@@ -440,13 +509,13 @@ function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { 
         {/* WhatsApp or Email, one is enough: the two sit together under one line that says so */}
         {oneOf ? (
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-            <legend style={{ fontSize: 13.5, fontWeight: 700, color: "#4B32B8", marginBottom: 10, padding: 0 }}>{T("WhatsApp or email: give one or both")}</legend>
+            <legend style={{ fontSize: 13.5, fontWeight: 700, color: "#4B32B8", marginBottom: 10, padding: 0 }}>{T("Email or WhatsApp: give one or both")}</legend>
             {contactFields}
           </fieldset>
         ) : contactFields}
         {errs.form
           ? <p id="gf-reg-err" role="alert" style={{ fontSize: 14, fontWeight: 600, color: "#C2304F" }}>{errs.form}</p>
-          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{mailAsk !== "hide" ? T("With an email, your photos come to your inbox by themselves. Only {studio} sees this.", { studio }) : T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
+          : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
         <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? T("Saving…") : waiting ? T("Tell me when they are ready") : noSelfie ? T("See all photos") : T(n === 1 ? "See my photo" : "See my photos")}</button>
@@ -458,28 +527,68 @@ function Register({ base, res, rules, studio, selfie, must, onDone, onSkip }: { 
 
 // ─── On the list (the photos are not out yet) ────────────────────────────────
 
-function Waiting({ studio, title, selfie, onRetake }: { studio: string; title: string; selfie: string; onRetake: () => void }) {
+function Waiting({ studio, title, selfie, sentTo, onRetake }: { studio: string; title: string; selfie: string; sentTo: SentTo; onRetake: () => void }) {
+  const where = sentTo.email || sentTo.phone || "";
+  const by = sentTo.email ? T("by email") : sentTo.phone ? T("on WhatsApp") : "";
   return (
-    <div className="gf-step" style={{ padding: "26px 22px 26px", alignItems: "center", textAlign: "center" }}>
-      <div className="gf-rise" style={{ marginTop: "12vh", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-        <div style={{ position: "relative" }}>
-          {selfie
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={selfie} alt="" style={{ width: 104, height: 104, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 5px #fff, 0 16px 34px -14px rgba(40,28,96,.6)" }} />
-            : <span style={{ width: 104, height: 104, borderRadius: "50%", background: "#EEE8FD", display: "block" }} />}
-          <span style={{ position: "absolute", right: -2, bottom: -2, width: 36, height: 36, borderRadius: "50%", background: "#1F8A5B", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 4px #fff" }}>
-            <Ic size={18} w={3} d={<path d="M5 12.5l4.5 4.500L19 7.500" />} />
-          </span>
-        </div>
-        <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.12 }}>{T("You are on the list")}</h1>
-        <p style={{ fontSize: 16, lineHeight: 1.5, color: "#4A4658", maxWidth: 320 }}>{T("{studio} will send you your photos from {event} when they are ready. You can close this page now.", { studio, event: title })}</p>
+    <div className="gf-step" style={{ padding: "22px 22px 22px", alignItems: "center", textAlign: "center" }}>
+      {/* One moment: the photo goes into the envelope, the envelope goes off, a tick lands */}
+      <div className="gf-mail" aria-hidden="true">
+        <svg viewBox="0 0 220 150" width="220" height="150">
+          <g className="gf-mail-env">
+            <rect x="50" y="62" width="120" height="78" rx="12" fill="#7D5CEF" />
+            <g className="gf-mail-card">
+              <rect x="66" y="18" width="88" height="70" rx="8" fill="#fff" stroke="#E4DDF7" strokeWidth="2" />
+              {selfie ? <image href={selfie} x="72" y="24" width="76" height="46" preserveAspectRatio="xMidYMid slice" clipPath="inset(0 round 5px)" /> : <>
+                <rect x="72" y="24" width="76" height="46" rx="5" fill="#F3EEFF" />
+                <circle cx="94" cy="40" r="7" fill="#FFC56B" /><path d="M76 66l20-17 14 11 12-9 22 15z" fill="#C9B8FA" />
+              </>}
+            </g>
+            <path d="M50 74l60 40 60-40v54a12 12 0 0 1-12 12H62a12 12 0 0 1-12-12z" fill="#8B6CF2" />
+            <path className="gf-mail-flap" d="M50 74a12 12 0 0 1 12-12h96a12 12 0 0 1 12 12l-60 40z" fill="#5B3FD0" />
+          </g>
+          <g className="gf-mail-done">
+            <circle cx="110" cy="76" r="34" fill="#1F8A5B" />
+            <path d="M94 77l11 11 21-23" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        </svg>
       </div>
-      <div style={{ marginTop: "auto", width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ fontSize: 13, color: "#6B6680" }}>{T("You can also scan the same code again later. No new selfie is needed on this phone.")}</p>
-        <button type="button" onClick={onRetake} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>{T("Take the selfie again")}</button>
+      <h1 className="gf-mail-text" style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15, animationDelay: "1.9s" }}>{T("You are on the list")}</h1>
+      <p className="gf-mail-text" style={{ marginTop: 8, fontSize: 15.5, lineHeight: 1.5, color: "#4A4658", maxWidth: 330, animationDelay: "2.05s" }}>
+        {where ? <>{T("When {studio} has your photos from {event} ready, your private link comes {by} to", { studio, event: title, by })} <b style={{ color: "#17151F", overflowWrap: "anywhere" }}>{where}</b></> : T("{studio} will send you your photos from {event} when they are ready. You can close this page now.", { studio, event: title })}
+      </p>
+      {/* What happens next, in order */}
+      <ol className="gf-steps gf-mail-text" style={{ animationDelay: "2.2s" }} aria-label={T("What happens next")}>
+        <li style={{ animationDelay: "2.3s" }}><span className="gf-dot gf-dot-ok"><Ic size={13} w={3.2} d={<path d="M5 12.5l4.5 4.5L19 7.5" />} /></span><span><b>{T("Today")}</b>{T("Your selfie is saved. You are on the list.")}</span></li>
+        <li style={{ animationDelay: "2.45s" }}><span className="gf-dot">2</span><span><b>{T("In a few days")}</b>{T("{studio} edits the photos and finds the ones you are in.", { studio })}</span></li>
+        <li style={{ animationDelay: "2.6s" }}><span className="gf-dot">3</span><span><b>{T("Your link arrives")}</b>{sentTo.email ? T("Check your inbox, and your spam folder too.") : T("Open it to see and save your photos. No new selfie needed.")}</span></li>
+      </ol>
+      <div className="gf-mail-text" style={{ marginTop: "auto", width: "100%", display: "flex", flexDirection: "column", gap: 6, animationDelay: "2.8s" }}>
+        <p style={{ fontSize: 13, color: "#6B6680" }}>{T("You can close this page now. Scanning the code again on this phone also shows your photos when they are ready.")}</p>
+        <button type="button" onClick={onRetake} style={{ height: 46, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>{T("Take the selfie again")}</button>
       </div>
     </div>
   );
+}
+
+/** A likely typo in a common email address ("gmial.com", "gmail.con") → the fixed address, else "". */
+const MAIL_DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "live.com", "ymail.com"];
+function emailFix(v: string) {
+  const m = /^([^\s@]+)@([^\s@]+)$/.exec(v.trim().toLowerCase());
+  if (!m) return "";
+  const [, user, dom] = m;
+  if (MAIL_DOMAINS.includes(dom)) return "";
+  const dist = (a: string, b: string) => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  };
+  let best = "", bestD = 3;
+  for (const k of MAIL_DOMAINS) { const x = dist(dom, k); if (x < bestD) { best = k; bestD = x; } }
+  // "gmail" with no ending, or one or two letters off a common address.
+  if (!best && /^(gmail|gmal|gmial|gamil|yahoo|hotmail|outlook)$/.test(dom)) best = dom.startsWith("g") ? "gmail.com" : `${dom}.com`;
+  return best ? `${user}@${best}` : "";
 }
 
 // ─── Follow the studio ───────────────────────────────────────────────────────

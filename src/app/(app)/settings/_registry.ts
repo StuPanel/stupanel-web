@@ -91,7 +91,6 @@ export const ENTRIES: Entry[] = [
   { id: "f-photoSelection", pane: "features", section: "Client features", label: "Photo selection", keywords: "pick favourite album select" },
   { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube" },
   { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album" },
-  { id: "f-faceRecognition", pane: "features", section: "Coming soon", label: "Face recognition", keywords: "selfie guest face" },
 
 
   // Work types & shifts

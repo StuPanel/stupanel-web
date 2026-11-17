@@ -42,6 +42,7 @@ const T = {
     find: "Find a photo", findPh: "Photo number or file name", findIn: (a: string) => `in ${a}`, noMatch: (q: string) => `No photo matches “${q}”. Try the number on the photo, e.g. 45.`, clearFind: "Clear",
     compare: "Compare", cmpHint: "Tap 2 to 4 photos to see them side by side", cmpCount: (n: number) => `${n} of 4 picked`, cmpGo: "Compare", cmpCancel: "Cancel", cmpDone: "Done", cmpMax: "You can compare up to 4 photos at a time.",
     cmpTitle: (n: number) => `Comparing ${n} photos`, cmpTake: "Remove from compare", cmpTip: "Choose the one you like — or more than one.", photoNo: (n: number | undefined) => (n ? `#${n}` : ""),
+    side: "Your choice", sideTotal: (n: number) => `${n} photo${n === 1 ? "" : "s"} chosen`, sideLoved: (n: number) => `${n} loved most`, sideRecent: "Chosen so far", sideAll: "See all chosen", sideNone: "Nothing chosen yet. Tap ✓ on a photo to choose it.",
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -365,6 +366,9 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
   const left = g && (g.status === "open" || g.status === "submitted") ? timeLeft(g.deadline) : null;
   const totalPicked = (g?.photos ?? []).filter(p => isPicked(p.m)).length;
+  const loved = (g?.photos ?? []).filter(p => p.m === "important").length;
+  /** The side card on wide screens: the last 8 chosen photos of the album in view. */
+  const recent = (g?.photos ?? []).filter(p => isPicked(p.m) && (!current || p.a === current.id)).slice(-8);
   const vp = view !== null ? shown[view] : null;
   // Big view, top right: "20 / 20–30" for the album of the photo shown (just the number when it has no limit).
   const viewAlbum = view !== null && g ? albums.find(a => a.id === vp?.a) : undefined;
@@ -444,7 +448,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           failed ? <p className="text-center text-[#6B6680] py-20 px-6">{failText ?? "Could not open — please try again."}</p>
             : <div className="max-w-6xl mx-auto p-4 grid grid-cols-3 sm:grid-cols-5 gap-1.5">{Array.from({ length: 15 }).map((_, i) => <div key={i} className="sp-skel aspect-square rounded-xl" />)}</div>
         ) : (
-          <div className="max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-32">
+          <div className="max-w-6xl xl:max-w-[1360px] mx-auto px-3 sm:px-5 pt-4 pb-32 xl:flex xl:items-start xl:gap-6">
+          <div className="flex-1 min-w-0">
             {/* Messages */}
             {g.welcome && <div className="mb-3 rounded-2xl bg-white p-4 text-[14px] text-[#33303F] shadow-sm flex gap-2.5"><MessageSquareText className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: brand }} /><p className="whitespace-pre-line">{g.welcome}</p></div>}
             {locked && (
@@ -632,6 +637,57 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                 ); })}
               </div>
             )}
+          </div>
+
+          {/* Desktop: the choice so far, always in sight */}
+          <aside aria-label={t.side} className="hidden xl:block w-[300px] flex-shrink-0 sticky top-4 rounded-[24px] bg-white shadow-sm p-5">
+            <p className="text-[12.5px] font-semibold text-[#6B6680]">{t.side}</p>
+            <p className="mt-0.5 text-[26px] leading-tight font-bold text-[#17151F] tabular-nums">{t.sideTotal(totalPicked)}</p>
+            {loved > 0 && <p className="mt-1 text-[13px] font-semibold text-[#C2304F] inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" fill="currentColor" />{t.sideLoved(loved)}</p>}
+            <div className="mt-4 space-y-3">
+              {albums.map(a => {
+                const pr = albumProgress(a, pickedIn(a.id));
+                const on = current?.id === a.id;
+                return (
+                  <button key={a.id} type="button" onClick={() => { setAlbum(a.id); setFolder(null); setFilter("all"); mainRef.current?.scrollTo({ top: 0 }); }} aria-current={on ? "true" : undefined}
+                    className={cn("block w-full text-left rounded-2xl px-3 py-2.5 transition-colors", on ? "bg-[#F5F3FA]" : "hover:bg-[#F7F6FA]")}>
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-[13.5px] font-bold text-[#17151F] truncate">{a.name}</span>
+                      <span className={cn("text-[12.5px] font-bold tabular-nums", pr.over ? "text-[#C2304F]" : pr.okRange ? "text-[#1F8A5B]" : "text-[#4A4658]")}>{pr.text}</span>
+                    </span>
+                    <span className="block h-1.5 rounded-full mt-2 bg-[#ECE9F2] overflow-hidden">
+                      <span className={cn("block h-full rounded-full transition-[width] duration-500", pr.over ? "bg-[#C2304F]" : pr.okRange ? "bg-[#1F8A5B]" : "")} style={{ width: `${pr.pct}%`, ...(!pr.over && !pr.okRange ? { backgroundColor: brand } : {}) }} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 pt-4 border-t border-[#F1EFF6]">
+              {recent.length ? (
+                <>
+                  <p className="text-[12.5px] font-semibold text-[#6B6680] mb-2">{t.sideRecent}</p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {recent.map(p => { const i = shown.indexOf(p); const no = nums.get(p.id); return (
+                      <button key={p.id} type="button" disabled={i < 0} onClick={() => setView(i)} aria-label={`${t.photoNo(no)} ${p.n}`}
+                        className="relative aspect-square rounded-lg overflow-hidden bg-[#E4E0EC] disabled:cursor-default">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={thumbOf(p)} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover" onContextMenu={e => e.preventDefault()} />
+                        {p.m === "important" && <span className="absolute left-1 top-1 w-4 h-4 rounded-full bg-[#C2304F] text-white flex items-center justify-center"><Heart className="w-2.5 h-2.5" fill="currentColor" /></span>}
+                      </button>
+                    ); })}
+                  </div>
+                  <button type="button" onClick={() => { setFolder(null); setFilter("picked"); mainRef.current?.scrollTo({ top: 0 }); }}
+                    className="mt-2.5 text-[13px] font-semibold hover:underline" style={{ color: brand }}>{t.sideAll}</button>
+                </>
+              ) : <p className="text-[13px] text-[#6B6680]">{t.sideNone}</p>}
+            </div>
+            {!locked && (
+              <button type="button" onClick={() => { void flush(); setReviewing(true); }} disabled={!totalPicked}
+                className="mt-5 w-full h-11 rounded-full text-white text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40 shadow-md" style={{ backgroundColor: brand }}>
+                <Send className="w-4 h-4" />{t.review}
+              </button>
+            )}
+          </aside>
           </div>
         )}
       </main>

@@ -394,6 +394,13 @@ const MOMENTS: { v: FollowWhen; title: string; text: string; tag?: string }[] = 
 /** A saved WhatsApp number as people write it: "8801712…" → "01712…", other countries with "+". */
 const localNumber = (v: string) => (v.startsWith("880") ? `0${v.slice(3)}` : /^\d{8,15}$/.test(v) && !v.startsWith("0") ? `+${v}` : v);
 
+const BOOK_MOMENTS: { v: NonNullable<FaceSettings["bookWhen"]>; title: string; text: string; tag?: string }[] = [
+  { v: "end", title: "At the end of the photos", text: "A card after the last photo. Never in the way: guests see it when they scroll down.", tag: "Default" },
+  { v: "afterFollow", title: "After the follow card", text: "Slides up right after the follow card is closed, so the two asks come one after the other." },
+  { v: "downloaded", title: "After a download", text: "Slides up once the guest has saved a photo." },
+  { v: "results", title: "When the photos appear", text: "Slides up a moment after the guest sees their photos." },
+];
+
 type Grow = { follow: number; instagram: number; facebook: number; share: number; book: number; review: number };
 
 /** What guests did for the studio in this gallery: people, each counted once. */
@@ -497,6 +504,34 @@ function GrowSec({ g, s, save, onScreen }: { g: FaceDetail; s: FaceSettings; sav
           </Row>
         </>}
       </Group>
+
+      {(s.bookButton !== false && !!s.bookWhatsApp) || s.reviewUrl ? (
+        <Group title="When the Book us card shows" note="A card that slides up always has Not now, and never comes on top of the follow card: it waits until that one is closed.">
+          <div role="radiogroup" aria-label="When the Book us card shows" className="p-2 grid gap-1.5">
+            {BOOK_MOMENTS.map(m => {
+              const on = (s.bookWhen ?? "end") === m.v;
+              return (
+                <button key={m.v} type="button" role="radio" aria-checked={on} onClick={() => { save({ bookWhen: m.v }); onScreen("book"); }}
+                  className={cn("w-full text-left rounded-[16px] px-3.5 py-3 flex items-start gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B3FD0]/50", on ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "hover:bg-[#F7F5FB]")}>
+                  <span aria-hidden className={cn("mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "border-[#CFC9DC]")}>{on && <Check className="w-3 h-3" strokeWidth={3.5} />}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("text-[14px] font-semibold flex items-center gap-2", on ? "text-[#4B32B8]" : "text-[#17151F]")}>{m.title}{m.tag && <span className="text-[10.5px] font-bold text-[#4A4658] bg-[#EFECF5] rounded-full px-2 py-0.5">{m.tag}</span>}</span>
+                    <span className="block text-[12.5px] leading-snug text-[#6B6680] mt-0.5">{m.text}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {(s.bookWhen ?? "end") !== "end" && <>
+            <Row label="Ask again on a later visit" hint={s.bookAgain ? "On. A guest who pressed Not now sees it once more when they come back." : "Off. Not now means not again on that phone."}>
+              <Switch label="Ask again on a later visit (Book us)" on={!!s.bookAgain} onChange={v => save({ bookAgain: v })} />
+            </Row>
+            <Row label="Also keep it after the photos" hint={s.bookKeepCard === false ? "Off. Only the card that slides up." : "On. The card also stays at the end of the photo list."}>
+              <Switch label="Also keep it after the photos" on={s.bookKeepCard !== false} onChange={v => { save({ bookKeepCard: v }); onScreen("book"); }} />
+            </Row>
+          </>}
+        </Group>
+      ) : null}
 
       <Group title="Reviews" note="A Google review link (Google Business Profile → Ask for reviews) or your Facebook page's reviews. Leave empty for none.">
         <Row label="Review link">

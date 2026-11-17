@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
-  CircleUserRound, LifeBuoy, ClipboardList, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
+  CircleUserRound, LifeBuoy, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
   MessageSquareText, Target, Music2, Images, ScanFace, FileSignature } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
@@ -50,7 +50,6 @@ export const navigation = [
   {
     title: "Tools",
     items: [
-      { name: "Checklist", href: "/checklist", icon: ClipboardList, color: "orchid" as TileColor },
       { name: "Equipment", href: "/equipment", icon: Wrench, color: "ink" as TileColor },
       { name: "Salary", href: "/salary", icon: Banknote, color: "green" as TileColor },
       { name: "Accounts", href: "/accounts", icon: Landmark, color: "blue" as TileColor },

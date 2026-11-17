@@ -3,7 +3,7 @@
  * the API enforces the same areas (stupanel-api src/modules/auth/permissions.ts).
  */
 export const AREAS = [
-  { key: "programs", label: "Programs", hint: "Programs, calendar, checklist, delivery" },
+  { key: "programs", label: "Programs", hint: "Programs, calendar, delivery" },
   { key: "clients", label: "Clients", hint: "Clients and referrals" },
   { key: "payments", label: "Money", hint: "Payments, invoices, quotes" },
   { key: "accounts", label: "Accounts", hint: "Cash & bank accounts, balances, expenses, transfers" },

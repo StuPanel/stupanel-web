@@ -40,7 +40,7 @@ export const inp = "w-full h-9 rounded-lg bg-slate-900 border border-slate-700 p
 export function Btn({ loading, variant = "primary", className, children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; variant?: "primary" | "ghost" | "danger" }) {
   return (
     <button {...p} disabled={loading || p.disabled}
-      className={cn("h-9 px-4 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60",
+      className={cn("h-9 px-4 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors disabled:opacity-60",
         variant === "primary" && "bg-indigo-600 hover:bg-indigo-700 text-white",
         variant === "ghost" && "border border-slate-600 text-slate-200 hover:bg-slate-700",
         variant === "danger" && "border border-red-900 text-red-300 hover:bg-red-950/50",

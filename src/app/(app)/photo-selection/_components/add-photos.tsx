@@ -16,6 +16,9 @@ import { notify } from "@/components/feedback";
 import { FormDrawer } from "@/components/ui/form-kit";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
+
+/** "1 photo", "5 photos" */
+const ph = (n: number) => `${n.toLocaleString("en-US")} photo${n === 1 ? "" : "s"}`;
 import { byFolder, canUpload, isRawName, UPLOAD_PATH, type Album } from "@/lib/photos";
 
 type Folder = { path: string; photos: number; bytes: number; other: number };
@@ -141,7 +144,7 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { notify(errText(d, "Couldn't add"), { error: true }); return; }
-      notify(d.added ? `${d.added} photos added — getting them ready` : d.skipped || "Nothing new to add");
+      notify(d.added ? `${ph(d.added)} added — getting them ready` : d.skipped || "Nothing new to add");
       onAdded(); onClose();
     } finally { setBusy(false); }
   }
@@ -194,8 +197,8 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
       footer={
         <>
           <p className="flex-1 self-center text-[13px] text-[#6B6680]">
-            {tab === "computer" ? (uploadable ? `${uploadable} photos go to your Google Drive` : "Choose a folder or photos")
-              : pickedCount ? `${pickedCount} photos` : "Tick the folders to add"}
+            {tab === "computer" ? (uploadable ? `${ph(uploadable)} go${uploadable === 1 ? "es" : ""} to your Google Drive` : "Choose a folder or photos")
+              : pickedCount ? ph(pickedCount) : "Tick the folders to add"}
           </p>
           {tab === "computer" ? (
             <button type="button" onClick={startUpload} disabled={!uploadable || busy}
@@ -205,7 +208,7 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
           ) : (
             <button type="button" onClick={importNow} disabled={!pickedCount || busy}
               className="h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-45">
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />}Add {pickedCount || ""} photos
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}Add {pickedCount ? ph(pickedCount) : "photos"}
             </button>
           )}
         </>
@@ -217,7 +220,7 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
               tab === t.id ? "bg-[#7D5CEF] text-white shadow-[0_8px_18px_-10px_rgba(125,92,239,.8)]" : "text-[#4A4658] hover:bg-[#F5F3FA]")}>
             <t.icon className="w-5 h-5" />
             <span className="text-[12.5px] font-bold leading-tight text-center">{t.label}</span>
-            {t.n !== undefined && <span className={cn("text-[12px]", tab === t.id ? "text-white/80" : "text-[#6B6680]")}>{src ? `${t.n} photos` : "…"}</span>}
+            {t.n !== undefined && <span className={cn("text-[12px]", tab === t.id ? "text-white/80" : "text-[#6B6680]")}>{src ? ph(t.n) : "…"}</span>}
           </button>
         ))}
       </div>
@@ -261,7 +264,7 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
                       <span className="w-9 h-9 rounded-[10px] bg-[#FDECEF] text-[#C2304F] flex items-center justify-center flex-shrink-0"><Images className="w-4 h-4" /></span>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[14px] font-semibold text-[#17151F] truncate">{folderLabel(f.path)}</span>
-                        <span className="block text-[12.5px] text-[#6B6680]">{f.photos} photos · {mb(f.bytes)}{f.other ? ` · ${f.other} other files left out` : ""}</span>
+                        <span className="block text-[12.5px] text-[#6B6680]">{ph(f.photos)} · {mb(f.bytes)}{f.other ? ` · ${f.other} other files left out` : ""}</span>
                       </span>
                     </label>
                     {on && (
@@ -295,14 +298,14 @@ export function AddPhotos({ galleryId, programId, programName, albums, onClose, 
           </div>
           {files.length > 0 && (
             <div className={cn("bg-white rounded-[20px] p-4 mt-4 sp-fade-in", CARD_SHADOW)}>
-              <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#1F8A5B]" />{uploadable} photos ready</p>
+              <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-[#1F8A5B]" />{ph(uploadable)} ready</p>
               {files.length > uploadable && !files.some(f => isRawName(f.name)) && <p className="text-[12.5px] text-[#C2304F] mt-1">{files.length - uploadable} file{files.length - uploadable > 1 ? "s" : ""} will be left out (not JPG/PNG).</p>}
               {files.some(f => isRawName(f.name)) && rawHelp(files.filter(f => isRawName(f.name)).length)}
               <div className="mt-3 space-y-2">
                 {[...groups].map(([folder, list]) => (
                   <div key={folder || "-"} className="flex flex-wrap items-center gap-2">
                     <span className="w-8 h-8 rounded-[10px] bg-[#FDECEF] text-[#C2304F] flex items-center justify-center flex-shrink-0"><Images className="w-4 h-4" /></span>
-                    <span className="text-[13px] text-[#4A4658] min-w-[92px]">{list.filter(canUpload).length} photos{folder ? ` · ${folder}` : ""}</span>
+                    <span className="text-[13px] text-[#4A4658] min-w-[92px]">{ph(list.filter(canUpload).length)}{folder ? ` · ${folder}` : ""}</span>
                     {nameInput(folder, "Folder name in the album")}
                   </div>
                 ))}

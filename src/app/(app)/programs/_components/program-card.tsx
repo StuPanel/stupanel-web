@@ -49,7 +49,10 @@ export function ProgramRow({ b, onView, onEdit, onDelete }: {
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
-        {due > 0
+        {/* A cancelled program asks for nothing, so no red "due" (the dashboard leaves it out too). */}
+        {b.status === "cancelled" || b.status === "refunded"
+          ? <p className="text-xs font-semibold text-[#8A8599]">{Number(b.paidAmount) > 0 ? `${formatCurrency(Number(b.paidAmount), b.currency)} paid` : "Nothing due"}</p>
+          : due > 0
           ? <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(due, b.currency)} due</p>
           : <p className="text-xs font-semibold text-[#1F8A5B]">Paid</p>}
       </div>

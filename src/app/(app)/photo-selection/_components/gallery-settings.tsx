@@ -18,6 +18,8 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
   const [allowNotes, setAllowNotes] = useState(g.allowNotes);
   const [allowLove, setAllowLove] = useState(g.allowLove !== false);
   const [welcome, setWelcome] = useState(g.welcome ?? "");
+  /** Reminder email: days before the last day; 0 = off (the default). */
+  const [remind, setRemind] = useState<number>(g.remindBefore ?? 0);
   const [rows, setRows] = useState<Row[]>(g.albums.map(a => ({ id: a.id, name: a.name, min: a.minPicks?.toString() ?? "", max: a.maxPicks?.toString() ?? "", allowExtra: !!a.allowExtra, total: a.total })));
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +40,7 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
       const fail = async (r: Response) => { const d = await r.json().catch(() => ({})); throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save"); };
       const r = await j("", "PATCH", {
         title: title.trim(), deadline: deadline ? new Date(`${deadline}T23:59:00`).toISOString() : null,
-        allowNotes, allowLove, welcome: welcome.trim() || null,
+        allowNotes, allowLove, welcome: welcome.trim() || null, remindBefore: deadline && remind ? remind : null,
       });
       if (!r.ok) await fail(r);
       let order = 0;
@@ -83,6 +85,23 @@ export function GallerySettings({ g, onClose, onSaved }: { g: GalleryDetail; onC
             </div>
           )}
         </Field>
+        {deadline && (
+          <div className="px-3.5 py-3">
+            <p className="text-[14px] font-semibold text-[#17151F]">Reminder email</p>
+            <p className="text-[12.5px] text-[#6B6680] mt-0.5">
+              {g.client.email
+                ? remind ? `${g.client.firstName || "The client"} gets one email ${remind === 1 ? "a day" : `${remind} days`} before the last day, with how many photos they have chosen. Not sent if they have already sent their choice.` : "Off: no reminder is sent."
+                : "The client has no email address, so no reminder can be sent."}
+            </p>
+            <div role="radiogroup" aria-label="Reminder email" className="mt-2.5 flex flex-wrap gap-1.5">
+              {[{ v: 0, l: "Off" }, { v: 1, l: "1 day before" }, { v: 2, l: "2 days before" }, { v: 3, l: "3 days before" }].map(o => (
+                <button key={o.v} type="button" role="radio" aria-checked={remind === o.v} onClick={() => setRemind(o.v)} disabled={!g.client.email && o.v > 0}
+                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold transition-colors disabled:opacity-40", remind === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>{o.l}</button>
+              ))}
+            </div>
+            {g.remindedAt && remind > 0 && <p className="text-[12px] text-[#1F8A5B] mt-2">Sent on {new Date(g.remindedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</p>}
+          </div>
+        )}
       </FormGroup>
 
       <FormGroup title="Albums and how many photos" note="Fewest and most are optional. The client is warned if they pick fewer or more.">

@@ -10,13 +10,13 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, CalendarClock, Check, CheckCircle2, Eye, FolderOpen, Heart, Images, Loader2, Lock, MessageSquareText, Send, Sparkles, StickyNote, X,
+  ArrowLeft, ArrowRight, CalendarClock, Check, CheckCircle2, Columns2, Eye, FolderOpen, Heart, Images, Loader2, Lock, MessageSquareText, Search, Send, Sparkles, StickyNote, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { portalPhotoApi, type SelectApi } from "@/lib/select-api";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { useSeen } from "./use-seen";
-import { albumProgress, drivePhoto, foldersOf, isPicked, thumbOf, timeLeft, viewOf, zoomOf, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
+import { albumProgress, drivePhoto, findPhotos, foldersOf, photoNumbers, isPicked, thumbOf, timeLeft, viewOf, zoomOf, type ClientGallery, type ClientGalleryCard, type GPhoto, type Mark } from "@/lib/photos";
 
 const T = {
     card: "Choose your album photos", cardSub: (n: number) => `${n} photos are ready for you`, open: "Choose photos", continue: "Continue choosing", see: "See your photos",
@@ -39,6 +39,9 @@ const T = {
     fullTitle: (n: number) => `You have already chosen ${n} photos`, fullText: (n: number) => `Your album has room for ${n}, so this photo was not added. To choose it, first take out one of your ${n}. Or send your choice to the studio now.`,
     fullDoneTitle: (n: number) => `All ${n} photos chosen`, fullDoneText: "Your album is complete. Have a last look and send it to the studio — you can still change it until they start the album.",
     fullShort: "complete", fullChange: "Change my chosen photos", fullSee: (n: number) => `See my ${n} photos`, fullKeep: "Keep looking", coverDefault: "your photos are ready. Pick the ones you want in your album.",
+    find: "Find a photo", findPh: "Photo number or file name", findIn: (a: string) => `in ${a}`, noMatch: (q: string) => `No photo matches “${q}”. Try the number on the photo, e.g. 45.`, clearFind: "Clear",
+    compare: "Compare", cmpHint: "Tap 2 to 4 photos to see them side by side", cmpCount: (n: number) => `${n} of 4 picked`, cmpGo: "Compare", cmpCancel: "Cancel", cmpDone: "Done", cmpMax: "You can compare up to 4 photos at a time.",
+    cmpTitle: (n: number) => `Comparing ${n} photos`, cmpTake: "Remove from compare", cmpTip: "Choose the one you like — or more than one.", photoNo: (n: number | undefined) => (n ? `#${n}` : ""),
     left: (s: string) => s, tapHint: "Double-tap a photo (or tap ✓) to choose it. Tap once to see it big.", viewHint: "Double-tap to choose · swipe for the next photo", none: "No photos here.", photos: (n: number) => `${n} photos`, of: "of",
 } as const;
 
@@ -138,6 +141,14 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   /** The album is full: "blocked" = they tried one more, "done" = they just chose the last one that fits. */
   const [full, setFull] = useState<{ album: string; max: number; why: "blocked" | "done" } | null>(null);
   const toldFull = useRef(new Set<string>());
+  /** Find a photo by its number or file name (shown on each photo, the studio uses the same number). */
+  const [finding, setFinding] = useState(false);
+  const [q, setQ] = useState("");
+  /** Compare: "pick" = tapping photos adds them; the overlay opens with 2–4 photos. */
+  const [cmpPick, setCmpPick] = useState(false);
+  const [cmpSel, setCmpSel] = useState<string[]>([]);
+  const [cmpOpen, setCmpOpen] = useState(false);
+  const cmpPushed = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -203,8 +214,10 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
   // A folder that is not in this album (any more) counts as "all".
   const folder = folderPick !== null && folders.includes(folderPick) ? folderPick : null;
   const inFolder = useMemo(() => (folder === null ? inAlbum : inAlbum.filter(p => (p.f ?? "") === folder)), [inAlbum, folder]);
-  const shown = useMemo(() => inFolder.filter(p =>
-    filter === "all" ? true : filter === "new" ? !!p.nw : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inFolder, filter]);
+  const nums = useMemo(() => photoNumbers(g?.photos ?? []), [g?.photos]);
+  const query = finding ? q.trim() : "";
+  const shown = useMemo(() => query ? findPhotos(inAlbum, nums, query) : inFolder.filter(p =>
+    filter === "all" ? true : filter === "new" ? !!p.nw : filter === "unseen" ? !p.m : filter === "picked" ? isPicked(p.m) : p.m === filter), [inFolder, filter, inAlbum, nums, query]);
   const highlights = useMemo(() => inFolder.filter(p => p.hl), [inFolder]);
   const locked = !g?.canChange;
   const { isSeen, version, resume, clearResume, markSeen, setLast } = useSeen(g?.id);
@@ -294,6 +307,36 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     tap.current = { id: p.id, timer: setTimeout(() => { tap.current = null; setView(i); }, locked ? 0 : 260) };
   }
   useEffect(() => () => { if (tap.current) clearTimeout(tap.current.timer); }, []);
+
+  function toggleCmp(p: GPhoto) {
+    setCmpSel(list => {
+      if (list.includes(p.id)) return list.filter(x => x !== p.id);
+      if (list.length >= 4) { say(t.cmpMax); return list; }
+      navigator.vibrate?.(10);
+      return [...list, p.id];
+    });
+  }
+  function startCmp() { setCmpPick(true); setCmpSel([]); setFinding(false); setQ(""); }
+  function stopCmp() { setCmpPick(false); setCmpSel([]); }
+  // The phone's Back closes the compare view (not the whole page).
+  function openCmp() {
+    if (cmpSel.length < 2) return;
+    setCmpOpen(true);
+    try { history.pushState({ spCompare: 1 }, ""); cmpPushed.current = true; } catch { /* no history */ }
+  }
+  function closeCmp() {
+    setCmpOpen(false);
+    if (cmpPushed.current) { cmpPushed.current = false; try { history.back(); } catch { /* ignore */ } }
+  }
+  useEffect(() => {
+    if (!cmpOpen) return;
+    const onPop = () => { cmpPushed.current = false; setCmpOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !full) closeCmp(); };
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("keydown", onKey); };
+  }, [cmpOpen, full]);
+  const cmpPhotos = useMemo(() => cmpSel.map(id => g?.photos.find(p => p.id === id)).filter((p): p is GPhoto => !!p), [cmpSel, g?.photos]);
 
   function setPhotoNote(p: GPhoto, text: string) {
     setG(x => (x ? { ...x, photos: x.photos.map(y => (y.id === p.id ? { ...y, no: text || null } : y)) } : x));
@@ -501,17 +544,43 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
               </div>
             )}
 
-            {/* Filters */}
-            <div className="flex gap-1.5 overflow-x-auto -mx-3 px-3 py-2 sticky top-0 z-10 bg-[#F7F6FA]/90 backdrop-blur [scrollbar-width:none]">
-              {filters.map(f => (
-                <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-                  className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors", filter === f.id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658]")}>
-                  {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-[#8A8599]")}>{f.n}</span>
-                </button>
-              ))}
+            {/* Filters — with Find (by number or file name) and Compare in front */}
+            <div className="flex items-center gap-1.5 -mx-3 px-3 py-2 sticky top-0 z-10 bg-[#F7F6FA]/90 backdrop-blur">
+              {cmpPick ? (
+                <div className="flex-1 min-w-0 h-11 pl-3.5 pr-1.5 rounded-full text-white flex items-center gap-2 sp-pop-in" style={{ backgroundColor: brand }}>
+                  <Columns2 className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 min-w-0 text-[13px] font-semibold truncate">{t.cmpHint}</span>
+                  <button type="button" onClick={stopCmp} className="h-8 px-3 rounded-full bg-white/20 hover:bg-white/30 text-[12.5px] font-semibold flex-shrink-0">{t.cmpCancel}</button>
+                </div>
+              ) : finding ? (
+                <form className="flex-1 min-w-0 flex items-center gap-1.5 sp-pop-in" role="search" onSubmit={e => { e.preventDefault(); if (shown.length) { (document.activeElement as HTMLElement | null)?.blur(); setView(0); } }}>
+                  <label className="flex-1 min-w-0 h-11 pl-3.5 pr-1.5 rounded-full bg-white shadow-sm flex items-center gap-2 focus-within:ring-2" style={{ ["--tw-ring-color" as string]: brand }}>
+                    <Search className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+                    <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={t.findPh} aria-label={t.find} enterKeyHint="go" inputMode="search"
+                      className="flex-1 min-w-0 bg-transparent outline-none text-[16px] sm:text-[14px] text-[#17151F] placeholder:text-[#A29DB3]" />
+                    {query && <span className="text-[12px] font-semibold text-[#8A8599] tabular-nums flex-shrink-0">{shown.length}</span>}
+                  </label>
+                  <button type="button" onClick={() => { setFinding(false); setQ(""); }} aria-label={t.clearFind} className="w-11 h-11 rounded-full bg-white shadow-sm flex items-center justify-center text-[#4A4658] flex-shrink-0"><X className="w-4 h-4" /></button>
+                </form>
+              ) : (
+                <>
+                  <button type="button" onClick={() => setFinding(true)} aria-label={t.find} title={t.find} className="w-9 h-9 rounded-full bg-white text-[#4A4658] flex items-center justify-center flex-shrink-0 hover:bg-[#EFEDF4]"><Search className="w-4 h-4" /></button>
+                  {inAlbum.length > 1 && <button type="button" onClick={startCmp} className="h-9 pl-2.5 pr-3 rounded-full bg-white text-[#4A4658] text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0 hover:bg-[#EFEDF4]"><Columns2 className="w-4 h-4" />{t.compare}</button>}
+                  <span className="w-px h-5 bg-[#E4E0EC] flex-shrink-0" aria-hidden />
+                  <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto [scrollbar-width:none] -mr-3 pr-3">
+                    {filters.map(f => (
+                      <button key={f.id} type="button" onClick={() => setFilter(f.id)}
+                        className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors flex-shrink-0", filter === f.id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658]")}>
+                        {f.label}<span className={cn("text-[12px]", filter === f.id ? "text-white/70" : "text-[#8A8599]")}>{f.n}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-            {!locked && filter === "all" && !totalPicked && <p className="text-[12.5px] text-[#6B6680] mb-2">{t.tapHint}</p>}
-            {!locked && filter === "all" && inFolder.some(p => p.nw) && (
+            {query && albums.length > 1 && current && <p className="text-[12.5px] text-[#6B6680] mb-2">{t.findIn(current.name)}</p>}
+            {!locked && !query && !cmpPick && filter === "all" && !totalPicked && <p className="text-[12.5px] text-[#6B6680] mb-2">{t.tapHint}</p>}
+            {!locked && !query && !cmpPick && filter === "all" && inFolder.some(p => p.nw) && (
               <button type="button" onClick={() => setFilter("new")} className="mb-2 w-full text-left rounded-2xl bg-white px-3.5 py-2.5 text-[13px] text-[#33303F] shadow-sm flex items-center gap-2">
                 <span className="h-5 px-2 rounded-full text-white text-[11px] font-bold inline-flex items-center flex-shrink-0" style={{ backgroundColor: brand }}>{t.fresh}</span>
                 <span className="flex-1">{t.freshNote(inFolder.filter(p => p.nw).length)}</span><ArrowRight className="w-4 h-4 text-[#8A8599]" />
@@ -519,13 +588,13 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             )}
 
             {/* Grid */}
-            {shown.length === 0 ? <p className="text-center text-[#8A8599] py-16 text-sm">{t.none}</p> : (
+            {shown.length === 0 ? <p className="text-center text-[#8A8599] py-16 px-6 text-sm">{query ? t.noMatch(query) : t.none}</p> : (
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1 sm:gap-2">
-                {shown.map((p, i) => (
-                  <div key={p.id} id={`ph-${p.id}`} data-pid={p.id} style={flash === p.id ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : undefined}
+                {shown.map((p, i) => { const ci = cmpSel.indexOf(p.id); const no = nums.get(p.id); return (
+                  <div key={p.id} id={`ph-${p.id}`} data-pid={p.id} style={flash === p.id ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : cmpPick && ci >= 0 ? { outline: `3px solid ${brand}`, outlineOffset: 2 } : undefined}
                     className={cn("relative aspect-square rounded-xl overflow-hidden bg-[#E4E0EC] [content-visibility:auto] [contain-intrinsic-size:140px]",
-                    isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
-                    <button type="button" onClick={() => onCellTap(p, i)} aria-label={p.n}
+                    !cmpPick && isPicked(p.m) && "ring-[3px] ring-[#1F8A5B]", !cmpPick && p.m === "important" && "ring-[#C2304F]", p.m === "rejected" && "opacity-45")}>
+                    <button type="button" onClick={() => (cmpPick ? toggleCmp(p) : onCellTap(p, i))} aria-label={`${t.photoNo(no)} ${p.n}`} aria-pressed={cmpPick ? ci >= 0 : undefined}
                       className={cn("absolute inset-0 [touch-action:manipulation] transition-transform duration-200 ease-out", isPicked(p.m) && "scale-[.9] rounded-lg overflow-hidden")}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" draggable={false} referrerPolicy="no-referrer" onContextMenu={e => e.preventDefault()} className="w-full h-full object-cover" />
@@ -536,18 +605,31 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
                       </span>
                     )}
                     {p.nw && <span className="absolute left-1.5 bottom-1.5 h-5 px-1.5 rounded-full text-white text-[10.5px] font-bold inline-flex items-center shadow pointer-events-none" style={{ backgroundColor: brand }}>{t.fresh}</span>}
-                    {p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#C2304F] text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
+                    {/* The photo's number (the studio sees the same one) — with ♥ when they love it most */}
+                    {no && (
+                      <span className={cn("absolute left-1.5 top-1.5 h-6 px-1.5 rounded-full text-white text-[11px] font-bold tabular-nums inline-flex items-center gap-0.5 shadow pointer-events-none",
+                        p.m === "important" ? "bg-[#C2304F]" : "bg-black/45 backdrop-blur-sm", query && nums.get(p.id) === Number(query.replace(/^#\s*/, "")) && "ring-2 ring-white")}>
+                        {p.m === "important" && <Heart className="w-3 h-3" fill="currentColor" />}{no}
+                      </span>
+                    )}
+                    {!no && p.m === "important" && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#C2304F] text-white flex items-center justify-center shadow"><Heart className="w-3.5 h-3.5" fill="currentColor" /></span>}
                     {p.no && <span className="absolute right-1.5 top-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow" style={{ color: brand }}><StickyNote className="w-3.5 h-3.5" /></span>}
-                    {!locked && (
+                    {cmpPick && (
+                      <span className={cn("absolute right-1.5 bottom-1.5 w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-extrabold shadow-md transition-all pointer-events-none",
+                        ci >= 0 ? "text-white scale-100" : "bg-white/80 backdrop-blur border-2 border-white scale-90")} style={ci >= 0 ? { backgroundColor: brand } : undefined}>
+                        {ci >= 0 ? ci + 1 : ""}
+                      </span>
+                    )}
+                    {!locked && !cmpPick && (
                       <button type="button" onClick={() => mark(p, isPicked(p.m) ? (p.m as Mark) : "selected")} aria-pressed={isPicked(p.m)} aria-label={t.choose}
                         className={cn("absolute right-1.5 bottom-1.5 w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90",
                           isPicked(p.m) ? "bg-[#1F8A5B] text-white" : "bg-white/80 text-[#4A4658] backdrop-blur")}>
                         <Check className="w-5 h-5" strokeWidth={3} />
                       </button>
                     )}
-                    {locked && isPicked(p.m) && <span className="absolute right-1.5 bottom-1.5 w-7 h-7 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-4 h-4" strokeWidth={3} /></span>}
+                    {locked && !cmpPick && isPicked(p.m) && <span className="absolute right-1.5 bottom-1.5 w-7 h-7 rounded-full bg-[#1F8A5B] text-white flex items-center justify-center"><Check className="w-4 h-4" strokeWidth={3} /></span>}
                   </div>
-                ))}
+                ); })}
               </div>
             )}
           </div>
@@ -555,7 +637,26 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
       </main>
 
       {/* Bottom bar */}
-      {g && !thanks && (
+      {g && !thanks && cmpPick && (
+        <div className="flex-shrink-0 bg-white/90 backdrop-blur-xl border-t border-[#F1EFF6] pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-6xl mx-auto px-3 sm:px-5 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {cmpPhotos.map(p => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={p.id} src={thumbOf(p)} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-lg object-cover ring-2 ring-white sp-pop-in" onContextMenu={e => e.preventDefault()} />
+                ))}
+              </div>
+              <p className="text-[13px] font-semibold text-[#17151F] tabular-nums truncate">{t.cmpCount(cmpSel.length)}</p>
+            </div>
+            <button type="button" onClick={openCmp} disabled={cmpSel.length < 2}
+              className="h-11 px-5 rounded-full text-white text-[14px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-40 flex-shrink-0 shadow-md transition-opacity" style={{ backgroundColor: brand }}>
+              <Columns2 className="w-4 h-4" />{t.cmpGo}
+            </button>
+          </div>
+        </div>
+      )}
+      {g && !thanks && !cmpPick && (
         <div className="flex-shrink-0 bg-white/90 backdrop-blur-xl border-t border-[#F1EFF6] pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-3 sm:px-5 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
@@ -636,13 +737,69 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
             </span>
             <h2 id="sp-full-title" className="mt-4 text-[21px] leading-tight font-extrabold tracking-[-0.01em] text-[#17151F]">{full.why === "done" ? t.fullDoneTitle(full.max) : t.fullTitle(full.max)}</h2>
             <p className="mt-2 text-[14.5px] leading-relaxed text-[#4A4658]">{full.why === "done" ? t.fullDoneText : t.fullText(full.max)}</p>
-            <button type="button" onClick={() => { const big = view !== null; setFull(null); setView(null); void flush(); /* the closing photo steps Back once — open the sheet after it */ setTimeout(() => setReviewing(true), big ? 400 : 0); }}
+            <button type="button" onClick={() => { const big = view !== null || cmpOpen; setFull(null); setView(null); if (cmpOpen) { closeCmp(); stopCmp(); } void flush(); /* the closing photo steps Back once — open the sheet after it */ setTimeout(() => setReviewing(true), big ? 400 : 0); }}
               className="mt-5 w-full py-3.5 rounded-full text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-md" style={{ backgroundColor: brand }}>
               <Send className="w-4 h-4" />{t.review}
             </button>
-            <button type="button" onClick={() => { setFull(null); setView(null); setFolder(null); setFilter("picked"); mainRef.current?.scrollTo({ top: 0 }); }}
+            <button type="button" onClick={() => { setFull(null); setView(null); if (cmpOpen) { closeCmp(); stopCmp(); } setFinding(false); setQ(""); setFolder(null); setFilter("picked"); mainRef.current?.scrollTo({ top: 0 }); }}
               className="mt-2 w-full py-3 rounded-full bg-[#F5F3FA] text-[#17151F] text-[14.5px] font-semibold">{full.why === "done" ? t.fullSee(full.max) : t.fullChange}</button>
             <button type="button" onClick={() => setFull(null)} className="mt-1 w-full py-2.5 text-[13.5px] font-semibold text-[#6B6680]">{t.fullKeep}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Compare: 2–4 photos side by side (stacked on a phone held upright), each with its own buttons */}
+      {g && cmpOpen && cmpPhotos.length >= 2 && (
+        <div className="fixed inset-0 z-[80] bg-[#0E0C14] text-white flex flex-col sp-fade-in" role="dialog" aria-modal="true" aria-label={t.cmpTitle(cmpPhotos.length)}>
+          <div className="flex-shrink-0 h-14 px-3 sm:px-5 flex items-center gap-3 pt-[env(safe-area-inset-top)] box-content">
+            <button type="button" onClick={closeCmp} aria-label={t.close} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-bold truncate">{t.cmpTitle(cmpPhotos.length)}</p>
+              <p className="text-[12px] text-white/60 truncate">{locked ? "" : t.cmpTip}</p>
+            </div>
+            <span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{totalPicked}</span></span>
+          </div>
+          <div className={cn("flex-1 min-h-0 grid gap-2 p-2 sm:gap-3 sm:p-3",
+            cmpPhotos.length === 2 ? "grid-rows-2 grid-cols-1 landscape:grid-rows-1 landscape:grid-cols-2 sm:grid-rows-1 sm:grid-cols-2"
+              : cmpPhotos.length === 3 ? "grid-cols-2 grid-rows-2 lg:grid-cols-3 lg:grid-rows-1" : "grid-cols-2 grid-rows-2")}>
+            {cmpPhotos.map((p, i) => {
+              const no = nums.get(p.id);
+              return (
+                <div key={p.id} className={cn("relative min-h-0 min-w-0 rounded-2xl bg-white/[.04] overflow-hidden flex flex-col sp-pop-in", cmpPhotos.length === 3 && i === 2 && "col-span-2 lg:col-span-1",
+                  isPicked(p.m) && "ring-2 ring-[#1F8A5B]", p.m === "important" && "ring-[#C2304F]")} style={{ animationDelay: `${i * 60}ms` }}>
+                  <div className="relative flex-1 min-h-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={viewOf(p)} alt={p.n} referrerPolicy="no-referrer" draggable={false} onContextMenu={e => e.preventDefault()} className={cn("absolute inset-0 w-full h-full object-contain transition-opacity", p.m === "rejected" && "opacity-40")} />
+                    <span className="absolute left-2 top-2 h-7 px-2.5 rounded-full bg-black/55 backdrop-blur text-[12.5px] font-bold tabular-nums inline-flex items-center gap-1">
+                      {p.m === "important" && <Heart className="w-3.5 h-3.5 text-[#FF8FA6]" fill="currentColor" />}{no ? `#${no}` : p.n}
+                    </span>
+                    {cmpPhotos.length > 2 && (
+                      <button type="button" onClick={() => setCmpSel(l => l.filter(x => x !== p.id))} aria-label={t.cmpTake} title={t.cmpTake}
+                        className="absolute right-2 top-2 w-8 h-8 rounded-full bg-black/55 backdrop-blur flex items-center justify-center hover:bg-black/75"><X className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                  {!locked ? (
+                    <div className="flex-shrink-0 p-1.5 sm:p-2 flex gap-1.5">
+                      {([
+                        { m: "selected" as Mark, I: Check, label: t.choose, on: "bg-[#1F8A5B] text-white" },
+                        { m: "important" as Mark, I: Heart, label: t.love, on: "bg-[#C2304F] text-white" },
+                        { m: "rejected" as Mark, I: X, label: t.dont, on: "bg-white text-[#17151F]" },
+                      ]).filter(b => b.m !== "important" || g.allowLove !== false).map(b => (
+                        <button key={b.m} type="button" aria-pressed={p.m === b.m} aria-label={`${b.label} ${t.photoNo(no)}`} onClick={() => { if (mark(p, b.m)) navigator.vibrate?.(12); }}
+                          className={cn("flex-1 min-w-0 h-11 rounded-xl inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold transition-all active:scale-95",
+                            p.m === b.m ? b.on : "bg-white/10 hover:bg-white/20 text-white")}>
+                          <b.I className="w-4 h-4 flex-shrink-0" strokeWidth={2.4} fill={b.m === "important" && p.m === "important" ? "currentColor" : "none"} />
+                          <span className={cn("truncate", cmpPhotos.length > 2 ? "hidden sm:inline" : "")}>{b.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : isPicked(p.m) ? <p className="flex-shrink-0 py-2 text-center text-[12.5px] font-semibold text-[#9AE6BD]">{t.picked}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex-shrink-0 pb-[max(10px,env(safe-area-inset-bottom))] px-3 flex justify-center">
+            <button type="button" onClick={() => { closeCmp(); stopCmp(); }} className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/20 text-[13.5px] font-semibold">{t.cmpDone}</button>
           </div>
         </div>
       )}
@@ -656,7 +813,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
           src={viewOf(vp)}
           srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).map(p => viewOf(p!))}
-          title={`${view + 1} ${t.of} ${shown.length}`} sub={[albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
+          title={`${view + 1} ${t.of} ${shown.length}`} sub={[nums.get(vp.id) ? `Photo #${nums.get(vp.id)}` : "", albums.length > 1 ? albums.find(a => a.id === vp.a)?.name : "", vp.f].filter(Boolean).join(" · ") || undefined}
           top={<span className="h-8 pl-1.5 pr-3 rounded-full bg-white/10 inline-flex items-center gap-1.5 text-[13px] font-bold tabular-nums"><span className="w-5 h-5 rounded-full bg-[#1F8A5B] flex items-center justify-center"><Check className="w-3 h-3" strokeWidth={3} /></span><span key={totalPicked} className="sp-count">{viewCount}</span></span>}
           onDoubleTap={locked ? undefined : () => quickChoose(vp, true)}
           nextSignal={nextSig}

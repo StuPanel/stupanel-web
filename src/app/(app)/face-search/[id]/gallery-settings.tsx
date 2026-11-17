@@ -15,6 +15,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { Tile } from "@/components/ui/apple";
 import { Group, PaneHeader, Row, Segmented, SettingsCtx, Switch, TextArea, TextField, type SaveState } from "@/app/(app)/settings/_ui";
 import { DEFAULT_GUEST_MESSAGE, errText, type FaceDetail, type FaceSettings } from "@/lib/face";
+import { PhonePreview, type Screen } from "./phone-preview";
 
 type Sec = "page" | "access" | "msgs" | "photos" | "dl" | "match" | "mark" | "end";
 type Save = (patch: Partial<FaceSettings>, extra?: { title?: string }) => Promise<void>;
@@ -26,6 +27,8 @@ const pill = "h-10 px-4 rounded-full text-[13.5px] font-semibold inline-flex ite
 export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetail; onSaved: (g: FaceDetail) => void; onRemoved: () => void; onAct: (a: "close" | "reopen") => void }) {
   const [s, setS] = useState<FaceSettings>(g.settings);
   const [sec, setSec] = useState<Sec>("page");
+  /** The screen shown in the phone preview: follows the section, and the studio can pick another. */
+  const [screen, setScreen] = useState<Screen>("land");
   /** Phones: the list of sections first, one section after a tap. */
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<SaveState>("idle");
@@ -63,11 +66,12 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
     ] },
   ];
   const cur = groups.flatMap(x => x.panes).find(x => x.id === sec)!;
-  const go = (id: Sec) => { setSec(id); setOpen(true); };
+  const SCREEN_OF: Record<Sec, Screen> = { page: "land", access: "register", msgs: "wait", photos: "results", dl: "results", match: "results", mark: "results", end: "land" };
+  const go = (id: Sec) => { setSec(id); setOpen(true); setScreen(SCREEN_OF[id]); };
 
   return (
     <SettingsCtx.Provider value={{ data: {}, patch: async () => false, state, studio: null, patchStudio: async () => false }}>
-      <div className="md:grid md:grid-cols-[272px_minmax(0,1fr)] md:gap-6 md:items-start">
+      <div className="md:grid md:grid-cols-[272px_minmax(0,1fr)] xl:grid-cols-[252px_minmax(0,1fr)_258px] md:gap-6 md:items-start">
         {/* Wide screens: the sections, always in view */}
         <aside className={cn("hidden md:block sticky top-[68px] sp-glass p-2 pb-3", CARD)}>
           <nav aria-label="Gallery settings sections">
@@ -119,7 +123,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
         <div className={cn("min-w-0 w-full", !open && "hidden md:block")}>
           <div key={sec} className="sp-pane-in">
             <PaneHeader icon={cur.icon} color={cur.color} title={cur.title} sub={cur.sub} onBack={() => setOpen(false)} />
-            {sec === "page" && <PageSec g={g} s={s} save={save} />}
+            {sec === "page" && <PageSec g={g} s={s} save={save} go={go} />}
             {sec === "access" && <AccessSec s={s} save={save} />}
             {sec === "msgs" && <MsgSec g={g} s={s} save={save} toAccess={() => go("access")} />}
             {sec === "photos" && <PhotosSec s={s} save={save} />}
@@ -129,6 +133,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
             {sec === "end" && <EndSec g={g} onAct={onAct} onRemoved={onRemoved} />}
           </div>
         </div>
+        <PhonePreview g={g} s={s} screen={screen} onScreen={setScreen} />
       </div>
     </SettingsCtx.Provider>
   );
@@ -147,9 +152,48 @@ function useLater() {
 
 // ─── Guest page ──────────────────────────────────────────────────────────────
 
-function PageSec({ g, s, save }: { g: FaceDetail; s: FaceSettings; save: Save }) {
+/**
+ * Before publishing: how to collect guests at the event and send them their photos later, as a checklist
+ * that ticks itself from the settings.
+ */
+function EventGuide({ g, s, go }: { g: FaceDetail; s: FaceSettings; go: (id: Sec) => void }) {
+  const asks = (s.register ?? "off") !== "off" && (s.askName !== "hide" || s.askPhone !== "hide" || s.askEmail !== "hide");
+  const mail = s.askEmail !== "hide" && s.notifyEmail !== false && (s.notifyWhen ?? "auto") === "auto";
+  const steps: { done?: boolean; title: string; text: string; act?: { label: string; go: Sec } }[] = [
+    { done: asks, title: "Ask guests for their details", text: "So guests can sign up now. Access and privacy → Guest details: Must give, or Ask, can skip.", act: asks ? undefined : { label: "Set it", go: "access" } },
+    { done: mail, title: "Let the emails go by themselves", text: "Guests who give an email get their link the moment their photos are ready. Others are listed in Guests for WhatsApp.", act: mail ? undefined : { label: "Set it", go: s.askEmail === "hide" ? "access" : "msgs" } },
+    { title: "Print the Guests QR", text: "Share tab → Guests → QR code or poster. Put it on a banner or table cards at the event." },
+    { done: g.status === "draft", title: "Keep the gallery unpublished", text: "At the event guests scan, take a selfie and give their details. They see \"You are on the list\" and no photos yet." },
+    { title: "When the photos are ready", text: "Add the edited photos, wait until Photos shows they are all read, then press Publish. Every signed-up guest gets their own photos." },
+  ];
+  return (
+    <section aria-label="Collect guests at the event" className="mb-7 rounded-[20px] bg-white overflow-hidden shadow-[0_1px_2px_rgba(23,21,31,.04),0_10px_30px_-18px_rgba(40,28,96,.18)]">
+      <div className="px-4 sm:px-5 pt-4 pb-3 bg-[#F4F0FF]">
+        <h2 className="text-[15px] font-bold text-[#17151F]">Taking photos now, sending them later?</h2>
+        <p className="text-[13px] leading-snug text-[#4A4658] mt-0.5">Guests can sign up at the event and get their photos when you publish. Follow these steps. The phone preview shows what guests see.</p>
+      </div>
+      <ol className="divide-y divide-[#EEEBF4]">
+        {steps.map((x, i) => (
+          <li key={x.title} className="px-4 sm:px-5 py-3 flex items-start gap-3">
+            <span aria-hidden className={cn("mt-0.5 w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[12px] font-bold", x.done ? "bg-[#1F8A5B] text-white" : "bg-[#EEE8FD] text-[#4B32B8]")}>
+              {x.done ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-semibold text-[#17151F]">{x.title}{x.done && <span className="sr-only"> (done)</span>}</p>
+              <p className="text-[12.5px] leading-snug text-[#6B6680]">{x.text}</p>
+            </div>
+            {x.act && <button type="button" onClick={() => go(x.act!.go)} className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12.5px] font-semibold flex-shrink-0">{x.act.label}</button>}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function PageSec({ g, s, save, go }: { g: FaceDetail; s: FaceSettings; save: Save; go: (id: Sec) => void }) {
   return (
     <>
+    {g.status === "draft" && <EventGuide g={g} s={s} go={go} />}
     <Group title="First screen" note="Guests see these when they scan the code or open the link.">
       <Row label="Name guests see" hint="The big line on the first screen and on the QR poster.">
         <TextField label="Name guests see" value={g.title} maxLength={150} onCommit={v => { if (v) void save({}, { title: v }); }} />
@@ -220,7 +264,11 @@ function AccessSec({ s, save }: { s: FaceSettings; save: Save }) {
 
       <Group title="Guest details" note="You see the answers in Guests, and can send every guest their photos from there.">
         <Row stack label="Ask guests for their details"
-          hint={{ off: "Photos open right after the selfie. Nobody can be told about new photos.", optional: "Asked after the selfie. \"Not now\" still opens the photos.", required: "Guests see how many photos were found, then must fill it in. Before you publish, guests can leave their details and be told when the photos are ready." }[reg]}>
+          hint={{
+            off: "Nothing is asked. Photos open right after the selfie. Guests can't sign up before you publish, and nobody can be told about new photos.",
+            optional: "After the selfie guests see the form, and can press \"Not now\". Before you publish, the form is a must: that is how they sign up.",
+            required: "Guests fill in the form before any photo opens. Before you publish, guests sign up with a selfie and their details, and get their link when you publish.",
+          }[reg]}>
           <Segmented<"off" | "optional" | "required"> label="Ask guests for their details" value={reg} onChange={v => save({ register: v })}
             options={[{ value: "off", label: "Don't ask" }, { value: "optional", label: "Ask, can skip" }, { value: "required", label: "Must give" }]} />
         </Row>

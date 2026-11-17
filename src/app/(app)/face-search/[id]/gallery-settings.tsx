@@ -58,7 +58,7 @@ export function GallerySettings({ g, onSaved, onRemoved, onAct }: { g: FaceDetai
     ] },
     { title: "Photos", panes: [
       { id: "photos", title: "Photos guests get", sub: "Which photos a guest sees.", now: s.guestsSee === "all" ? "All photos" : "Only their own", icon: Images, color: "green" },
-      { id: "dl", title: "Downloads", sub: "Whether guests can save photos, one by one or many at once.", now: !s.downloads ? "Off" : s.downloadAll === false ? "One by one" : "One by one and all at once", icon: Download, color: "ink" },
+      { id: "dl", title: "Downloads", sub: "Whether guests can save photos, one by one or many at once.", now: !s.downloads ? "Off" : `${{ original: "Original", medium: "Medium", small: "Small" }[s.downloadSize ?? "original"]}, ${s.downloadAll === false ? "one by one" : "all at once too"}`, icon: Download, color: "ink" },
       { id: "match", title: "Face matching", sub: "How sure the match must be before a photo is shown to a guest.", now: { strict: "Strict", balanced: "Balanced", loose: "Loose" }[s.strictness], icon: ScanFace, color: "deep" },
       { id: "mark", title: "Watermark", sub: "Your logo or name on every photo guests see or save.", now: s.watermark ? (s.watermarkKind === "logo" && s.watermarkLogo ? "Your logo" : "Text") : "Off", icon: Stamp, color: "orchid" },
     ] },
@@ -317,8 +317,33 @@ function PhotosSec({ s, save }: { s: FaceSettings; save: Save }) {
 
 // ─── Downloads ───────────────────────────────────────────────────────────────
 
+const SIZES: { v: NonNullable<FaceSettings["downloadSize"]>; title: string; text: string }[] = [
+  { v: "original", title: "Original", text: "The file exactly as you uploaded it. Best quality, biggest file." },
+  { v: "medium", title: "Medium", text: "Every pixel kept, file about 30–60% smaller (camera files far more). No difference anyone can see." },
+  { v: "small", title: "Small", text: "Every pixel kept, file about 40–70% smaller. A difference shows only when zoomed far in. Quickest on mobile data." },
+];
+
 function DownloadsSec({ s, save }: { s: FaceSettings; save: Save }) {
+  const size = s.downloadSize ?? "original";
   return (
+    <>
+    <Group title="Size of the saved photos" note={s.watermark ? "With the watermark on, guests save a 2560 px copy with your mark; the size sets how small its file is." : "Measured on real wedding photos. The photo's width and height never change; only the file gets lighter."}>
+      <div role="radiogroup" aria-label="Size of the saved photos" className="p-2 grid gap-1.5">
+        {SIZES.map(x => {
+          const on = size === x.v;
+          return (
+            <button key={x.v} type="button" role="radio" aria-checked={on} disabled={!s.downloads} onClick={() => save({ downloadSize: x.v })}
+              className={cn("w-full text-left rounded-[16px] px-3.5 py-3 flex items-start gap-3 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B3FD0]/50", on ? "bg-[#EEE8FD] ring-2 ring-[#7D5CEF]" : "hover:bg-[#F7F5FB]")}>
+              <span aria-hidden className={cn("mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "border-[#CFC9DC]")}>{on && <Check className="w-3 h-3" strokeWidth={3.5} />}</span>
+              <span className="min-w-0 flex-1">
+                <span className={cn("text-[14px] font-semibold flex items-center gap-2", on ? "text-[#4B32B8]" : "text-[#17151F]")}>{x.title}{x.v === "original" && <span className="text-[10.5px] font-bold text-[#4A4658] bg-[#EFECF5] rounded-full px-2 py-0.5">Default</span>}</span>
+                <span className="block text-[12.5px] leading-snug text-[#6B6680] mt-0.5">{x.text}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Group>
     <Group title="Saving photos" note={s.watermark ? "With the watermark on, guests save a copy with your mark on it (up to 2560 px wide)." : "Guests save your original files from Google Drive."}>
       <Row label="Guests can download" hint="Off means guests can look at their photos but get no Download button.">
         <Switch label="Guests can download" on={s.downloads} onChange={v => save({ downloads: v })} />
@@ -327,6 +352,7 @@ function DownloadsSec({ s, save }: { s: FaceSettings; save: Save }) {
         <Switch label="Many at once" on={s.downloads && s.downloadAll !== false} disabled={!s.downloads} onChange={v => save({ downloadAll: v })} />
       </Row>
     </Group>
+    </>
   );
 }
 

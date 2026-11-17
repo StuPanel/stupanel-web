@@ -14,6 +14,8 @@ export type FaceSettings = {
   expiresAt?: string;
   /** Guests may save many photos at once (Download all, Choose); `downloads` is the single photo's Download */
   downloadAll?: boolean;
+  /** The file guests save: as uploaded, or the same pixels saved smaller */
+  downloadSize?: "original" | "medium" | "small";
   /** Ask guests for a name and WhatsApp number: off, optional (they can skip), required (before any photo) */
   register?: "off" | "optional" | "required";
   /** The studio's pages guests are asked to follow before the photos ("" = none) */
@@ -64,6 +66,8 @@ export type FacePhoto = {
   highlight: boolean; takenAt: string | null;
   /** Guest side, when the gallery has a watermark: where this photo is served with the watermark (no Drive id is sent then) */
   wm?: string;
+  /** Guest side, when the gallery saves photos smaller (Medium / Small): where the saved file comes from */
+  file?: string;
   status?: "pending" | "processing" | "ready" | "failed"; error?: string | null; faceCount?: number; skippedFaces?: number; hidden?: boolean;
 };
 
@@ -91,12 +95,12 @@ export const num = (n: number) => n.toLocaleString("en");
 export const facePhotoUrl = (p: { driveFileId: string; wm?: string }, width = 480) =>
   p.wm ? p.wm.replace("{size}", String(width <= 480 ? 480 : width <= 1600 ? 1600 : 2560)) : drivePhoto(p.driveFileId, width);
 /** The file a guest saves: the original from Drive, or the watermarked copy when the gallery has a watermark. */
-export const faceSaveUrl = (p: { driveFileId: string; wm?: string }) => (p.wm ? `${p.wm.replace("{size}", "2560")}&dl=1` : faceDownloadUrl(p.driveFileId));
+export const faceSaveUrl = (p: { driveFileId: string; wm?: string; file?: string }) => (p.file ? `${p.file}&dl=1` : p.wm ? `${p.wm.replace("{size}", "2560")}&dl=1` : faceDownloadUrl(p.driveFileId));
 /**
  * The file a phone fetches to hand to its share sheet ("Save image"): the watermarked copy, or the full-size
  * picture from Google (the Drive download link cannot be fetched by a page).
  */
-export const faceFileUrl = (p: { driveFileId: string; wm?: string }) => (p.wm ? p.wm.replace("{size}", "2560") : `https://lh3.googleusercontent.com/d/${p.driveFileId}=s0`);
+export const faceFileUrl = (p: { driveFileId: string; wm?: string; file?: string }) => (p.file ? p.file : p.wm ? p.wm.replace("{size}", "2560") : `https://lh3.googleusercontent.com/d/${p.driveFileId}=s0`);
 /** The original file, for saving. */
 export const faceDownloadUrl = (driveFileId: string) => `https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveFileId)}`;
 export const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");

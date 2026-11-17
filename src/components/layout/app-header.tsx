@@ -43,6 +43,14 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(-1);
   const [mobileSearch, setMobileSearch] = useState(false);
+  // The bar has no box of its own: only once the page scrolls under it does a soft glass fade in.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,7 +170,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         </div>
       )}
 
-      <header className="sticky top-0 z-20 sp-topbar">
+      <header className="sticky top-0 z-20 sp-appbar" data-scrolled={scrolled ? "" : undefined}>
         <div className="relative h-16 flex items-center justify-between gap-3 px-3 sm:px-4 lg:px-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile: brand */}

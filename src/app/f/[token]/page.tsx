@@ -14,8 +14,8 @@ import { N, P, T, setGuestLang, type Lang } from "./i18n";
 import "./guest.css";
 
 type Ask = "hide" | "optional" | "required";
-type Open = { /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
-type Result = { key: string; registered: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
+type Open = { /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; language?: Lang; askPhone?: Ask; askEmail?: Ask; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
@@ -66,6 +66,9 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   useEffect(() => { document.documentElement.lang = now; }, [now]);
   const swap = () => { const l: Lang = now === "bn" ? "en" : "bn"; setLang(l); try { localStorage.setItem("sp-face-lang", l); } catch { /* private window */ } };
 
+  /** The secret of the share link the guest came by (all photos / VIP); "" = the guests' link. */
+  const via = useRef("");
+  const [linkKey, setLinkKey] = useState("");
   // A gallery with a watermark: every photo is asked from StuPanel (with the watermark), not from Google Drive.
   const stamp = useCallback((o: Result): Result => {
     if (!o.watermark) return o;
@@ -73,12 +76,34 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     return { ...o, photos: o.photos.map(tag), more: o.more.map(tag) };
   }, [base]);
 
+  // ── the all-photos link: open every photo without a selfie ──
+  const openAll = useCallback(async (d: Open, code?: string) => {
+    let saved: { key?: string; selfie?: string } = {};
+    try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
+    const r = await fetch(`${base}/all`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ link: via.current, ...(saved.key ? { key: saved.key } : {}), ...(code ? { pin: code } : {}) }) }).catch(() => null);
+    const o = r ? await r.json().catch(() => ({})) : {};
+    if (!r?.ok) {
+      if (o?.code === "WRONG_PIN") { setPin(""); setNote(code ? T("That code is not right. Please check it and try again.") : ""); setG(v => (v ? { ...v, needsPin: true } : v)); setStep("pin"); return true; }
+      setNote(r?.status === 429 ? T("Too many tries. Please wait a minute and try again.") : (Array.isArray(o?.message) ? o.message[0] : o?.message) || T("Something went wrong. Please check your internet and try again."));
+      return false;
+    }
+    const out = stamp(o as Result);
+    try { localStorage.setItem(store, JSON.stringify({ ...saved, key: out.key })); } catch { /* private window */ }
+    setSelfie(saved.selfie || ""); setRes(out);
+    let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
+    setStep(out.needsRegister ? "register" : d.follow?.length && (out.count ?? out.photos.length) && !followed ? "follow" : "results");
+    return true;
+  }, [base, store, stamp]);
+
   // ── open ──
   useEffect(() => {
     let on = true;
     (async () => {
-      const r = await fetch(base).catch(() => null);
+      const a = new URLSearchParams(window.location.search).get("a") || "";
+      via.current = /^[\w-]{6,40}$/.test(a) ? a : "";
+      const r = await fetch(via.current ? `${base}?a=${via.current}` : base).catch(() => null);
       if (!on) return;
+      setLinkKey(via.current);
       try { const l = localStorage.getItem("sp-face-lang"); if (l === "bn" || l === "en") setLang(l); } catch { /* private window */ }
       if (!r?.ok) { setErr(T("This link is not working. Please ask the studio for a new one.")); return setStep("bad"); }
       const d: Open = await r.json();
@@ -93,6 +118,8 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
         try { localStorage.setItem(store, JSON.stringify(saved)); } catch { /* private window */ }
         window.history.replaceState(null, "", window.location.pathname);
       }
+      // The all-photos link: every photo at once, no selfie (a code or a closed gallery goes by the first screen).
+      if (d.link === "full" && d.status === "published" && !d.needsPin) { if (on && !(await openAll(d))) setStep("land"); return; }
       if (saved.key && d.status !== "closed") {
         const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
         if (on && m?.ok) { const out = stamp(await m.json()); setSelfie(saved.selfie || ""); setRes(out);
@@ -103,7 +130,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
       if (on) setStep("land");
     })();
     return () => { on = false; };
-  }, [base, store, stamp]);
+  }, [base, store, stamp, openAll]);
 
   // ── search ──
   const search = useCallback(async (image: string, code?: string) => {
@@ -112,7 +139,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     let key: string | undefined;
     try { key = JSON.parse(localStorage.getItem(store) || "{}").key; } catch { /* private window */ }
     const started = Date.now();
-    const r = await fetch(`${base}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: image.split(",")[1], ...(key ? { key } : {}), ...(usePin ? { pin: usePin } : {}) }) }).catch(() => null);
+    const r = await fetch(`${base}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: image.split(",")[1], ...(key ? { key } : {}), ...(usePin ? { pin: usePin } : {}), ...(via.current ? { link: via.current } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
     if (!r?.ok) {
       const codeErr = d?.code;
@@ -134,7 +161,7 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
     setRes(out);
     // The studio asks for a name and number: before the photos (required), or as a step the guest can skip (optional).
     const follow = !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
-    setStep(n > 0 && !out.registered && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
+    setStep(n > 0 && !out.registered && !out.noDetails && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
   }, [base, store, pin, g?.register, g?.follow, stamp]);
 
   // After the guest gave their details: photos that were held back are fetched now.
@@ -159,14 +186,19 @@ export default function GuestFacePage({ params }: { params: Promise<{ token: str
   if (step === "bad") return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", gap: 10 }}><h1 style={{ fontSize: 24, fontWeight: 800 }}>{T("Photos not found")}</h1><p style={{ color: "#4A4658", fontSize: 16 }}>{err}</p></div></Shell>;
   if (step === "load" || !g) return <Shell bn={now === "bn"}><div className="gf-step" style={{ alignItems: "center", justifyContent: "center" }}><span className="gf-dots" role="status" aria-label="Loading"><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /><i style={{ background: "#7D5CEF" }} /></span></div></Shell>;
 
-  const start = () => { setNote(""); setStep(g.needsPin && pin.length !== 4 ? "pin" : "selfie"); };
+  const all = g.link === "full";
+  const start = () => {
+    setNote("");
+    if (g.needsPin && pin.length !== 4) return setStep("pin");
+    if (all) { setStep("load"); void openAll(g, pin).then(ok => { if (!ok) setStep("land"); }); } else setStep("selfie");
+  };
 
   return (
     <Shell bn={now === "bn"}>
       {step === "land" && <Landing g={g} base={base} lang={now} onLang={swap} note={note} onStart={start} onCode={() => { setNote(""); setPin(""); setStep("pin"); }} />}
-      {step === "pin" && <Pin base={base} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
+      {step === "pin" && <Pin base={base} link={linkKey} value={pin} note={note} onChange={v => { setPin(v); if (note) setNote(""); }} onBack={() => setStep("land")}
         // A selfie taken before the code was asked for is used straight away.
-        onDone={code => { setNote(""); if (selfie) void search(selfie, code); else setStep("selfie"); }} />}
+        onDone={code => { setNote(""); if (selfie) void search(selfie, code); else if (all) void openAll(g, code).then(ok => { if (!ok) setStep("land"); }); else setStep("selfie"); }} />}
       {step === "selfie" && <Selfie title={g.title} note={note} onBack={() => setStep("land")} onShot={search} />}
       {step === "search" && <Searching selfie={selfie} count={count} />}
       {step === "register" && res && (
@@ -222,8 +254,9 @@ function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; ba
   // Before the photos are out: a guest can leave a selfie and a number, and is told when they are ready.
   const early = g.status === "draft" && g.ready && !!g.register && g.register !== "off";
   const open = live || early;
-  const title = live ? T("Find your photos in seconds") : early ? T("Get your photos as soon as they are ready") : g.status === "closed" ? T("This gallery is closed") : T("The photos are on their way");
-  const body = live ? (g.welcome || T("Take one selfie. We show you every photo you are in."))
+  const all = g.link === "full";
+  const title = live && all ? T("All the photos from the event") : live ? T("Find your photos in seconds") : early ? T("Get your photos as soon as they are ready") : g.status === "closed" ? T("This gallery is closed") : T("The photos are on their way");
+  const body = live ? (g.welcome || (all ? T("Open every photo. You can also take a selfie to find the ones you are in.") : T("Take one selfie. We show you every photo you are in.")))
     : early ? T("Take one selfie now and say where to send them. {studio} sends your photos to you when they are ready.", { studio: g.studio.name })
     : g.status === "closed" ? T("Please ask {studio} if you still need your photos.", { studio: g.studio.name }) : T("{studio} is still adding the photos. Please scan again a little later.", { studio: g.studio.name });
   return (
@@ -260,7 +293,7 @@ function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; ba
           {open && (
             <button type="button" className="gf-cta gf-pulse" onClick={onStart}>
               <Ic size={22} d={<><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="3" /><path d="M7.5 17c1-2 2.600-3 4.500-3s3.500 1 4.500 3" /></>} />
-              {early ? T("Send me my photos") : T("Find my photos")}
+              {early ? T("Send me my photos") : all ? T("See all photos") : T("Find my photos")}
             </button>
           )}
           {/* The couple and family may have a code that opens every photo; other guests just start */}
@@ -276,7 +309,7 @@ function Landing({ g, base, lang, onLang, note, onStart, onCode }: { g: Open; ba
 
 // ─── Code ─────────────────────────────────────────────────────────────────────
 
-function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; value: string; note: string; onChange: (v: string) => void; onBack: () => void; onDone: (code: string) => void }) {
+function Pin({ base, link, value, note, onChange, onBack, onDone }: { base: string; link: string; value: string; note: string; onChange: (v: string) => void; onBack: () => void; onDone: (code: string) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<"" | "checking" | "ok">("");
   const [wrong, setWrong] = useState("");
@@ -285,7 +318,7 @@ function Pin({ base, value, note, onChange, onBack, onDone }: { base: string; va
   // The fourth digit is checked by itself: no button to press.
   async function check(code: string) {
     setState("checking"); setWrong("");
-    const r = await fetch(`${base}/pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code }) }).catch(() => null);
+    const r = await fetch(`${base}/pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code, ...(link ? { link } : {}) }) }).catch(() => null);
     if (r?.ok) { setState("ok"); await new Promise(ok => setTimeout(ok, 350)); return onDone(code); }
     setState("");
     setWrong(r?.status === 429 ? T("Too many tries. Please wait a minute and try again.") : r?.status === 403 ? T("That code is not right. Please check it and try again.") : T("Could not check the code. Please check your internet and try again."));
@@ -326,6 +359,8 @@ function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone,
   const [busy, setBusy] = useState(false);
   const n = res.count ?? res.photos.length;
   const waiting = !!res.waiting;
+  /** Came by the all-photos link without a selfie: there is no "photos of you" number to show. */
+  const noSelfie = res.selfie === false;
   // What the studio asks for. A guest must be reachable some way, so with both hidden the number is asked.
   const mailAsk: Ask = askEmail ?? "optional";
   const phoneAsk: Ask = (askPhone ?? "optional") === "hide" && mailAsk === "hide" ? "optional" : askPhone ?? "optional";
@@ -361,7 +396,7 @@ function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone,
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={selfie} alt="" style={{ width: 76, height: 76, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 4px #fff, 0 10px 24px -10px rgba(40,28,96,.5)" }} />
           : null}
-        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? T("Where should we send your photos?") : T("We found {photos} of you", { photos: P(n) })}</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15 }}>{waiting ? T("Where should we send your photos?") : noSelfie ? T("Almost there") : T("We found {photos} of you", { photos: P(n) })}</h1>
         <p style={{ fontSize: 15, color: "#4A4658", maxWidth: 320 }}>{waiting ? T("Your selfie is saved. {studio} sends your photos here when they are ready.", { studio }) : must ? T("Tell us who you are to see them.") : T("Add your name and number, and the studio can send you new photos too.")}</p>
       </div>
       <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -383,7 +418,7 @@ function Register({ base, res, askPhone, askEmail, studio, selfie, must, onDone,
           : <p id="gf-reg-help" style={{ fontSize: 13, color: "#6B6680" }}>{either ? T("Give one or both. With an email, your photos come to your inbox by themselves. Only {studio} sees this.", { studio }) : T("Only {studio} sees this. It is used to send you your photos.", { studio })}</p>}
       </div>
       <div style={{ marginTop: "auto", paddingTop: 22, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? T("Saving…") : waiting ? T("Tell me when they are ready") : T(n === 1 ? "See my photo" : "See my photos")}</button>
+        <button type="button" className="gf-cta" disabled={busy} onClick={send} style={{ opacity: busy ? .6 : 1 }}>{busy ? T("Saving…") : waiting ? T("Tell me when they are ready") : noSelfie ? T("See all photos") : T(n === 1 ? "See my photo" : "See my photos")}</button>
         {!must && <button type="button" onClick={onSkip} style={{ height: 48, border: 0, background: "transparent", fontSize: 15, fontWeight: 700, color: "#4A4658" }}>{T("Not now")}</button>}
       </div>
     </div>
@@ -595,6 +630,11 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
   const n = res.photos.length;
   const [saving, setSaving] = useState(0);
   const frames = useRef<HTMLDivElement>(null);
+  /** The all-photos link, no selfie taken: one list of every photo. */
+  const noSelfie = res.selfie === false && n === 0;
+  /** What "Download all" saves: the guest's own photos, or (all-photos link, no selfie) every photo when they are not too many. */
+  const mainList = noSelfie ? (res.more.length <= 200 ? res.more : []) : res.photos;
+  const m = mainList.length;
   const moreTitle = useMemo(() => (res.moreKind === "all" ? T("All event photos") : T("Highlights from the event")), [res.moreKind]);
 
   // Each file is fetched from Google Drive as a download; a short gap keeps phones from blocking them.
@@ -684,18 +724,18 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
         {selfie
           // eslint-disable-next-line @next/next/no-img-element
           ? <img className="gf-drop" src={selfie} alt="Your selfie" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 0 0 3px #fff", objectFit: "cover" }} />
-          : <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#EEE8FD", flex: "none" }} aria-hidden="true" />}
+          : noSelfie ? null : <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#EEE8FD", flex: "none" }} aria-hidden="true" />}
         <div className="gf-rise" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.025em" }}>{n ? T("{photos} of you", { photos: P(n) }) : T("No photos of you yet")}</h1>
-          <span style={{ fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{T("{event}, by {studio}", { event: g.title, studio: g.studio.name })}</span>
+          <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-.025em" }}>{n ? T("{photos} of you", { photos: P(n) }) : noSelfie ? T("All event photos") : T("No photos of you yet")}</h1>
+          <span style={{ fontSize: 13, color: "#6B6680", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{noSelfie ? `${P(res.more.length)} · ` : ""}{T("{event}, by {studio}", { event: g.title, studio: g.studio.name })}</span>
         </div>
         {picking
           ? <button type="button" onClick={() => { setHeld(null); setPicked(picked.length === everyone.length ? [] : everyone.map(p => p.id)); }} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#4B32B8", fontSize: 13, fontWeight: 700, flex: "none" }}>{picked.length === everyone.length ? T("Clear all") : T("Choose all")}</button>
-          : <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>{T("New selfie")}</button>}
+          : <button type="button" onClick={onRetake} style={{ height: 44, padding: "0 14px", borderRadius: 14, border: 0, background: "#fff", color: "#17151F", fontSize: 13, fontWeight: 700, flex: "none" }}>{noSelfie ? T("Find my photos") : T("New selfie")}</button>}
       </div>
       {picking && <p role="status" style={{ flex: "none", margin: "0 18px 8px", padding: "9px 14px", borderRadius: 14, background: "rgba(125,92,239,.14)", color: "#4B32B8", fontSize: 14, fontWeight: 700 }}>{picked.length ? T("{n} chosen. Tap more, or press Download.", { n: N(picked.length) }) : T("Tap the photos you want to download.")}</p>}
       <div className="gf-scroll">
-        {n === 0 && (
+        {n === 0 && !noSelfie && (
           <div className="gf-glass gf-rise" style={{ padding: "16px 16px", borderRadius: 22, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
             <b style={{ fontSize: 16 }}>{T("We looked through every photo.")}</b>
             <span style={{ fontSize: 14, lineHeight: 1.5, color: "#4A4658" }}>{T("More photos may still be added. Open this page again later and your photos will show here by themselves. A clearer selfie also helps: face the light and take off sunglasses.")}</span>
@@ -704,7 +744,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
         <div className="gf-cols">{res.photos.map((p, i) => tile(p, i, "mine"))}</div>
         {res.more.length > 0 && (
           <>
-            <h2 style={{ fontSize: 17, fontWeight: 800, margin: "18px 4px 10px" }}>{moreTitle}</h2>
+            {!noSelfie && <h2 style={{ fontSize: 17, fontWeight: 800, margin: "18px 4px 10px" }}>{moreTitle}</h2>}
             <div className="gf-cols">{res.more.map((p, i) => tile(p, i, "more"))}</div>
           </>
         )}
@@ -715,9 +755,9 @@ function Results({ g, res, selfie, base, onOpen, onRetake }: { g: Open; res: Res
           <div style={{ display: "flex", gap: 8, width: "100%" }}>
             {picking
               ? <button type="button" onClick={stopPicking} disabled={!!saving} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Cancel")}</button>
-              : !held && !saving && n > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
-            <button type="button" className="gf-cta" onClick={() => (!picking && !n ? setPicking(true) : download(picking ? chosen : res.photos))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
-              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos} to this phone", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : n ? T("Download all {n}", { n: N(n) }) : T("Choose photos to download")}
+              : !held && !saving && m > 0 && everyone.length > 1 && <button type="button" onClick={() => { setPicking(true); setSaveNote(""); }} style={{ height: 54, padding: "0 18px", borderRadius: 18, border: 0, background: "#fff", color: "#17151F", fontSize: 15, fontWeight: 700, flex: "none" }}>{T("Choose")}</button>}
+            <button type="button" className="gf-cta" onClick={() => (!picking && !m ? setPicking(true) : download(picking ? chosen : mainList))} disabled={!!saving || (picking && !chosen.length)} style={{ flex: 1, height: 54, fontSize: 16, borderRadius: 18, opacity: picking && !chosen.length ? .5 : 1 }}>
+              <Ic d={DL} w={2.3} />{saving ? T("Getting {a} of {b}", { a: N(saving), b: N(total) }) : held ? T("Save {photos} to this phone", { photos: P(held.length) }) : picking ? (chosen.length ? T("Download {n}", { n: N(chosen.length) }) : T("Download")) : m ? T("Download all {n}", { n: N(m) }) : T("Choose photos to download")}
             </button>
           </div>
         </div>

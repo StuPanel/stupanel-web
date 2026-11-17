@@ -20,7 +20,7 @@ type Overview = {
   engine: { ready: boolean; region: string }; settings: Settings;
   totals: {
     studios: number; studiosOff: number; galleries: number; published: number; draft: number; closed: number;
-    photos: number; ready: number; waiting: number; failed: number; faces: number; guests: number; found: number;
+    photos: number; ready: number; waiting: number; oldestWaitMin?: number; failed: number; faces: number; guests: number; found: number;
     creditsLeft: number; creditsGiven: number; usedThisMonth: number; usedTotal: number; awsUsdThisMonth: number; capLeft: number | null;
   };
   days: { day: string; used: number }[]; recent: Entry[];
@@ -155,7 +155,10 @@ function OverviewTab({ o, call, onDone, onStudio }: { o: Overview; call: Call; o
             <li className="flex justify-between gap-3"><span className="text-slate-400">Studios using it</span><span className="text-white tabular-nums">{num(t.studios)}{t.studiosOff ? ` · ${num(t.studiosOff)} off` : ""}</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">Galleries</span><span className="text-white tabular-nums">{num(t.galleries)} · {num(t.published)} published</span></li>
             <li className="flex justify-between gap-3"><span className="text-slate-400">Monthly limit</span><span className={cn("tabular-nums", t.capLeft !== null && t.capLeft < o.settings.monthlyCap * 0.1 ? "text-amber-300" : "text-white")}>{t.capLeft === null ? "No limit" : `${num(t.capLeft)} of ${num(o.settings.monthlyCap)} left`}</span></li>
-            <li className="flex justify-between gap-3"><span className="text-slate-400">In the queue</span><span className="text-white tabular-nums">{num(t.waiting)}</span></li>
+            <li className="flex justify-between gap-3"><span className="text-slate-400">In the queue</span><span className="text-white tabular-nums">{num(t.waiting)}{t.waiting > 0 && t.oldestWaitMin !== undefined ? ` · oldest ${t.oldestWaitMin} min` : ""}</span></li>
+            {(t.oldestWaitMin ?? 0) > 10 && (
+              <li className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg px-2.5 py-2">Photos have waited over 10 minutes — one worker can&apos;t keep up. Time to add a second worker server.</li>
+            )}
             <li className="flex justify-between gap-3"><span className="text-slate-400">Could not be read</span><span className={cn("tabular-nums", t.failed ? "text-amber-300" : "text-white")}>{num(t.failed)}</span></li>
           </ul>
           <Btn variant="ghost" className="mt-4 w-full" loading={busy} disabled={!t.failed} onClick={retry}><RefreshCw className="w-3.5 h-3.5" />Try failed photos again</Btn>

@@ -160,7 +160,7 @@ export default function DashboardPage() {
                 {c.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                 {c.change > 0 ? "+" : ""}{c.change}% <span className="text-[#6B6680] font-medium">vs before</span>
               </p>
-            ) : <p className="mt-2 text-xs text-[#6B6680]">On all open programs</p>}
+            ) : <p className="mt-2 text-xs text-[#6B6680]">Open programs and invoices</p>}
           </Link>
         ))}
       </div>

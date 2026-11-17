@@ -9,8 +9,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, Image as ImageIcon, ImagePlus, Images, Link2, Loader2,
-  MessageSquareText, MoreHorizontal, Pencil, RefreshCw, RotateCcw, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
+  ArrowLeft, BellRing, Check, CheckCircle2, ChevronDown, ClipboardCopy, Copy, Download, Eye, FolderOpen, Heart, Image as ImageIcon, ImagePlus, Images, Link2, Loader2,
+  MessageSquareText, MoreHorizontal, Pencil, RefreshCw, RotateCcw, Search, Send, Settings2, Sparkles, Star, StickyNote, ThumbsUp, Trash2, TriangleAlert, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import { PortalAccessModal } from "@/components/portal-access-modal";
 import { SelectLinkModal } from "@/components/select-link-modal";
 import { PhotoViewer } from "@/components/photo-viewer";
 import {
-  albumProgress, foldersOf, isPicked, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeAgo, timeLeft, viewOf, zoomOf,
+  albumProgress, findPhotos, foldersOf, isPicked, photoNumbers, namesCsv, namesList, STATUS_LABEL, STATUS_STYLE, thumbOf, timeAgo, timeLeft, viewOf, zoomOf,
   type GalleryDetail, type GPhoto,
 } from "@/lib/photos";
 import { AddPhotos, syncUploadsInfo } from "../_components/add-photos";
@@ -66,6 +66,8 @@ export default function GalleryPage() {
   const [link, setLink] = useState<{ url: string } | null | undefined>(undefined);
   const [menu, setMenu] = useState<"copy" | "more" | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Find by the photo's number (the client sees the same one) or by file name. */
+  const [q, setQ] = useState("");
   const lastReady = useRef(0);
 
   const load = useCallback(async () => {
@@ -115,12 +117,13 @@ export default function GalleryPage() {
   const albumName = useMemo(() => new Map((g?.albums ?? []).map(a => [a.id, a.name])), [g?.albums]);
   const folders = useMemo(() => foldersOf(g?.photos ?? [], album === "all" ? undefined : album), [g?.photos, album]);
   const folder = folderPick !== null && folders.includes(folderPick) ? folderPick : null;
-  const shown = useMemo(() => (g?.photos ?? []).filter(p =>
+  const nums = useMemo(() => photoNumbers(g?.photos ?? []), [g?.photos]);
+  const shown = useMemo(() => q.trim() ? findPhotos((g?.photos ?? []).filter(p => album === "all" || p.a === album), nums, q) : (g?.photos ?? []).filter(p =>
     (album === "all" || p.a === album) && (folder === null || (p.f ?? "") === folder) &&
     (filter === "all" ? true : filter === "picked" ? isPicked(p.m) : filter === "important" ? p.m === "important" : filter === "rejected" ? p.m === "rejected"
-      : filter === "none" ? !p.m : filter === "notes" ? !!p.no : filter === "highlight" ? p.hl : p.st === "failed")), [g?.photos, album, folder, filter]);
+      : filter === "none" ? !p.m : filter === "notes" ? !!p.no : filter === "highlight" ? p.hl : p.st === "failed")), [g?.photos, album, folder, filter, q, nums]);
 
-  const act = async (action: "send" | "take" | "reopen" | "close" | "tell-new", clear?: boolean) => {
+  const act = async (action: "send" | "take" | "reopen" | "close" | "tell-new" | "remind", clear?: boolean) => {
     setBusy(true);
     try {
       const r = await apiFetch(`${API}/photo-selection/${id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, clear }) });
@@ -385,6 +388,11 @@ export default function GalleryPage() {
                 : g.activity.opens ? "Nothing chosen yet" : "You see here when they open the link and how many they have chosen."}
             </p>
           </div>
+          {g.status === "open" && g.client.email && (
+            <button type="button" disabled={busy} title={g.remindedAt ? `Last reminder: ${fmt(g.remindedAt)}` : `Email ${g.client.firstName} a reminder to finish choosing`}
+              onClick={async () => { if (await askConfirm({ title: `Send ${g.client.firstName} a reminder?`, message: `An email goes to ${g.client.email} with how many photos they have chosen${g.deadline ? " and the last day" : ""}.`, confirmLabel: "Send reminder" }) && await act("remind")) notify(`Reminder sent to ${g.client.firstName}`); }}
+              className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5 flex-shrink-0 disabled:opacity-60"><BellRing className="w-3.5 h-3.5" />Remind</button>
+          )}
           <button type="button" onClick={load} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5 flex-shrink-0"><RefreshCw className="w-3.5 h-3.5" />Refresh</button>
         </div>
       )}
@@ -476,6 +484,13 @@ export default function GalleryPage() {
           ))}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto">
+          <label className="h-9 pl-2.5 pr-2 rounded-full bg-white flex items-center gap-1.5 w-[120px] sm:w-[150px] focus-within:ring-2 focus-within:ring-[#7D5CEF] flex-shrink min-w-0" title="Find by photo number (the client sees the same number) or file name">
+            <Search className="w-3.5 h-3.5 text-[#8A8599] flex-shrink-0" />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="# or file name" aria-label="Find a photo by number or file name"
+              onKeyDown={e => { if (e.key === "Enter" && shown[0]?.t) setView(0); if (e.key === "Escape") setQ(""); }}
+              className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-[#17151F] placeholder:text-[#A29DB3]" />
+            {q && <button type="button" onClick={() => setQ("")} aria-label="Clear" className="w-5 h-5 rounded-full bg-[#F5F3FA] flex items-center justify-center text-[#6B6680] flex-shrink-0"><X className="w-3 h-3" /></button>}
+          </label>
           <div className="inline-flex p-1 rounded-full bg-white" role="radiogroup" aria-label="Photo size">
             {(["s", "m", "l"] as const).map(s => (
               <button key={s} type="button" role="radio" aria-checked={size === s} onClick={() => setSize(s)}
@@ -510,7 +525,7 @@ export default function GalleryPage() {
           <button type="button" onClick={() => setAdding(true)} className="mt-5 h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />Add photos</button>
         </div>
       ) : shown.length === 0 ? (
-        <p className="text-center text-sm text-[#6B6680] py-12">No photo here.</p>
+        <p className="text-center text-sm text-[#6B6680] py-12">{q.trim() ? `No photo matches “${q.trim()}”.` : "No photo here."}</p>
       ) : (
         <div className={cn("grid gap-1.5 sm:gap-2", SIZES[size])}>
           {shown.map((p, i) => {
@@ -536,7 +551,8 @@ export default function GalleryPage() {
                   {p.hl && <span className="w-6 h-6 rounded-full bg-white/95 text-[#9E3A8C] flex items-center justify-center shadow" title="Highlight"><Star className="w-3.5 h-3.5" fill="currentColor" /></span>}
                 </span>
                 {selecting && <span className={cn("absolute right-1.5 bottom-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white/80 border-white")}>{on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}</span>}
-                {size !== "s" && p.t && <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 pt-5 bg-gradient-to-t from-black/55 to-transparent text-white text-[11.5px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity">{p.n}</span>}
+                {nums.get(p.id) && !selecting && <span className="absolute left-1.5 bottom-1.5 h-5 px-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10.5px] font-bold tabular-nums inline-flex items-center pointer-events-none transition-opacity group-hover:opacity-0">{nums.get(p.id)}</span>}
+                {size !== "s" && p.t && <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 pt-5 bg-gradient-to-t from-black/55 to-transparent text-white text-[11.5px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity">{nums.get(p.id) ? `#${nums.get(p.id)} · ` : ""}{p.n}</span>}
               </button>
             );
           })}
@@ -573,7 +589,7 @@ export default function GalleryPage() {
           src={viewOf(vp)}
           srcAt={i => (shown[i] ? viewOf(shown[i]) : "")} thumbAt={i => (shown[i] ? thumbOf(shown[i]) : "")} zoomAt={i => (shown[i] ? zoomOf(shown[i]) : "")}
           preload={[shown[view + 1], shown[view + 2], shown[view + 3], shown[view - 1]].filter(Boolean).filter(p => p!.t).map(p => viewOf(p!))}
-          title={vp.n} sub={[albumName.get(vp.a), vp.f].filter(Boolean).join(" · ")}
+          title={nums.get(vp.id) ? `#${nums.get(vp.id)} · ${vp.n}` : vp.n} sub={[albumName.get(vp.a), vp.f].filter(Boolean).join(" · ")}
           onKey={e => { if (e.key.toLowerCase() === "h") { patchPhotos([vp.id], { highlight: !vp.hl }); return true; } return false; }}
           footer={
             <div className="max-w-2xl mx-auto flex flex-col gap-2">

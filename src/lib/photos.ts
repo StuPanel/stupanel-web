@@ -39,7 +39,7 @@ export type GalleryCard = {
 export type Counts = { total: number; ready: number; failed: number; working: number; picked: number; important: number; rejected: number };
 
 export type GalleryDetail = {
-  id: string; title: string; status: GalleryStatus; deadline: string | null; allowNotes: boolean; allowLove?: boolean; welcome: string | null;
+  id: string; title: string; status: GalleryStatus; deadline: string | null; remindBefore?: number | null; remindedAt?: string | null; allowNotes: boolean; allowLove?: boolean; welcome: string | null;
   clientNote: string | null; submittedAt: string | null; changedAfterSubmitAt: string | null; takenAt: string | null;
   reopenRequestedAt: string | null; reopenReason: string | null; createdAt: string; updatedAt: string;
   program: { id: string; name: string; number: string; date: string | null };
@@ -222,3 +222,35 @@ export type SharedGallery = {
   albums: { id: string; name: string }[];
   photos: { id: string; a: string; w: number | null; h: number | null; hl: boolean; f: string | null; d: string | null; c: boolean }[];
 };
+
+/**
+ * Each photo's number inside its album (1, 2, 3…), in the order the client sees them — the same number
+ * for the client and the studio, so "Wedding #45" means one photo. Photos the client can't see yet get none.
+ */
+export function photoNumbers(photos: GPhoto[]) {
+  const next = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const p of photos) {
+    if (p.st !== undefined && (p.st !== "ready" || !p.d)) continue;
+    const n = (next.get(p.a) ?? 0) + 1;
+    next.set(p.a, n); out.set(p.id, n);
+  }
+  return out;
+}
+
+/**
+ * Photos that match what was typed: a number ("45" or "#45") finds that photo first, then file names
+ * that contain the text ("DSC_0045", "0045"). Case and the file ending don't matter.
+ */
+export function findPhotos(photos: GPhoto[], nums: Map<string, number>, query: string) {
+  const q = query.trim().toLowerCase().replace(/^#\s*/, "");
+  if (!q) return photos;
+  const asNum = /^\d+$/.test(q) ? Number(q) : null;
+  const exact: GPhoto[] = [];
+  const named: GPhoto[] = [];
+  for (const p of photos) {
+    if (asNum !== null && nums.get(p.id) === asNum) exact.push(p);
+    else if (p.n.toLowerCase().replace(/\.[a-z0-9]{2,5}$/, "").includes(q)) named.push(p);
+  }
+  return [...exact, ...named];
+}

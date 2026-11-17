@@ -104,6 +104,7 @@ const BN: Record<string, string> = {
   "Save {photos}": "{photos} সেভ করুন",
   "Getting the photo": "ছবি আনা হচ্ছে",
   "Save photo": "ছবি সেভ করুন",
+  "Saved": "সেভ হয়েছে",
   "The follow card is off. Guests are not asked to follow.": "ফলো কার্ড বন্ধ। অতিথিদের ফলো করতে বলা হয় না।",
   "Add your Instagram or Facebook page to ask guests to follow.": "অতিথিদের ফলো করতে বলতে আপনার Instagram বা Facebook পেজ যোগ করুন।",
   "Caption copied. Paste it when you post.": "ক্যাপশন কপি হয়েছে। পোস্ট করার সময় পেস্ট করুন।",

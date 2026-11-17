@@ -317,8 +317,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
             title={g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
             footer={res.downloads || g.shareButton !== false ? (
               <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center" }}>
-                {res.downloads && phoneSave() && <SaveOne key={p.id} photo={p} gate={run => moment("download", run)} onSaved={() => { counted(base, res.key, 1); setTimeout(() => moment("downloaded"), 900); }} />}
-                {res.downloads && !phoneSave() && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
+                {res.downloads && touch() && <SaveOne key={p.id} sheet={phoneSave()} photo={p} gate={run => moment("download", run)} onSaved={() => { counted(base, res.key, 1); setTimeout(() => moment("downloaded"), 900); }} />}
+                {res.downloads && !touch() && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
                   onClick={e => {
                     // "When Download is pressed": the card first; the photo is saved from its button (same tap, so phones allow it).
                     if (gates()) { e.preventDefault(); const url = faceSaveUrl(p); moment("download", () => { counted(base, res.key, 1); window.open(url, "_blank", "noopener"); }); return; }
@@ -351,8 +351,18 @@ function warm(out: Result) {
   if (typeof window === "undefined") return;
   for (const p of [...(out.photos ?? []), ...(out.more ?? [])].slice(0, 24)) { const i = new Image(); i.referrerPolicy = "no-referrer"; i.decoding = "async"; i.src = facePhotoUrl(p, 480); }
 }
-/** A phone or tablet that can hand files to its share sheet ("Save image"). */
-const phoneSave = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches && !!navigator.canShare?.({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] });
+/** iPhone and iPad: photos are saved through the share sheet ("Save Image"); a file download lands in Files there. */
+const isApple = () => typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+/** Save through the share sheet: iPhone and iPad only. Android's share sheet has no "Save", so Android downloads the file. */
+const phoneSave = () => typeof window !== "undefined" && isApple() && !!navigator.canShare?.({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] });
+/** A phone or tablet (touch screen): files are fetched here and saved, instead of Drive's own download page. */
+const touch = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+/** Save a file to Downloads from this page (Android, computers): one tap, no new tab. */
+function saveFile(f: File) {
+  const url = URL.createObjectURL(f); const a = document.createElement("a");
+  a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 8000);
+}
 /** One photo as a file for the share sheet. */
 async function fileOf(p: FacePhoto, i = 0) {
   const r = await fetch(faceFileUrl(p)).catch(() => null);
@@ -808,7 +818,8 @@ function Follow({ g, count, onFollowed, onSkip }: { g: Open; count: number; onFo
  * Download on a phone: the photo is fetched when it opens, so one tap hands it to the share sheet ("Save image").
  * If the phone still asks for a fresh tap, the button turns into "Save photo" (ready) for that tap.
  */
-function SaveOne({ photo, gate, onSaved }: { photo: FacePhoto; gate: (run: () => void) => void; onSaved: () => void }) {
+function SaveOne({ photo, sheet, gate, onSaved }: { photo: FacePhoto; /** iPhone: through the share sheet; else a file download */ sheet: boolean; gate: (run: () => void) => void; onSaved: () => void }) {
+  const [done, setDone] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<"" | "getting" | "ready">("");
   const want = useRef(false);
@@ -819,9 +830,10 @@ function SaveOne({ photo, gate, onSaved }: { photo: FacePhoto; gate: (run: () =>
     return () => { on = false; clearTimeout(t); };
   }, [photo]);
   const hand = useCallback(async (f: File) => {
+    if (!sheet) { saveFile(f); setState(""); setDone(true); setTimeout(() => setDone(false), 2600); onSaved(); return; }
     try { await navigator.share({ files: [f] }); setState(""); onSaved(); }
     catch (e) { setState((e as Error).name === "AbortError" ? "" : "ready"); }
-  }, [onSaved]);
+  }, [onSaved, sheet]);
   // Tapped before the photo was here: it is handed over the moment it arrives.
   useEffect(() => { if (file && want.current) { want.current = false; void hand(file); } }, [file, hand]);
   const go = () => {
@@ -832,7 +844,7 @@ function SaveOne({ photo, gate, onSaved }: { photo: FacePhoto; gate: (run: () =>
     <button type="button" className={state === "ready" ? "gf-ready" : undefined} onClick={() => (state === "ready" ? go() : gate(go))} disabled={state === "getting"}
       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, height: 52, padding: "0 26px", borderRadius: 18, border: 0, background: "#7D5CEF", color: "#fff", fontWeight: 700, fontSize: 16 }}>
       {state === "getting" ? <span className="gf-dots" aria-hidden="true"><i style={{ background: "#fff" }} /><i style={{ background: "#fff" }} /><i style={{ background: "#fff" }} /></span> : <Ic d={DL} />}
-      {state === "getting" ? T("Getting the photo") : state === "ready" ? T("Save photo") : T("Download")}
+      {state === "getting" ? T("Getting the photo") : state === "ready" ? T("Save photo") : done ? T("Saved") : T("Download")}
     </button>
   );
 }
@@ -1032,7 +1044,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
 
   /** Hand the fetched photos to the phone ("Save images"), or save them one by one. */
   /** Phones and tablets: the share sheet has "Save images". A computer saves the files straight to Downloads. */
-  const toSheet = (files: File[]) => window.matchMedia("(pointer: coarse)").matches && !!navigator.canShare?.({ files });
+  const toSheet = (files: File[]) => isApple() && !!navigator.canShare?.({ files });
 
   async function give(files: File[]) {
     if (toSheet(files)) {
@@ -1040,9 +1052,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
       catch (e) { if ((e as Error).name === "AbortError") return; /* closed the sheet: keep them for another try */ }
     }
     for (const f of files) {
-      const url = URL.createObjectURL(f); const a = document.createElement("a");
-      a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      saveFile(f);
       await new Promise(ok => setTimeout(ok, 350));
     }
     setHeld(null);
@@ -1067,7 +1077,7 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
     counted(base, res.key, n);
     // Phones: the photos are fetched (several at once) and handed to the share sheet ("Save images").
     // Computers: watermarked photos are fetched and saved; originals come straight from Google Drive.
-    const phone = phoneSave();
+    const phone = touch();
     if (list[0]?.wm || phone) {
       const files: (File | null)[] = new Array(n).fill(null);
       let done = 0;

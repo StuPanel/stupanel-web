@@ -41,6 +41,7 @@ const KINDS: Record<string, string> = {
   verification: "Verify email",
   password_reset: "Password reset",
   studio_data: "Studio data",
+  face_credits: "Face Search credits",
   system: "StuPanel notice",
   other: "Other",
 };

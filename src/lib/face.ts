@@ -44,6 +44,8 @@ export type FaceSettings = {
   followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string;
   /** "Book us" card after the photos (WhatsApp with a ready message) and a review link */
   bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string;
+  /** When the Book us card shows (end of the photos, or slides up), ask again after Not now, keep it at the end too */
+  bookWhen?: "end" | "results" | "downloaded" | "afterFollow"; bookAgain?: boolean; bookKeepCard?: boolean;
   /** Share button in the opened photo, and the caption copied with it ("" = Photo by @handle) */
   shareButton?: boolean; shareCaption?: string;
   /** The message sent to guests ("" = the usual one); {name} {event} {studio} {count} {link} are filled in */

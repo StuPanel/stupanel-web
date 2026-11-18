@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CheckCircle2, Clock, Download, Loader2, Save, X, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Clock, Download, Loader2, X, XCircle } from "lucide-react";
 import Link from "next/link";
 import { can, getPlatformUser } from "@/lib/platform-api";
 import { API_URL as API } from "@/lib/api";
@@ -22,11 +22,6 @@ interface Req {
 }
 
 const METHOD_LABEL: Record<Method, string> = { bkash: "bKash", nagad: "Nagad", rocket: "Rocket" };
-const NUMBER_KEYS: { method: Method; key: string }[] = [
-  { method: "bkash", key: "billing.bkash_number" },
-  { method: "nagad", key: "billing.nagad_number" },
-  { method: "rocket", key: "billing.rocket_number" },
-];
 
 function fmt(d: string | null) {
   return d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -51,8 +46,6 @@ export default function AdminBillingPage() {
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const [numbers, setNumbers] = useState<Record<string, string>>({});
-  const [savingNumbers, setSavingNumbers] = useState(false);
 
   async function load(which = tab) {
     setLoading(true);
@@ -62,17 +55,8 @@ export default function AdminBillingPage() {
     setLoading(false);
   }
 
-  async function loadNumbers() {
-    const res = await fetch(`${API}/admin/settings`, { headers: authH() });
-    if (!res.ok) return;
-    const all: { key: string; value: string }[] = await res.json();
-    const out: Record<string, string> = {};
-    for (const { key } of NUMBER_KEYS) out[key] = all.find((s) => s.key === key)?.value ?? "";
-    setNumbers(out);
-  }
 
   useEffect(() => { load(tab); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
-  useEffect(() => { if (can(me, "settings.manage")) loadNumbers(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   async function loadSummary(f = from, t = to) {
     const res = await fetch(`${API}/admin/billing/summary?from=${f}&to=${t}`, { headers: authH() });
@@ -120,17 +104,6 @@ export default function AdminBillingPage() {
     else flash(Array.isArray(b.message) ? b.message[0] : b.message ?? "Could not reject", false);
   }
 
-  async function saveNumbers() {
-    setSavingNumbers(true);
-    for (const { method, key } of NUMBER_KEYS) {
-      await fetch(`${API}/admin/settings`, {
-        method: "POST", headers: authH(),
-        body: JSON.stringify({ key, value: (numbers[key] ?? "").trim(), category: "billing", description: `${METHOD_LABEL[method]} personal number shown on the studio billing page (leave empty to hide)` }),
-      });
-    }
-    setSavingNumbers(false);
-    flash("Payment numbers saved");
-  }
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -168,26 +141,9 @@ export default function AdminBillingPage() {
         </div>
       </div>
 
-      {/* Payment numbers */}
-      {can(me, "settings.manage") && <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
-        <p className="font-semibold text-white">Payment numbers</p>
-        <p className="text-xs text-slate-400 mt-0.5">Shown to studios on their billing page. Leave empty to hide a method.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {NUMBER_KEYS.map(({ method, key }) => (
-            <label key={key} className="block">
-              <span className="text-xs font-medium text-slate-300">{METHOD_LABEL[method]} number</span>
-              <input value={numbers[key] ?? ""} onChange={(e) => setNumbers((n) => ({ ...n, [key]: e.target.value }))}
-                placeholder="01XXXXXXXXX" inputMode="tel"
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500" />
-            </label>
-          ))}
-        </div>
-        <button onClick={saveNumbers} disabled={savingNumbers}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60">
-          {savingNumbers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save numbers
-        </button>
-        <p className="text-xs text-slate-400 mt-3">Plan prices can be changed on the Plans page.</p>
-      </div>}
+      {can(me, "settings.manage") && (
+        <p className="text-xs text-slate-400">The bKash, Nagad and Rocket numbers studios pay to are in <Link href="/admin/settings/payments" className="text-indigo-300 hover:text-indigo-200 underline underline-offset-2">Settings → Payments</Link>. Plan prices are on Plans.</p>
+      )}
 
       {/* Requests */}
       <div className="rounded-xl border border-slate-700 bg-slate-800">

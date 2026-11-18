@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pfetch } from "@/lib/platform-api";
-import { Btn, Panel, inp } from "../_components/staff-kit";
+import { Btn, Panel, inp } from "../../_components/staff-kit";
 
 export interface Role { id: string; key: string; name: string; description?: string | null; permissions: string[]; isSystem: boolean; members?: number }
 

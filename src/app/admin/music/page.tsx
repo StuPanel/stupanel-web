@@ -37,6 +37,13 @@ export default function AdminMusicPage() {
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [tab, setTab] = useState<"picks" | "community" | "removed" | "tags">("picks");
+  // A link like /admin/music?tab=tags (Settings → Music tags) opens that tab.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t !== "picks" && t !== "community" && t !== "removed" && t !== "tags") return;
+    const id = setTimeout(() => setTab(t), 0);
+    return () => clearTimeout(id);
+  }, []);
   const [tags, setTags] = useState<TagData | null>(null);
   const [tagForm, setTagForm] = useState<{ kind: TagKind; tag?: FullTag; suggestion?: Suggested } | null>(null);
   // Pickers offer the tags studios can choose; names of hidden ones still show on songs that have them.

@@ -32,7 +32,7 @@ export type StudioSettings = {
   /** The studio's shifts with their usual time (older servers: missing). */
   shifts?: StudioShift[];
   teamPay: { mode: "per_shift" | "per_program" };
-  booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean };
+  booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean; autoStatus?: boolean };
   delivery: { lockWhenDue: boolean; managerCanUnlock: boolean };
   paymentReminders: { enabled: boolean; daysBefore: number; afterEveryDays: number; maxAfter: number };
   eventReminders: { team: boolean; client: boolean };

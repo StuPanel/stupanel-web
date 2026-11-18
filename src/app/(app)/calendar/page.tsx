@@ -25,14 +25,14 @@ const STATUS_COLORS: Record<string, { dot: string; badge: string; label: string 
   inquiry:             { dot: "bg-[#C2304F]",   badge: "bg-[#FDECEF] text-[#C2304F]",     label: "Inquiry" },
   quote_sent:          { dot: "bg-[#9E3A8C]",    badge: "bg-[#FBF2FA] text-[#9E3A8C]",       label: "Quote Sent" },
   confirmed:           { dot: "bg-[#7D5CEF]",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   label: "Confirmed" },
-  advance_received:    { dot: "bg-[#5B3FD0]",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   label: "Advance Rcvd" },
+  advance_received:    { dot: "bg-[#5B3FD0]",  badge: "bg-[#EEE8FD] text-[#5B3FD0]",   label: "Confirmed" },
   in_progress:         { dot: "bg-[#126B66]",   badge: "bg-[#E0F2F1] text-[#126B66]",     label: "Shooting" },
   editing:             { dot: "bg-[#1F5C99]",  badge: "bg-[#E6F0FB] text-[#1F5C99]",   label: "Editing" },
   ready_for_delivery:  { dot: "bg-[#7D5CEF]",    badge: "bg-[#7D5CEF] text-white",       label: "Ready" },
   delivered:           { dot: "bg-[#4A4658]",    badge: "bg-[#EEEDF2] text-[#4A4658]",       label: "Delivered" },
   completed:           { dot: "bg-[#1F8A5B]", badge: "bg-[#EEEDF2] text-[#4A4658]", label: "Completed" },
   cancelled:           { dot: "bg-[#8A2E2E]",     badge: "bg-[#F3E3E3] text-[#8A2E2E]",         label: "Cancelled" },
-  refunded:            { dot: "bg-[#8A2E2E]",    badge: "bg-[#F3E3E3] text-[#8A2E2E]",       label: "Refunded" },
+  refunded:            { dot: "bg-[#8A2E2E]",    badge: "bg-[#F3E3E3] text-[#8A2E2E]",       label: "Cancelled" },
 };
 
 

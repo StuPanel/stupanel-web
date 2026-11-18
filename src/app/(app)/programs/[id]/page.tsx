@@ -22,7 +22,7 @@ import { DateBox, Tile } from "@/components/ui/apple";
 import { ProgramTeamCosts } from "@/components/team-costs";
 import { Chip, Empty, List, MENU_CLS, MENU_ITEM, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
 import { askConfirm, notify } from "@/components/feedback";
-import { STATUS_CFG, STATUS_PIPELINE } from "../_components/constants";
+import { MONEY_TONE, STATUS_CFG, STATUS_PIPELINE, moneyState, normalStatus } from "../_components/constants";
 import { DeleteDialog } from "../_components/program-card";
 import { ProgramDrawer } from "../_components/program-drawer";
 import { PaymentModal } from "../_components/payment-modal";
@@ -69,6 +69,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const [typeNames, setTypeNames] = useState<Record<string, string>>({});
   const [musicOn, setMusicOn] = useState(false);
   const [askBeforeConfirm, setAskBeforeConfirm] = useState(false);
+  // Settings → Programs → "Move status by itself".
+  const [autoStatus, setAutoStatus] = useState(true);
   // Settings → Delivery: files stay locked for the client while money is due; who may open one program.
   const [lockRule, setLockRule] = useState({ lock: false, managerCan: false });
   const [unlockBusy, setUnlockBusy] = useState(false);
@@ -98,6 +100,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
       if (!d) return;
       setMusicOn(!!d.features?.musicSelection);
       setAskBeforeConfirm(!!d.booking?.askBeforeConfirm);
+      setAutoStatus(d.booking?.autoStatus !== false);
       setLockRule({ lock: d.delivery?.lockWhenDue !== false, managerCan: !!d.delivery?.managerCanUnlock });
       setTypeNames(Object.fromEntries((d.workTypes ?? []).map((w: { id: string; name: string }) => [w.id, w.name])));
     }).catch(() => {});
@@ -139,7 +142,17 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   // ── Status ──
   const cancelled = b.status === "cancelled" || b.status === "refunded";
   const sc = STATUS_CFG[b.status] ?? STATUS_CFG.inquiry;
-  const step = STATUS_PIPELINE.indexOf(b.status);
+  const step = STATUS_PIPELINE.indexOf(normalStatus(b.status));
+  const money = moneyState(b, n => formatCurrency(n, b.currency));
+  // What happens next by itself (Settings → Programs → Move status by itself).
+  const dayAfter = (d: string) => { const t = new Date(`${d}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
+  const autoNext = !autoStatus || cancelled ? null
+    : normalStatus(b.status) === "confirmed" && firstDate && firstDate > localDateStr() ? `Moves to Shooting on ${fmtDate(firstDate)} by itself`
+    : normalStatus(b.status) === "confirmed" && firstDate ? "Moves to Shooting or Editing within the hour"
+    : b.status === "in_progress" && lastDate ? `Moves to Editing on ${fmtDate(dayAfter(lastDate))} by itself`
+    : b.status === "editing" ? "Becomes Ready when every editor's work is approved"
+    : b.status === "delivered" && Number(b.grandTotal) - Number(b.paidAmount) > 0.009 ? "Becomes Completed when it is fully paid"
+    : null;
   const next = step >= 0 && step < STATUS_PIPELINE.length - 1 ? STATUS_PIPELINE[step + 1] : null;
   async function setUnlocked(unlocked: boolean) {
     if (unlocked && !(await askConfirm({
@@ -206,8 +219,12 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
       todos.push({ tone: "amber", icon: Users, title: empty.length === 1 ? `Nobody on ${empty[0].eventType || "one day"} yet` : `${empty.length} days have no team`, sub: "Put photographers and cinematographers on the shift", run: () => setEditing(true) });
     if (early && Number(b.advanceAmount) > 0 && paid + 0.009 < Number(b.advanceAmount))
       todos.push({ tone: "violet", icon: Wallet, title: "Advance not received yet", sub: `${formatCurrency(Number(b.advanceAmount) - paid, b.currency)} of ${formatCurrency(Number(b.advanceAmount), b.currency)} to collect`, run: () => setPaymentOpen(true) });
-    if (early && lastDate && lastDate < today())
-      todos.push({ tone: "violet", icon: ArrowRight, title: "The program date has passed", sub: "Move it to Shooting or Editing", run: () => setStatus("editing") });
+    if (early && lastDate && lastDate < today()) {
+      if (b.status === "inquiry" || b.status === "quote_sent")
+        todos.push({ tone: "violet", icon: ArrowRight, title: "The date has passed — confirm or cancel?", sub: "It was never confirmed. Confirm it if it happened", run: () => setStatus("confirmed") });
+      else if (!autoStatus)
+        todos.push({ tone: "violet", icon: ArrowRight, title: "The program date has passed", sub: "Move it to Editing", run: () => setStatus("editing") });
+    }
     if (done && due > 0.009)
       todos.push({ tone: "red", icon: Wallet, title: `Balance due: ${formatCurrency(due, b.currency)}`, sub: "Delivered, but not fully paid", run: () => setPaymentOpen(true) });
     if ((done || b.status === "ready_for_delivery") && teamOwed > 0.009)
@@ -328,7 +345,10 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
             {cancelled ? (
               <>
                 <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">Status</p>
-                <p className="text-[22px] font-extrabold tracking-[-0.02em] text-[#8A2E2E] leading-tight mt-0.5">{sc.label}</p>
+                <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                  <p className="text-[22px] font-extrabold tracking-[-0.02em] text-[#8A2E2E] leading-tight">{sc.label}</p>
+                  {money && <span className={cn("h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center tabular-nums", MONEY_TONE[money.tone])}>{money.label}</span>}
+                </div>
                 <button type="button" disabled={statusBusy} onClick={() => setStatus("confirmed")} className="mt-3 w-full h-11 rounded-full bg-[#EEE8FD] hover:bg-[#E2D9FC] text-[#5B3FD0] text-sm font-semibold inline-flex items-center justify-center gap-2">
                   {statusBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}Reopen program
                 </button>
@@ -339,7 +359,11 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">Status</p>
                   <p className="text-[12.5px] text-[#6B6680]">Step {Math.max(1, step + 1)} of {STATUS_PIPELINE.length}</p>
                 </div>
-                <p className="text-[22px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight mt-0.5">{sc.label}</p>
+                <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                  <p className="text-[22px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{sc.label}</p>
+                  {money && <span className={cn("h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center tabular-nums", MONEY_TONE[money.tone])}>{money.label}</span>}
+                </div>
+                {autoNext && <p className="mt-1 text-[12.5px] text-[#6B6680]">{autoNext}</p>}
                 <div className="mt-3 flex gap-1" role="group" aria-label="Program steps">
                   {STATUS_PIPELINE.map((s, i) => (
                     <button key={s} type="button" disabled={statusBusy} onClick={() => setStatus(s)} title={STATUS_CFG[s]?.label} aria-label={`${STATUS_CFG[s]?.label}${i === step ? " (now)" : ""}`} aria-current={i === step ? "step" : undefined}

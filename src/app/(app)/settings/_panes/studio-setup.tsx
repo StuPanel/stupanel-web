@@ -408,6 +408,9 @@ export function ProgramRulesGroup() {
       <Row id="b-askBeforeConfirm" label="Ask before confirming" hint="Show an &quot;Are you sure?&quot; step before a program is marked Confirmed">
         <Switch label="Ask before confirming" on={b.askBeforeConfirm} onChange={v => patchStudio("booking", { ...b, askBeforeConfirm: v })} />
       </Row>
+      <Row id="b-autoStatus" label="Move status by itself" hint="Confirmed → Shooting on the first day, → Editing the day after the last day, Delivered → Completed when fully paid. A status you move back by hand stays">
+        <Switch label="Move status by itself" on={b.autoStatus !== false} onChange={v => patchStudio("booking", { ...b, autoStatus: v })} />
+      </Row>
     </Group>
   );
 }

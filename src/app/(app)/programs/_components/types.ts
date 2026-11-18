@@ -172,7 +172,8 @@ export interface Booking {
   client: { id: string; firstName: string; lastName?: string; phone?: string };
   program?: { id: string; name: string };
   team: { userId: string; roleInBooking?: string; agreedRate?: number; agreedNote?: string }[];
-  payments: { id: string; amount: number }[];
+  payments: { id: string; amount: number; paymentStatus?: string }[];
+  statusManualAt?: string | null;
 }
 
 /** What the other programs already took in this program's shifts, and what is free (POST /equipment/check). */

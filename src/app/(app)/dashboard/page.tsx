@@ -57,14 +57,14 @@ const STATUS: Record<string, { label: string; bg: string; text: string }> = {
   inquiry: { label: "Inquiry", bg: "#FDECEF", text: "#C2304F" },
   quote_sent: { label: "Quote sent", bg: "#FBF2FA", text: "#9E3A8C" },
   confirmed: { label: "Confirmed", bg: "#EEE8FD", text: "#5B3FD0" },
-  advance_received: { label: "Advance", bg: "#EEE8FD", text: "#5B3FD0" },
+  advance_received: { label: "Confirmed", bg: "#EEE8FD", text: "#5B3FD0" },
   in_progress: { label: "Shooting", bg: "#E0F2F1", text: "#126B66" },
   editing: { label: "Editing", bg: "#E6F0FB", text: "#1F5C99" },
   ready_for_delivery: { label: "Ready", bg: "#7D5CEF", text: "#FFFFFF" },
   delivered: { label: "Delivered", bg: "#EEEDF2", text: "#4A4658" },
   completed: { label: "Completed", bg: "#EEEDF2", text: "#4A4658" },
   cancelled: { label: "Cancelled", bg: "#F3E3E3", text: "#8A2E2E" },
-  refunded: { label: "Refunded", bg: "#F3E3E3", text: "#8A2E2E" },
+  refunded: { label: "Cancelled", bg: "#F3E3E3", text: "#8A2E2E" },
 };
 function StatusPill({ status }: { status: string }) {
   const s = STATUS[status] ?? STATUS.inquiry;

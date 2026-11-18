@@ -25,6 +25,9 @@ import { DataPane } from "./_panes/data";
 import { MyProfile } from "@/components/account/my-profile";
 import { WhatsAppTemplates } from "@/components/whatsapp/templates-manager";
 import { DeliveryRulesPane, FeaturesPane, MusicPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
+import { MenuPane } from "./_panes/menu";
+import { BillingPane } from "./_panes/billing";
+import { announceMenu } from "@/lib/studio-menu";
 
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   general: GeneralPane, branding: BrandingPane, online: OnlinePane,
@@ -33,6 +36,7 @@ const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   whatsapp: () => <WhatsAppTemplates embedded />,
   profile: () => <MyProfile embedded />, appearance: AppearancePane, security: SecurityPane, integrations: IntegrationsPane, data: DataPane,
+  menu: MenuPane, billing: BillingPane,
 };
 
 // Old links used ?tab=… — keep them working.
@@ -113,8 +117,8 @@ export default function SettingsPage() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save");
       setStudio(d as StudioSettings);
-      // The sidebar hides switched-off features: tell it at once.
-      if (key === "features") window.dispatchEvent(new CustomEvent("sp:features", { detail: (d as StudioSettings).features }));
+      // The sidebar and phone bar follow the studio's features and menu: tell them at once.
+      if (key === "features" || key === "menu") announceMenu({ features: (d as StudioSettings).features, menu: (d as StudioSettings).menu ?? null });
       savedOk();
       return true;
     } catch (e) {

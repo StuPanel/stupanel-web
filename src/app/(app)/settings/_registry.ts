@@ -6,7 +6,7 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Sparkles, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2, Database,
+  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Images, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2, Database, PanelLeft, Crown,
 } from "lucide-react";
 
 export type PaneId =
@@ -14,7 +14,8 @@ export type PaneId =
   | "payment" | "quotes" | "invoices" | "numbering" | "tax" | "catalog"
   | "features" | "worktypes" | "team" | "delivery" | "music"
   | "bookings" | "portal" | "notifications" | "whatsapp"
-  | "profile" | "appearance" | "security" | "integrations" | "data";
+  | "profile" | "appearance" | "security" | "integrations" | "data"
+  | "menu" | "billing";
 
 export type Pane = { id: PaneId; title: string; sub: string; icon: React.ElementType; color: string; keywords?: string };
 export type Entry = { id: string; pane: PaneId; section: string; label: string; keywords?: string };
@@ -32,6 +33,8 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "general", title: "General", sub: "Studio name, contact, currency and time zone", icon: Building2, color: C.blue, keywords: "studio profile" },
       { id: "branding", title: "Branding", sub: "Your logo on quotes, invoices, emails and client pages", icon: Palette, color: C.violet, keywords: "logo" },
       { id: "online", title: "Social & Links", sub: "Website and social profiles shown to clients", icon: Globe, color: C.teal, keywords: "facebook website" },
+      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — the same for your whole studio", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look team member panel" },
+      { id: "menu", title: "Menu", sub: "Hide or reorder the side menu, and the phone buttons", icon: PanelLeft, color: C.ink, keywords: "sidebar side menu order hide show phone bottom bar buttons navigation customise customize" },
     ],
   },
   {
@@ -46,24 +49,34 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
     ],
   },
   {
-    title: "Work",
+    title: "Programs & team",
     panes: [
-      { id: "features", title: "Features", sub: "Turn studio features on or off", icon: Sparkles, color: C.violet, keywords: "photo selection music album face" },
       { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye" },
       { id: "bookings", title: "Programs", sub: "Shifts, rules and cancellation policy for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
-      { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
-      { id: "music", title: "Music", sub: "Which song lists you and your clients see, and sharing with other studios", icon: Music2, color: C.orchid, keywords: "music song library community stupanel picks share suggest clients popular" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal" },
-      { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients", icon: Bell, color: C.red, keywords: "email alert payment reminder" },
+    ],
+  },
+  {
+    title: "Delivery & gallery",
+    panes: [
+      { id: "delivery", title: "Delivery", sub: "When clients can get their photos and videos", icon: PackageCheck, color: C.teal, keywords: "lock due drive" },
+      { id: "features", title: "Photo Selection", sub: "Clients choose their album photos — on or off", icon: Images, color: C.red, keywords: "photo selection album pick favourite feature on off album tracking" },
+      { id: "music", title: "Music", sub: "Song choosing for videos, the song lists, and sharing", icon: Music2, color: C.orchid, keywords: "music song library community stupanel picks share suggest clients popular feature on off" },
+    ],
+  },
+  {
+    title: "Messages",
+    panes: [
+      { id: "notifications", title: "Notifications", sub: "Which emails go to you and to clients, and how many were sent", icon: Bell, color: C.red, keywords: "email alert payment reminder usage limit" },
       { id: "whatsapp", title: "WhatsApp Templates", sub: "Ready messages you send to clients from a program", icon: MessageSquareText, color: C.green, keywords: "whatsapp message template sms" },
     ],
   },
   {
-    title: "Account",
+    title: "Account & plan",
     panes: [
+      { id: "billing", title: "Plan & Billing", sub: "Your plan, days left and payments", icon: Crown, color: C.deep, keywords: "plan billing subscription trial renew pay upgrade package" },
       { id: "profile", title: "My Profile", sub: "Your name, phone, sign-in and password", icon: CircleUserRound, color: C.deep, keywords: "account me name password phone" },
-      { id: "appearance", title: "Appearance", sub: "Backdrop and glass look — the same for your whole studio", icon: SwatchBook, color: C.violet, keywords: "theme backdrop background colour color glass look team member panel" },
       { id: "security", title: "Security", sub: "Sign-in safety for your team", icon: Shield, color: C.ink, keywords: "password" },
       { id: "integrations", title: "Google Drive", sub: "Connect Drive for deliveries and raw files", icon: HardDrive, color: C.green, keywords: "integrations drive google raw" },
       { id: "data", title: "Your data", sub: "Download everything as Excel, or delete the studio", icon: Database, color: C.red, keywords: "export excel download backup delete close remove account studio data" },
@@ -88,9 +101,12 @@ export const ENTRIES: Entry[] = [
   { id: "language", pane: "general", section: "Language", label: "App language", keywords: "bangla bengali english" },
 
   // Features
-  { id: "f-photoSelection", pane: "features", section: "Client features", label: "Photo selection", keywords: "pick favourite album select" },
-  { id: "f-musicSelection", pane: "features", section: "Client features", label: "Music selection", keywords: "song youtube" },
-  { id: "f-albumTracking", pane: "features", section: "Studio features", label: "Album tracking", keywords: "print album" },
+  { id: "f-photoSelection", pane: "features", section: "Photo selection", label: "Photo selection", keywords: "pick favourite album select" },
+  { id: "f-musicSelection", pane: "music", section: "Music for clients", label: "Music selection", keywords: "song youtube" },
+  { id: "f-albumTracking", pane: "features", section: "Coming soon", label: "Album tracking", keywords: "print album" },
+  { id: "menu-order", pane: "menu", section: "Side menu", label: "Side menu order and hidden items", keywords: "sidebar hide show order" },
+  { id: "menu-phone", pane: "menu", section: "Phone bottom bar", label: "Phone bottom bar buttons", keywords: "mobile bottom tab" },
+  { id: "billing-open", pane: "billing", section: "Plan", label: "Plan & billing", keywords: "plan trial renew" },
 
 
   // Work types & shifts

@@ -38,12 +38,9 @@ function Features() {
   const set = (k: keyof typeof f, v: boolean) => patchStudio("features", { ...f, [k]: v });
   return (
     <>
-      <Group title="Client features" note="Turn off what your studio doesn't use — it disappears from your menu, programs and the client portal. You can turn it back on any time.">
+      <Group title="Photo selection" note="Turn it off if your studio doesn't use it — it leaves your menu, programs and the client portal. You can turn it back on any time.">
         <Row id="f-photoSelection" label="Photo selection" hint="Clients pick the photos for their albums in their portal — from the program's Drive files or your upload. Off: it also leaves your menu.">
           <Switch label="Photo selection" on={f.photoSelection} onChange={v => set("photoSelection", v)} />
-        </Row>
-        <Row id="f-musicSelection" label="Music selection" hint="Clients choose songs for their video from your list or a YouTube link. Off: Music Library also leaves your menu.">
-          <Switch label="Music selection" on={f.musicSelection} onChange={v => set("musicSelection", v)} />
         </Row>
       </Group>
       <Group title="Coming soon">
@@ -302,8 +299,14 @@ function MusicRules() {
       <Segmented<MusicMode> label={label} value={m[key]} options={MUSIC_MODES} onChange={v => set({ [key]: v } as Partial<typeof m>)} />
     </Row>
   );
+  const f = studio!.features;
   return (
     <>
+      <Group title="Music for clients" note="Turn it off if your studio doesn't use it — Music Library leaves your menu and clients aren't asked to choose songs.">
+        <Row id="f-musicSelection" label="Music selection" hint="Clients choose songs for their video from your list or a YouTube link. Off: Music Library also leaves your menu.">
+          <Switch label="Music selection" on={f.musicSelection} onChange={v => patchStudio("features", { ...f, musicSelection: v })} />
+        </Row>
+      </Group>
       <Group title="Song lists" note="Your own songs (Music Library → My songs) are always suggested to your clients first. “Only for me” shows a list in your Music Library so you can add what you like; “Suggest to clients” also offers its songs to clients when they choose music.">
         {source("mu-picks", "picks", "StuPanel picks", "Songs chosen by StuPanel for each kind of video")}
         {source("mu-community", "community", "Popular in studios", "What other studios use — your country first. No studio is named.")}

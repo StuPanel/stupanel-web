@@ -210,7 +210,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       {enabled === false && !member && (
         <div className="mb-5 rounded-[18px] bg-[#FBF2FA] p-4 flex items-center gap-3">
           <p className="flex-1 text-[14px] text-[#58244E]"><b>Music selection is turned off.</b> Turn it on to let clients choose songs from their portal.</p>
-          <Link href="/settings?pane=features" className="h-10 px-4 rounded-full bg-[#9E3A8C] text-white text-[13px] font-semibold inline-flex items-center flex-shrink-0">Open Settings</Link>
+          <Link href="/settings?pane=music" className="h-10 px-4 rounded-full bg-[#9E3A8C] text-white text-[13px] font-semibold inline-flex items-center flex-shrink-0">Open Settings</Link>
         </div>
       )}
 

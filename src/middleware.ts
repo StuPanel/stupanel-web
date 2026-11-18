@@ -22,6 +22,7 @@ const PROTECTED_PREFIXES = [
   "/checklist",
   "/equipment",
   "/salary",
+  "/team-pay",
   "/accounts",
   "/statement",
   "/expenses",

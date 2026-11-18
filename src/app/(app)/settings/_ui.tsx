@@ -1,4 +1,5 @@
 "use client";
+import type { MenuChoice } from "@/lib/studio-menu";
 
 /**
  * Building blocks for the Settings screen (macOS System Settings style):
@@ -42,6 +43,8 @@ export type StudioSettings = {
   appearance?: { backdrop: "violet" | "golden" | "mehendi" | "lagoon" | "plain" | null };
   /** Codes and starting numbers for programs, quotes, receipts and agreements (the invoice code is invoicePrefix). */
   numbering?: Record<"program" | "quote" | "receipt" | "agreement", { prefix: string; start: number }>;
+  /** The studio's side menu (Settings → Menu); older servers: missing. */
+  menu?: MenuChoice;
 };
 type PatchStudio = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => Promise<boolean>;
 

@@ -3,7 +3,7 @@
 /** Small building blocks for the client portal: status chip, steps, payment bar, sections and rows. */
 import { Check, CheckCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CARD_SHADOW, Tile } from "@/components/ui/apple";
+import { CARD_SHADOW } from "@/components/ui/apple";
 import { STATUS_CHIP, STEPS, money, num, sym } from "./portal-data";
 
 export function StatusChip({ status }: { status: string }) {
@@ -77,7 +77,8 @@ export function Section({ id, title, icon, color, right, children, className }: 
   return (
     <section id={id} className={cn("bg-white rounded-[22px] overflow-hidden scroll-mt-24", CARD_SHADOW, className)}>
       <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2.5">
-        {icon && color && <Tile icon={icon} color={color} size={28} />}
+        {/* One quiet icon colour across the portal; `color` is kept for older callers. */}
+        {icon && color && (() => { const I = icon; return <I className="w-[18px] h-[18px] text-[#3A3647]" strokeWidth={1.9} aria-hidden="true" />; })()}
         <h2 className="flex-1 min-w-0 text-[15px] font-extrabold tracking-[-0.01em] text-[#17151F]">{title}</h2>
         {right}
       </div>
@@ -87,13 +88,17 @@ export function Section({ id, title, icon, color, right, children, className }: 
 }
 
 /** A row in a list card (invoice, payment, quote, agreement). Links open in a new tab. */
-export function DocRow({ href, onClick, icon, color, title, sub, amount, amountSub, chip, newTab = true }: {
-  href?: string; onClick?: () => void; icon: React.ElementType; color: "deep" | "orchid" | "green" | "ink" | "violet" | "teal" | "blue" | "red";
+export function DocRow({ href, onClick, icon: Icon, tone, title, sub, amount, amountSub, chip, newTab = true }: {
+  href?: string; onClick?: () => void; icon: React.ElementType;
+  /** Quiet grey by default; green for money received. */
+  tone?: "green";
   title: React.ReactNode; sub?: React.ReactNode; amount?: string; amountSub?: React.ReactNode; chip?: { label: string; color: string }; newTab?: boolean;
 }) {
   const inner = (
     <>
-      <Tile icon={icon} color={color} size={38} />
+      <span className={cn("w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0", tone === "green" ? "bg-[#E7F5EE] text-[#1F8A5B]" : "bg-[#F3F3F1] text-[#3A3647]")}>
+        <Icon className="w-[18px] h-[18px]" strokeWidth={1.9} aria-hidden="true" />
+      </span>
       <span className="flex-1 min-w-0">
         <span className="block text-[14.5px] font-semibold text-[#17151F] truncate">{title}</span>
         {sub && <span className="block text-[12.5px] text-[#6B6680] leading-snug sm:truncate">{sub}</span>}

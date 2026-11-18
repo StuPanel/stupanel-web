@@ -34,6 +34,8 @@ export type PortalBooking = {
   eventLocation?: string; deliveryLink?: string;
   days?: PortalDay[];
   delivery?: BookingDelivery | null;
+  /** The cover photo the studio chose, with the point that must stay in view (% from left / top). */
+  cover?: { url: string; x: number; y: number } | null;
 };
 export type PortalQuote = {
   id: string; quoteNumber: string; status: string;
@@ -63,7 +65,6 @@ export interface PortalData {
     portalWelcomeMessage?: string; bkashNumber?: string | null; nagadNumber?: string | null;
     portalShowQuotes?: boolean; portalShowInvoices?: boolean;
     portalShowPayments?: boolean; portalShowMessages?: boolean;
-    defaultCancellationPolicy?: string | null;
     website?: string | null; facebookUrl?: string | null; instagramUrl?: string | null; youtubeUrl?: string | null; tiktokUrl?: string | null;
     otherLinks?: { label?: string; url?: string }[] | null;
   };

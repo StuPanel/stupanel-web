@@ -8,13 +8,13 @@
 import { CalendarDays, CheckCircle, CreditCard, FileText, Home, MessageCircle, Receipt, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
-import { CARD_SHADOW, EmptyState, StatCard } from "@/components/ui/apple";
+import { EmptyState, StatCard } from "@/components/ui/apple";
 import {
   INV_STATUS, QUOTE_STATUS, deliveryStatus, dueOf, isUpcoming, money, programName, quoteOpen, todosFor,
   type PortalBooking, type PortalData, type Todo,
 } from "./portal-data";
 import { ProgramCard } from "./portal-program";
-import { AllDone, TodoList } from "./portal-todo";
+import { AllDone, NextStep } from "./portal-todo";
 import { DocRow, RowList, Section } from "./portal-ui";
 
 export type View = "home" | "programs" | "money" | "chat";
@@ -25,13 +25,13 @@ const byDate = (dir: 1 | -1) => (a: PortalBooking, b: PortalBooking) => {
   return dir * a.eventDate.localeCompare(b.eventDate);
 };
 
-function ProgramList({ title, list, todos, brand, onOpen }: { title: string; list: PortalBooking[]; todos: Todo[]; brand: string; onOpen: (id: string) => void }) {
+function ProgramList({ title, list, todos, studio, onOpen }: { title: string; list: PortalBooking[]; todos: Todo[]; studio: string; onOpen: (id: string) => void }) {
   if (!list.length) return null;
   return (
-    <section>
-      <h2 className="px-1 mb-2.5 text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{title} <span className="text-[#B5B0C4]">· {list.length}</span></h2>
-      <div className="space-y-3">
-        {list.map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} brand={brand} onOpen={() => onOpen(b.id)} />)}
+    <section aria-label={title}>
+      <h2 className="px-1 mb-2.5 text-[15px] font-extrabold text-[#17151F]">{title} <span className="font-semibold text-[#8A8599]">· {list.length}</span></h2>
+      <div className="grid sm:grid-cols-2 gap-3 items-start">
+        {list.map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
       </div>
     </section>
   );
@@ -39,39 +39,45 @@ function ProgramList({ title, list, todos, brand, onOpen }: { title: string; lis
 
 // ─── Home ────────────────────────────────────────────────────────────────────
 
-export function HomeView({ data, todos, brand, onTodo, onOpen, onView }: {
-  data: PortalData; todos: Todo[]; brand: string;
+export function HomeView({ data, todos, onTodo, onOpen, onView }: {
+  data: PortalData; todos: Todo[];
   onTodo: (t: Todo) => void; onOpen: (id: string) => void; onView: (v: View) => void;
 }) {
   const upcoming = data.bookings.filter(isUpcoming).sort(byDate(1));
-  const past = data.bookings.filter(b => !isUpcoming(b));
-  // Same rule as Money: a cancelled program asks for nothing.
-  const totalDue = data.bookings.filter(b => deliveryStatus(b) !== "cancelled").reduce((s, b) => s + dueOf(b), 0);
+  const past = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  // Programs that still need the client come first: files to collect, photos to choose…
+  const busy = new Set(todos.map(t => t.bookingId).filter(Boolean));
+  const shown = [...past.filter(b => busy.has(b.id)), ...upcoming].slice(0, 4);
+  const live = data.bookings.filter(b => deliveryStatus(b) !== "cancelled" && Number(b.grandTotal) > 0);
+  const totalDue = live.reduce((s, b) => s + dueOf(b), 0);
+  const totalAll = live.reduce((s, b) => s + Number(b.grandTotal), 0);
   const c = data.company.currency;
+  const studio = data.company.name;
   return (
     <div className="space-y-6">
-      {todos.length > 0 ? <TodoList todos={todos} onTodo={onTodo} title="What you need to do" /> : <AllDone />}
+      {todos.length > 0 ? <NextStep todos={todos} onTodo={onTodo} /> : <AllDone />}
 
-      {upcoming.length > 0
-        ? <ProgramList title="Coming up" list={upcoming.slice(0, 3)} todos={todos} brand={brand} onOpen={onOpen} />
-        : data.bookings.length === 0 && <EmptyState icon={CalendarDays} title="No programs yet" text="Your programs with the studio will show here." />}
+      {data.bookings.length === 0
+        ? <EmptyState icon={CalendarDays} title="No programs yet" text="Your programs with the studio will show here." />
+        : (
+          <section aria-label="Your programs">
+            <div className="px-1 mb-2.5 flex items-baseline justify-between">
+              <h2 className="text-[15px] font-extrabold text-[#17151F]">Your programs</h2>
+              {data.bookings.length > shown.length && (
+                <button type="button" onClick={() => onView("programs")} className="text-[13px] font-semibold text-[#5B3FD0] hover:underline">All {data.bookings.length}</button>
+              )}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3 items-start">
+              {(shown.length ? shown : past.slice(0, 2)).map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
+            </div>
+          </section>
+        )}
 
-      {(upcoming.length > 3 || past.length > 0) && (
-        <button type="button" onClick={() => onView("programs")}
-          className={cn("w-full h-12 rounded-[18px] bg-white text-[14px] font-semibold text-[#17151F] hover:bg-[#F7F5FB] inline-flex items-center justify-center gap-2", CARD_SHADOW)}>
-          <CalendarDays className="w-4 h-4" />See all {data.bookings.length} programs
-        </button>
-      )}
-
-      {totalDue > 0 && (
+      {totalAll > 0 && (
         <button type="button" onClick={() => onView("money")}
-          className={cn("w-full bg-white rounded-[22px] p-4 sm:p-5 flex items-center gap-3 text-left hover:bg-[#FDFCFE]", CARD_SHADOW)}>
-          <span className="w-10 h-10 rounded-full bg-[#FDECEF] flex items-center justify-center flex-shrink-0"><CreditCard className="w-5 h-5 text-[#C2304F]" /></span>
-          <span className="flex-1 min-w-0">
-            <span className="block text-[13px] text-[#6B6680]">Still to pay, all programs</span>
-            <span className="block text-[20px] font-extrabold text-[#17151F] tabular-nums">{money(totalDue, c)}</span>
-          </span>
-          <span className="text-[13px] font-semibold text-[#5B3FD0]">See money</span>
+          className="w-full px-1 flex items-center justify-between gap-3 text-[13.5px] text-[#6B6680] hover:text-[#17151F]">
+          <span className="tabular-nums">Paid {money(totalAll - totalDue, c)} of {money(totalAll, c)}{totalDue > 0 && <> · <b className="text-[#B42347]">{money(totalDue, c)} left</b></>}</span>
+          <span className="font-semibold text-[#17151F]">Money ›</span>
         </button>
       )}
     </div>
@@ -80,14 +86,15 @@ export function HomeView({ data, todos, brand, onTodo, onOpen, onView }: {
 
 // ─── All programs ────────────────────────────────────────────────────────────
 
-export function ProgramsView({ data, todos, brand, onOpen }: { data: PortalData; todos: Todo[]; brand: string; onOpen: (id: string) => void }) {
+export function ProgramsView({ data, todos, onOpen }: { data: PortalData; todos: Todo[]; onOpen: (id: string) => void }) {
   const upcoming = data.bookings.filter(isUpcoming).sort(byDate(1));
   const past = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  const studio = data.company.name;
   if (!data.bookings.length) return <EmptyState icon={CalendarDays} title="No programs yet" text="Your programs with the studio will show here." />;
   return (
     <div className="space-y-7">
-      <ProgramList title="Coming up" list={upcoming} todos={todos} brand={brand} onOpen={onOpen} />
-      <ProgramList title="Done" list={past} todos={todos} brand={brand} onOpen={onOpen} />
+      <ProgramList title="Coming up" list={upcoming} todos={todos} studio={studio} onOpen={onOpen} />
+      <ProgramList title="Done" list={past} todos={todos} studio={studio} onOpen={onOpen} />
     </div>
   );
 }
@@ -115,7 +122,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
         <Section title="Quotes waiting for you" icon={FileText} color="deep">
           <RowList>
             {waiting.map(q => (
-              <DocRow key={q.id} href={`/q/${q.publicToken}`} icon={FileText} color="deep" title={q.quoteNumber}
+              <DocRow key={q.id} href={`/q/${q.publicToken}`} icon={FileText} title={q.quoteNumber}
                 sub={q.validUntil ? `Valid until ${fmtDate(q.validUntil)}` : fmtDate(q.createdAt)} amount={money(q.grandTotal, q.currency)} chip={QUOTE_STATUS[q.status]} />
             ))}
           </RowList>
@@ -128,7 +135,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
             {live.map(b => {
               const due = dueOf(b);
               return (
-                <DocRow key={b.id} onClick={() => onOpen(b.id, "money")} icon={CalendarDays} color="violet" title={programName(b)}
+                <DocRow key={b.id} onClick={() => onOpen(b.id, "money")} icon={CalendarDays} title={programName(b)}
                   sub={`${b.eventDate ? fmtDate(b.eventDate) : "Date to be set"} · ${money(b.grandTotal, b.currency)} total`}
                   amountSub={due > 0 ? <span className="text-[#C2304F] font-bold text-[13px]">{money(due, b.currency)} due</span> : <span className="text-[#1F8A5B] font-bold text-[13px] inline-flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" />Paid</span>} />
               );
@@ -141,7 +148,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
         <Section title="Invoices" icon={Receipt} color="orchid">
           <RowList>
             {data.invoices.map(inv => (
-              <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} color="orchid" title={inv.invoiceNumber}
+              <DocRow key={inv.id} href={`/inv/${inv.publicToken}`} icon={Receipt} title={inv.invoiceNumber}
                 sub={[inv.bookingId ? name.get(inv.bookingId) : null, inv.dueDate && Number(inv.balanceDue) > 0 ? `Pay by ${fmtDate(inv.dueDate)}` : fmtDate(inv.issueDate)].filter(Boolean).join(" · ")}
                 amount={money(inv.grandTotal, inv.currency)}
                 amountSub={Number(inv.balanceDue) > 0 ? <span className="text-[#C2304F] font-semibold">{money(inv.balanceDue, inv.currency)} due</span> : <span className="text-[#1F8A5B] font-semibold">Paid</span>}
@@ -158,7 +165,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
             : (
               <RowList>
                 {data.payments.map(p => (
-                  <DocRow key={p.id} icon={CheckCircle} color="green" title={money(p.amount, p.currency)}
+                  <DocRow key={p.id} icon={CheckCircle} tone="green" title={money(p.amount, p.currency)}
                     sub={[fmtDate(p.paymentDate), p.bookingId ? name.get(p.bookingId) : null, p.paymentMethod?.replace(/_/g, " ")].filter(Boolean).join(" · ")} />
                 ))}
               </RowList>
@@ -203,7 +210,7 @@ export function PortalNav({ view, onView, chat, badge }: { view: View | null; on
             const on = n.id === view;
             return (
               <button key={n.id} type="button" onClick={() => onView(n.id)} aria-current={on ? "page" : undefined}
-                className={cn("h-16 flex flex-col items-center justify-center gap-1 text-[11.5px] font-semibold relative", on ? "text-[#5B3FD0]" : "text-[#6B6680]")}>
+                className={cn("h-16 flex flex-col items-center justify-center gap-1 text-[11.5px] font-semibold relative", on ? "text-[#17151F]" : "text-[#8A8599]")}>
                 <span className="relative">
                   <n.icon className="w-[22px] h-[22px]" strokeWidth={on ? 2.4 : 2} />
                   {n.id === "home" && badge > 0 && <span className="absolute -top-1.5 -right-2.5 h-4 min-w-4 px-1 rounded-full bg-[#C2304F] text-white text-[10px] font-bold inline-flex items-center justify-center">{badge}</span>}

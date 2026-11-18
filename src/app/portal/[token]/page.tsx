@@ -11,7 +11,7 @@
  */
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Mail, MessageCircle, Phone, XCircle } from "lucide-react";
+import { MessageCircle, Phone, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { BRAND } from "@/lib/brand";
@@ -26,10 +26,15 @@ import { PortalChat } from "./_components/portal-chat";
 import { PortalLock, type PortalMeta } from "./_components/portal-lock";
 import { studioOf, todosFor, todosOf, type PortalData, type Todo } from "./_components/portal-data";
 import { HomeView, MoneyView, PortalNav, ProgramsView, type View } from "./_components/portal-home";
-import { ProgramPage } from "./_components/portal-program";
+import { ProgramPage, type ProgramTab } from "./_components/portal-program";
 
 const VIEWS: View[] = ["home", "programs", "money", "chat"];
 const TITLE: Record<View, string> = { home: "", programs: "Your programs", money: "Money", chat: "Messages" };
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
 
 export default function ClientPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -87,6 +92,9 @@ function Portal({ token }: { token: string }) {
   // ── Where we are ──
   const pid = search.get("p");
   const openPart = search.get("open") ?? undefined;
+  // The program's tab (?t=); "open" from a to-do picks one too (pay → Payment, photos → Album, music → Music).
+  const tabParam = search.get("t") as ProgramTab | null;
+  const tab: ProgramTab = tabParam ?? (openPart === "money" ? "payment" : openPart === "music" ? "music" : openPart?.startsWith("photos") ? "album" : "overview");
   const v = search.get("v") as View | null;
   const view: View | null = pid ? null : v && VIEWS.includes(v) ? v : "home";
 
@@ -97,18 +105,15 @@ function Portal({ token }: { token: string }) {
   }, []);
   const goView = (to: View) => go(to === "home" ? "" : `v=${to}`);
   const openProgram = (id: string, part?: string) => go(`p=${id}${part ? `&open=${encodeURIComponent(part)}` : ""}`);
+  // Changing tab inside a program: same history entry kind as the rest, so Back returns to the tab before.
+  const onTab = (t: ProgramTab) => { if (pid) go(`p=${pid}${t === "overview" ? "" : `&t=${t}`}`); };
   function onTodo(t: Todo) {
     if (t.href) { window.location.href = t.href; return; }
     if (t.view) { goView(t.view); return; }
+    // Paying unlocks the files, so "pay to get your files" opens the Files tab (the lock shows how to pay).
+    if (t.bookingId && t.kind === "pay") { go(`p=${t.bookingId}&t=files`); return; }
     if (t.bookingId) openProgram(t.bookingId, t.part === "photos" && t.galleryId ? `photos:${t.galleryId}` : t.part);
   }
-
-  // "Pay" from the to-do list / Money opens the program at its payment card.
-  useEffect(() => {
-    if (!pid || openPart !== "money") return;
-    const id = setTimeout(() => document.getElementById("part-money")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
-    return () => clearTimeout(id);
-  }, [pid, openPart, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const todos = useMemo(() => (data ? todosOf(data, photos, music) : []), [data, photos, music]);
 
@@ -124,7 +129,7 @@ function Portal({ token }: { token: string }) {
   const afterChange = () => { loadExtras(); if (openPart && pid) window.history.replaceState(null, "", `?p=${pid}`); };
 
   return (
-    <PublicShell studio={data.company} sub="Client portal" className="pb-28 sm:pb-8"
+    <PublicShell studio={data.company} sub="Client portal" className="pb-28 sm:pb-8" width={pid ? "max-w-[1180px]" : "max-w-[880px]"}
       right={
         <>
           {data.company.phone && (
@@ -139,11 +144,8 @@ function Portal({ token }: { token: string }) {
       }>
       {view === "home" && (
         <section className="mb-5">
-          <h1 className="text-[26px] sm:text-[30px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Hi {data.client.firstName}!</h1>
-          <p className="mt-1 text-[13.5px] text-[#6B6680] flex flex-wrap gap-x-3 gap-y-0.5">
-            {data.client.phone && <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{data.client.phone}</span>}
-            {data.client.email && <span className="inline-flex items-center gap-1 min-w-0"><Mail className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate">{data.client.email}</span></span>}
-          </p>
+          <p className="text-[13px] text-[#6B6680]">{greeting()}</p>
+          <h1 className="mt-0.5 text-[28px] sm:text-[32px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Hi {data.client.firstName}</h1>
           {data.company.portalWelcomeMessage && (
             <p className={cn("mt-4 bg-white rounded-[20px] px-4 py-3.5 text-[14px] text-[#33303F] leading-relaxed", CARD_SHADOW)}>{data.company.portalWelcomeMessage}</p>
           )}
@@ -153,8 +155,8 @@ function Portal({ token }: { token: string }) {
 
       <PortalNav view={view ?? "programs"} onView={goView} chat={chat} badge={todos.length} />
 
-      {view === "home" && <HomeView data={data} todos={todos} brand={brand} onTodo={onTodo} onOpen={id => openProgram(id)} onView={goView} />}
-      {view === "programs" && <ProgramsView data={data} todos={todos} brand={brand} onOpen={id => openProgram(id)} />}
+      {view === "home" && <HomeView data={data} todos={todos} onTodo={onTodo} onOpen={id => openProgram(id)} onView={goView} />}
+      {view === "programs" && <ProgramsView data={data} todos={todos} onOpen={id => openProgram(id)} />}
       {view === "money" && <MoneyView data={data} onOpen={openProgram} />}
       {view === "chat" && <PortalChat token={token} brand={brand} companyName={data.company.name} />}
 
@@ -165,7 +167,7 @@ function Portal({ token }: { token: string }) {
           payments={data.company.portalShowPayments !== false ? data.payments.filter(p => p.bookingId === program.id) : []}
           contracts={(data.contracts ?? []).filter(c => c.bookingId === program.id)}
           photos={photos.filter(g => g.bookingId === program.id)} music={music.find(m => m.bookingId === program.id)}
-          policy={data.company.defaultCancellationPolicy}
+          tab={tab} onTab={onTab}
           open={openPart} onBack={() => goView("programs")} onChanged={afterChange} onTodo={onTodo} />
       ) : (
         <div className={cn("bg-white rounded-[22px] p-7 text-center", CARD_SHADOW)}>

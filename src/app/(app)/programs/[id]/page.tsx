@@ -34,6 +34,7 @@ import { RawDriveSection } from "../_components/raw-drive-section";
 import { MusicSection } from "../_components/music-section";
 import { CreativeBriefSection, DeliveryOverview, EditorsSection, PrivateNotes, ROLE_LABEL, SETUP_LABEL } from "../_components/sections";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
+import { PortalCoverCard } from "../_components/portal-cover-card";
 import type { Booking, Package, ShiftAssignment, TeamMember } from "../_components/types";
 import { managerPeople, notePeople } from "../_components/types";
 
@@ -521,6 +522,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                     </div>
                   );
                 })()}
+                {b.driveFolderId && <PortalCoverCard bookingId={b.id} cover={b.portalCover} onSaved={load} />}
                 <button type="button" onClick={() => setDeliveryOpen(true)} className="w-full h-11 rounded-full bg-[#EEE8FD] hover:bg-[#E4DCFB] text-[#5B3FD0] text-sm font-semibold">Manage delivery</button>
               </div>
             </Section>

@@ -162,6 +162,9 @@ export interface Booking {
   deliveryNote?: string;
   deliveryDate?: string;
   driveFolderUrl?: string;
+  driveFolderId?: string | null;
+  /** The client portal cover: a delivered Drive photo and the point kept in view (%). */
+  portalCover?: { fileId: string; x: number; y: number } | null;
   driveDeliveredAt?: string;
   rawFilesInfo?: { pcName?: string; folderPath?: string; driveLink?: string; notes?: string };
   eventDays: EventDay[];

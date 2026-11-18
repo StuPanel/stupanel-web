@@ -94,6 +94,8 @@ export function ClientDrawer({
     e.preventDefault();
     if (!form.firstName.trim()) { setError("Please write the client's name."); jumpToField("firstName"); return; }
     if (!form.phone.trim()) { setError("Please add a phone number — it's how you'll reach them."); jumpToField("phone"); return; }
+    if (form.phone.replace(/\D/g, "").length < 7) { setError("That phone number looks too short. Please write the full number."); jumpToField("phone"); return; }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError("Please enter a valid email address (e.g. name@gmail.com)"); jumpToField("email"); return; }
     setError("");
     setLoading(true);
 

@@ -5,6 +5,7 @@
  * 1 Program (the client comes with it), 2 Albums and how many photos each, 3 Time to choose.
  * The footer says exactly what is missing.
  */
+import { localDateStr } from "@/lib/format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Images, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -192,7 +193,7 @@ export function NewSelection({ onClose, onCreated, programId }: { onClose: () =>
           ))}
         </div>
         {deadline === "date" && (
-          <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)} className={cn(inputCls, "mt-3")} aria-label="Last date" />
+          <input type="date" value={date} min={localDateStr()} onChange={e => setDate(e.target.value)} className={cn(inputCls, "mt-3")} aria-label="Last date" />
         )}
         {deadlineIso && <p className="text-[12.5px] text-[#6B6680] mt-2">Until {fmtDate(deadlineIso)}, end of the day.</p>}
         <details className="mt-4 group">

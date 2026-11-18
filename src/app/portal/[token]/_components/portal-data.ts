@@ -2,7 +2,7 @@
  * Client portal data: the shapes the API sends, small helpers, and the "what you need to do"
  * list. Everything is grouped by program so a client with many programs sees each one on its own.
  */
-import { currencySymbol } from "@/lib/format";
+import { currencySymbol, localDateStr } from "@/lib/format";
 import type { ClientGalleryCard } from "@/lib/photos";
 import type { ClientMusic } from "@/lib/music";
 import type { PortalDriveFile } from "./portal-files";
@@ -101,7 +101,7 @@ export function deliveryStatus(b: PortalBooking): string {
   return "not_started";
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateStr();
 const lastDay = (b: PortalBooking) => (b.eventEndDate ?? b.eventDate ?? "").slice(0, 10);
 const firstDay = (b: PortalBooking) => (b.eventDate ?? "").slice(0, 10);
 

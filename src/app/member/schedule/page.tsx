@@ -4,7 +4,7 @@ import { SideBadge, daySide } from "@/lib/coverage-side";
 import { useState, useEffect } from "react";
 import { CalendarDays, CalendarPlus, Download, ExternalLink, MapPin, Phone } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, localDateStr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Chips, DateBox, EmptyState, Group, PageHeader } from "@/components/ui/apple";
 import { FormDrawer } from "@/components/ui/form-kit";
@@ -58,7 +58,7 @@ const mySide = (e: Event) => {
 
 /** My shift on the next day I work (e.g. "Evening (5:00 PM – 10:00 PM)"). */
 const nextShift = (e: Event) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const d = (e.myDays ?? []).filter(x => x.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   return d?.shifts.join(", ") ?? "";
 };

@@ -37,6 +37,9 @@ function ProgramList({ title, list, todos, studio, onOpen }: { title: string; li
   );
 }
 
+/** Nothing more is coming for this program: delivered, or cancelled. */
+const isFinished = (b: PortalBooking) => ["delivered", "cancelled"].includes(deliveryStatus(b));
+
 // ─── Home ────────────────────────────────────────────────────────────────────
 
 export function HomeView({ data, todos, onTodo, onOpen, onView }: {
@@ -44,10 +47,13 @@ export function HomeView({ data, todos, onTodo, onOpen, onView }: {
   onTodo: (t: Todo) => void; onOpen: (id: string) => void; onView: (v: View) => void;
 }) {
   const upcoming = data.bookings.filter(isUpcoming).sort(byDate(1));
-  const past = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  const after = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  // The event is over, but the studio is still working on it (editing, files not delivered yet).
+  const working = after.filter(b => !isFinished(b));
   // Programs that still need the client come first: files to collect, photos to choose…
   const busy = new Set(todos.map(t => t.bookingId).filter(Boolean));
-  const shown = [...past.filter(b => busy.has(b.id)), ...upcoming].slice(0, 4);
+  // …then the ones still being edited, then what is coming up.
+  const shown = [...after.filter(b => busy.has(b.id)), ...working.filter(b => !busy.has(b.id)), ...upcoming].slice(0, 4);
   const live = data.bookings.filter(b => deliveryStatus(b) !== "cancelled" && Number(b.grandTotal) > 0);
   const totalDue = live.reduce((s, b) => s + dueOf(b), 0);
   const totalAll = live.reduce((s, b) => s + Number(b.grandTotal), 0);
@@ -68,7 +74,7 @@ export function HomeView({ data, todos, onTodo, onOpen, onView }: {
               )}
             </div>
             <div className="grid sm:grid-cols-2 gap-3 items-start">
-              {(shown.length ? shown : past.slice(0, 2)).map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
+              {(shown.length ? shown : after.slice(0, 2)).map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
             </div>
           </section>
         )}
@@ -88,12 +94,15 @@ export function HomeView({ data, todos, onTodo, onOpen, onView }: {
 
 export function ProgramsView({ data, todos, onOpen }: { data: PortalData; todos: Todo[]; onOpen: (id: string) => void }) {
   const upcoming = data.bookings.filter(isUpcoming).sort(byDate(1));
-  const past = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  const after = data.bookings.filter(b => !isUpcoming(b)).sort(byDate(-1));
+  const working = after.filter(b => !isFinished(b));
+  const past = after.filter(isFinished);
   const studio = data.company.name;
   if (!data.bookings.length) return <EmptyState icon={CalendarDays} title="No programs yet" text="Your programs with the studio will show here." />;
   return (
     <div className="space-y-7">
       <ProgramList title="Coming up" list={upcoming} todos={todos} studio={studio} onOpen={onOpen} />
+      <ProgramList title="Being prepared" list={working} todos={todos} studio={studio} onOpen={onOpen} />
       <ProgramList title="Done" list={past} todos={todos} studio={studio} onOpen={onOpen} />
     </div>
   );
@@ -167,7 +176,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
               <RowList>
                 {data.payments.map(p => (
                   <DocRow key={p.id} icon={CheckCircle} tone="green" title={money(p.amount, p.currency)}
-                    sub={[fmtDate(p.paymentDate), p.bookingId ? name.get(p.bookingId) : null, p.paymentMethod?.replace(/_/g, " ")].filter(Boolean).join(" · ")} />
+                    sub={[fmtDate(p.paymentDate), p.bookingId ? name.get(p.bookingId) : null, p.paymentMethod ? p.paymentMethod.replace(/_/g, " ").replace(/^./, ch => ch.toUpperCase()) : null].filter(Boolean).join(" · ")} />
                 ))}
                 {refunds.map(r => (
                   <DocRow key={r.id} icon={RotateCcw} title={`${money(r.amount, c)} given back to you`}

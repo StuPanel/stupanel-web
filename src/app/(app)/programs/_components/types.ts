@@ -86,6 +86,8 @@ export interface EditorDraft {
   editingDeadline?: string;
   deliveryDeadline?: string;
   studioNote?: string;
+  /** What this editor has to make (only sent for a newly picked editor; the server keeps the old list otherwise). */
+  deliverables?: string[];
 }
 
 /** One line of a team member's bill on a program. */

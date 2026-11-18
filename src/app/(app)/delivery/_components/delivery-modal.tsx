@@ -752,7 +752,7 @@ export function DeliveryModal({ booking, onClose, onSaved }: {
                     {driveLoading ? <Loader2 className="w-8 h-8 animate-spin text-[#1F8A5B]" /> : <HardDrive className="w-8 h-8 text-[#B5B0C4]" />}
                     <div className="text-center">
                       <p className="text-sm font-semibold text-[#4A4658]">{driveLoading ? "Creating folder…" : "Create Drive Folder"}</p>
-                      <p className="text-xs text-[#8A8599] mt-0.5">Creates a shared folder in your Google Drive for this booking</p>
+                      <p className="text-xs text-[#8A8599] mt-0.5">Creates a shared folder in your Google Drive for this program</p>
                     </div>
                   </button>
                 ) : (

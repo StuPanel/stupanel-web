@@ -1,5 +1,6 @@
 "use client";
 
+import { localDateStr } from "@/lib/format";
 import { useState, useRef } from "react";
 import { Loader2, HardDrive, Link2, ExternalLink, ArrowRight, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ export function DeliverySection({ booking, r2Enabled, onRefresh }: {
   const [link, setLink] = useState(booking.deliveryLink ?? "");
   const [note, setNote] = useState(booking.deliveryNote ?? "");
   const [date, setDate] = useState(
-    booking.deliveryDate ? new Date(booking.deliveryDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
+    booking.deliveryDate ? new Date(booking.deliveryDate).toISOString().slice(0, 10) : localDateStr()
   );
   const [saving, setSaving] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);

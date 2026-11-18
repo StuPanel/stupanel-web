@@ -1016,7 +1016,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     </div>
                   )}
                   <div className="border-t border-[#EEEBF4] grid sm:grid-cols-[1fr_240px]">
-                    <Field label="Name" required name="eventName">{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Arif & Nusrat Wedding" className={inputCls} />}</Field>
+                    <Field label="Name" required name="eventName">{id => <input id={id} value={eventName} onChange={e => { setEventName(e.target.value); setNameTouched(true); }} placeholder="e.g. Wedding at the community hall" className={inputCls} />}</Field>
                     <Field label="Package">{id => (
                       <select id={id} value={packageId} onChange={e => choosePackage(e.target.value)}
                         className={cn(inputCls, "cursor-pointer")}>
@@ -1219,7 +1219,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             const on = editors.some(e => e.userId === m.id && e.role === r);
                             return (
                               <button key={r} type="button" role="checkbox" aria-checked={on}
-                                onClick={() => setEditors(on ? editors.filter(e => !(e.userId === m.id && e.role === r)) : [...editors, { userId: m.id, role: r }])}
+                                onClick={() => setEditors(on ? editors.filter(e => !(e.userId === m.id && e.role === r)) : [...editors, { userId: m.id, role: r, deliverables: r === "video_editor" ? ["teaser", "highlight_video"] : ["photo_delivery"] }])}
                                 className={cn("h-8 px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>
                                 {on && <Check className="w-3 h-3" />}{ROLE_NAME[r]}
                               </button>

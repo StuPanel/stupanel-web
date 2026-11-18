@@ -51,7 +51,7 @@ type Work = { day: EventDay; shiftLabel: string; a: ShiftAssignment };
  * typed over an auto line are kept; paidAmount is kept.
  */
 export const NO_PRICE_NOTE = "No price set — type the amount";
-const KEPT_NOTE = "No price for this program type — kept the earlier amount";
+const KEPT_NOTE = "No saved price for this program type — using the amount typed here";
 
 /** The line this bill already had (saved before), when it had an amount. */
 function keptLine(keep: CostEntry[], memberId: string, key: string): BillLine | undefined {

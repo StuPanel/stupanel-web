@@ -10,7 +10,7 @@ import { AccountPicker } from "@/components/account-picker";
 import { Check, Loader2, Lock, Trash2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency, currencySymbol, currencyPad } from "@/lib/format";
+import { formatCurrency, currencySymbol, currencyPad, localDateStr } from "@/lib/format";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { FormDrawer, FormGroup, Field, inputCls } from "@/components/ui/form-kit";
@@ -116,7 +116,7 @@ function PayMember({ booking, entry, onClose, onSaved }: { booking: Booking; ent
   const [forId, setForId] = useState<string | null>(null);
   if (entry && forId !== entry.id) {
     setForId(entry.id);
-    setForm({ amount: String(due), method: "cash", date: new Date().toISOString().slice(0, 10), note: "", walletId: "" });
+    setForm({ amount: String(due), method: "cash", date: localDateStr(), note: "", walletId: "" });
     setErr("");
   }
   if (!entry && forId) setForId(null);

@@ -21,7 +21,7 @@ import { ClientDrawer, DeleteDialog, fullName, type Client } from "./_components
 
 function initials(c: Client) {
   const f = c.firstName?.[0] ?? "";
-  const l = c.lastName?.[0] ?? "";
+  const l = (c.lastName ?? "").split(/\s+/).find(w => /^[\p{L}\p{N}]/u.test(w))?.[0] ?? "";
   return (f + l).toUpperCase() || "?";
 }
 

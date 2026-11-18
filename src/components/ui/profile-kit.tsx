@@ -33,7 +33,8 @@ export function ProfileShell({ open, onClose, label, children }: {
 
 /** Big round initial avatar. */
 export function Avatar({ name, color = "#7D5CEF", size = 64, src }: { name: string; color?: string; size?: number; /** The person's photo, when they have one. */ src?: string | null }) {
-  const parts = name.trim().split(/\s+/);
+  // Words that start with a letter or number only: "Rafi (groom)" → "R", not "R(".
+  const parts = name.trim().split(/\s+/).filter(w => /^[\p{L}\p{N}]/u.test(w));
   const ini = ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
   // eslint-disable-next-line @next/next/no-img-element
   if (src) return <img src={src} alt="" width={size} height={size} className="rounded-full object-cover flex-shrink-0 bg-[#EEE8FD]" style={{ width: size, height: size }} />;

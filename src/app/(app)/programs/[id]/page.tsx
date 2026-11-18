@@ -448,6 +448,11 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   {costs.length === 0 && <MoneyLine l="Costs" v={<span className="text-[#8A8599] font-medium">None yet</span>} />}
                   <MoneyLine l={net > 0 ? `Profit · ${Math.round((profit / net) * 100)}%` : "Profit"} v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
                 </div>
+                {profit < 0 && b.status !== "cancelled" && (
+                  <p role="note" className="mt-2 text-[13px] text-[#9C2340] bg-[#FDECEF] rounded-[12px] px-3.5 py-2.5">
+                    This program costs more than the client pays: a loss of {formatCurrency(-profit, b.currency)}. Check the price or the team pay.
+                  </p>
+                )}
               </Section>
               <ProgramTeamCosts bookingId={b.id} onChanged={load} />
             </>

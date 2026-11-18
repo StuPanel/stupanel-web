@@ -21,7 +21,7 @@ type Period = "this_month" | "last_month" | "last_3_months" | "this_year" | "las
 
 interface Stats {
   totalPrograms: number; totalRevenue: number; pendingAmount: number; totalClients: number;
-  changes: { programs: number; revenue: number; clients: number };
+  changes: { programs: number | null; revenue: number | null; clients: number | null };
 }
 interface Booking {
   id: string; bookingNumber: string; eventName?: string; coverageSide?: string | null; eventDate?: string; eventTime?: string;
@@ -116,7 +116,7 @@ export default function DashboardPage() {
   const cards = stats ? [
     { label: "Programs", value: String(stats.totalPrograms), change: stats.changes.programs, icon: Camera, color: "deep", href: "/programs", amount: false },
     { label: "Money received", value: fmtFull(stats.totalRevenue), change: stats.changes.revenue, icon: Banknote, color: "green", href: "/payments", amount: true },
-    { label: "Still due", value: fmtFull(stats.pendingAmount), change: null, icon: Clock, color: "red", href: "/payments", amount: true },
+    { label: "Still due", value: fmtFull(stats.pendingAmount), change: undefined, icon: Clock, color: "red", href: "/payments", amount: true },
     { label: "Clients", value: String(stats.totalClients), change: stats.changes.clients, icon: Users, color: "blue", href: "/clients", amount: false },
   ] : null;
 
@@ -155,7 +155,10 @@ export default function DashboardPage() {
               c.amount && !showAmounts && "select-none")}>
               {c.amount ? money(c.value) : c.value}
             </p>
-            {c.change !== null && c.change !== undefined ? (
+            {c.change === null ? (
+              // Nothing in the period before: no percentage to show.
+              <p className="mt-2 text-xs text-[#6B6680]">Nothing in the period before</p>
+            ) : c.change !== undefined ? (
               <p className={cn("mt-2 text-xs font-semibold inline-flex items-center gap-1", c.change >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]")}>
                 {c.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                 {c.change > 0 ? "+" : ""}{c.change}% <span className="text-[#6B6680] font-medium">vs before</span>

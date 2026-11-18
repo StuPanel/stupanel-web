@@ -174,6 +174,8 @@ export interface Booking {
   team: { userId: string; roleInBooking?: string; agreedRate?: number; agreedNote?: string }[];
   payments: { id: string; amount: number; paymentStatus?: string }[];
   statusManualAt?: string | null;
+  /** Money given back to the client (paidAmount is already after these). The list API sends only amounts. */
+  refunds?: { id?: string; amount: number | string; refundDate?: string; method?: string | null; note?: string | null }[];
 }
 
 /** What the other programs already took in this program's shifts, and what is free (POST /equipment/check). */

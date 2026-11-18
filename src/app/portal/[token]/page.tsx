@@ -165,6 +165,7 @@ function Portal({ token }: { token: string }) {
           todos={todosFor(todos, program.id)}
           invoices={data.company.portalShowInvoices !== false ? data.invoices.filter(i => i.bookingId === program.id) : []}
           payments={data.company.portalShowPayments !== false ? data.payments.filter(p => p.bookingId === program.id) : []}
+          refunds={data.company.portalShowPayments !== false ? (data.refunds ?? []).filter(r => r.bookingId === program.id) : []}
           contracts={(data.contracts ?? []).filter(c => c.bookingId === program.id)}
           photos={photos.filter(g => g.bookingId === program.id)} music={music.find(m => m.bookingId === program.id)}
           tab={tab} onTab={onTab}

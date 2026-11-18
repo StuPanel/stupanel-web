@@ -37,11 +37,16 @@ export const MONEY_TONE: Record<MoneyTone, string> = {
   green: "bg-[#E7F5EE] text-[#1F7A50]", amber: "bg-[#FDF3E1] text-[#8A5A00]", red: "bg-[#FDECEF] text-[#B42347]", gray: "bg-[#F1EFF6] text-[#5E5970]",
 };
 /** The money next to the status: No advance · ৳X paid · Fully paid · Refunded · ৳X kept. */
-export function moneyState(b: { status: string; grandTotal: number | string; paidAmount: number | string; payments?: { amount: number | string; paymentStatus?: string }[] }, fmt: (n: number) => string): { label: string; tone: MoneyTone } | null {
+/** Money given back to the client on a program. */
+export const refundedOf = (b: { refunds?: { amount: number | string }[] }) => (b.refunds ?? []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+export function moneyState(b: { status: string; grandTotal: number | string; paidAmount: number | string; refunds?: { amount: number | string }[] }, fmt: (n: number) => string): { label: string; tone: MoneyTone } | null {
   const s = normalStatus(b.status), total = Number(b.grandTotal) || 0, paid = Number(b.paidAmount) || 0;
+  const back = refundedOf(b);
   if (s === "cancelled") {
+    if (paid > 0.009 && back > 0.009) return { label: `${fmt(back)} back · ${fmt(paid)} kept`, tone: "gray" };
     if (paid > 0.009) return { label: `${fmt(paid)} kept`, tone: "gray" };
-    return (b.payments ?? []).some(p => p.paymentStatus === "refunded" || p.paymentStatus === "partially_refunded") ? { label: "Refunded", tone: "gray" } : null;
+    return back > 0.009 ? { label: "Refunded", tone: "gray" } : null;
   }
   if (s === "inquiry" || s === "quote_sent") return paid > 0.009 ? { label: `${fmt(paid)} paid`, tone: "green" } : null;
   if (total > 0 && paid >= total - 0.009) return { label: "Fully paid", tone: "green" };

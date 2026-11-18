@@ -5,7 +5,7 @@
  * Money (what is paid and due, per program, with invoices, receipts and quotes),
  * and the navigation (top tabs on a computer, a bottom bar on a phone).
  */
-import { CalendarDays, CheckCircle, CreditCard, FileText, Home, MessageCircle, Receipt, Wallet } from "lucide-react";
+import { CalendarDays, CheckCircle, CreditCard, FileText, Home, MessageCircle, Receipt, RotateCcw, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import { EmptyState, StatCard } from "@/components/ui/apple";
@@ -105,7 +105,8 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
   const c = data.company.currency;
   const live = data.bookings.filter(b => deliveryStatus(b) !== "cancelled" && Number(b.grandTotal) > 0);
   const totalDue = live.reduce((s, b) => s + dueOf(b), 0);
-  const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const refunds = data.refunds ?? [];
+  const totalPaid = data.payments.reduce((s, p) => s + Number(p.amount), 0) - refunds.reduce((s, r) => s + Number(r.amount), 0);
   const name = new Map(data.bookings.map(b => [b.id, programName(b)]));
   const showInv = data.company.portalShowInvoices !== false;
   const showPay = data.company.portalShowPayments !== false;
@@ -160,13 +161,17 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
 
       {showPay && (
         <Section title="Payments received" icon={CheckCircle} color="green">
-          {data.payments.length === 0
+          {data.payments.length === 0 && refunds.length === 0
             ? <p className="px-4 sm:px-5 pb-4 text-[13.5px] text-[#6B6680]">Every payment the studio records shows here.</p>
             : (
               <RowList>
                 {data.payments.map(p => (
                   <DocRow key={p.id} icon={CheckCircle} tone="green" title={money(p.amount, p.currency)}
                     sub={[fmtDate(p.paymentDate), p.bookingId ? name.get(p.bookingId) : null, p.paymentMethod?.replace(/_/g, " ")].filter(Boolean).join(" · ")} />
+                ))}
+                {refunds.map(r => (
+                  <DocRow key={r.id} icon={RotateCcw} title={`${money(r.amount, c)} given back to you`}
+                    sub={[fmtDate(r.refundDate), name.get(r.bookingId)].filter(Boolean).join(" · ")} />
                 ))}
               </RowList>
             )}

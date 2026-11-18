@@ -20,7 +20,7 @@ const ROUTE_AREA: Record<string, AreaKey | "any" | "owner"> = {
   "/programs": "programs", "/calendar": "programs", "/checklist": "programs", "/delivery": "programs",
   "/clients": "clients", "/leads": "clients", "/music": "programs", "/photo-selection": "programs", "/contracts": "programs", "/referrals": "clients",
   "/payments": "payments", "/invoices": "payments", "/quotes": "payments", "/expenses": "accounts", "/accounts": "accounts",
-  "/team": "team", "/salary": "team",
+  "/team": "team", "/salary": "team", "/team-pay": "team",
   "/packages": "packages", "/equipment": "equipment",
   "/chat": "chat", "/whatsapp": "chat",
   "/notifications": "any", "/support": "any", "/account": "any",

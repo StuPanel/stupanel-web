@@ -180,7 +180,7 @@ export function useWaitingCosts() {
 export function WaitingCostsLink({ n }: { n: number }) {
   if (!n) return null;
   return (
-    <Link href="/team/costs" className="flex items-center gap-3 rounded-[16px] bg-[#FFF3E0] hover:bg-[#FCEBD0] px-4 py-3 mb-5 text-[#7A4800]">
+    <Link href="/team-pay?tab=costs" className="flex items-center gap-3 rounded-[16px] bg-[#FFF3E0] hover:bg-[#FCEBD0] px-4 py-3 mb-5 text-[#7A4800]">
       <ReceiptText className="w-5 h-5 flex-shrink-0" />
       <span className="flex-1 text-[14px]"><b>{n} cost{n === 1 ? "" : "s"}</b> from the team to check</span>
       <span className={cn(linkBtn, "!text-[#7A4800]")}>Check<ChevronRight className="w-3.5 h-3.5" /></span>

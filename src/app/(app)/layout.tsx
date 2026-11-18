@@ -4,7 +4,8 @@ import { rememberPanel } from "@/components/layout/panel-switch";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Camera, Users, CreditCard, LayoutGrid, MailWarning, X } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, MailWarning, X } from "lucide-react";
+import { phoneItems, switchedOff, useStudioMenu } from "@/lib/studio-menu";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -19,12 +20,6 @@ import { canOpen, homeFor } from "@/lib/access";
 import { useBackClose } from "@/lib/back-stack";
 
 // Mobile bottom tab bar — labels always visible; "More" opens the full menu.
-const mobileTabs = [
-  { name: "Home", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Programs", href: "/programs", icon: Camera },
-  { name: "Clients", href: "/clients", icon: Users },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-];
 
 // Desktop sidebar geometry (floating card with a 12px gap from the screen edge)
 const SIDEBAR_W = "lg:w-[248px]";
@@ -101,6 +96,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, ready, emailVerified } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { features, menu } = useStudioMenu();
   // Phone Back closes the menu
   useBackClose(menuOpen, () => setMenuOpen(false));
   const [collapsed, setCollapsed] = useState(false);
@@ -151,6 +147,11 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
   if (!ready) return <AppLayoutSkeleton collapsed={collapsed} />;
 
+  // Phone bar: Home, the studio's 3 buttons (Settings → Menu), More.
+  const mobileTabs = [
+    { name: "Home", href: "/dashboard", icon: LayoutDashboard },
+    ...phoneItems(menu).filter(i => !switchedOff(i.href, features)).map(i => ({ name: i.phoneName ?? i.name, href: i.href, icon: i.icon })),
+  ];
   const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (

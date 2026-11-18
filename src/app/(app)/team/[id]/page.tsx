@@ -337,7 +337,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                 )}
               </Section>
               {slips.length > 0 && (
-                <Section title="Monthly salary" action={<Link href="/salary" className={linkBtn}>Salary page<ChevronRight className="w-3.5 h-3.5" /></Link>}>
+                <Section title="Monthly salary" action={<Link href="/team-pay" className={linkBtn}>Team pay<ChevronRight className="w-3.5 h-3.5" /></Link>}>
                   <List>{slips.map(s => (
                     <Row key={s.id} icon={Wallet} color="green" title={`${MONTHS[s.month - 1]} ${s.year}`}
                       sub={[s.paidAt ? `Paid ${fmtDate(s.paidAt)}` : s.status, s.notes, Number(s.deductions) > 0 ? `−${formatCurrency(Number(s.deductions))} cut` : null].filter(Boolean).join(" · ")}

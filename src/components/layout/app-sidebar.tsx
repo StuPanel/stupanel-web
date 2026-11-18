@@ -5,68 +5,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import {
-  LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
-  Settings, Bell, Crown, ChevronsLeft, ChevronsRight, X, UserCog, MessageCircle, FileText,
-  CircleUserRound, LifeBuoy, Wrench, Banknote, Wallet, Landmark, Handshake, Receipt,
-  MessageSquareText, Target, Music2, Images, ScanFace, FileSignature } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, X, Settings, LifeBuoy, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
-import { API_URL as API, apiFetch } from "@/lib/api";
 import { canOpen, homeFor } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
 import { StudioSwitcher } from "@/components/layout/studio-switcher";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { arrange, switchedOff, useStudioMenu, type MenuItem } from "@/lib/studio-menu";
 
-export const navigation = [
-  {
-    title: "Main",
-    items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "violet" as TileColor },
-      { name: "Programs", href: "/programs", icon: Camera, color: "deep" as TileColor },
-      { name: "Calendar", href: "/calendar", icon: CalendarDays, color: "red" as TileColor },
-      { name: "Chat", href: "/chat", icon: MessageCircle, color: "green" as TileColor },
-    ],
-  },
-  {
-    title: "Studio",
-    items: [
-      { name: "Leads", href: "/leads", icon: Target, color: "violet" as TileColor },
-      { name: "Clients", href: "/clients", icon: Users, color: "blue" as TileColor },
-      { name: "Referrals", href: "/referrals", icon: Handshake, color: "teal" as TileColor },
-      { name: "Quotes", href: "/quotes", icon: FileText, color: "deep" as TileColor },
-      { name: "Contracts", href: "/contracts", icon: FileSignature, color: "ink" as TileColor },
-      { name: "Invoices", href: "/invoices", icon: Receipt, color: "orchid" as TileColor },
-      { name: "Payments", href: "/payments", icon: CreditCard, color: "green" as TileColor },
-      { name: "Team", href: "/team", icon: UserCog, color: "blue" as TileColor },
-      { name: "Packages", href: "/packages", icon: Package, color: "violet" as TileColor },
-      { name: "Delivery", href: "/delivery", icon: ImageIcon, color: "teal" as TileColor },
-      { name: "Photo Selection", href: "/photo-selection", icon: Images, color: "red" as TileColor },
-      { name: "AI Face Search", href: "/face-search", icon: ScanFace, color: "violet" as TileColor },
-      { name: "Music Library", href: "/music", icon: Music2, color: "orchid" as TileColor },
-    ],
-  },
-  {
-    title: "Tools",
-    items: [
-      { name: "Equipment", href: "/equipment", icon: Wrench, color: "ink" as TileColor },
-      { name: "Salary", href: "/salary", icon: Banknote, color: "green" as TileColor },
-      { name: "Accounts", href: "/accounts", icon: Landmark, color: "blue" as TileColor },
-    ],
-  },
-  {
-    title: "Manage",
-    items: [
-      { name: "Reports", href: "/reports", icon: BarChart3, color: "blue" as TileColor },
-      { name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText, color: "green" as TileColor, managersOnly: true },
-      { name: "Notifications", href: "/notifications", icon: Bell, color: "red" as TileColor },
-      { name: "Support", href: "/support", icon: LifeBuoy, color: "teal" as TileColor },
-      { name: "Plan & Billing", href: "/billing", icon: Crown, color: "violet" as TileColor },
-      { name: "Settings", href: "/settings", icon: Settings, color: "ink" as TileColor },
-      { name: "My Account", href: "/account", icon: CircleUserRound, color: "deep" as TileColor },
-    ],
-  },
+/** Below the groups, the same for every studio: Settings (owners) and Support; WhatsApp templates for managers. */
+const BOTTOM = [
+  { id: "settings", name: "Settings", href: "/settings", icon: Settings, color: "ink" as TileColor },
+  { id: "whatsapp", name: "WhatsApp", href: "/whatsapp", icon: MessageSquareText, color: "green" as TileColor, managersOnly: true },
+  { id: "support", name: "Support", href: "/support", icon: LifeBuoy, color: "teal" as TileColor },
 ];
 
 interface AppSidebarProps {
@@ -89,31 +42,16 @@ export function BrandMark({ size = 32, className }: { size?: number; className?:
   );
 }
 
-type Features = { photoSelection?: boolean; musicSelection?: boolean };
-/** Kept for the session, so the menu doesn't flicker on every page. */
-let featuresCache: Features | null = null;
-
 export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
   const { companyLogo, companyName, user } = useAuth();
-  // Managers only see the parts the owner gave them.
-  // Features the studio switched off (Settings → Features) are not in the menu.
-  const [features, setFeatures] = useState<Features | null>(featuresCache);
-  useEffect(() => {
-    let alive = true;
-    if (!featuresCache && localStorage.getItem("access_token")) {
-      apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null))
-        .then(d => { if (alive && d?.features) { featuresCache = d.features; setFeatures(d.features); } }).catch(() => {});
-    }
-    const on = (e: Event) => { featuresCache = (e as CustomEvent<Features>).detail; setFeatures(featuresCache); };
-    window.addEventListener("sp:features", on);
-    return () => { alive = false; window.removeEventListener("sp:features", on); };
-  }, []);
-  const switchedOff = (href: string) =>
-    (href === "/photo-selection" && features?.photoSelection === false) || (href === "/music" && features?.musicSelection === false);
-  const groups = navigation
-    .map(g => ({ ...g, items: g.items.filter(i => canOpen(user, i.href) && !switchedOff(i.href) && !(("managersOnly" in i) && i.managersOnly && user?.role === "owner")) }))
+  // The studio's own menu (Settings → Menu); managers only see the parts the owner gave them;
+  // features switched off in Settings are not in the menu.
+  const { features, menu } = useStudioMenu();
+  const groups = arrange(menu)
+    .map(g => ({ ...g, items: g.items.filter(i => !i.hidden && canOpen(user, i.href) && !switchedOff(i.href, features)) }))
     .filter(g => g.items.length > 0);
+  const bottom = BOTTOM.filter(i => canOpen(user, i.href) && !(i.managersOnly && user?.role !== "manager"));
   const [chatUnread, setChatUnread] = useState(0);
 
   // Chat unread — poll only when tab is visible, and right after something is read
@@ -135,6 +73,35 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
   }, []);
 
   const wide = !collapsed;
+
+  const navLink = (item: Pick<MenuItem, "id" | "name" | "href" | "icon" | "color">) => {
+    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+    return (
+      <li key={item.id}>
+        <Link
+          href={item.href}
+          title={collapsed ? item.name : undefined}
+          onClick={isMobile ? onClose : undefined}
+          className={cn(
+            "group relative flex items-center rounded-[12px] text-sm transition-colors",
+            wide ? "gap-3 px-2 h-10" : "justify-center p-1.5",
+            isActive ? "bg-[#EEE8FD] text-[#5B3FD0] font-bold" : "text-[#17151F] font-medium hover:bg-[#F5F3FA]"
+          )}
+        >
+          <Tile icon={item.icon} color={item.color} size={wide ? 26 : 30}
+            className={cn("transition-transform", !isActive && "group-hover:scale-105")} />
+          {wide && <span className="flex-1 truncate">{item.name}</span>}
+          {item.href === "/chat" && chatUnread > 0 && !isActive && (
+            wide
+              ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">
+                  {chatUnread > 9 ? "9+" : chatUnread}
+                </span>
+              : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#7D5CEF] ring-2 ring-white" />
+          )}
+        </Link>
+      </li>
+    );
+  };
 
   return (
     <aside className={cn(
@@ -173,45 +140,24 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation: the studio's groups, then Settings and Support */}
       <nav className={cn("flex-1 overflow-y-auto pb-3 space-y-3.5", wide ? "px-2.5" : "px-2")}>
-        {groups.map((group) => (
-          <div key={group.title}>
-            {wide
-              ? <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
-              : <div className="h-px bg-[#F1EFF6] mx-2 mb-2" />}
+        {groups.map((group, gi) => (
+          <div key={group.id}>
+            {group.title && wide && <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>}
+            {!wide && gi > 0 && <div className="h-px bg-[#F1EFF6] mx-2 mb-2" />}
             <ul className="space-y-px">
-              {group.items.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      title={collapsed ? item.name : undefined}
-                      onClick={isMobile ? onClose : undefined}
-                      className={cn(
-                        "group relative flex items-center rounded-[12px] text-sm transition-colors",
-                        wide ? "gap-3 px-2 h-10" : "justify-center p-1.5",
-                        isActive ? "bg-[#EEE8FD] text-[#5B3FD0] font-bold" : "text-[#17151F] font-medium hover:bg-[#F5F3FA]"
-                      )}
-                    >
-                      <Tile icon={item.icon} color={item.color} size={wide ? 26 : 30}
-                        className={cn("transition-transform", !isActive && "group-hover:scale-105")} />
-                      {wide && <span className="flex-1 truncate">{item.name}</span>}
-                      {item.href === "/chat" && chatUnread > 0 && !isActive && (
-                        wide
-                          ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">
-                              {chatUnread > 9 ? "9+" : chatUnread}
-                            </span>
-                          : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#7D5CEF] ring-2 ring-white" />
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
+              {group.items.map(navLink)}
             </ul>
           </div>
         ))}
+        {bottom.length > 0 && (
+          <div className="pt-2.5 border-t border-[#F1EFF6]">
+            <ul className="space-y-px">
+              {bottom.map(navLink)}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* You: profile, plan, settings, log out */}

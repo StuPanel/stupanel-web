@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
@@ -43,6 +43,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(-1);
   const [mobileSearch, setMobileSearch] = useState(false);
+  // Settings has its own search: hide the app-wide one there so owners don't type into the wrong box.
+  const inSettings = usePathname()?.startsWith("/settings") ?? false;
   // The bar has no box of its own: only once the page scrolls under it does a soft glass fade in.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -180,7 +182,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             </Link>
 
             {/* Search box (desktop inline, mobile as a drop-down row) */}
-            <div className={cn(
+            {!inSettings && <div className={cn(
               "lg:relative lg:block lg:w-80 xl:w-96",
               mobileSearch ? "absolute left-3 right-3 top-[60px] sm:left-4 sm:right-4 z-30" : "hidden"
             )}>
@@ -241,18 +243,18 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   )}
                 </div>
               )}
-            </div>
+            </div>}
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
+            {!inSettings && <button
               onClick={() => { setMobileSearch(v => !v); setTimeout(() => inputRef.current?.focus(), 50); }}
               className={cn("lg:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
                 mobileSearch ? "bg-[#F7F4FE] text-[#5B3FD0]" : "bg-white border border-[#E4E0EC] text-[#4A4658]")}
               aria-label="Search"
             >
               {mobileSearch ? <X className="w-[18px] h-[18px]" /> : <Search className="w-[18px] h-[18px]" />}
-            </button>
+            </button>}
 
             <NotificationBell />
             {/* On phones the sidebar is hidden, so the account menu sits here too */}

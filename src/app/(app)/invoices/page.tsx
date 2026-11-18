@@ -741,7 +741,7 @@ function ViewDrawer({ inv: initialInv, onClose, onRefresh }: { inv: Invoice; onC
     onRefresh();
   }
 
-  const balance = Number(inv.balanceDue);
+  const balance = inv.status === "void" ? 0 : Number(inv.balanceDue);
   const grand = Number(inv.grandTotal);
   const paid = Number(inv.paidAmount);
   const isQuote = inv.docType === "quotation";
@@ -919,7 +919,8 @@ function InvoiceRow({ inv, onClick }: { inv: Invoice; onClick: () => void }) {
   const s = quote ? { label: "Quotation" } : st ? { label: st.label } : (STATUS[inv.status] ?? STATUS.draft);
   const h = quote ? { bg: "#EEE8FD", text: "#5B3FD0" } : st ? { bg: st.bg, text: st.text } : (STATUS_HEX[inv.status] ?? STATUS_HEX.draft);
   const c = sym(inv.currency);
-  const due = Number(inv.balanceDue);
+  // A cancelled (void) invoice asks for nothing, whatever is left on it.
+  const due = inv.status === "void" ? 0 : Number(inv.balanceDue);
   return (
     <button onClick={onClick}
       className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[68px] text-left hover:bg-[#F7F5FB] transition-colors">
@@ -976,6 +977,12 @@ export default function InvoicesPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
   useEffect(() => { setPage(1); }, [search, statusFilter]);
+  // /invoices?open=<id> (Payments → Due links here for an invoice without a program) opens that invoice.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (!id) return;
+    apiFetch(`${API}/studio-invoices/${id}`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setViewing(d); }).catch(() => {});
+  }, []);
 
   const totalPages = Math.ceil(total / 20);
 

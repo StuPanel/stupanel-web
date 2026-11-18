@@ -970,6 +970,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         {equip > 0 && <Row l="Equipment rent" v={`− ${formatCurrency(equip)}`} />}
         {otherCosts - equip > 0 && <Row l="Other costs" v={`− ${formatCurrency(otherCosts - equip)}`} />}
         <Row l="Profit" v={formatCurrency(profit)} strong tone={profit >= 0 ? "green" : "red"} sub={net > 0 ? `${Math.round((profit / net) * 100)}%` : undefined} />
+        {profit < 0 && net > 0 && <p role="note" className="text-[12.5px] text-[#9C2340] bg-[#FDECEF] rounded-[10px] px-3 py-2 mt-1">Costs are more than the price: a loss of {formatCurrency(-profit)}.</p>}
       </div>
     </Card>
   );

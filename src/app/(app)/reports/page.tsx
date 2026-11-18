@@ -44,7 +44,7 @@ interface Summary {
 interface MonthlyData { month: number; programs: number; revenue: number; costs: number; profit: number; }
 interface TopClient { client: { id: string; firstName: string; lastName?: string; phone?: string }; revenue: number; programs: number; }
 interface StatusItem { status: string; count: number; revenue: number; }
-interface TeamEarning { memberName: string; totalEarned: number; programs: number; }
+interface TeamEarning { memberName: string; totalEarned: number; paid?: number; owed?: number; programs: number; }
 
 
 export default function ReportsPage() {
@@ -124,7 +124,7 @@ export default function ReportsPage() {
             <div className={cn("bg-white rounded-[20px] p-5", CARD_SHADOW)}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 {[
-                  { label: "Money in", value: fmt(summary.netRevenue), cls: "text-[#17151F]" },
+                  { label: "Sales", value: fmt(summary.netRevenue), cls: "text-[#17151F]" },
                   { label: "Costs", value: fmt(summary.totalCost), cls: "text-[#C2304F]" },
                   { label: "Profit", value: fmt(summary.netProfit), cls: summary.netProfit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]" },
                   { label: "Margin", value: `${summary.margin}%`, cls: summary.margin >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]" },
@@ -141,7 +141,7 @@ export default function ReportsPage() {
                     <div className="h-full bg-[#1F8A5B] rounded-full transition-all"
                       style={{ width: `${Math.max(0, Math.min(100, (summary.netProfit / summary.netRevenue) * 100))}%` }} />
                   </div>
-                  <p className="text-xs text-[#6B6680]">You keep {summary.margin}% of the money that comes in</p>
+                  <p className="text-xs text-[#6B6680]">You keep {summary.margin}% of what your programs are worth, after costs. Received so far: {fmt(summary.collected)}.</p>
                 </div>
               )}
               <button onClick={() => setCostsOpen(o => !o)} aria-expanded={costsOpen}
@@ -207,7 +207,7 @@ export default function ReportsPage() {
 
             <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#F1EFF6]">
               <div>
-                <p className="text-xs text-[#8A8599]">Total Revenue</p>
+                <p className="text-xs text-[#8A8599]">Total sales</p>
                 <p className="font-bold text-[#17151F]">{fmtFull(monthly.reduce((s, m) => s + m.revenue, 0))}</p>
               </div>
               <div>
@@ -315,6 +315,7 @@ export default function ReportsPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-[#8A8599]">{te.programs} program{te.programs > 1 ? "s" : ""}</span>
                         <span className="text-xs font-bold text-[#17151F]">{fmtFull(te.totalEarned)}</span>
+                        {(te.owed ?? 0) > 0 && <span className="text-xs font-semibold text-[#C2304F]">{fmtFull(te.owed ?? 0)} to pay</span>}
                       </div>
                     </div>
                     <div className="h-1.5 bg-[#F1EFF6] rounded-full overflow-hidden">
@@ -325,9 +326,10 @@ export default function ReportsPage() {
               );
             })}
           </div>
-          <div className="mt-4 pt-3 border-t border-[#F1EFF6] flex justify-between text-sm">
-            <span className="text-[#6B6680]">Total team payout</span>
-            <span className="font-bold text-[#17151F]">{fmtFull(teamEarnings.reduce((s, t) => s + t.totalEarned, 0))}</span>
+          <div className="mt-4 pt-3 border-t border-[#F1EFF6] grid grid-cols-3 gap-3 text-sm">
+            <div><p className="text-xs text-[#8A8599]">Team earned</p><p className="font-bold text-[#17151F] tabular-nums">{fmtFull(teamEarnings.reduce((s, t) => s + t.totalEarned, 0))}</p></div>
+            <div><p className="text-xs text-[#8A8599]">Paid to them</p><p className="font-bold text-[#1F8A5B] tabular-nums">{fmtFull(teamEarnings.reduce((s, t) => s + (t.paid ?? 0), 0))}</p></div>
+            <div><p className="text-xs text-[#8A8599]">You still owe</p><p className="font-bold text-[#C2304F] tabular-nums">{fmtFull(teamEarnings.reduce((s, t) => s + (t.owed ?? 0), 0))}</p></div>
           </div>
         </div>
       )}

@@ -22,6 +22,8 @@ import { CARD_SHADOW, Chips, EmptyState, Initial, RowsSkeleton, StatCard } from 
 export type DueProgram = {
   id: string; number: string; name: string; date: string | null; status: string;
   total: number; paid: number; due: number; overdue: boolean;
+  /** "invoice" = an invoice made without a program; its money is recorded on the invoice. */
+  kind?: "program" | "invoice";
 };
 export type DueClient = {
   id: string; name: string; firstName: string; phone: string | null;
@@ -83,7 +85,7 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
   return (
     <div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
-        <StatCard icon={Wallet} color="red" label="Total due" value={m(t.due)} sub={`${t.programs} program${t.programs === 1 ? "" : "s"}`} />
+        <StatCard icon={Wallet} color="red" label="Total due" value={m(t.due)} sub={`${t.programs} program${t.programs === 1 ? "" : "s"} or invoice${t.programs === 1 ? "" : "s"}`} />
         <StatCard icon={AlertTriangle} color={t.overdue > 0 ? "red" : "green"} label="Overdue" value={m(t.overdue)} sub="Program done, not paid" />
         <StatCard icon={CalendarClock} color="violet" label="Coming up" value={m(t.upcoming)} sub="Programs not done yet" />
         <StatCard icon={Users} color="blue" label="Clients" value={String(t.clients)} sub="With money due" />
@@ -137,7 +139,7 @@ function ClientDue({ c, m, studioName, currency, payTo, template, open, onToggle
         <span className="flex-1 min-w-0">
           <span className="block text-[15px] font-semibold text-[#17151F] truncate">{c.name}</span>
           <span className="block text-[12.5px] text-[#6B6680] truncate">
-            {c.programs.length} program{c.programs.length === 1 ? "" : "s"}{c.lastPaidAt ? ` · last paid ${fmtDate(c.lastPaidAt)}` : " · no payment yet"}
+            {(() => { const inv = c.programs.filter(p => p.kind === "invoice").length; const pr = c.programs.length - inv; return [pr ? `${pr} program${pr === 1 ? "" : "s"}` : "", inv ? `${inv} invoice${inv === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · "); })()}{c.lastPaidAt ? ` · last paid ${fmtDate(c.lastPaidAt)}` : " · no payment yet"}
           </span>
         </span>
         <span className="text-right flex-shrink-0">
@@ -173,14 +175,23 @@ function ClientDue({ c, m, studioName, currency, payTo, template, open, onToggle
                     <span className="font-bold text-[#C2304F]">{m(p.due)} due</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => onRecord(p)}
-                      className="h-9 px-3.5 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">
-                      <Plus className="w-4 h-4" />Record payment
-                    </button>
-                    <Link href={`/programs/${p.id}?tab=money`}
-                      className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] text-[13px] font-semibold inline-flex items-center gap-1.5">
-                      <ExternalLink className="w-3.5 h-3.5" />Open program
-                    </Link>
+                    {p.kind === "invoice" ? (
+                      <Link href={`/invoices?open=${p.id}`}
+                        className="h-9 px-3.5 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">
+                        <ExternalLink className="w-3.5 h-3.5" />Open invoice
+                      </Link>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => onRecord(p)}
+                          className="h-9 px-3.5 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">
+                          <Plus className="w-4 h-4" />Record payment
+                        </button>
+                        <Link href={`/programs/${p.id}?tab=money`}
+                          className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#17151F] text-[13px] font-semibold inline-flex items-center gap-1.5">
+                          <ExternalLink className="w-3.5 h-3.5" />Open program
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </li>
               );

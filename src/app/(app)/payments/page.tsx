@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { DuesView, type DueProgram } from "./_components/dues";
 import { AccountPicker } from "@/components/account-picker";
+import { ProgramPicker, toPickProgram, type PickProgram } from "@/components/program-picker";
 import { API_URL as API } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ type PaymentMethod = "cash" | "bank_transfer" | "mobile_banking" | "credit_card"
 type PaymentStatus = "pending" | "completed" | "failed" | "refunded" | "partially_refunded";
 
 interface Client { id: string; firstName: string; lastName?: string; phone?: string; }
-interface Booking { id: string; bookingNumber: string; eventName?: string; grandTotal: number; paidAmount: number; currency: string; }
+type Booking = PickProgram;
 
 interface Payment {
   id: string;
@@ -115,6 +116,8 @@ function PaymentDrawer({
   };
 
   const [form, setForm] = useState(blank);
+  // A program found by searching (beyond the first page) is kept here once chosen.
+  const [picked, setPicked] = useState<PickProgram | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -150,17 +153,16 @@ function PaymentDrawer({
   }
 
   // Auto-fill currency when booking changes
-  function handleBookingChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const bookingId = e.target.value;
-    const booking = bookings.find(b => b.id === bookingId);
+  function handleBookingChange(booking: PickProgram) {
+    setPicked(booking);
     setForm(prev => ({
       ...prev,
-      bookingId,
-      currency: booking?.currency ?? getStudioCurrency(),
+      bookingId: booking.id,
+      currency: booking.currency ?? getStudioCurrency(),
     }));
   }
 
-  const selectedBooking = bookings.find(b => b.id === form.bookingId);
+  const selectedBooking = bookings.find(b => b.id === form.bookingId) ?? (picked?.id === form.bookingId ? picked : undefined);
   const remaining = selectedBooking
     ? Math.max(0, selectedBooking.grandTotal - selectedBooking.paidAmount)
     : null;
@@ -225,12 +227,7 @@ function PaymentDrawer({
 
         <FormGroup>
           <Field label="Program" required name="booking">{id => (
-            <select id={id} value={form.bookingId} onChange={handleBookingChange} className={inputCls}>
-              <option value="">Choose a program…</option>
-              {bookings.map(b => (
-                <option key={b.id} value={b.id}>{b.bookingNumber} — {b.eventName || "Untitled"} ({formatCurrency(b.grandTotal, b.currency)})</option>
-              ))}
-            </select>
+            <ProgramPicker id={id} programs={bookings} value={form.bookingId} onChange={handleBookingChange} />
           )}</Field>
         </FormGroup>
 
@@ -471,14 +468,7 @@ function Payments() {
       const res = await apiFetch(`${API}/bookings?limit=200`, { headers: { "Content-Type": "application/json" } });
       if (!res.ok) return;
       const data = await res.json();
-      setBookings((data.data ?? []).map((b: any) => ({
-        id: b.id,
-        bookingNumber: b.bookingNumber,
-        eventName: b.eventName,
-        grandTotal: Number(b.grandTotal),
-        paidAmount: Number(b.paidAmount),
-        currency: b.currency,
-      })));
+      setBookings((data.data ?? []).map(toPickProgram));
     } catch { /* silent */ }
   }, []);
 

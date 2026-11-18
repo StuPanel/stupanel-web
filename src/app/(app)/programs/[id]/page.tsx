@@ -131,7 +131,11 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
   const teamCost = entries.reduce((s, e) => s + Number(e.totalBill || 0), 0);
   const teamOwed = entries.reduce((s, e) => s + Math.max(0, Number(e.totalBill || 0) - Number(e.paidAmount || 0)), 0);
-  const costs = ([["Team pay", teamCost], ["Equipment rent", Number(b.equipCost)], ["Transport", Number(b.transportCost)], ["Album / print", Number(b.albumCost)], ["Other", Number(b.otherCost)]] as [string, number][]).filter(([, v]) => v > 0);
+  const isCancelled = b.status === "cancelled" || b.status === "refunded";
+  // Cancelled: only what the team was really paid is a cost (same rule as Reports).
+  const costs = isCancelled
+    ? ([["Team pay (paid)", entries.reduce((s, e) => s + Number(e.paidAmount || 0), 0)]] as [string, number][]).filter(([, v]) => v > 0)
+    : ([["Team pay", teamCost], ["Equipment rent", Number(b.equipCost)], ["Transport", Number(b.transportCost)], ["Album / print", Number(b.albumCost)], ["Other", Number(b.otherCost)]] as [string, number][]).filter(([, v]) => v > 0);
   const pays = ((b.payments ?? []) as Pay[]);
 
   // ── Who / when ──
@@ -506,7 +510,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   <MoneyLine l="Contract" v={formatCurrency(net, b.currency)} strong />
                   {costs.map(([l, v]) => <MoneyLine key={l} l={l} v={`− ${formatCurrency(v, b.currency)}`} />)}
                   {costs.length === 0 && <MoneyLine l="Costs" v={<span className="text-[#8A8599] font-medium">None yet</span>} />}
-                  <MoneyLine l={net > 0 ? `Profit · ${Math.round((profit / net) * 100)}%` : "Profit"} v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
+                  {isCancelled && <MoneyLine l="Kept from the client" v={formatCurrency(paid, b.currency)} strong />}
+                  <MoneyLine l={net > 0 && !isCancelled ? `Profit · ${Math.round((profit / net) * 100)}%` : "Profit"} v={formatCurrency(profit, b.currency)} strong tone={profit >= 0 ? "green" : "red"} />
                 </div>
                 {profit < 0 && b.status !== "cancelled" && (
                   <p role="note" className="mt-2 text-[13px] text-[#9C2340] bg-[#FDECEF] rounded-[12px] px-3.5 py-2.5">

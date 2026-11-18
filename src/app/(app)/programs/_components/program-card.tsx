@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { FloatMenu } from "@/components/ui/float-menu";
 import { apiFetch } from "@/lib/api";
 import { API_URL as API } from "@/lib/api";
-import { STATUS_CFG, STATUS_PIPELINE } from "./constants";
+import { STATUS_CFG, STATUS_PIPELINE, moneyState } from "./constants";
 import { formatCurrency } from "@/lib/format";
 import type { Booking } from "./types";
 import { askConfirm } from "@/components/feedback";
@@ -51,7 +51,11 @@ export function ProgramRow({ b, onView, onEdit, onDelete }: {
         <p className="text-sm font-bold text-[#17151F] tabular-nums">{formatCurrency(Number(b.grandTotal), b.currency)}</p>
         {/* A cancelled program asks for nothing, so no red "due" (the dashboard leaves it out too). */}
         {b.status === "cancelled" || b.status === "refunded"
-          ? <p className="text-xs font-semibold text-[#8A8599]">{Number(b.paidAmount) > 0 ? `${formatCurrency(Number(b.paidAmount), b.currency)} paid` : "Nothing due"}</p>
+          ? <p className="text-xs font-semibold text-[#8A8599]">{moneyState(b, n => formatCurrency(n, b.currency))?.label ?? "Nothing due"}</p>
+          : b.status === "inquiry" || b.status === "quote_sent"
+          ? <p className="text-xs font-semibold text-[#8A8599]">Not booked yet</p>
+          : due > 0 && Number(b.paidAmount) <= 0.009
+          ? <p className="text-xs font-semibold text-[#B42347] tabular-nums">No advance</p>
           : due > 0
           ? <p className="text-xs font-semibold text-[#C2304F] tabular-nums">{formatCurrency(due, b.currency)} due</p>
           : <p className="text-xs font-semibold text-[#1F8A5B]">Paid</p>}

@@ -175,6 +175,7 @@ export const ENTRIES: Entry[] = [
   { id: "shifts", pane: "bookings", section: "Shifts", label: "Shifts and their time", keywords: "shift time day evening night full day morning start end" },
   { id: "b-warnDoubleBooking", pane: "bookings", section: "Rules", label: "Warn about double booking", keywords: "same day clash conflict" },
   { id: "b-askBeforeConfirm", pane: "bookings", section: "Rules", label: "Ask before confirming", keywords: "confirm check" },
+  { id: "b-autoStatus", pane: "bookings", section: "Rules", label: "Move status by itself", keywords: "automatic status shooting editing completed date passed" },
 
   // Portal
   { id: "portalWelcomeMessage", pane: "portal", section: "Welcome", label: "Welcome message", keywords: "greeting" },

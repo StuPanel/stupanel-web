@@ -21,9 +21,9 @@ const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 
 const STATUS_LABEL: Record<string, string> = {
   inquiry: "Inquiry", quote_sent: "Quote Sent", confirmed: "Confirmed",
-  advance_received: "Advance Rcvd", in_progress: "Shooting", editing: "Editing",
+  advance_received: "Confirmed", in_progress: "Shooting", editing: "Editing",
   ready_for_delivery: "Ready", delivered: "Delivered", completed: "Completed",
-  cancelled: "Cancelled", refunded: "Refunded",
+  cancelled: "Cancelled", refunded: "Cancelled",
 };
 const STATUS_COLOR: Record<string, string> = {
   inquiry: "bg-[#C2304F]", quote_sent: "bg-[#9E3A8C]", confirmed: "bg-[#7D5CEF]",

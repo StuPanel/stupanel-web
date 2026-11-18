@@ -42,6 +42,7 @@ const KINDS: Record<string, string> = {
   password_reset: "Password reset",
   studio_data: "Studio data",
   face_credits: "Face Search credits",
+  plan_payment: "Plan payment",
   system: "StuPanel notice",
   other: "Other",
 };

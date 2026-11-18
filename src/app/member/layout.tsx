@@ -20,7 +20,7 @@ import { Tile, type TileColor } from "@/components/ui/apple";
 import { useBackClose } from "@/lib/back-stack";
 
 // Same look as the studio app sidebar: each page has its own coloured tile.
-// Top: everyday work (no group name). Editing only for editors. Money last. Profile and log out sit in the account button at the bottom.
+// Short list, so no group names (Faisal): everyday work, then editing (editors only), then money, with a little space between. Profile and log out sit in the account button at the bottom.
 const navGroups: { id: string; title: string; items: { label: string; href: string; icon: React.ElementType; color: TileColor }[] }[] = [
   { id: "top", title: "", items: [
     { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard, color: "violet" },
@@ -28,11 +28,11 @@ const navGroups: { id: string; title: string; items: { label: string; href: stri
     { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays,    color: "red" },
     { label: "Chat",        href: "/member/chat",      icon: MessageCircle,   color: "teal" },
   ] },
-  { id: "editing", title: "Editing", items: [
+  { id: "editing", title: "", items: [
     { label: "Editing",     href: "/member/editing",   icon: Wand2,           color: "blue" },
     { label: "Music",       href: "/member/music",     icon: Music2,          color: "orchid" },
   ] },
-  { id: "money", title: "My money", items: [
+  { id: "money", title: "", items: [
     { label: "Earnings",    href: "/member/earnings",  icon: Wallet,          color: "green" },
     { label: "Rates & gear", href: "/member/rates",    icon: BadgeDollarSign, color: "ink" },
   ] },

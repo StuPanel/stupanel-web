@@ -2,7 +2,7 @@
 
 import { PanelSwitch, rememberPanel } from "@/components/layout/panel-switch";
 import { IdleSignOut } from "@/components/idle-sign-out";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
 import { StudioBackdrop } from "@/components/studio-backdrop";
 import { StudioSwitcher } from "@/components/layout/studio-switcher";
@@ -10,7 +10,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Camera, LogOut, X, UserCircle,
-  Wallet, CalendarDays, MessageCircle, LayoutGrid, BadgeDollarSign, Music2, Wand2,
+  Wallet, CalendarDays, MessageCircle, LayoutGrid, BadgeDollarSign, Music2, Wand2, ChevronsUpDown,
 } from "lucide-react";
 import { MemberPhoto, PROFILE_EVENT } from "./_components/kit";
 import { cn } from "@/lib/utils";
@@ -20,28 +20,34 @@ import { Tile, type TileColor } from "@/components/ui/apple";
 import { useBackClose } from "@/lib/back-stack";
 
 // Same look as the studio app sidebar: each page has its own coloured tile.
-const navGroups: { title: string; items: { label: string; href: string; icon: React.ElementType; color: TileColor }[] }[] = [
-  { title: "My work", items: [
+// Top: everyday work (no group name). Editing only for editors. Money last. Profile and log out sit in the account button at the bottom.
+const navGroups: { id: string; title: string; items: { label: string; href: string; icon: React.ElementType; color: TileColor }[] }[] = [
+  { id: "top", title: "", items: [
     { label: "Dashboard",   href: "/member/dashboard", icon: LayoutDashboard, color: "violet" },
     { label: "My Programs", href: "/member/programs",  icon: Camera,          color: "deep" },
     { label: "Schedule",    href: "/member/schedule",  icon: CalendarDays,    color: "red" },
+    { label: "Chat",        href: "/member/chat",      icon: MessageCircle,   color: "teal" },
+  ] },
+  { id: "editing", title: "Editing", items: [
     { label: "Editing",     href: "/member/editing",   icon: Wand2,           color: "blue" },
     { label: "Music",       href: "/member/music",     icon: Music2,          color: "orchid" },
   ] },
-  { title: "Me", items: [
-    { label: "My Earnings", href: "/member/earnings",  icon: Wallet,          color: "green" },
-    { label: "My Rates & Gear", href: "/member/rates", icon: BadgeDollarSign, color: "ink" },
-    { label: "Chat",        href: "/member/chat",      icon: MessageCircle,   color: "teal" },
-    { label: "My Profile",  href: "/member/profile",   icon: UserCircle,      color: "orchid" },
+  { id: "money", title: "My money", items: [
+    { label: "Earnings",    href: "/member/earnings",  icon: Wallet,          color: "green" },
+    { label: "Rates & gear", href: "/member/rates",    icon: BadgeDollarSign, color: "ink" },
   ] },
 ];
 
-const mobileTabs = [
-  { label: "Home",     href: "/member/dashboard", icon: LayoutDashboard },
-  { label: "Programs", href: "/member/programs",  icon: Camera },
-  { label: "Editing",  href: "/member/editing",   icon: Wand2 },
-  { label: "Schedule", href: "/member/schedule",  icon: CalendarDays },
-];
+/** Phone bar: Home, Programs, Schedule, then Editing for editors or Earnings for everyone else, and More. */
+function phoneTabs(profile: Profile | null) {
+  const editor = !hiddenPages(profile).has("/member/editing");
+  return [
+    { label: "Home",     href: "/member/dashboard", icon: LayoutDashboard },
+    { label: "Programs", href: "/member/programs",  icon: Camera },
+    { label: "Schedule", href: "/member/schedule",  icon: CalendarDays },
+    editor ? { label: "Editing", href: "/member/editing", icon: Wand2 } : { label: "Earnings", href: "/member/earnings", icon: Wallet },
+  ];
+}
 
 type Profile = { firstName?: string; lastName?: string; memberRoles?: string[]; avatarUrl?: string | null; editingCount?: number };
 
@@ -54,6 +60,47 @@ function hiddenPages(profile: Profile | null) {
   const editing = roles.includes("photo_editor") || roles.includes("video_editor") || (profile?.editingCount ?? 0) > 0;
   const music = roles.includes("video_editor");
   return new Set([...(editing ? [] : ["/member/editing"]), ...(music ? [] : ["/member/music"])]);
+}
+
+/** Bottom-left: who you are; opens My profile and Log out (same place as the studio's account menu). */
+function MemberAccount({ profile, onClose, onLogout }: { profile: Profile | null; onClose?: () => void; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", off);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", off); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const roles = (profile?.memberRoles ?? []).map(r => r.replace(/_/g, " ")).join(" · ");
+  return (
+    <div ref={box} className="relative">
+      {open && (
+        <div role="menu" aria-label="Account" className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-[18px] p-1.5 shadow-[0_18px_40px_-14px_rgba(22,18,40,.35),0_0_0_1px_rgba(22,18,40,.05)] z-10">
+          <Link href="/member/profile" role="menuitem" onClick={() => { setOpen(false); onClose?.(); }}
+            className="flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm font-medium text-[#17151F] hover:bg-[#F5F3FA]">
+            <Tile icon={UserCircle} color="orchid" size={26} />My profile
+          </Link>
+          <button type="button" role="menuitem" onClick={onLogout}
+            className="w-full flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm font-medium text-[#C2304F] hover:bg-[#FDECEF]">
+            <span className="w-[26px] h-[26px] rounded-[8px] bg-[#FDECEF] flex items-center justify-center"><LogOut className="w-[15px] h-[15px]" /></span>
+            Log out
+          </button>
+        </div>
+      )}
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="menu" aria-label="Account menu"
+        className="w-full flex items-center gap-2.5 rounded-xl p-2 text-left hover:bg-[#F5F3FA] transition-colors">
+        <MemberPhoto url={profile?.avatarUrl} name={profile?.firstName} size={34} round />
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-[#17151F] truncate leading-tight">{profile ? `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() : " "}</span>
+          <span className="block text-xs text-[#6B6680] capitalize truncate leading-tight mt-0.5">{roles || "Team member"}</span>
+        </span>
+        <ChevronsUpDown className="w-4 h-4 text-[#8A8599] flex-shrink-0" />
+      </button>
+    </div>
+  );
 }
 
 function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLogout }: {
@@ -86,28 +133,10 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
         <div className="px-3 pb-3"><PanelSwitch current="member" onNavigate={onClose} /></div>
       )}
 
-      {profile && (
-        <div className="px-3 pb-3">
-          <div className="flex items-center gap-2.5 rounded-xl bg-[#F7F5FB] border border-[#F1EFF6] p-2">
-            <MemberPhoto url={profile.avatarUrl} name={profile.firstName} size={32} />
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#17151F] truncate leading-tight">
-                {profile.firstName} {profile.lastName ?? ""}
-              </p>
-              {!!profile.memberRoles?.length && (
-                <p className="text-xs text-[#6B6680] capitalize leading-tight mt-0.5 truncate" title={profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}>
-                  {profile.memberRoles.map(r => r.replace(/_/g, " ")).join(" · ")}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <nav className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-3.5">
-        {navGroups.map(g => ({ ...g, items: g.items.filter(i => !hiddenPages(profile).has(i.href)) })).map(group => (
-          <div key={group.title}>
-            <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>
+        {navGroups.map(g => ({ ...g, items: g.items.filter(i => !hiddenPages(profile).has(i.href)) })).filter(g => g.items.length > 0).map(group => (
+          <div key={group.id}>
+            {group.title && <p className="text-xs font-bold text-[#6B6680] px-2.5 mb-1">{group.title}</p>}
             <ul className="space-y-px">
               {group.items.map(item => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -132,12 +161,8 @@ function MemberSidebar({ profile, chatUnread, pathname, isMobile, onClose, onLog
         ))}
       </nav>
 
-      <div className="p-3 border-t border-[#F1EFF6]">
-        <button onClick={onLogout}
-          className="w-full flex items-center gap-3 px-2 h-10 rounded-[12px] text-sm font-medium text-[#C2304F] hover:bg-[#FDECEF] transition-colors">
-          <span className="w-[26px] h-[26px] rounded-[8px] bg-[#FDECEF] flex items-center justify-center"><LogOut className="w-[15px] h-[15px]" /></span>
-          Log out
-        </button>
+      <div className="p-2 border-t border-[#F1EFF6]">
+        <MemberAccount profile={profile} onClose={onClose} onLogout={onLogout} />
       </div>
     </aside>
   );
@@ -151,6 +176,14 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   // Phone Back closes the menu
   useBackClose(menuOpen, () => setMenuOpen(false));
   const [chatUnread, setChatUnread] = useState(0);
+  // Phone top bar: clear at rest, soft glass once the page scrolls under it (same as the studio).
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
 
   useEffect(() => {
     const load = () => apiFetch(`${API}/member/admin-chat/unread`)
@@ -200,7 +233,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     window.location.href = "/login";
   }
 
-  const moreActive = !mobileTabs.filter(t => !hiddenPages(profile).has(t.href)).some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
+  const mobileTabs = phoneTabs(profile);
+  const moreActive = !mobileTabs.some(t => pathname === t.href || pathname.startsWith(t.href + "/"));
 
   return (
     <div className="min-h-full sp-shell">
@@ -224,7 +258,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
       <div className="lg:ml-[272px] lg:mr-3 min-h-full flex flex-col">
         {/* Mobile top bar */}
-        <div className="lg:hidden sticky top-0 z-20 bg-[#F5F3FA]/85 backdrop-blur-md flex items-center justify-between px-4 h-16">
+        <div className="lg:hidden sticky top-0 z-20 sp-appbar flex items-center justify-between px-4 h-16" data-scrolled={scrolled ? "" : undefined}>
           <Link href="/member/dashboard" className="flex items-center gap-2">
             <BrandMark size={30} />
             <span className="font-extrabold text-[16px] tracking-tight text-[#17151F]">StuPanel</span>
@@ -242,7 +276,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         {/* Mobile bottom tab bar */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 pointer-events-none">
           <div className="sp-glass pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl bg-white/95 backdrop-blur border border-[#E4E0EC] shadow-[0_10px_30px_-10px_rgba(22,20,29,0.25)] px-1.5 py-1.5">
-            {mobileTabs.filter(t => !hiddenPages(profile).has(t.href)).map(item => {
+            {mobileTabs.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href}

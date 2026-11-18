@@ -37,6 +37,8 @@ export type MusicSettings = { picks: MusicSourceMode; community: MusicSourceMode
 export type OutsideMusic = {
   settings: MusicSettings; country: string;
   picks: OutsideSong[]; community: { country: OutsideSong[]; world: OutsideSong[] }; fromClients: OutsideSong[];
+  /** Songs the studio hid, newest first (anyone who can hide one can bring it back). */
+  hiddenSongs?: OutsideSong[];
 };
 
 /** One shared tag; `also` = other names for it (any language); `more` = not usual in this studio's country. */

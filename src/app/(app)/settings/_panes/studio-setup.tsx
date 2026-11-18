@@ -320,7 +320,7 @@ function MusicRules() {
         <Row id="mu-share" label="Share my songs with other studios" hint="Your songs count in “Popular in studios”. Turn off to keep your whole library to yourself — you still see the other lists. One song can be kept private in Music Library → Edit tags.">
           <Switch label="Share my songs with other studios" on={m.share} onChange={v => set({ share: v })} />
         </Row>
-        <Row id="mu-hidden" label="Hidden songs" hint={m.hidden.length ? `${m.hidden.length} song${m.hidden.length === 1 ? "" : "s"} you chose not to see in these lists` : "Songs you hide in the Music Library are listed here"} disabled={!m.hidden.length}>
+        <Row id="mu-hidden" label="Hidden songs" hint={m.hidden.length ? `${m.hidden.length} song${m.hidden.length === 1 ? "" : "s"} hidden. To bring back one at a time, open Music Library → Hidden` : "Songs hidden from the Music Library. One by one: Music Library → Hidden tab"} disabled={!m.hidden.length}>
           <button type="button" disabled={!m.hidden.length} onClick={() => set({ hidden: [] })}
             className="h-9 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#17151F] disabled:opacity-45">Show them again</button>
         </Row>

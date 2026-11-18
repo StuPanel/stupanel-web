@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, Copy, ExternalLink, EyeOff, Flame, Globe2, Heart, Grid2x2, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Square, Trash2, Users, X } from "lucide-react";
+import { Building2, Check, Copy, ExternalLink, EyeOff, Undo2, Flame, Globe2, Heart, Grid2x2, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Square, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -51,7 +51,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [form, setForm] = useState<{ song?: LibrarySong; url?: string; from?: OutsideSong } | null>(null);
   /** Songs from outside the studio's library (StuPanel picks, other studios, its clients). */
   const [out, setOut] = useState<OutsideMusic | null>(null);
-  const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients">("mine");
+  const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients" | "hidden">("mine");
+  /** The song just hidden, for Undo (a few seconds). */
+  const [justHid, setJustHid] = useState<OutsideSong | null>(null);
   /** The studio's favourite songs (starred from any list), newest first. */
   const [favs, setFavs] = useState<{ youtubeId: string; title: string; channel: string | null; thumb: string; url: string }[]>([]);
   const [world, setWorld] = useState(false);
@@ -84,11 +86,13 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       picks: live(out?.picks ?? []) as (LibrarySong | OutsideSong)[],
       community: live((world ? out?.community.world : out?.community.country) ?? []) as (LibrarySong | OutsideSong)[],
       clients: live(out?.fromClients ?? []).filter(s => !s.mine) as (LibrarySong | OutsideSong)[],
+      hidden: live(out?.hiddenSongs ?? []) as (LibrarySong | OutsideSong)[],
     };
   }, [songs, out, world, favs]);
   const foundIn = useMemo(() => ({
     mine: searchSongs(lists.mine, q, cat).map(h => h.song), favs: searchSongs(lists.favs, q, cat).map(h => h.song), picks: searchSongs(lists.picks, q, cat).map(h => h.song),
     community: searchSongs(lists.community, q, cat).map(h => h.song), clients: searchSongs(lists.clients, q, cat).map(h => h.song),
+    hidden: searchSongs(lists.hidden, q, cat).map(h => h.song),
   }), [lists, q, cat]);
   const source = lists[tab];
   const found = foundIn[tab];
@@ -112,6 +116,8 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
     { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: !!out && out.settings.picks !== "off" },
     { id: "community" as const, label: "Popular in studios", icon: Building2, on: !!out && out.settings.community !== "off" },
     { id: "clients" as const, label: "From my clients", icon: Users, on: !!out && out.settings.fromClients !== "off" },
+    // Only when something is hidden; quieter than the other tabs.
+    { id: "hidden" as const, label: "Hidden", icon: EyeOff, on: lists.hidden.length > 0 || tab === "hidden" },
   ].filter(t => t.on);
 
   const favIds = useMemo(() => new Set(favs.map(f => f.youtubeId)), [favs]);
@@ -129,13 +135,24 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
     catch { notify("Couldn't copy", { error: true }); }
   }
 
-  /** Never show this outside song to this studio again. */
+  /** Never show this outside song to this studio again (it moves to the Hidden tab, with Undo for a few seconds). */
   async function hide(s: OutsideSong) {
     const r = await apiFetch(`${API}/music/hide`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ youtubeId: s.youtubeId, hidden: true }) }).catch(() => null);
     if (!r?.ok) { notify("Couldn't hide", { error: true }); return; }
     const drop = (l: OutsideSong[]) => l.filter(x => x.youtubeId !== s.youtubeId);
-    setOut(o => (o ? { ...o, picks: drop(o.picks), fromClients: drop(o.fromClients), community: { country: drop(o.community.country), world: drop(o.community.world) } } : o));
-    notify(member ? "Hidden for the studio — the studio can bring it back in Settings → Music" : "Hidden — you can bring hidden songs back in Settings → Music");
+    setOut(o => (o ? { ...o, picks: drop(o.picks), fromClients: drop(o.fromClients), community: { country: drop(o.community.country), world: drop(o.community.world) }, hiddenSongs: [s, ...drop(o.hiddenSongs ?? [])] } : o));
+    setJustHid(s);
+  }
+  // The Undo bar goes away by itself.
+  useEffect(() => { if (!justHid) return; const t = setTimeout(() => setJustHid(null), 8000); return () => clearTimeout(t); }, [justHid]);
+  /** Bring hidden songs back into the lists (one, or all). */
+  async function unhide(list: OutsideSong[]) {
+    const ok = await Promise.all(list.map(s => apiFetch(`${API}/music/hide`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ youtubeId: s.youtubeId, hidden: false }) }).then(r => r.ok).catch(() => false)));
+    if (ok.some(x => !x)) notify("Couldn't bring every song back. Try again.", { error: true });
+    else notify(list.length === 1 ? "Shown again" : `${list.length} songs shown again`);
+    setJustHid(null);
+    const o = await apiFetch(`${API}/music/outside`).catch(() => null);
+    if (o?.ok) { const d: OutsideMusic = await o.json(); setOut(d); if (tab === "hidden" && !(d.hiddenSongs ?? []).length) setTab("mine"); }
   }
 
   async function remove(s: LibrarySong) {
@@ -220,7 +237,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           {tabs.map(t => { const on = tab === t.id; const n = (q ? foundIn : lists)[t.id].length; return (
             <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => { setTab(t.id); setEvent(""); setVideo(""); setSound(""); setPlaying(null); }}
               className={cn("h-11 pl-3.5 pr-4 rounded-full text-[13.5px] font-bold whitespace-nowrap inline-flex items-center gap-2 transition-all flex-shrink-0",
-                on ? "bg-[#7D5CEF] text-white shadow-[0_10px_22px_-12px_rgba(125,92,239,.9)]" : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
+                on ? "bg-[#7D5CEF] text-white shadow-[0_10px_22px_-12px_rgba(125,92,239,.9)]"
+                  : t.id === "hidden" ? "bg-transparent border border-dashed border-[#CFC8DD] text-[#6B6680] hover:bg-white/60"
+                  : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
               <t.icon className="w-4 h-4" />{t.label}
               <span className={cn("h-5 min-w-5 px-1.5 rounded-full text-[11.5px] font-bold inline-flex items-center justify-center tabular-nums", on ? "bg-white/25" : q && n ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#6B6680]")}>{n}</span>
             </button>
@@ -229,13 +248,24 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
             className="ml-auto h-11 w-11 rounded-full bg-white text-[#6B6680] hover:bg-[#F5F3FA] inline-flex items-center justify-center flex-shrink-0"><Settings2 className="w-4 h-4" /></Link>}
         </div>
       )}
+      {justHid && (
+        <div role="status" className="fixed z-[60] left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+88px)] lg:bottom-6 w-[min(92vw,440px)] rounded-full bg-[#17151F] text-white pl-5 pr-2 py-2 flex items-center gap-3 shadow-[0_18px_40px_-16px_rgba(22,18,40,.6)]">
+          <span className="flex-1 min-w-0 text-[13.5px] truncate">Hidden for the studio · in the Hidden tab</span>
+          <button type="button" onClick={() => void unhide([justHid])} className="h-9 px-4 rounded-full bg-white/15 hover:bg-white/25 text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0"><Undo2 className="w-3.5 h-3.5" />Undo</button>
+        </div>
+      )}
+
       {tab !== "mine" && tab !== "favs" && (
         <div className="mb-3 rounded-[16px] bg-white/70 px-4 py-2.5 flex items-center gap-3 flex-wrap text-[13px] text-[#4A4658]">
           <p className="flex-1 min-w-[200px]">
             {tab === "picks" ? "Songs chosen by StuPanel. Add the ones you like to My songs."
               : tab === "community" ? "What other studios use, most used first. No studio is named, and nothing about clients is shared."
+              : tab === "hidden" ? "Songs hidden by you or your team. They stay out of every list until you show them again."
               : "Songs your clients brought themselves when they chose music. Add the good ones — the tags are already ticked."}
           </p>
+          {tab === "hidden" && lists.hidden.length > 1 && (
+            <button type="button" onClick={() => void unhide(lists.hidden as OutsideSong[])} className="h-9 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">Show all again</button>
+          )}
           {tab === "community" && (
             <div className="inline-flex p-1 rounded-full bg-[#F5F3FA]" role="radiogroup" aria-label="Which studios">
               <button type="button" role="radio" aria-checked={!world} onClick={() => setWorld(false)} className={cn("h-8 px-3 rounded-full text-[12.5px] font-semibold", !world ? "bg-[#17151F] text-white" : "text-[#4A4658]")}>My country</button>
@@ -358,7 +388,8 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                   </div>
                 </div>
                 <div className={cn("flex items-center gap-1 px-0.5 pt-2.5 mt-2.5 border-t border-[#F1EFF6]", small && "lg:flex-wrap", m2 && "max-sm:gap-0 max-sm:pt-2 max-sm:mt-2")}>
-                  {lib ? <button type="button" onClick={() => setForm({ song: lib })} aria-label={`Edit the tags of ${s.title}`} className={cn("h-9 px-3 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5", m2 && "max-sm:px-2.5")}><Pencil className="w-3.5 h-3.5" /><span className={cn(m2 && "max-sm:hidden")}>Edit tags</span></button>
+                  {tab === "hidden" && o ? <button type="button" onClick={() => void unhide([o])} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Undo2 className="w-3.5 h-3.5" />Show again</button>
+                    : lib ? <button type="button" onClick={() => setForm({ song: lib })} aria-label={`Edit the tags of ${s.title}`} className={cn("h-9 px-3 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#F3EFFE] inline-flex items-center gap-1.5", m2 && "max-sm:px-2.5")}><Pencil className="w-3.5 h-3.5" /><span className={cn(m2 && "max-sm:hidden")}>Edit tags</span></button>
                     : o!.mine ? <span className="h-9 px-3 rounded-full text-[13px] font-semibold text-[#1F8A5B] bg-[#E2F4EA] inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" strokeWidth={3} /><span className={cn(m2 && "max-sm:hidden")}>In my songs</span><span className={cn("hidden", m2 && "max-sm:inline")}>Added</span></span>
                     : <button type="button" onClick={() => setForm({ url: s.url, from: o! })} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white bg-[#7D5CEF] hover:bg-[#6143CF] inline-flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /><span className={cn(m2 && "max-sm:hidden")}>Add to my songs</span><span className={cn("hidden", m2 && "max-sm:inline")}>Add</span></button>}
                   <span className="flex-1" />
@@ -367,7 +398,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                   <button type="button" onClick={() => copyLink(s)} aria-label={`Copy the link of ${s.title}`} title="Copy link" className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]", m2 && !lib && "max-sm:hidden")}><Copy className="w-4 h-4" /></button>
                   <a href={s.url} target="_blank" rel="noreferrer" aria-label="Open on YouTube" title="Open on YouTube" className={cn("w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]", m2 && "max-sm:hidden")}><ExternalLink className="w-4 h-4" /></a>
                   {lib ? <button type="button" onClick={() => remove(lib)} aria-label={`Remove ${s.title}`} title="Remove" className="w-9 h-9 rounded-full flex items-center justify-center text-[#C2304F] hover:bg-[#FDECEF]"><Trash2 className="w-4 h-4" /></button>
-                    : <button type="button" onClick={() => hide(o!)} aria-label={`Hide ${s.title}`} title="Don't show me this song" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><EyeOff className="w-4 h-4" /></button>}
+                    : tab === "hidden" ? null : <button type="button" onClick={() => hide(o!)} aria-label={`Hide ${s.title}`} title="Don't show me this song" className="w-9 h-9 rounded-full flex items-center justify-center text-[#6B6680] hover:bg-[#F5F3FA]"><EyeOff className="w-4 h-4" /></button>}
                 </div>
               </li>
             );

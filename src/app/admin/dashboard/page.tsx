@@ -108,7 +108,7 @@ export default function AdminDashboard() {
         {[
           { label: "Manage Studios", href: "/admin/studios", desc: "View & control all studios", color: "from-indigo-600 to-blue-600" },
           { label: "Manage Plans", href: "/admin/plans", desc: "Create & update pricing plans", color: "from-emerald-600 to-teal-600" },
-          { label: "Feature Flags", href: "/admin/feature-flags", desc: "Toggle platform features", color: "from-purple-600 to-violet-600" },
+          { label: "Feature Flags", href: "/admin/settings/features", desc: "Toggle platform features", color: "from-purple-600 to-violet-600" },
         ].map(item => (
           <a key={item.href} href={item.href}
             className={`bg-gradient-to-br ${item.color} rounded-xl p-5 block hover:opacity-90 transition-opacity`}>

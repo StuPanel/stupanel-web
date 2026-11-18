@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, Building2, Users, CreditCard, Flag,
-  Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, Tag, BarChart2, MessageCircle, Megaphone,
-  HardDrive, Mail, MailCheck, ShieldAlert, Wallet, UserCog, UsersRound, History, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
+  LayoutDashboard, Building2, Users, CreditCard, Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, MessageCircle, Megaphone,
+  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
@@ -18,58 +17,45 @@ function getAdminToken() {
   return typeof window !== "undefined" ? sessionStorage.getItem("admin_token") ?? "" : "";
 }
 
-interface NavItem { label: string; href: string; icon: React.ComponentType<{ className?: string }>; perm?: string; platformOnly?: boolean }
+interface NavItem { label: string; href: string; icon: React.ComponentType<{ className?: string }>; perm?: string; also?: string[] }
 
+/**
+ * The admin menu. Pages that belong together share one item and switch with tabs on the page
+ * (see _components/admin-tabs.tsx). Every setting lives in Settings (bottom), not in the menu.
+ * A new product gets one item under Products; a new setting gets a part in Settings.
+ */
 const navGroups: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Overview",
-    items: [
-      { label: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard, perm: "dashboard.view" },
-      { label: "Growth",     href: "/admin/growth",    icon: TrendingUp, perm: "reports.view" },
-      { label: "Revenue",    href: "/admin/revenue", icon: BarChart2, perm: "billing.view" },
-      { label: "Payments",   href: "/admin/billing", icon: Wallet, perm: "billing.view" },
-    ],
-  },
-  {
-    label: "Manage",
-    items: [
-      { label: "Studios",       href: "/admin/studios", icon: Building2, perm: "studios.view" },
-      { label: "Users",         href: "/admin/users", icon: Users, perm: "users.view" },
-      { label: "Plans",         href: "/admin/plans", icon: CreditCard, perm: "billing.view" },
-      { label: "Coupons",       href: "/admin/coupons", icon: Tag, perm: "billing.view" },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { label: "Feature Flags", href: "/admin/feature-flags", icon: Flag, perm: "settings.manage" },
-      { label: "Settings",      href: "/admin/settings", icon: Settings, perm: "settings.manage" },
-      { label: "Broadcast",     href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
-      { label: "Music",         href: "/admin/music", icon: Music2, perm: "content.manage" },
-      { label: "Face Search",   href: "/admin/face-search", icon: ScanFace, perm: "settings.manage" },
-      { label: "Support",       href: "/admin/support", icon: MessageCircle, perm: "support.view" },
-      { label: "Audit Logs",    href: "/admin/audit-logs", icon: ClipboardList, perm: "audit.view" },
-    ],
-  },
-  {
-    label: "Team",
-    items: [
-      { label: "Team",         href: "/admin/team",     icon: UsersRound, perm: "team.manage", platformOnly: true },
-      { label: "Activity log", href: "/admin/activity", icon: History,    perm: "audit.view",  platformOnly: true },
-      { label: "My account",   href: "/admin/account",  icon: UserCog,    platformOnly: true },
-    ],
-  },
-  {
-    label: "Monitoring",
-    items: [
-      { label: "Storage",    href: "/admin/storage", icon: HardDrive, perm: "reports.view" },
-      { label: "Emails",     href: "/admin/emails", icon: MailCheck, perm: "reports.view" },
-      { label: "Email Logs", href: "/admin/email-logs", icon: Mail, perm: "reports.view" },
-      { label: "Security",   href: "/admin/security", icon: ShieldAlert, perm: "security.manage" },
-      { label: "System",     href: "/admin/system",   icon: Server,      perm: "settings.manage" },
-    ],
-  },
+  { label: "", items: [
+    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, perm: "dashboard.view" },
+    { label: "Support",   href: "/admin/support",   icon: MessageCircle,   perm: "support.view" },
+  ] },
+  { label: "Studios", items: [
+    { label: "Studios",   href: "/admin/studios",   icon: Building2, perm: "studios.view" },
+    { label: "Users",     href: "/admin/users",     icon: Users,     perm: "users.view" },
+    { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
+  ] },
+  { label: "Money", items: [
+    { label: "Payments",        href: "/admin/billing", icon: Wallet,     perm: "billing.view", also: ["/admin/revenue"] },
+    { label: "Plans & coupons", href: "/admin/plans",   icon: CreditCard, perm: "billing.view", also: ["/admin/coupons"] },
+    { label: "Growth",          href: "/admin/growth",  icon: TrendingUp, perm: "reports.view" },
+  ] },
+  { label: "Products", items: [
+    { label: "AI Face Search", href: "/admin/face-search", icon: ScanFace, perm: "settings.manage" },
+    { label: "Music",          href: "/admin/music",       icon: Music2,   perm: "content.manage" },
+  ] },
+  { label: "System", items: [
+    { label: "Health",  href: "/admin/system",  icon: Server,    perm: "settings.manage" },
+    { label: "Storage", href: "/admin/storage", icon: HardDrive, perm: "reports.view" },
+    { label: "Emails",  href: "/admin/emails",  icon: MailCheck, perm: "reports.view", also: ["/admin/email-logs"] },
+  ] },
+  { label: "Security", items: [
+    { label: "Sign-ins & sessions", href: "/admin/security",   icon: ShieldAlert,   perm: "security.manage" },
+    { label: "Logs",                href: "/admin/audit-logs", icon: ClipboardList, perm: "audit.view", also: ["/admin/activity"] },
+  ] },
 ];
+
+/** Below the groups: Settings for whoever can change any part of it, and your own account. */
+const SETTINGS_PERMS = ["settings.manage", "team.manage", "content.manage"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -147,11 +133,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
           {visibleGroups.map(group => (
-            <div key={group.label}>
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 mb-1">{group.label}</p>
+            <div key={group.label || "top"}>
+              {group.label && <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 mb-1">{group.label}</p>}
               <div className="space-y-0.5">
                 {group.items.map(item => {
-                  const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const active = [item.href, ...(item.also ?? [])].some(h => pathname === h || pathname.startsWith(h + "/"));
                   return (
                     <Link key={item.href} href={item.href}
                       onClick={() => setSidebarOpen(false)}
@@ -172,11 +158,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        {/* Logout */}
-        <div className="p-3 border-t border-slate-800">
+        {/* Settings, my account, log out */}
+        <div className="p-3 border-t border-slate-800 space-y-0.5">
+          {[
+            ...(SETTINGS_PERMS.some(p => can(staff, p)) ? [{ label: "Settings", href: "/admin/settings", icon: Settings }] : []),
+            { label: "My account", href: "/admin/account", icon: UserCog },
+          ].map(item => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+                className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                  active ? "bg-indigo-600/20 text-indigo-400 border border-indigo-600/30" : "text-slate-400 hover:bg-slate-800 hover:text-white")}>
+                <item.icon className={cn("w-4 h-4 flex-shrink-0", active ? "text-indigo-400" : "text-slate-500")} />
+                <span className="flex-1">{item.label}</span>
+              </Link>
+            );
+          })}
           <button onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-950/30 transition-colors">
-            <LogOut className="w-4 h-4" />Logout
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-950/30 transition-colors">
+            <LogOut className="w-4 h-4" />Log out
           </button>
         </div>
       </aside>

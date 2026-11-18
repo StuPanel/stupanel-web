@@ -120,7 +120,7 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
             </>
           )}
         </Field>
-        <Field label="Email" hint="Needed for reminder, invoice and delivery emails.">
+        <Field label="Email" name="email" hint="Needed for reminder, invoice and delivery emails.">
           {id => <input id={id} className={inputCls} type="email" inputMode="email" placeholder="client@email.com"
             value={value.email} onChange={set("email")} autoComplete="off" />}
         </Field>

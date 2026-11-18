@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { CalendarDays, ChevronRight, Film, Wallet } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { API_URL as API, apiFetch } from "@/lib/api";
-import { fmtDate, formatCurrency } from "@/lib/format";
+import { fmtDate, formatCurrency, localDateStr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { rememberPanel } from "@/components/layout/panel-switch";
@@ -29,7 +29,7 @@ export function MyWorkCard({ hideAmounts }: { hideAmounts?: boolean }) {
     const get = (p: string) => apiFetch(`${API}${p}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
     Promise.all([get("/member/dashboard"), get("/member/home"), get("/member/earnings")]).then(([dash, home, earn]) => {
       if (!live) return;
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateStr();
       const up = (dash?.recentUpcoming ?? [])
         .filter((b: { status: string; eventDate?: string }) => b.status !== "cancelled" && (b.eventDate ?? "").slice(0, 10) >= today)
         .sort((a: { eventDate?: string }, b: { eventDate?: string }) => (a.eventDate ?? "").localeCompare(b.eventDate ?? ""))[0];

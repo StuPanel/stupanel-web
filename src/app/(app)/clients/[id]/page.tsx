@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { formatCurrency, fmtDate } from "@/lib/format";
+import { formatCurrency, fmtDate, localDateStr } from "@/lib/format";
 import { DateBox } from "@/components/ui/apple";
 import { Avatar, waLink } from "@/components/ui/profile-kit";
 import { Chip, CHIP, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
@@ -104,7 +104,7 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
   const pct = st.total > 0 ? Math.min(100, Math.round((st.paid / st.total) * 100)) : 0;
   const src = CLIENT_SOURCES.find(s => s.value === c.source);
   const referrer = c.referredByClientName || c.referredByName;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const upcoming = c.bookings.filter(b => b.eventDate && b.eventDate.slice(0, 10) >= today && !["cancelled", "refunded"].includes(b.status)).sort((a, b) => a.eventDate!.localeCompare(b.eventDate!));
   const focus = upcoming[0] ?? c.bookings[0];
   const docCount = c.quotes.length + c.contracts.length + c.galleries.length + c.music.length;

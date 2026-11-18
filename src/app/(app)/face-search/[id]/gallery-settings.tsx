@@ -5,6 +5,7 @@
  * a list of sections with coloured tiles on the left, and on the right one section at a time as
  * grouped white cards of rows (label on the left, control on the right). Everything saves by itself.
  */
+import { localDateStr } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarClock, Check, ChevronRight, Radio, Megaphone, Download, Images, ImageUp, KeyRound, Loader2, Mail, MessageCircle, Minus, Plus, ScanFace, Send, Stamp, Trash2, TriangleAlert, Type,
@@ -212,7 +213,7 @@ function PageSec({ g, s, save, go }: { g: FaceDetail; s: FaceSettings; save: Sav
       <Row label={<span className="inline-flex items-center gap-2"><CalendarClock className="w-4 h-4 text-[#5B3FD0]" aria-hidden />Last open day</span>}
         hint={s.expiresAt ? `The gallery closes by itself after ${shortDay(s.expiresAt)}.` : "No end. The gallery stays open until you close it."}>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <input type="date" aria-label="Last open day" value={s.expiresAt ?? ""} min={new Date().toISOString().slice(0, 10)} onChange={e => save({ expiresAt: e.target.value })}
+          <input type="date" aria-label="Last open day" value={s.expiresAt ?? ""} min={localDateStr()} onChange={e => save({ expiresAt: e.target.value })}
             className="h-10 px-4 rounded-full bg-[#F5F3FA] text-sm font-semibold text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
           {s.expiresAt && <button type="button" onClick={() => save({ expiresAt: "" })} className={cn(pill, "bg-[#F5F3FA] text-[#17151F]")}>No end</button>}
         </div>

@@ -46,7 +46,7 @@ type Todo = { tone: "red" | "amber" | "violet"; icon: React.ElementType; title: 
 
 const METHOD: Record<string, string> = { cash: "Cash", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", bank_transfer: "Bank", card: "Card", cheque: "Cheque", online: "Online", mobile_banking: "Mobile wallet" };
 const TODO_TONE: Record<Todo["tone"], string> = { red: "bg-[#FDECEF] text-[#C2304F]", violet: "bg-[#EEE8FD] text-[#5B3FD0]", amber: "bg-[#FFF3E0] text-[#9A5B00]" };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateStr();
 
 function MoneyLine({ l, v, strong, tone }: { l: React.ReactNode; v: React.ReactNode; strong?: boolean; tone?: "red" | "green" }) {
   return (

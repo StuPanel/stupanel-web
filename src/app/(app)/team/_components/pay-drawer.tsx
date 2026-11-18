@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Camera, Video, Image, Film, Navigation, Briefcase, Tag, CheckCircle2, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import { formatCurrency, fmtDate, currencySymbol, currencyPad } from "@/lib/format";
+import { formatCurrency, fmtDate, currencySymbol, currencyPad, localDateStr } from "@/lib/format";
 import { type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { payoutLine, type Payout } from "@/lib/member-prefs";
@@ -85,7 +85,7 @@ export function PayDrawer({ member, onClose, onSaved, payout }: { member: Member
   // Start on the way the member asked to be paid.
   const [method, setMethod] = useState(() => !payout ? "cash" : payout.method === "bank" ? "bank_transfer" : payout.method === "cash" ? "cash" : payout.method === "other" ? "other" : "mobile_banking");
   const [walletId, setWalletId] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localDateStr());
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

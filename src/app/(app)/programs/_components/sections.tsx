@@ -27,7 +27,7 @@ export function DeliveryOverview({ booking }: { booking: Booking }) {
 
   const label = { drive_auto: "Google Drive folder", drive_link: "Drive link", r2: "StuPanel cloud" }[method ?? ""] ?? (method ? method : "");
   const openUrl = method === "drive_auto" ? booking.driveFolderUrl : method === "drive_link" ? booking.deliveryLink : null;
-  const facts = !method ? ["Nothing set yet"] : [
+  const facts = !method ? [linksCount ? `${linksCount} link${linksCount === 1 ? "" : "s"} for the client` : "Nothing set yet", booking.deliveryDate ? `Delivered ${fmtDate(booking.deliveryDate)}` : null].filter(Boolean) : [
     method === "r2" ? `${r2FileCount ?? "—"} file${r2FileCount === 1 ? "" : "s"}` : method === "drive_auto" ? "Folder ready" : null,
     `${linksCount} link${linksCount === 1 ? "" : "s"}`,
     booking.deliveryDate ? `Delivered ${fmtDate(booking.deliveryDate)}` : null,
@@ -37,7 +37,7 @@ export function DeliveryOverview({ booking }: { booking: Booking }) {
     <div className="rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3">
       <Tile icon={method === "r2" ? Cloud : method === "drive_link" ? Link2 : HardDrive} color={method ? "teal" : "ink"} size={36} />
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-bold text-[#17151F]">{method ? label : "Delivery"}</p>
+        <p className="text-[14px] font-bold text-[#17151F]">{method ? label : linksCount ? "Links" : "Delivery"}</p>
         <p className="text-[12.5px] text-[#6B6680] truncate">{facts.join(" · ")}</p>
       </div>
       {openUrl && (

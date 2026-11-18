@@ -89,7 +89,7 @@ export default function AdminUsersPage() {
   const allOpen = items.length > 0 && items.every(s => open.has(s.id));
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-5">
+    <div className="p-6 md:p-8 space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-white">Users</h1>
         <p className="text-sm text-slate-400 mt-0.5">{asked ? `${total} studio${total === 1 ? "" : "s"} found for “${asked}”` : `${totalUsers} people in ${total} studio${total === 1 ? "" : "s"}`} — grouped by studio, newest first</p>

@@ -113,6 +113,8 @@ export default function AdminFeatureFlagsPage() {
         </Button>
       </div>
 
+      <p role="note" className="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">Not connected yet: the studio app does not read these flags, so turning one on or off changes nothing for studios today.</p>
+
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : flags.length === 0 ? (

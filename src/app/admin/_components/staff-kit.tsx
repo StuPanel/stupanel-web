@@ -8,7 +8,7 @@ export const fmtWhen = (d?: string | null) => d ? new Intl.DateTimeFormat("en-GB
 
 export function Page({ title, sub, children, right }: { title: string; sub?: string; children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className="p-6 md:p-8 space-y-5 max-w-5xl">
+    <div className="p-6 md:p-8 space-y-5 w-full">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">{title}</h1>

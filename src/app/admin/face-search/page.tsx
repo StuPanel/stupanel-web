@@ -704,7 +704,7 @@ function SettingsTab({ o, call, onSaved }: { o: Overview; call: Call; onSaved: (
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-5">
       <Msg error={msg.error} ok={msg.ok} />
       <Panel title="AI Face Search for all studios">
         <div className="flex items-center gap-3">

@@ -119,7 +119,7 @@ export default function Studio360Page() {
   ];
 
   return (
-    <div className="p-6 md:p-8 space-y-5 max-w-6xl">
+    <div className="p-6 md:p-8 space-y-5">
       <Link href="/admin/studios" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"><ArrowLeft className="w-3.5 h-3.5" />All studios</Link>
 
       {/* Header */}

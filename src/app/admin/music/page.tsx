@@ -8,10 +8,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Building2, Check, ExternalLink, Flame, GitMerge, Loader2, Music2, Pencil, Plus, Search, Sparkles, Tags, Trash2, X } from "lucide-react";
+import { Ban, Building2, Check, CheckCircle2, ExternalLink, Flame, GitMerge, Headphones, Loader2, Music2, Pencil, Play, Plus, Search, Sparkles, Tags, Trash2, Volume2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
+import { ReviewPlayer, loadChecked, saveChecked, type ReviewSong } from "./review-player";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 type Tag = { id: string; name: string };
@@ -53,6 +54,13 @@ export default function AdminMusicPage() {
   const LANGS = useMemo(() => tags?.languages ?? [], [tags]);
   const [q, setQ] = useState("");
   const [form, setForm] = useState<Partial<Row> & { url?: string } | null>(null);
+  // Listening: the song playing, songs already kept (this browser), filters for going through a list.
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  useEffect(() => { const id = setTimeout(() => setChecked(loadChecked()), 0); return () => clearTimeout(id); }, []);
+  const [eventFilter, setEventFilter] = useState("");
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [undo, setUndo] = useState<{ text: string; run: () => Promise<void> } | null>(null);
 
   const load = useCallback(async () => {
     const r = await fetch(`${API}/admin/music`, { headers: authH() });
@@ -86,8 +94,38 @@ export default function AdminMusicPage() {
 
   const picks = useMemo(() => (data?.catalog ?? []).filter(c => c.isPick && !c.blocked && !c.mergeInto), [data]);
   const removed = useMemo(() => (data?.catalog ?? []).filter(c => c.blocked || c.mergeInto), [data]);
-  const list = (tab === "picks" ? picks : tab === "community" ? data?.community ?? [] : removed)
-    .filter(r => { const k = q.trim().toLowerCase(); return !k || r.title.toLowerCase().includes(k) || (r.channel ?? "").toLowerCase().includes(k) || r.youtubeId === k; });
+  const listening = tab === "picks" || tab === "community";
+  const base = useMemo(() => (tab === "picks" ? picks : tab === "community" ? data?.community ?? [] : removed), [tab, picks, data, removed]);
+  const eventsInList = useMemo(() => [...new Set(base.flatMap(r => r.events))], [base]);
+  const list = base
+    .filter(r => { const k = q.trim().toLowerCase(); return !k || r.title.toLowerCase().includes(k) || (r.channel ?? "").toLowerCase().includes(k) || r.youtubeId === k; })
+    .filter(r => !listening || !eventFilter || r.events.includes(eventFilter))
+    .filter(r => !listening || !onlyNew || !checked.has(r.youtubeId) || r.youtubeId === playing);
+  const keptHere = base.filter(r => checked.has(r.youtubeId)).length;
+  const songs: ReviewSong[] = list.map(r => ({ youtubeId: r.youtubeId, title: r.title, channel: r.channel, url: r.url,
+    tags: [...r.events.map(e => nameOf(EVENTS, e)), ...r.videos.map(v => nameOf(VIDEOS, v))] }));
+  const nextAfter = (id: string) => { const i = list.findIndex(r => r.youtubeId === id); return list[i + 1]?.youtubeId ?? null; };
+
+  function keep(id: string) {
+    const s = new Set(checked); s.add(id); setChecked(s); saveChecked(s);
+    setPlaying(nextAfter(id)); setUndo(null);
+  }
+  /** Remove (picks) or take out (studios' songs) while listening: no question, Undo instead. */
+  async function quickRemove(id: string) {
+    const row = list.find(r => r.youtubeId === id); if (!row) return;
+    const after = nextAfter(id);
+    if (tab === "picks") {
+      const r = await fetch(`${API}/admin/music/${row.youtubeId}`, { method: "DELETE", headers: authH() });
+      if (!r.ok) { notify("Couldn't remove", { error: true }); return; }
+      setUndo({ text: `Removed “${row.title}”`, run: async () => { await save({ url: row.url, title: row.title, isNew: true, isPick: true, blocked: false, mergeInto: null, events: row.events, videos: row.videos, moods: row.moods, language: row.language, altNames: row.altNames ?? null, countries: row.countries ?? [] }, "Put back"); } });
+    } else {
+      const r = await fetch(`${API}/admin/music`, { method: "POST", headers: authH(), body: JSON.stringify({ url: row.url, blocked: true, isPick: false }) });
+      if (!r.ok) { notify("Couldn't take it out", { error: true }); return; }
+      setUndo({ text: `Took out “${row.title}”`, run: async () => { await fetch(`${API}/admin/music/${row.youtubeId}`, { method: "DELETE", headers: authH() }); notify("Put back"); await load(); } });
+    }
+    setPlaying(after);
+    await load();
+  }
 
   return (
     <div className="p-6 md:p-8 space-y-5">
@@ -102,13 +140,32 @@ export default function AdminMusicPage() {
 
       <div className="flex items-center gap-2 flex-wrap">
         {([["picks", `Picks (${picks.length})`, Sparkles], ["community", `Shared by studios (${data?.community.length ?? 0})`, Building2], ["removed", `Removed & merged (${removed.length})`, Ban], ["tags", `Tags${tags?.suggested.length ? ` (${tags.suggested.length} new)` : ""}`, Tags]] as const).map(([id, label, Icon]) => (
-          <button key={id} type="button" onClick={() => setTab(id)} className={cn("h-9 px-3.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5", tab === id ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700")}><Icon className="w-4 h-4" />{label}</button>
+          <button key={id} type="button" onClick={() => { setTab(id); setPlaying(null); setEventFilter(""); setUndo(null); }} className={cn("h-9 px-3.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5", tab === id ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700")}><Icon className="w-4 h-4" />{label}</button>
         ))}
         <div className={cn("relative w-full sm:w-auto sm:ml-auto", tab === "tags" && "hidden")}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or channel" className="h-9 w-full sm:w-64 pl-9 pr-3 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-500" />
         </div>
       </div>
+
+      {listening && data && base.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap bg-slate-800/60 border border-slate-700 rounded-xl p-2.5">
+          <button type="button" onClick={() => { const first = list.find(r => !checked.has(r.youtubeId)) ?? list[0]; if (first) { setPlaying(first.youtubeId); setUndo(null); } }}
+            disabled={list.length === 0}
+            className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-40">
+            <Headphones className="w-4 h-4" />Listen one by one
+          </button>
+          <select value={eventFilter} onChange={e => setEventFilter(e.target.value)} aria-label="Event"
+            className="h-9 px-2.5 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white outline-none focus:border-indigo-500 max-w-[14rem]">
+            <option value="">All events</option>
+            {eventsInList.map(e => <option key={e} value={e}>{nameOf(EVENTS, e)} ({base.filter(r => r.events.includes(e)).length})</option>)}
+          </select>
+          <label className="h-9 px-3 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 inline-flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={onlyNew} onChange={e => setOnlyNew(e.target.checked)} className="accent-indigo-500 w-4 h-4" />Not kept yet
+          </label>
+          <span className="text-xs text-slate-400 ml-auto tabular-nums">Kept {keptHere} of {base.length}{checked.size > 0 && <button type="button" onClick={async () => { if (await askConfirm({ title: "Start the checking again?", message: "Forgets which songs you kept in this browser. No song is removed.", confirmLabel: "Start again" })) { const s2 = new Set<string>(); setChecked(s2); saveChecked(s2); } }} className="ml-2 text-indigo-300 hover:text-white">Start again</button>}</span>
+        </div>
+      )}
 
       {tab === "tags" ? (
         !tags ? <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div> : (
@@ -175,11 +232,19 @@ export default function AdminMusicPage() {
         ) : (
           <div className="bg-slate-800 border border-slate-700 rounded-xl divide-y divide-slate-700/70 overflow-hidden">
             {list.map(r => (
-              <div key={r.youtubeId} className="p-3 flex items-center gap-3 flex-wrap">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.thumb} alt="" loading="lazy" className="w-24 h-[54px] rounded-lg object-cover bg-slate-700 flex-shrink-0" />
+              <div key={r.youtubeId} className={cn("p-3 flex items-center gap-3 flex-wrap transition-colors", playing === r.youtubeId && "bg-indigo-600/15")}>
+                <button type="button" onClick={() => { setPlaying(playing === r.youtubeId ? null : r.youtubeId); setUndo(null); }} aria-label={playing === r.youtubeId ? `Stop ${r.title}` : `Play ${r.title}`}
+                  className="group relative w-24 h-[54px] rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={r.thumb} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  <span className={cn("absolute inset-0 flex items-center justify-center transition-colors", playing === r.youtubeId ? "bg-indigo-900/60" : "bg-black/25 group-hover:bg-black/45")}>
+                    <span className="w-8 h-8 rounded-full bg-white/95 text-slate-900 flex items-center justify-center shadow">
+                      {playing === r.youtubeId ? <Volume2 className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
+                    </span>
+                  </span>
+                </button>
                 <div className="min-w-0 flex-1 basis-56">
-                  <p className="text-sm font-semibold text-white truncate">{r.title}</p>
+                  <p className="text-sm font-semibold text-white truncate">{listening && checked.has(r.youtubeId) && <CheckCircle2 className="w-4 h-4 text-emerald-400 inline -mt-0.5 mr-1.5" aria-label="Kept" />}{r.title}</p>
                   <p className="text-xs text-slate-400 truncate">{r.channel}
                     {r.studios !== undefined && <span className="ml-2 text-indigo-300 inline-flex items-center gap-1"><Building2 className="w-3 h-3" />{r.studios} studio{r.studios === 1 ? "" : "s"}</span>}
                     {!!r.chosen && <span className="ml-2 text-pink-300 inline-flex items-center gap-1"><Flame className="w-3 h-3" />chosen {r.chosen}×</span>}
@@ -207,6 +272,12 @@ export default function AdminMusicPage() {
             ))}
           </div>
         )}
+
+      {listening && playing && songs.some(x => x.youtubeId === playing) && (
+        <ReviewPlayer songs={songs} current={playing} checked={checked} onPick={id => { setPlaying(id); }} onClose={() => setPlaying(null)}
+          onKeep={keep} onRemove={quickRemove} removeLabel={tab === "picks" ? "Remove" : "Take out"}
+          undo={undo?.text ?? null} onUndo={async () => { const u = undo; setUndo(null); if (u) await u.run(); }} />
+      )}
 
       {tagForm && tags && <TagForm kind={tagForm.kind} tag={tagForm.tag} suggestion={tagForm.suggestion} list={tags[KINDS.find(k => k.kind === tagForm.kind)!.key]} onClose={() => setTagForm(null)}
         onSave={async (path, body, text) => { if (await tagCall(path, body, text)) setTagForm(null); }} />}

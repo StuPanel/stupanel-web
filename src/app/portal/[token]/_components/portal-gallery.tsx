@@ -53,24 +53,30 @@ export function Gallery({ b, files, token, studio }: { b: PortalBooking; files: 
   const folders = foldersAt(files, []).filter(g => !(allFilms && g.photos === 0 && g.other === 0 && g.videos > 0));
   const loose = files.filter(f => segs(f).length === 0 && !isVid(f));
 
+  // On a phone the words sit on the photo (it is tall); on a wider screen they sit under it,
+  // so they never cover the faces the studio chose to keep in view.
+  const title = (
+    <>
+      <p className="text-[11px] font-semibold tracking-[0.14em] text-white/70">{studio.name.toUpperCase()}</p>
+      <CoverTitle className="mt-2 text-[38px] sm:text-[52px]">{programName(b)}</CoverTitle>
+      {dateLine(b) && <p className="mt-2 text-[13px] text-white/80 tabular-nums">{dateLine(b)}</p>}
+      <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+        {folders.length > 0 && (
+          <button type="button" onClick={() => setPath([folders[0].name])}
+            className="h-11 px-5 rounded-full bg-white text-[#17151F] text-[14px] font-bold hover:bg-white/90">View photos</button>
+        )}
+        <a href={zip()} className="h-11 px-5 rounded-full border border-white/45 text-white text-[14px] font-semibold inline-flex items-center gap-2 hover:bg-white/10">
+          <Download className="w-4 h-4" />Download all
+        </a>
+      </div>
+    </>
+  );
   return (
     <div className="rounded-[26px] overflow-hidden bg-[#0F0E12] text-white">
-      <Cover cover={b.cover} studio={studio.name} className="h-[min(62vh,460px)] sm:h-[400px]">
-        <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8 text-center">
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-white/70">{studio.name.toUpperCase()}</p>
-          <CoverTitle className="mt-2 text-[38px] sm:text-[52px]">{programName(b)}</CoverTitle>
-          {dateLine(b) && <p className="mt-2 text-[13px] text-white/80 tabular-nums">{dateLine(b)}</p>}
-          <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-            {folders.length > 0 && (
-              <button type="button" onClick={() => setPath([folders[0].name])}
-                className="h-11 px-5 rounded-full bg-white text-[#17151F] text-[14px] font-bold hover:bg-white/90">View photos</button>
-            )}
-            <a href={zip()} className="h-11 px-5 rounded-full border border-white/45 text-white text-[14px] font-semibold inline-flex items-center gap-2 hover:bg-white/10">
-              <Download className="w-4 h-4" />Download all
-            </a>
-          </div>
-        </div>
+      <Cover cover={b.cover} studio={studio.name} dim={b.cover ? "bottom" : "none"} className="h-[min(62vh,460px)] sm:h-[420px] sm:[&>div:nth-child(2)]:opacity-40">
+        <div className="absolute inset-x-0 bottom-0 p-5 text-center sm:hidden">{title}</div>
       </Cover>
+      <div className="hidden sm:block px-8 pt-8 text-center">{title}</div>
 
       <div className="px-4 sm:px-8 pt-4 pb-6 sm:pb-8 space-y-7">
         <p className="text-center text-[12.5px] text-white/60 tabular-nums">{kindOf(total.photos, total.videos, total.other)} · {bytes(total.size)}</p>

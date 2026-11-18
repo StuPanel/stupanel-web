@@ -120,7 +120,7 @@ export function RefundDrawer({ booking, cancel, onClose, onDone }: {
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6680] text-[15px] font-semibold">{currencySymbol(booking.currency).trim()}</span>
                 <input id={id} type="number" inputMode="decimal" min="0" max={paid} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" autoFocus
-                  className={cn(inputCls, "text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(booking.currency) }} />
+                  className={cn(inputCls, "pl-8 text-[17px] font-bold tabular-nums")} style={{ paddingLeft: currencyPad(booking.currency) }} />
               </div>
             )}</Field>
           )}

@@ -11,7 +11,7 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Clock, Edit3, FileText, HardDrive, Loader2, MapPin,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRight, BellRing, CalendarDays, CalendarX, Camera, Check, ChevronRight, Clock, Edit3, FileText, HardDrive, Loader2, MapPin,
   Lock, LockOpen, MessageCircle, MoreHorizontal, Plus, RotateCcw, Trash2, User, Users, Wallet, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -26,6 +26,7 @@ import { MONEY_TONE, STATUS_CFG, STATUS_PIPELINE, moneyState, normalStatus } fro
 import { DeleteDialog } from "../_components/program-card";
 import { ProgramDrawer } from "../_components/program-drawer";
 import { PaymentModal } from "../_components/payment-modal";
+import { RefundDrawer } from "../_components/refund-modal";
 import { WhatsAppModal } from "../_components/whatsapp-modal";
 import { TeamPaySection } from "../_components/team-pay-section";
 import { InvoiceCard } from "../_components/invoice-card";
@@ -79,6 +80,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const moreRef = useDismiss<HTMLDivElement>(more, () => setMore(false));
   const [statusBusy, setStatusBusy] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  // Give money back: "refund" from the Money tab, "cancel" when cancelling a program that has money paid.
+  const [refundOpen, setRefundOpen] = useState<null | "refund" | "cancel">(null);
   const [waOpen, setWaOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -118,10 +121,14 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   // ── Numbers ──
   const net = Number(b.grandTotal);
   const paid = Number(b.paidAmount);
-  const due = Math.max(0, net - paid);
-  const profit = Number(b.profitAmount);
-  const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
+  // A cancelled program asks for nothing (same rule as the dashboard and Payments → Due).
+  const due = b.status === "cancelled" || b.status === "refunded" ? 0 : Math.max(0, net - paid);
   const entries = b.costEntries ?? [];
+  // Cancelled: the money kept minus what the team was really paid (same rule as Reports).
+  const profit = b.status === "cancelled" || b.status === "refunded"
+    ? paid - entries.reduce((s, e) => s + Number(e.paidAmount || 0), 0)
+    : Number(b.profitAmount);
+  const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
   const teamCost = entries.reduce((s, e) => s + Number(e.totalBill || 0), 0);
   const teamOwed = entries.reduce((s, e) => s + Math.max(0, Number(e.totalBill || 0) - Number(e.paidAmount || 0)), 0);
   const costs = ([["Team pay", teamCost], ["Equipment rent", Number(b.equipCost)], ["Transport", Number(b.transportCost)], ["Album / print", Number(b.albumCost)], ["Other", Number(b.otherCost)]] as [string, number][]).filter(([, v]) => v > 0);
@@ -194,6 +201,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     } finally { setStatusBusy(false); }
   }
   async function cancelProgram() {
+    // Money was paid: ask what happens to it (kept by default, or some / all given back).
+    if (paid > 0.009) { setRefundOpen("cancel"); return; }
     if (await askConfirm({ title: "Cancel this program?", message: "The program will be marked as cancelled. You can reopen it later.", confirmLabel: "Mark cancelled", danger: true })) setStatus("cancelled");
   }
   async function makeInvoice() {
@@ -290,6 +299,24 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
       title={p.paymentDate ? fmtDate(p.paymentDate) : "Payment"}
       sub={[METHOD[p.paymentMethod ?? ""] ?? p.paymentMethod?.replace(/_/g, " "), p.receiptNumber ? `Receipt ${p.receiptNumber}` : null, p.notes].filter(Boolean).join(" · ") || "Payment"}
       right={<span className="text-[14.5px] font-bold text-[#1F8A5B] tabular-nums">+{formatCurrency(Number(p.amount), b.currency)}</span>} />
+  );
+  const refunds = (b.refunds ?? []).filter(r => r.id);
+  const refunded = refunds.reduce((s, r) => s + Number(r.amount), 0);
+  async function removeRefund(id: string, amount: number) {
+    if (!(await askConfirm({ title: "Remove this refund?", message: `Use this only if it was entered by mistake. ${formatCurrency(amount, b!.currency)} counts as paid again and comes back into the account.`, confirmLabel: "Remove refund", danger: true }))) return;
+    const r = await apiFetch(`${API}/refunds/${id}`, { method: "DELETE" });
+    if (r.ok) { notify("Refund removed"); await load(); }
+    else notify("Couldn't remove the refund. Please try again.", { error: true });
+  }
+  const refundRow = (r: (typeof refunds)[number]) => (
+    <Row key={r.id}
+      lead={<span className="w-[38px] h-[38px] rounded-full bg-[#F1EFF6] text-[#4A4658] flex items-center justify-center flex-shrink-0"><ArrowUpRight className="w-[18px] h-[18px]" /></span>}
+      title={r.refundDate ? fmtDate(r.refundDate) : "Refund"}
+      sub={["Given back", METHOD[r.method ?? ""] ?? r.method?.replace(/_/g, " "), r.note].filter(Boolean).join(" · ")}
+      right={<span className="inline-flex items-center gap-2">
+        <span className="text-[14.5px] font-bold text-[#4A4658] tabular-nums">−{formatCurrency(Number(r.amount), b.currency)}</span>
+        <button type="button" onClick={() => removeRefund(r.id!, Number(r.amount))} aria-label="Remove this refund" className="w-8 h-8 rounded-full hover:bg-[#FDECEF] text-[#9A95A8] hover:text-[#C2304F] inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+      </span>} />
   );
   const changeBtn = <button type="button" onClick={() => setEditing(true)} className={linkBtn}><Edit3 className="w-3.5 h-3.5" />Change</button>;
 
@@ -392,17 +419,18 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
           {/* Money at a glance */}
           {(net > 0 || paid > 0) && <div className={cn(card, "p-5")}>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{due > 0 ? "Client due" : "Money"}</p>
+              <p className="text-[12px] font-bold tracking-[0.06em] uppercase text-[#8A8599]">{cancelled ? "Cancelled" : due > 0 ? "Client due" : "Money"}</p>
               <p className="text-[12.5px] text-[#6B6680]">Profit <span className={cn("font-bold tabular-nums", profit >= 0 ? "text-[#1F8A5B]" : "text-[#C2304F]")}>{formatCurrency(profit, b.currency)}</span></p>
             </div>
             <p className={cn("text-[30px] font-extrabold tracking-[-0.02em] tabular-nums leading-tight mt-0.5", due > 0 ? "text-[#C2304F]" : "text-[#17151F]")}>
-              {due > 0 ? formatCurrency(due, b.currency) : net > 0 ? "All paid" : formatCurrency(0, b.currency)}
+              {cancelled ? `${formatCurrency(paid, b.currency)} kept` : due > 0 ? formatCurrency(due, b.currency) : net > 0 ? "All paid" : formatCurrency(0, b.currency)}
             </p>
             <div className="mt-3 h-2 rounded-full bg-[#F1EFF6] overflow-hidden" role="progressbar" aria-label="Paid so far" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full rounded-full bg-[#1F8A5B] transition-[width] duration-500" style={{ width: `${pct}%` }} />
             </div>
+            {refunded > 0.009 && <p className="mt-2 text-[12.5px] text-[#6B6680]">{formatCurrency(refunded, b.currency)} given back to the client</p>}
             <div className="mt-2.5 flex justify-between text-[13px]">
-              <span className="text-[#6B6680]">Paid <span className="font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(paid, b.currency)}</span></span>
+              <span className="text-[#6B6680]">{cancelled ? "Kept" : "Paid"} <span className="font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(paid, b.currency)}</span></span>
               <span className="text-[#6B6680]">of <span className="font-bold text-[#17151F] tabular-nums">{formatCurrency(net, b.currency)}</span></span>
             </div>
             {due > 0 && (
@@ -461,9 +489,16 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
                   </div>
                 ))}
               </div>
-              <Section title="Payments from the client" action={due > 0 ? <button type="button" onClick={() => setPaymentOpen(true)} className={linkBtn}><Plus className="w-3.5 h-3.5" />Record payment</button> : undefined}>
+              <Section title="Payments from the client" action={due > 0 && !cancelled ? <button type="button" onClick={() => setPaymentOpen(true)} className={linkBtn}><Plus className="w-3.5 h-3.5" />Record payment</button> : undefined}>
                 {pays.length ? <List>{pays.map(payRow)}</List> : <Empty icon={Wallet} title="No payments yet" text="Money the client pays shows here, newest first." />}
               </Section>
+              {(refunds.length > 0 || paid > 0.009) && (
+                <Section title="Money given back" action={paid > 0.009 ? <button type="button" onClick={() => setRefundOpen("refund")} className={linkBtn}><RotateCcw className="w-3.5 h-3.5" />Give money back</button> : undefined}>
+                  {refunds.length ? <List>{refunds.map(refundRow)}</List> : (
+                    <p className="text-[13px] text-[#6B6680] px-1">Nothing given back. If the client gets money back (a cancelled program, paid too much, a later discount), record it here: the payments stay as they were.</p>
+                  )}
+                </Section>
+              )}
               <Section title="Costs and profit" action={changeBtn}>
                 <div className={cn(card, "divide-y divide-[#EEEBF4]")}>
                   <MoneyLine l="Price" v={formatCurrency(Number(b.totalAmount), b.currency)} />
@@ -563,6 +598,7 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
 
       {/* Drawers */}
       <PaymentModal booking={paymentOpen ? b : null} onClose={() => setPaymentOpen(false)} onSaved={load} />
+      {refundOpen && <RefundDrawer booking={b} cancel={refundOpen === "cancel"} onClose={() => setRefundOpen(null)} onDone={load} />}
       <WhatsAppModal booking={waOpen ? b : null} onClose={() => setWaOpen(false)} />
       <DeliveryModal
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

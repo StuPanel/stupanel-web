@@ -7,7 +7,7 @@
  *    On a computer the cover, the next step and the summary stay on the left; the tab fills the right.
  */
 import { SideBadge, cleanSide } from "@/lib/coverage-side";
-import { ArrowLeft, CheckCircle, ChevronRight, ExternalLink, FileSignature, Images, MapPin, MessageCircle, Music2, Package, Receipt } from "lucide-react";
+import { ArrowLeft, CheckCircle, RotateCcw, ChevronRight, ExternalLink, FileSignature, Images, MapPin, MessageCircle, Music2, Package, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import { waLink } from "@/lib/portal-session";
@@ -21,7 +21,7 @@ import { FilesSoon, Gallery, LinkList, LockedFiles } from "./portal-gallery";
 import { CARD, NextStep } from "./portal-todo";
 import {
   INV_STATUS, STEPS, deliveryStatus, dueOf, money, programName, stepOf,
-  type PortalBooking, type PortalContract, type PortalInvoice, type PortalPayment, type Studio, type Todo,
+  type PortalBooking, type PortalContract, type PortalInvoice, type PortalPayment, type PortalRefund, type Studio, type Todo,
 } from "./portal-data";
 import { DocRow, PaymentBar, RowList, StatusChip } from "./portal-ui";
 
@@ -74,10 +74,10 @@ export function ProgramCard({ b, todos, studio, onOpen }: { b: PortalBooking; to
 // ─── The program page ────────────────────────────────────────────────────────
 
 export function ProgramPage({
-  b, token, brand, studio, todos, invoices, payments, contracts, photos, music, tab, open, onTab, onBack, onChanged, onTodo,
+  b, token, brand, studio, todos, invoices, payments, refunds = [], contracts, photos, music, tab, open, onTab, onBack, onChanged, onTodo,
 }: {
   b: PortalBooking; token: string; brand: string; studio: Studio; todos: Todo[];
-  invoices: PortalInvoice[]; payments: PortalPayment[]; contracts: PortalContract[];
+  invoices: PortalInvoice[]; payments: PortalPayment[]; refunds?: PortalRefund[]; contracts: PortalContract[];
   photos: ClientGalleryCard[]; music?: ClientMusic;
   tab: ProgramTab;
   /** Open this straight away (from the to-do list): "photos:<galleryId>" or "music". */
@@ -170,7 +170,7 @@ export function ProgramPage({
           )}
 
           {current === "payment" && (
-            <Payment b={b} due={due} cancelled={cancelled} studio={studio} invoices={invoices} payments={payments} />
+            <Payment b={b} due={due} cancelled={cancelled} studio={studio} invoices={invoices} payments={payments} refunds={refunds} />
           )}
         </div>
       </div>
@@ -297,8 +297,8 @@ function Files({ b, due, token, brand, studio }: { b: PortalBooking; due: number
   );
 }
 
-function Payment({ b, due, cancelled, studio, invoices, payments }: {
-  b: PortalBooking; due: number; cancelled: boolean; studio: Studio; invoices: PortalInvoice[]; payments: PortalPayment[];
+function Payment({ b, due, cancelled, studio, invoices, payments, refunds }: {
+  b: PortalBooking; due: number; cancelled: boolean; studio: Studio; invoices: PortalInvoice[]; payments: PortalPayment[]; refunds: PortalRefund[];
 }) {
   const ways = [studio.bkashNumber && { label: "bKash", n: studio.bkashNumber }, studio.nagadNumber && { label: "Nagad", n: studio.nagadNumber }].filter(Boolean) as { label: string; n: string }[];
   const told = waLink(studio.phone, `Hi ${studio.name}, I've paid ${money(due, b.currency)} for ${programName(b)}.`);
@@ -322,7 +322,7 @@ function Payment({ b, due, cancelled, studio, invoices, payments }: {
           )}
         </section>
       )}
-      {(invoices.length > 0 || payments.length > 0) && (
+      {(invoices.length > 0 || payments.length > 0 || refunds.length > 0) && (
         <section className={cn(CARD, "overflow-hidden")} aria-label="Invoices and receipts">
           <RowList>
             {invoices.map(inv => (
@@ -337,6 +337,9 @@ function Payment({ b, due, cancelled, studio, invoices, payments }: {
             {payments.map(p => (
               <DocRow key={p.id} icon={CheckCircle} tone="green" title={`${money(p.amount, p.currency)} received`}
                 sub={<>{fmtDate(p.paymentDate)}{p.paymentMethod ? <span className="capitalize"> · {p.paymentMethod.replace(/_/g, " ")}</span> : null}{p.referenceNumber ? ` · Ref ${p.referenceNumber}` : ""}</>} />
+            ))}
+            {refunds.map(r => (
+              <DocRow key={r.id} icon={RotateCcw} title={`${money(r.amount, b.currency)} given back to you`} sub={fmtDate(r.refundDate)} />
             ))}
           </RowList>
         </section>

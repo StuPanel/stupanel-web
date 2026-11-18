@@ -47,6 +47,9 @@ export type PortalInvoice = {
   grandTotal: number; paidAmount: number; balanceDue: number;
   currency: string; issueDate: string; dueDate?: string; publicToken: string; bookingId?: string | null;
 };
+/** Money the studio gave back to the client. */
+export type PortalRefund = { id: string; amount: number | string; refundDate: string; bookingId: string };
+
 export type PortalPayment = {
   id: string; amount: number; currency: string;
   paymentMethod?: string; paymentDate: string;
@@ -72,6 +75,7 @@ export interface PortalData {
   quotes: PortalQuote[];
   invoices: PortalInvoice[];
   payments: PortalPayment[];
+  refunds?: PortalRefund[];
   /** Agreements the studio sent (never drafts). */
   contracts?: PortalContract[];
 }

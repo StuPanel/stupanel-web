@@ -50,6 +50,8 @@ interface Payment {
 interface Stats {
   totalCollected: number;
   thisMonth: number;
+  /** Money given back to clients (already taken off the totals). */
+  refunded?: number;
   methodBreakdown: { method: string; total: number; count: number }[];
 }
 
@@ -282,7 +284,8 @@ function PaymentDrawer({
             <Field label="Date" required className="min-w-0">{id => <input id={id} type="date" value={form.paymentDate} onChange={set("paymentDate")} className={inputCls} />}</Field>
             <Field label="Status" className="pl-0 min-w-0">{id => (
               <select id={id} value={form.paymentStatus} onChange={set("paymentStatus")} className={inputCls}>
-                {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                {/* Money given back is a refund on the program (Money → Give money back), not a payment status. */}
+                {Object.entries(STATUS_CONFIG).filter(([k]) => !k.includes("refunded") || k === form.paymentStatus).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             )}</Field>
           </div>
@@ -407,7 +410,7 @@ function StatsRow({ stats, currency = "BDT" }: { stats: Stats; currency?: string
   const top = topMethod ? METHOD_CONFIG[topMethod.method as PaymentMethod] : null;
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
-      <StatCard icon={Banknote} color="green" label="Total received" value={fmt(stats.totalCollected, currency)} sub="All time" />
+      <StatCard icon={Banknote} color="green" label="Total received" value={fmt(stats.totalCollected, currency)} sub={stats.refunded ? `All time · after ${fmt(stats.refunded, currency)} given back` : "All time"} />
       <StatCard icon={Calendar} color="violet" label="This month" value={fmt(stats.thisMonth, currency)} sub={new Date().toLocaleString("en-US", { month: "long" })} />
       <StatCard icon={top?.icon ?? CreditCard} color={top?.tile ?? "ink"} label="Most used" value={top?.label ?? "—"}
         sub={topMethod ? `${topMethod.count} payment${topMethod.count === 1 ? "" : "s"}` : "No payments yet"} />

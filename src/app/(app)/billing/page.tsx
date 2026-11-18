@@ -184,9 +184,9 @@ export default function BillingPage() {
                     <p className="text-xs font-medium text-[#1F8A5B] mt-0.5">Save {money(yearlySaving(p), p.currency)} a year</p>
                   )}
                   <ul className="mt-4 space-y-1.5 text-sm text-[#4A4658]">
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxClients >= 99999 ? "Unlimited" : p.maxClients} clients</li>
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxTeamMembers >= 999 ? "Unlimited" : p.maxTeamMembers} team members</li>
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxBookingsPerMonth >= 99999 ? "Unlimited" : p.maxBookingsPerMonth} programs / month</li>
+                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxClients >= 9999 ? "Unlimited" : p.maxClients} clients</li>
+                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxTeamMembers >= 9999 ? "Unlimited" : p.maxTeamMembers} team members</li>
+                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxBookingsPerMonth >= 9999 ? "Unlimited" : p.maxBookingsPerMonth} programs / month</li>
                     {(p.features ?? []).slice(0, 5).map((f) => (
                       <li key={f.featureKey} className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{f.featureLabel}</li>
                     ))}

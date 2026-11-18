@@ -137,6 +137,8 @@ export default function AdminCouponsPage() {
         </Button>
       </div>
 
+      <p role="note" className="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">Not connected yet: studios have no box to type a coupon when they pay for a plan, so these codes are not used today.</p>
+
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
       ) : coupons.length === 0 ? (

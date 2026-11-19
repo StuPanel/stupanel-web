@@ -197,8 +197,13 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
     setStatusBusy(true);
     try {
       const r = await apiFetch(`${API}/bookings/${id}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
-      if (r.ok) { notify(`Marked ${label}`); await load(); }
-      else {
+      if (r.ok) {
+        // The program may move one more step by itself (Delivered and fully paid → Completed): say where it ended.
+        const saved = await r.json().catch(() => null);
+        const ended = saved?.status && saved.status !== s ? STATUS_CFG[saved.status]?.label : null;
+        notify(ended ? `Marked ${label} — nothing is due, so it is now ${ended}` : `Marked ${label}`);
+        await load();
+      } else {
         const d = await r.json().catch(() => ({}));
         notify((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't change the status. Please try again.", { error: true });
       }
@@ -340,8 +345,10 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
               <Tile icon={Camera} color="deep" size={64} className="rounded-[20px]" />
               <div className="flex-1 min-w-0 lg:flex-none lg:w-full">
                 <h1 className="text-[21px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight break-words">{b.eventName || b.bookingNumber}</h1>
-                <p className="text-[13px] text-[#6B6680] mt-0.5 truncate">
-                  <Link href={`/clients/${b.client.id}`} className="font-semibold text-[#5B3FD0] hover:underline">{clientName}</Link> · {dateText}
+                {/* Client and dates each on their own line when they don't fit: a date is never cut off. */}
+                <p className="text-[13px] text-[#6B6680] mt-0.5 flex flex-wrap gap-x-1.5 lg:justify-center">
+                  <Link href={`/clients/${b.client.id}`} className="font-semibold text-[#5B3FD0] hover:underline max-w-full truncate">{clientName}</Link>
+                  <span className="whitespace-nowrap tabular-nums">{dateText}</span>
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2 lg:justify-center">
                   {typeName && <Chip tone="grey">{typeName}</Chip>}

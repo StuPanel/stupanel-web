@@ -288,7 +288,7 @@ function Files({ b, due, token, brand, studio }: { b: PortalBooking; due: number
     <div className="space-y-4">
       {d.note && <p className={cn(CARD, "px-4 py-3 text-[13.5px] text-[#4A4658]")}>{d.note}</p>}
       {drive.length > 0 && <Gallery b={b} files={drive} token={token} studio={studio} />}
-      <LinkList links={d.links} />
+      <LinkList links={d.links} main={drive.length === 0 && d.r2Files.length === 0} />
       {(d.r2Files.length > 0 || (drive.length === 0 && d.driveFolderUrl)) && (
         <DeliverySection delivery={{ ...d, driveFiles: [], links: [] }} dueAmount={0} currency={b.currency} brand={brand} token={token} bookingId={b.id}
           studio={studio} programName={programName(b)} hidePay />

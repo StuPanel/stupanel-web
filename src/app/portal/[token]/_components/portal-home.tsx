@@ -14,7 +14,7 @@ import {
   type PortalBooking, type PortalData, type Todo,
 } from "./portal-data";
 import { ProgramCard } from "./portal-program";
-import { AllDone, NextStep } from "./portal-todo";
+import { AllDone, CARD, NextStep } from "./portal-todo";
 import { DocRow, RowList, Section } from "./portal-ui";
 
 export type View = "home" | "programs" | "money" | "chat";
@@ -30,7 +30,7 @@ function ProgramList({ title, list, todos, studio, onOpen }: { title: string; li
   return (
     <section aria-label={title}>
       <h2 className="px-1 mb-2.5 text-[15px] font-extrabold text-[#17151F]">{title} <span className="font-semibold text-[#8A8599]">· {list.length}</span></h2>
-      <div className="grid sm:grid-cols-2 gap-3 items-start">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
         {list.map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
       </div>
     </section>
@@ -59,7 +59,10 @@ export function HomeView({ data, todos, onTodo, onOpen, onView }: {
   const totalAll = live.reduce((s, b) => s + Number(b.grandTotal), 0);
   const c = data.company.currency;
   const studio = data.company.name;
+  const paidAll = totalAll - totalDue;
+  const list = shown.length ? shown : after.slice(0, 2);
   return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
     <div className="space-y-6">
       {todos.length > 0 ? <NextStep todos={todos} onTodo={onTodo} /> : <AllDone />}
 
@@ -73,19 +76,43 @@ export function HomeView({ data, todos, onTodo, onOpen, onView }: {
                 <button type="button" onClick={() => onView("programs")} className="text-[13px] font-semibold text-[#5B3FD0] hover:underline">All {data.bookings.length}</button>
               )}
             </div>
-            <div className="grid sm:grid-cols-2 gap-3 items-start">
-              {(shown.length ? shown : after.slice(0, 2)).map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
+            {/* One program fills the row; more sit two side by side. */}
+            <div className={cn("grid gap-3 items-start", list.length > 1 && "sm:grid-cols-2")}>
+              {list.map(b => <ProgramCard key={b.id} b={b} todos={todosFor(todos, b.id)} studio={studio} onOpen={() => onOpen(b.id)} />)}
             </div>
           </section>
         )}
 
       {totalAll > 0 && (
         <button type="button" onClick={() => onView("money")}
-          className="w-full px-1 flex items-center justify-between gap-3 text-[13.5px] text-[#6B6680] hover:text-[#17151F]">
+          className="lg:hidden w-full px-1 flex items-center justify-between gap-3 text-[13.5px] text-[#6B6680] hover:text-[#17151F]">
           <span className="tabular-nums">Paid {money(totalAll - totalDue, c)} of {money(totalAll, c)}{totalDue > 0 && <> · <b className="text-[#B42347]">{money(totalDue, c)} left</b></>}</span>
           <span className="font-semibold text-[#17151F]">Money ›</span>
         </button>
       )}
+    </div>
+
+    {/* Computer: money and the studio's contact sit beside the programs, so the page is not half empty. */}
+    <aside className="hidden lg:block space-y-4 sticky top-24">
+      {totalAll > 0 && (
+        <section aria-label="Money" className={cn(CARD, "p-5")}>
+          <p className="text-[12.5px] font-semibold text-[#6B6680]">{totalDue > 0 ? "Still to pay" : "Money"}</p>
+          <p className={cn("mt-1 text-[28px] font-extrabold tracking-[-0.02em] tabular-nums leading-none", totalDue > 0 ? "text-[#B42347]" : "text-[#1F8A5B]")}>{totalDue > 0 ? money(totalDue, c) : "All paid"}</p>
+          <div className="mt-4 h-1.5 rounded-full bg-[#F0EEF3] overflow-hidden"><div className="h-full rounded-full bg-[#1F8A5B]" style={{ width: `${Math.min(100, Math.round((paidAll / totalAll) * 100))}%` }} /></div>
+          <p className="mt-2 flex justify-between text-[13px] text-[#6B6680] tabular-nums"><span>Paid <b className="text-[#1F8A5B]">{money(paidAll, c)}</b></span><span>of <b className="text-[#17151F]">{money(totalAll, c)}</b></span></p>
+          <button type="button" onClick={() => onView("money")} className="mt-4 w-full h-11 rounded-2xl bg-[#F3F3F1] hover:bg-[#ECEAF0] text-[14px] font-bold text-[#17151F]">See payments and invoices</button>
+        </section>
+      )}
+      <section aria-label={studio} className={cn(CARD, "p-5")}>
+        <p className="text-[12.5px] font-semibold text-[#6B6680]">Your studio</p>
+        <p className="mt-1 text-[17px] font-extrabold text-[#17151F]">{studio}</p>
+        {data.company.phone && <p className="mt-0.5 text-[13.5px] text-[#6B6680] tabular-nums">{data.company.phone}</p>}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {data.company.phone && <a href={`tel:${data.company.phone}`} className="h-11 rounded-2xl bg-[#F3F3F1] hover:bg-[#ECEAF0] text-[14px] font-bold text-[#17151F] inline-flex items-center justify-center">Call</a>}
+          {data.company.portalShowMessages !== false && <button type="button" onClick={() => onView("chat")} className={cn("h-11 rounded-2xl bg-[#17151F] hover:bg-[#2A2733] text-white text-[14px] font-bold", !data.company.phone && "col-span-2")}>Message</button>}
+        </div>
+      </section>
+    </aside>
     </div>
   );
 }
@@ -122,7 +149,8 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
   const showQuotes = data.company.portalShowQuotes !== false;
   const waiting = data.quotes.filter(quoteOpen);
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
+      <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <StatCard icon={Wallet} color="green" label="You've paid" value={money(totalPaid, c)} />
         <StatCard icon={CreditCard} color={totalDue > 0 ? "red" : "green"} label="Still to pay" value={money(totalDue, c)} />
@@ -154,6 +182,8 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
         </Section>
       )}
 
+      </div>
+      <div className="space-y-4">
       {showInv && data.invoices.length > 0 && (
         <Section title="Invoices" icon={Receipt} color="orchid">
           <RowList>
@@ -186,6 +216,7 @@ export function MoneyView({ data, onOpen }: { data: PortalData; onOpen: (id: str
             )}
         </Section>
       )}
+      </div>
     </div>
   );
 }

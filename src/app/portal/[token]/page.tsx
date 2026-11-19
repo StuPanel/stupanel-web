@@ -129,7 +129,7 @@ function Portal({ token }: { token: string }) {
   const afterChange = () => { loadExtras(); if (openPart && pid) window.history.replaceState(null, "", `?p=${pid}`); };
 
   return (
-    <PublicShell studio={data.company} sub="Client portal" className="pb-28 sm:pb-8" width={pid ? "max-w-[1180px]" : "max-w-[880px]"}
+    <PublicShell studio={data.company} sub="Client portal" className="pb-28 sm:pb-8" width="max-w-[1180px]"
       right={
         <>
           {data.company.phone && (
@@ -158,7 +158,7 @@ function Portal({ token }: { token: string }) {
       {view === "home" && <HomeView data={data} todos={todos} onTodo={onTodo} onOpen={id => openProgram(id)} onView={goView} />}
       {view === "programs" && <ProgramsView data={data} todos={todos} onOpen={id => openProgram(id)} />}
       {view === "money" && <MoneyView data={data} onOpen={openProgram} />}
-      {view === "chat" && <PortalChat token={token} brand={brand} companyName={data.company.name} />}
+      {view === "chat" && <div className="max-w-[820px]"><PortalChat token={token} brand={brand} companyName={data.company.name} /></div>}
 
       {pid && (program ? (
         <ProgramPage key={program.id} b={program} token={token} brand={brand} studio={studio}

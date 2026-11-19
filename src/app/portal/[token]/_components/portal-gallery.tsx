@@ -292,9 +292,51 @@ export function FilesSoon({ b, studio }: { b: PortalBooking; studio: Studio }) {
 }
 
 /** Older deliveries: links the studio added. */
-export function LinkList({ links }: { links: { id: string; title: string; url: string | null }[] }) {
+/** Where a link goes, in words a client knows ("Google Drive"), never the long address. */
+function linkPlace(url: string): string {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, "");
+    if (h.includes("drive.google") || h.includes("docs.google")) return "Google Drive";
+    if (h.includes("photos.google") || h === "photos.app.goo.gl") return "Google Photos";
+    if (h.includes("dropbox")) return "Dropbox";
+    if (h.includes("youtu")) return "YouTube";
+    if (h.includes("wetransfer") || h === "we.tl") return "WeTransfer";
+    if (h.includes("onedrive") || h.includes("1drv")) return "OneDrive";
+    return h;
+  } catch { return "Link"; }
+}
+
+/**
+ * Files the studio delivered as links. `main` = the links are the whole delivery (no photos shown here):
+ * a clear "ready" card with one big button per link. Otherwise a quiet list under the gallery.
+ */
+export function LinkList({ links, main }: { links: { id: string; title: string; url: string | null }[]; main?: boolean }) {
   const open = links.filter(l => !!l.url);
   if (!open.length) return null;
+  if (main) {
+    return (
+      <section aria-label="Your files" className="bg-white rounded-[22px] p-5 sm:p-7 shadow-[0_1px_2px_rgba(22,18,40,.05),0_10px_28px_-20px_rgba(22,18,40,.28)]">
+        <p className="text-[12.5px] font-semibold text-[#1F8A5B]">Ready</p>
+        <h2 className="mt-1 text-[22px] sm:text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">Your files are ready</h2>
+        <p className="mt-1.5 text-[14px] text-[#6B6680]">{open.length === 1 ? "Tap the button to open them. Save your favourites to your phone or computer." : "Each button opens one set of files. Save your favourites to your phone or computer."}</p>
+        <ul className="mt-5 space-y-2.5">
+          {open.map((l, i) => (
+            <li key={l.id}>
+              <a href={l.url!} target="_blank" rel="noopener noreferrer"
+                className={cn("min-h-[56px] px-5 rounded-2xl flex items-center gap-3 transition-colors",
+                  i === 0 ? "bg-[#17151F] hover:bg-[#2A2733] text-white" : "bg-[#F3F3F1] hover:bg-[#ECEAF0] text-[#17151F]")}>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-bold truncate">{open.length === 1 && !l.title ? "Open your files" : `Open ${l.title || "your files"}`}</span>
+                  <span className={cn("block text-[12.5px] truncate", i === 0 ? "text-white/65" : "text-[#6B6680]")}>Opens in {linkPlace(l.url!)}</span>
+                </span>
+                <ExternalLink className="w-[18px] h-[18px] flex-shrink-0" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
   return (
     <ul className="bg-white rounded-[20px] px-4 divide-y divide-[#F0EEF3]">
       {open.map(l => (
@@ -302,7 +344,7 @@ export function LinkList({ links }: { links: { id: string; title: string; url: s
           <a href={l.url!} target="_blank" rel="noopener noreferrer" className="min-h-[52px] flex items-center gap-3 text-[#17151F]">
             <span className="flex-1 min-w-0">
               <span className="block text-[14px] font-semibold truncate">{l.title || "Your files"}</span>
-              <span className="block text-[12px] text-[#6B6680] truncate">{l.url}</span>
+              <span className="block text-[12px] text-[#6B6680] truncate">Opens in {linkPlace(l.url!)}</span>
             </span>
             <ExternalLink className="w-4 h-4 text-[#9A95A8]" />
           </a>

@@ -1060,14 +1060,14 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                     return (
                       <div key={d.id} id={`day-${d.id}`} className="scroll-mt-24">
                       <Card className={cn("animate-in fade-in slide-in-from-top-3 zoom-in-95 duration-500 transition-shadow", flashId === d.id && "ring-2 ring-[#7D5CEF] shadow-[0_0_0_6px_rgba(125,92,239,.15)]")}>
-                        <div className="p-3 grid grid-cols-[28px_1fr_36px] sm:grid-cols-[28px_1fr_160px_1fr_36px] gap-2 items-center border-b border-[#EEEBF4]">
+                        <div className="p-3 grid grid-cols-[28px_1fr_36px] sm:grid-cols-[28px_minmax(0,0.7fr)_150px_minmax(0,1.5fr)_36px] gap-2 items-center border-b border-[#EEEBF4]">
                           <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
                           <input list="sp-day-names" value={d.eventType} onChange={e => setDay(d.id, { eventType: e.target.value })} placeholder="Day name — Ceremony, Wedding…" aria-label={`Day ${i + 1} name`} className={cn(inputCls, "h-10 text-sm font-semibold")} />
                           <button type="button" onClick={() => setDays(ds => ds.filter(x => x.id !== d.id))} aria-label="Remove day" className="sm:order-last w-9 h-9 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Trash2 className="w-4 h-4" /></button>
                           <input type="date" data-field={`day-date-${d.id}`} value={d.date} onChange={e => setDay(d.id, { date: e.target.value })} aria-label={`Day ${i + 1} date`} className={cn(inputCls, "h-10 text-sm col-start-2 sm:col-start-auto", !d.date && "ring-1 ring-[#C2304F]/30")} />
                           <div className="relative col-start-2 sm:col-start-auto">
                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B6680]" />
-                            <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
+                            <input value={d.location} onChange={e => setDay(d.id, { location: e.target.value })} placeholder="Venue" title={d.location || undefined} aria-label={`Day ${i + 1} venue`} className={cn(inputCls, "h-10 text-sm pl-8")} />
                           </div>
                           {/* This day's own side, when it is not the program's (a Holud only at the bride's house) */}
                           {askSide && (days.length > 1 || d.side) && (

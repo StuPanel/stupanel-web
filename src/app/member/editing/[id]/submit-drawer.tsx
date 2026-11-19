@@ -5,12 +5,14 @@
  * 1. What you're sending (Highlight video, Full video, Reel, Photos…)
  * 2. Upload the files (or a whole folder) — they go to the studio's private
  *    "StuPanel Edited / <program> / <type> / v<N>" folder on Google Drive
- * 3. (Optional) a link instead, notes → Send for review
- * The studio reviews; when it approves, the files are copied to the client's delivery folder.
+ *    — or paste a link to files kept somewhere else
+ * 3. Notes → Send for review
+ * The studio reviews; when it approves, uploaded files are copied to the client's delivery folder.
+ * With `token` the same panel works on an editor's private work link (no login).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, FileUp, FolderUp, Link2, Loader2, Send, Trash2, X } from "lucide-react";
+import { FileUp, FolderUp, Link2, Loader2, Send, Trash2, UploadCloud, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -44,8 +46,12 @@ const chip = (on: boolean) => cn(
 );
 const input = "w-full h-10 px-3 rounded-xl bg-[#F5F3FA] text-sm focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
 
-export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, toFix = [], sent = [] }: {
+export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onClose, onDone, toFix = [], sent = [] }: {
   assignmentId: string; role: string; isRevision?: boolean; title: string;
+  /** An editor's private work link (no login): the public endpoints are used. */
+  token?: string;
+  /** The thing to start on (otherwise the first one to fix, or the first kind). */
+  first?: string;
   onClose: () => void; onDone: () => void;
   /** Things the studio asked to change (picked first). */
   toFix?: { type: string; feedback: string | null }[];
@@ -53,7 +59,7 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
   sent?: { type: string; status: string; version: number }[];
 }) {
   const types = role === "photo_editor" ? PHOTO_TYPES : VIDEO_TYPES;
-  const [type, setType] = useState(toFix[0]?.type && types.some(t => t.value === toFix[0].type) ? toFix[0].type : types[0].value);
+  const [type, setType] = useState([first, toFix[0]?.type].find(v => v && types.some(t => t.value === v)) ?? types[0].value);
   const fix = toFix.find(f => f.type === type);
   const isRevision = !!fix;
   const SENT_TAG: Record<string, string> = { pending: "waiting", approved: "approved", revision_requested: "fix", replaced: "" };
@@ -61,8 +67,13 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
   const [loadErr, setLoadErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
-  const [showLinks, setShowLinks] = useState(false);
-  const [links, setLinks] = useState({ deliveryLink: "", driveLink: "", dropboxLink: "", wetransferLink: "" });
+  /** How the work is handed in: files uploaded here, or a link to files kept somewhere else. */
+  const [how, setHow] = useState<"upload" | "link">("upload");
+  const [link, setLink] = useState("");
+  const [linkErr, setLinkErr] = useState("");
+  const base = token ? `${API}/public/work/${token}` : `${API}/member/editing/${assignmentId}`;
+  const uploadId = token ?? assignmentId;
+  const kind = token ? "edited-link" as const : "edited" as const;
   const [notes, setNotes] = useState("");
   const [revisionNotes, setRevisionNotes] = useState("");
   const filesRef = useRef<HTMLInputElement>(null);
@@ -72,15 +83,19 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
   // Uploads still running for this assignment (so "Send" waits for them).
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
   useEffect(() => uploadStore.subscribe(setUploads), []);
-  const running = uploads.filter(u => u.bookingId === assignmentId && !u.done && !u.error && !u.cancelled).length;
+  const mine = uploads.filter(u => u.bookingId === uploadId && !u.cancelled);
+  const running = mine.filter(u => !u.done && !u.error).length;
+  const failed = mine.filter(u => u.error).length;
+  const active = mine.filter(u => !u.done && !u.error);
+  const pct = active.length ? Math.round(active.reduce((s, u) => s + (u.progress || 0), 0) / active.length) : 0;
 
   const load = useCallback((t: string) => {
     setLoadErr("");
-    apiFetch(`${API}/member/editing/${assignmentId}/files?type=${encodeURIComponent(t)}`)
+    apiFetch(`${base}/files?type=${encodeURIComponent(t)}`)
       .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d?.message || "Couldn't load"); return d; })
-      .then((d: Pending) => setData(d))
+      .then((d: Pending) => { setData(d); if (!d.connected) setHow("link"); })
       .catch((e: Error) => setLoadErr(e.message));
-  }, [assignmentId]);
+  }, [base]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setData(null); load(type); }, [type, load]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -109,11 +124,11 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
     }
     setBusy(true);
     try {
-      const check = await checkDuplicates({ kind: "edited", files, bookingId: assignmentId, folderFor });
+      const check = await checkDuplicates({ kind, files, bookingId: uploadId, folderFor });
       const { files: toSend, plans } = applyDuplicateChoice(check, "skip");
       const skipped = files.length - toSend.length;
       if (!toSend.length) { notify(`All ${files.length} files are already uploaded`); return; }
-      uploadToDrive({ kind: "edited", files: toSend, plans, folderFor, bookingId: assignmentId, bookingName: title, onDone: refreshSoon });
+      uploadToDrive({ kind, files: toSend, plans, folderFor, bookingId: uploadId, bookingName: title, onDone: refreshSoon });
       notify(`Uploading ${toSend.length} files${skipped ? ` · ${skipped} already there` : ""}`);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Couldn't start the upload", { error: true });
@@ -127,25 +142,31 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
   async function removeFile(f: Pending["files"][number]) {
     const ok = await askConfirm({ title: `Remove "${f.name}"?`, message: "It is taken out of this version (moved to Drive trash).", confirmLabel: "Remove", danger: true });
     if (!ok) return;
-    const r = await apiFetch(`${API}/member/editing/${assignmentId}/files/${f.id}?type=${encodeURIComponent(type)}`, { method: "DELETE" });
+    const r = await apiFetch(`${base}/files/${f.id}?type=${encodeURIComponent(type)}`, { method: "DELETE" });
     if (!r.ok) { notify("Couldn't remove", { error: true }); return; }
     load(type);
   }
 
-  const hasLink = Object.values(links).some(v => v.trim());
+  const hasLink = !!link.trim();
   const hasFiles = (data?.totals.count ?? 0) > 0;
-  const canSend = (hasFiles || hasLink) && running === 0 && !sending;
+  const canSend = (how === "link" ? hasLink : hasFiles) && running === 0 && !sending;
 
   async function send() {
     if (!canSend) return;
+    const url = how === "link" ? link.trim() : "";
+    if (url && !/^https?:\/\/\S+\.\S+$/i.test(url)) { setLinkErr("Paste the whole link. It starts with https://"); return; }
+    setLinkErr("");
     setSending(true);
     try {
-      const r = await apiFetch(`${API}/member/editing/${assignmentId}/submit`, {
+      const note = [revisionNotes.trim() && `Changed: ${revisionNotes.trim()}`, notes.trim()].filter(Boolean).join("\n") || undefined;
+      const r = await apiFetch(`${base}/submit`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliverableType: type, ...links, notes: notes.trim() || undefined, revisionNotes: revisionNotes.trim() || undefined }),
+        body: JSON.stringify(token
+          ? { deliverableType: type, link: url || undefined, notes: note }
+          : { deliverableType: type, deliveryLink: url || undefined, notes: notes.trim() || undefined, revisionNotes: revisionNotes.trim() || undefined }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) { notify(d?.message || "Couldn't send", { error: true }); return; }
+      if (!r.ok) { notify((Array.isArray(d?.message) ? d.message[0] : d?.message) || "Couldn't send", { error: true }); return; }
       notify("Sent to the studio for review");
       onDone();
     } finally { setSending(false); }
@@ -195,18 +216,37 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
               )}
             </section>
 
-            {/* 2. Files */}
-            <section className="space-y-2">
+            {/* 2. Files or a link */}
+            <section className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-[#4A4658]">2 · Upload the files</p>
-                {data && <span className="text-[12px] font-semibold text-[#5B3FD0] bg-[#EEE8FD] rounded-full px-2.5 py-0.5">Version {data.version}</span>}
+                <p className="text-[13px] font-bold text-[#4A4658]">2 · Send the files</p>
+                {data && how === "upload" && <span className="text-[12px] font-semibold text-[#5B3FD0] bg-[#EEE8FD] rounded-full px-2.5 py-0.5">Version {data.version}</span>}
               </div>
+              <div role="tablist" aria-label="How to send" className="grid grid-cols-2 p-1 rounded-full bg-[#F5F3FA]">
+                {([["upload", "Upload files", UploadCloud], ["link", "Paste a link", Link2]] as const).map(([k, label, Icon]) => (
+                  <button key={k} type="button" role="tab" aria-selected={how === k} onClick={() => setHow(k)}
+                    className={cn("h-10 rounded-full text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors", how === k ? "bg-white text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.10)]" : "text-[#6B6680] hover:text-[#17151F]")}>
+                    <Icon className="w-4 h-4" />{label}
+                  </button>
+                ))}
+              </div>
+              {how === "link" ? (
+                <div>
+                  <label htmlFor="work-link" className="sr-only">Link to the files</label>
+                  <input id="work-link" type="url" inputMode="url" value={link} onChange={e => { setLink(e.target.value); setLinkErr(""); }}
+                    placeholder="https://drive.google.com/…" aria-invalid={!!linkErr} className={cn(input, "h-11")} />
+                  {linkErr
+                    ? <p role="alert" className="mt-1.5 text-[13px] font-semibold text-[#C2304F]">{linkErr}</p>
+                    : <p className="mt-1.5 text-[12px] text-[#6B6680]">Google Drive, Dropbox, WeTransfer, YouTube or any link the studio can open.{hasFiles ? " Files you uploaded for this version are sent too." : ""}</p>}
+                </div>
+              ) : (
+              <>
               {loadErr ? (
                 <p className="text-sm text-[#C2304F]">{loadErr}</p>
               ) : !data ? (
                 <div className="h-24 rounded-2xl bg-[#F5F3FA] animate-pulse" />
               ) : !data.connected ? (
-                <p className="text-sm text-[#6B6680] rounded-2xl bg-[#F7F5FB] p-3">The studio hasn&apos;t connected Google Drive, so send a link below instead.</p>
+                <p className="text-sm text-[#6B6680] rounded-2xl bg-[#F7F5FB] p-3">The studio hasn&apos;t connected Google Drive, so files can&apos;t be uploaded here. Use <b className="text-[#17151F]">Paste a link</b>.</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-2">
@@ -220,7 +260,13 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
                     </button>
                   </div>
                   <p className="text-[12px] text-[#6B6680]">Goes to the studio&apos;s private folder: <b className="text-[#17151F]">{data.label} / v{data.version}</b>. The client sees it only after the studio approves.</p>
-                  {running > 0 && <p className="text-[12px] font-semibold text-[#5B3FD0]">Uploading {running} file{running > 1 ? "s" : ""}… keep this page open.</p>}
+                  {running > 0 && (
+                    <div role="status" className="rounded-xl bg-[#F4F0FE] px-3 py-2.5">
+                      <p className="text-[13px] font-semibold text-[#5B3FD0]">Uploading {running} file{running > 1 ? "s" : ""} · {pct}% — keep this page open</p>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-white overflow-hidden"><div className="h-full bg-[#7D5CEF] transition-[width] duration-300" style={{ width: `${pct}%` }} /></div>
+                    </div>
+                  )}
+                  {failed > 0 && running === 0 && <p role="alert" className="text-[13px] font-semibold text-[#C2304F]">{failed} file{failed > 1 ? "s" : ""} did not upload. Choose {failed > 1 ? "them" : "it"} again to retry.</p>}
                   {hasFiles && (
                     <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
                       <div className="px-3 py-2 bg-[#F7F5FB] flex justify-between text-[12px] text-[#4A4658]">
@@ -248,27 +294,11 @@ export function SubmitWorkDrawer({ assignmentId, role, title, onClose, onDone, t
                   )}
                 </>
               )}
+              </>
+              )}
               <input ref={filesRef} type="file" multiple hidden onChange={e => start(e.target.files, false)} />
               <input ref={folderRef} type="file" multiple hidden onChange={e => start(e.target.files, true)}
                 {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-            </section>
-
-            {/* Link instead */}
-            <section>
-              <button type="button" onClick={() => setShowLinks(v => !v)} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#5B3FD0]">
-                <Link2 className="w-4 h-4" />Or share a link instead
-                <ChevronDown className={cn("w-4 h-4 transition-transform", showLinks && "rotate-180")} />
-              </button>
-              {showLinks && (
-                <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {([
-                    ["driveLink", "Google Drive link"], ["deliveryLink", "Other link (YouTube, Vimeo…)"],
-                    ["dropboxLink", "Dropbox"], ["wetransferLink", "WeTransfer"],
-                  ] as const).map(([k, label]) => (
-                    <input key={k} value={links[k]} onChange={e => setLinks(l => ({ ...l, [k]: e.target.value }))} placeholder={label} className={input} />
-                  ))}
-                </div>
-              )}
             </section>
 
             {/* 3. Notes */}

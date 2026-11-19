@@ -66,6 +66,7 @@ const PUBLIC_PREFIXES = [
   "/inv/",
   "/q/",
   "/c/",
+  "/w/",
   "/g/",
   "/f/",
   "/r/",

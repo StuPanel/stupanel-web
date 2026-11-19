@@ -28,6 +28,9 @@ interface DMMessage {
   senderUserId: string | null; senderClientId: string | null;
 }
 
+/** "cinematographer, video_editor" → "Cinematographer, video editor" (role keys are not for reading). */
+const roleWords = (t: string) => t.replace(/_/g, " ");
+
 export function DirectChat({ kind }: { kind: "team" | "clients" }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(true);
@@ -175,7 +178,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
                       <p className={cn("text-sm font-semibold truncate", isActive ? "text-[#5B3FD0]" : "text-[#17151F]")}>{c.name || "Unnamed"}</p>
                       {c.lastMessageAt && <span className="text-xs text-[#8A8599] flex-shrink-0">{fmtTime(c.lastMessageAt)}</span>}
                     </div>
-                    {c.sub && <p className="text-xs text-[#8A8599] truncate mt-0.5 capitalize">{c.sub}</p>}
+                    {c.sub && <p className="text-xs text-[#8A8599] truncate mt-0.5 first-letter:uppercase">{roleWords(c.sub)}</p>}
                     {c.lastMessage ? (
                       <p className="text-xs text-[#8A8599] truncate mt-0.5">{c.lastMessage}</p>
                     ) : (
@@ -217,7 +220,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-[#17151F] text-sm truncate">{selected.name || "Unnamed"}</p>
-                {selected.sub && <p className="text-xs text-[#8A8599] capitalize">{selected.sub}</p>}
+                {selected.sub && <p className="text-xs text-[#8A8599] first-letter:uppercase">{roleWords(selected.sub)}</p>}
               </div>
             </div>
 

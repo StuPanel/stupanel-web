@@ -123,6 +123,8 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
 
   async function save(close = true, allowDuplicate = false): Promise<Lead | null> {
     if (!f.name.trim()) { setError("Please write the name."); jumpToField("name"); return null; }
+    // The same phone rule as for clients: a real number has at least 7 digits.
+    if (f.phone.trim() && (f.phone.match(/\d/g) ?? []).length < 7) { setError("Write the full phone number (at least 7 digits)."); jumpToField("phone"); return null; }
     if (f.budget.trim() && isNaN(Number(f.budget))) { setError("Budget should be a number."); jumpToField("budget"); return null; }
     setSaving(true); setError(""); setDup(null);
     try {

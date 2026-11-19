@@ -984,7 +984,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
           <Tile icon={Camera} color="deep" size={40} />
           <div className="flex-1 min-w-0">
             <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{isEdit ? "Edit program" : "New program"}</h2>
-            <p className="text-[13px] text-[#6B6680] truncate">{isEdit ? initialBooking?.bookingNumber : "Fill top to bottom — everything adds up on the right."}</p>
+            <p className="text-[13px] text-[#6B6680] truncate">{isEdit ? initialBooking?.bookingNumber : "Fill top to bottom — the total adds up as you go."}</p>
           </div>
           <button type="button" onClick={requestClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-white hover:bg-[#EEEBF4] text-[#6B6680]"><X className="w-4 h-4" /></button>
         </div>

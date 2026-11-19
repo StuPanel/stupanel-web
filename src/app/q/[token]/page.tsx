@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/feedback";
 import { sideLabel } from "@/lib/coverage-side";
 import { StudioLinks, type StudioLinkFields } from "@/components/public/studio-links";
 import { useState, useEffect, use } from "react";
@@ -57,6 +58,8 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
   }, [token]);
 
   async function accept() {
+    // One tap on a phone is easy to do by mistake: ask once.
+    if (!(await askConfirm({ title: "Accept this quote?", message: `You are saying yes to ${quote?.quoteNumber ?? "this quote"}. The studio will then confirm your date.`, confirmLabel: "Yes, accept" }))) return;
     setSubmitting(true);
     const r = await fetch(`${API}/public/quotes/${token}/accept`, { method: "POST", headers: { "Content-Type": "application/json" } });
     setSubmitting(false);

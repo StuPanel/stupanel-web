@@ -106,7 +106,8 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onCl
   }, [onClose]);
   const refreshSoon = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => load(type), 2500);
+    // Google Drive can take a few seconds to list a new file: look now-ish, and once more a little later.
+    timer.current = setTimeout(() => { load(type); timer.current = setTimeout(() => load(type), 5000); }, 2500);
   }, [load, type]);
 
   async function start(list: FileList | null, fromFolder: boolean) {

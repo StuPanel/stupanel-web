@@ -36,7 +36,15 @@ export type PortalBooking = {
   delivery?: BookingDelivery | null;
   /** The cover photo the studio chose, with the point that must stay in view (% from left / top). */
   cover?: { url: string; x: number; y: number } | null;
+  /** Changes the client may ask for on delivered work (null = not on this program). */
+  corrections?: PortalCorrections | null;
 };
+export type CorrectionItem = {
+  type: string; label: string; state: "can_ask" | "open" | "used_up"; used: number; left: number | null;
+  open: { id: string; note: string; at: string } | null;
+  last: { status: string; note: string; reply: string | null; at: string | null } | null;
+};
+export type PortalCorrections = { enabled: boolean; limit: number; items: CorrectionItem[] };
 export type PortalQuote = {
   id: string; quoteNumber: string; status: string;
   grandTotal: number; currency: string; validUntil?: string;

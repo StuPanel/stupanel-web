@@ -54,7 +54,7 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onCl
   first?: string;
   onClose: () => void; onDone: () => void;
   /** Things the studio asked to change (picked first). */
-  toFix?: { type: string; feedback: string | null }[];
+  toFix?: { type: string; feedback: string | null; byClient?: boolean }[];
   /** What was already sent: latest status + how many versions. */
   sent?: { type: string; status: string; version: number }[];
 }) {
@@ -210,7 +210,7 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onCl
                 })}
               </div>
               {fix && (
-                <p className="text-[12px] text-[#C2304F] bg-[#FDECEF] rounded-xl px-3 py-2">Studio asked for changes{fix.feedback ? `: ${fix.feedback}` : "."} This will be the next version.</p>
+                <p className="text-[12px] text-[#C2304F] bg-[#FDECEF] rounded-xl px-3 py-2">{fix.byClient ? "The client" : "Studio"} asked for changes{fix.feedback ? `: ${fix.feedback}` : "."} This will be the next version.</p>
               )}
               {!fix && sent.find(x => x.type === type && x.status === "pending") && (
                 <p className="text-[12px] text-[#4A4658] bg-[#F7F5FB] rounded-xl px-3 py-2">You already sent this and it&apos;s waiting for review. Sending again replaces it with a new version.</p>

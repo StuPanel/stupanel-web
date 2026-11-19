@@ -12,7 +12,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { RateEditor, TEAM_ROLES, firstLine, linesToRates, ratesToLines, type RateLine, type RoleInfo } from "../../team/_components/rate-card";
 import { askConfirm } from "@/components/feedback";
-import { Group, Row, Segmented, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
+import { Group, Row, Segmented, Select, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
 import { fmtMoney } from "@/lib/format";
 import { DEFAULT_SHIFTS, type StudioShift } from "@/lib/shifts";
 
@@ -270,7 +270,9 @@ export function DeliveryRulesPane() {
 function DeliveryRules() {
   const { studio, patchStudio } = useSettings();
   const d = studio!.delivery;
+  const limit = d.correctionLimit ?? 2;
   return (
+    <>
     <Group title="Payment" note="When locked, the client sees what is ready but opens it only after paying in full.">
       <Row id="d-lockWhenDue" label="Lock delivery while money is due" hint="Clients can't download their photos and videos until the program is fully paid">
         <Switch label="Lock delivery while money is due" on={d.lockWhenDue} onChange={v => patchStudio("delivery", { ...d, lockWhenDue: v })} />
@@ -280,6 +282,16 @@ function DeliveryRules() {
           onChange={v => patchStudio("delivery", { ...d, managerCanUnlock: v })} />
       </Row>
     </Group>
+    <Group title="Changes after delivery" note="This is the starting point. A package can say “Included” or “Not included”, and every program has its own switch on its Editing tab.">
+      <Row id="d-clientCorrections" label="Clients can ask for changes" hint="On the client's page each delivered video or photo set gets an “Ask for a change” button. The note goes to the editors who made it and to you; they send a new version and you approve it as usual.">
+        <Switch label="Clients can ask for changes" on={!!d.clientCorrections} onChange={v => patchStudio("delivery", { ...d, clientCorrections: v })} />
+      </Row>
+      <Row id="d-correctionLimit" label="How many times" hint="For each video or photo set of a program" disabled={!d.clientCorrections}>
+        <Select label="How many times" value={limit} onChange={v => patchStudio("delivery", { ...d, correctionLimit: Number(v) })}
+          options={[1, 2, 3, 5].map(n => ({ value: n, label: `${n} time${n > 1 ? "s" : ""}` })).concat([{ value: 0, label: "No limit" }])} />
+      </Row>
+    </Group>
+    </>
   );
 }
 

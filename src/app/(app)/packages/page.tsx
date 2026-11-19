@@ -30,6 +30,8 @@ type Form = {
   durationUnit: "hours" | "days"; durationHours: string; durationDays: string; deliveryDays: string;
   days: string[]; staffing: StaffingLine[]; photoEditCount: string; trailerCount: string; fullVideoCount: string;
   extras: string[]; deliveryMethod: string; note: string; isActive: boolean; isVisibleInPortal: boolean;
+  /** Client corrections after delivery: "" = the studio's setting, "yes" / "no"; and how many per video or photo set ("0" = no limit). */
+  corrections: "" | "yes" | "no"; correctionLimit: string;
 };
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const str = (v: number | undefined | null) => (v == null ? "" : String(v));
@@ -45,6 +47,7 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
     durationUnit: "hours", durationHours: "", durationDays: "", deliveryDays: "",
     days: [], staffing: [], photoEditCount: "", trailerCount: "", fullVideoCount: "",
     extras: [], deliveryMethod: "", note: "", isActive: true, isVisibleInPortal: false,
+    corrections: "", correctionLimit: "2",
   });
   const [f, setF] = useState<Form>(blank);
   const [newDay, setNewDay] = useState("");
@@ -64,6 +67,8 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
       fullVideoCount: str(editing.fullVideoCount), extras: editing.ritualsIncluded ?? [], deliveryMethod: editing.deliveryMethod ?? "",
       note: (editing.staffing?.length ? "" : editing.deliverablesDescription) ?? "",
       isActive: editing.isActive, isVisibleInPortal: editing.isVisibleInPortal,
+      corrections: editing.correctionsIncluded == null ? "" : editing.correctionsIncluded ? "yes" : "no",
+      correctionLimit: editing.correctionLimit == null ? "2" : String(editing.correctionLimit),
     } : blank());
   }, [open, editing]);
 
@@ -113,6 +118,8 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
       ritualsIncluded: extras, deliveryMethod: f.deliveryMethod || null,
       deliverablesDescription: f.note.trim() || null,
       isActive: f.isActive, isVisibleInPortal: f.isVisibleInPortal,
+      correctionsIncluded: f.corrections === "" ? null : f.corrections === "yes",
+      correctionLimit: f.corrections === "yes" ? Number(f.correctionLimit) : null,
     };
     try {
       const r = await apiFetch(isEdit ? `${API}/packages/${editing!.id}` : `${API}/packages`, {
@@ -246,6 +253,23 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
               {f.deliveryMethod && !DELIVERY_METHODS.some(d => d.value === f.deliveryMethod) && <option value={f.deliveryMethod}>{f.deliveryMethod}</option>}
             </select>
           )}</Field>
+        </div>
+        <div className={cn("grid", f.corrections === "yes" ? "grid-cols-2" : "grid-cols-1")}>
+          <Field label="Changes after delivery" hint={f.corrections === "yes" ? undefined : "With “Included”, the client gets an “Ask for a change” button for each delivered video or photo set. It can be changed on every program."}>{id => (
+            <select id={id} value={f.corrections} onChange={e => set("corrections", e.target.value as Form["corrections"])} className={cn(inputCls, "cursor-pointer")}>
+              <option value="">Same as Settings → Delivery</option>
+              <option value="yes">Included</option>
+              <option value="no">Not included</option>
+            </select>
+          )}</Field>
+          {f.corrections === "yes" && (
+            <Field label="Times per video" className="pl-0">{id => (
+              <select id={id} value={f.correctionLimit} onChange={e => set("correctionLimit", e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+                {["1", "2", "3", "5"].map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="0">No limit</option>
+              </select>
+            )}</Field>
+          )}
         </div>
         <div className="p-4">
           <p className="text-[13px] font-semibold text-[#4A4658] mb-1.5">Also included</p>

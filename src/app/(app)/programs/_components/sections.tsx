@@ -173,6 +173,8 @@ type Submission = {
   id: string; reviewStatus: string; deliverableType: string; submittedAt: string;
   deliveryLink?: string | null; driveLink?: string | null; dropboxLink?: string | null; wetransferLink?: string | null;
   notes?: string | null; revisionNotes?: string | null; reviewFeedback?: string | null;
+  /** Who asked for the change: a user id, or "client". */
+  reviewedBy?: string | null;
   /** Copy of an approved version into the client's delivery folder. */
   copy?: { status: "copying" | "done" | "failed" | "skipped"; done?: number; total?: number; error?: string; at: string } | null;
 };
@@ -263,11 +265,11 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
               <span className="text-[13px] font-semibold text-[#17151F] flex-1 min-w-0 truncate">
                 {DELIVERABLE[g.type] ?? g.type} · v{g.versions.length}
               </span>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{label(s.reviewStatus)}</span>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{s.reviewStatus === "revision_requested" && s.reviewedBy === "client" ? "Client asked for a change" : label(s.reviewStatus)}</span>
             </div>
             <p className="text-[11px] text-[#6B6680]">Sent {new Date(s.submittedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
             {(s.revisionNotes || s.notes) && <p className="text-[12px] text-[#4A4658] whitespace-pre-line">{[s.revisionNotes, s.notes].filter(Boolean).join("\n")}</p>}
-            {s.reviewFeedback && <p className="text-[12px] text-[#C2304F]">Your note: {s.reviewFeedback}</p>}
+            {s.reviewFeedback && <p className="text-[12px] text-[#C2304F] whitespace-pre-line">{s.reviewedBy === "client" ? "Client:" : "Your note:"} {s.reviewFeedback}</p>}
             <div className="flex flex-wrap items-center gap-1.5">
               {linksOf(s).map(l => (
                 <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer"
@@ -337,7 +339,9 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
   );
 }
 
-export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void }) {
+export function EditorsSection({ booking, teamMembers, onSaved, onReviewed }: { booking: Booking; teamMembers: { id: string; memberId: string; firstName: string; lastName?: string; memberRoles: string[] }[]; onSaved: () => void;
+  /** A version was approved or sent back (the client's change requests may have closed). */
+  onReviewed?: () => void }) {
   const [assignments, setAssignments] = useState<EditorAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -368,7 +372,7 @@ export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Boo
 
   const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
 
-  const silentReload = useCallback(() => reload(true), [booking.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const silentReload = useCallback(() => { reload(true); onReviewed?.(); }, [booking.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleEditor(userId: string, role: "photo_editor" | "video_editor") {
     setDraft(prev => {

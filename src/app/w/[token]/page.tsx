@@ -19,7 +19,7 @@ import { CARD_SHADOW } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
 import { SubmitWorkDrawer } from "@/app/member/editing/[id]/submit-drawer";
 
-type Sub = { id: string; deliverableType: string; link: string | null; notes?: string | null; reviewStatus: string; reviewFeedback?: string | null; submittedAt: string };
+type Sub = { id: string; deliverableType: string; link: string | null; notes?: string | null; reviewStatus: string; reviewFeedback?: string | null; byClient?: boolean; submittedAt: string };
 type Song = { youtubeId: string; url: string; title: string; thumb?: string; note?: string; instrumental?: boolean };
 type View = {
   studio: { name: string; logoUrl: string | null; phone: string | null };
@@ -95,7 +95,7 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
 
   const next = finished ? { title: "All done — thank you", text: "The studio has everything from you for this program.", tone: "green" as const }
     : work.status === "assigned" ? { title: "Start when you begin", text: "Press Start editing so the studio knows you are on it.", tone: "violet" as const }
-    : toFix.length ? { title: `The studio asked for changes to ${toFix.map(s => LABEL[s.type] ?? s.type).join(", ")}`, text: "Read the note below, fix it and send a new version.", tone: "red" as const }
+    : toFix.length ? { title: `${toFix.every(s => s.sub?.byClient) ? "The client" : "The studio"} asked for changes to ${toFix.map(s => LABEL[s.type] ?? s.type).join(", ")}`, text: "Read the note below, fix it and send a new version.", tone: "red" as const }
     : progress.canComplete ? { title: "Everything is approved", text: "Mark the work complete to finish.", tone: "green" as const }
     : todo.length || !plan.length ? { title: "Hand in your work when it is ready", text: "Upload the files here, or paste a link to them.", tone: "violet" as const }
     : { title: "The studio is checking your work", text: waiting.length ? "You will see the answer here. Open this page again later." : "Nothing more to do right now.", tone: "amber" as const };
@@ -169,7 +169,7 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
                   )}
                 </div>
                 {s.key === "fix" && s.sub?.reviewFeedback && (
-                  <p className="mt-3 text-[14px] text-[#17151F] bg-[#FEF5F7] rounded-[14px] px-3.5 py-3 leading-relaxed"><b>Studio:</b> {s.sub.reviewFeedback}</p>
+                  <p className="mt-3 text-[14px] text-[#17151F] bg-[#FEF5F7] rounded-[14px] px-3.5 py-3 leading-relaxed whitespace-pre-wrap"><b>{s.sub.byClient ? "Client:" : "Studio:"}</b> {s.sub.reviewFeedback}</p>
                 )}
               </div>
             ))}
@@ -219,7 +219,7 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
 
       {sendFor !== null && (
         <SubmitWorkDrawer token={token} assignmentId={token} role={work.role} title={program.name ?? program.number ?? "Editing work"}
-          toFix={[...toFix].sort((a, b) => Number(b.type === sendFor) - Number(a.type === sendFor)).map(s => ({ type: s.type, feedback: s.sub?.reviewFeedback ?? null }))}
+          toFix={[...toFix].sort((a, b) => Number(b.type === sendFor) - Number(a.type === sendFor)).map(s => ({ type: s.type, feedback: s.sub?.reviewFeedback ?? null, byClient: !!s.sub?.byClient }))}
           sent={states.filter(s => s.sub).map(s => ({ type: s.type, status: s.sub!.reviewStatus, version: submissions.filter(x => x.deliverableType === s.type).length }))}
           first={sendFor || undefined}
           onClose={() => setSendFor(null)}

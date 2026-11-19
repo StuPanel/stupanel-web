@@ -10,6 +10,7 @@ import { API_URL as API } from "@/lib/api";
 import { fmtDate } from "./constants";
 import type { Booking, ShiftAssignment } from "./types";
 import { Group, Tile } from "@/components/ui/apple";
+import { AddWorkDrawer, WorkLinkDrawer } from "./editor-work";
 
 export function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -159,7 +160,7 @@ const ASSIGNMENT_STATUS_CFG: Record<string, { label: string; cls: string }> = {
 type EditorAssignment = {
   id: string; userId: string; role: string; status: string;
   editingDeadline?: string; deliveryDeadline?: string; studioNote?: string;
-  user?: { firstName: string; lastName?: string };
+  user?: { firstName: string; lastName?: string; phone?: string | null };
   submissions?: Submission[];
   /** The studio's list of what to deliver and how far the editor is. */
   progress?: { plan: string[]; approved: string[]; missing: string[]; total: number; done: number; canComplete: boolean };
@@ -343,6 +344,7 @@ export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Boo
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<{ userId: string; role: "photo_editor" | "video_editor"; editingDeadline?: string; deliveryDeadline?: string; studioNote?: string; deliverables?: string[] }[]>([]);
   const [completing, setCompleting] = useState<string | null>(null);
+  const [work, setWork] = useState<{ kind: "add" | "link"; a: EditorAssignment } | null>(null);
 
   function reload(silent = false) {
     if (!silent) setLoading(true);
@@ -541,6 +543,12 @@ export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Boo
                 )}
                 <Submissions bookingId={booking.id} a={a} onChanged={silentReload} onDelivered={onSaved} />
                 {a.studioNote && <p className="text-xs text-[#4A4658] bg-[#F7F5FB] rounded-lg px-2 py-1">{a.studioNote}</p>}
+                {a.status !== "delivered" && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button type="button" onClick={() => setWork({ kind: "add", a })} className="h-9 px-3.5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[13px] font-semibold text-[#17151F]">Add work</button>
+                    <button type="button" onClick={() => setWork({ kind: "link", a })} className="h-9 px-3.5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[13px] font-semibold text-[#17151F]">Work link</button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -550,6 +558,13 @@ export function EditorsSection({ booking, teamMembers, onSaved }: { booking: Boo
           <p className="text-xs text-[#8A8599]">No editors assigned — click Assign</p>
         </div>
       )}
+      {work && (() => {
+        const a = work.a;
+        const who = { id: a.id, name: `${a.user?.firstName ?? ""} ${a.user?.lastName ?? ""}`.trim() || "the editor", phone: a.user?.phone, role: a.role, plan: a.progress?.plan ?? [], missing: a.progress?.missing ?? [] };
+        return work.kind === "add"
+          ? <AddWorkDrawer editor={who} types={PLAN_TYPES[a.role as "photo_editor" | "video_editor"] ?? []} onClose={() => setWork(null)} onDone={() => { silentReload(); onSaved(); }} />
+          : <WorkLinkDrawer editor={who} program={booking.eventName ?? booking.bookingNumber} onClose={() => setWork(null)} />;
+      })()}
     </div>
   );
 }

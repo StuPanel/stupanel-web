@@ -126,6 +126,8 @@ function LeadsBoard() {
   const [filter, setFilter] = useState<"all" | "due">("all");
   const [source, setSource] = useState("");
   const [mobileStage, setMobileStage] = useState<LeadStage>("new");
+  // On a phone one stage shows at a time: start on the first one that has leads, not on an empty "New".
+  const pickedStage = useRef(false);
   const [drawer, setDrawer] = useState<{ open: boolean; lead: Lead | null }>({ open: false, lead: null });
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [showInsights, setShowInsights] = useState(false);
@@ -172,6 +174,13 @@ function LeadsBoard() {
     for (const l of shown) (m[l.stage] ?? m.new).push(l);
     return m;
   }, [shown]);
+  useEffect(() => {
+    if (pickedStage.current || !leads.length) return;
+    pickedStage.current = true;
+    const first = STAGES.find(s => s.key !== "lost" && byStage[s.key].length > 0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (first) setMobileStage(first.key);
+  }, [leads.length, byStage]);
 
   async function move(id: string, stage: LeadStage, index: number, lostReason?: string) {
     const lead = leads.find(l => l.id === id);

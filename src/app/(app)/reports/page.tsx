@@ -113,7 +113,7 @@ export default function ReportsPage() {
           {/* Top stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <AStat label="Programs" value={String(summary.totalPrograms)} icon={Camera} color="deep" />
-            <AStat label="Total contracts" value={fmt(summary.contractValue)} icon={Layers} color="blue" sub={`${fmtFull(summary.totalDiscount)} discount given`} />
+            <AStat label="Programs are worth" value={fmt(summary.netRevenue)} icon={Layers} color="blue" sub={summary.totalDiscount > 0 ? `After ${fmtFull(summary.totalDiscount)} discount` : "No discount given"} />
             <AStat label="Received" value={fmt(summary.collected)} icon={CreditCard} color="green" />
             <AStat label="Still due" value={fmt(summary.outstanding)} icon={DollarSign} color="red" sub="From clients" />
           </div>

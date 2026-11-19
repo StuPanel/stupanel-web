@@ -9,6 +9,7 @@ import { currencySymbol } from "@/lib/format";
 import type { CSSProperties, ReactNode } from "react";
 import { BN_FONT, FONTS, HAND_FONT, PAPER, colorsOf, type InvoiceDesign, type SectionKey } from "./design";
 import { amountInWords } from "./words";
+import { logoBacking, useLogoLook } from "@/lib/logo-look";
 
 export interface DocStudio {
   name: string; logoUrl?: string | null; phone?: string | null; email?: string | null;
@@ -67,6 +68,7 @@ function readableOn(hex: string) {
 const STATE_STAMP: Record<string, string> = { paid: "PAID", overdue: "OVERDUE", cancelled: "CANCELLED", partly_paid: "PARTLY PAID" };
 
 export function InvoiceDocument({ data, design, className, style }: { data: DocData; design: InvoiceDesign; className?: string; style?: CSSProperties }) {
+  const logoLook = useLogoLook(data.studio.logoUrl);
   const paper = PAPER[design.paper];
   const pos = design.paper === "pos80";
   const small = design.paper === "a5" || pos;
@@ -88,8 +90,16 @@ export function InvoiceDocument({ data, design, className, style }: { data: DocD
   const headText = headerDark ? readableOn(primary) : ink;
 
   // ── Pieces ────────────────────────────────────────────────────────────────
+  // The logo keeps its shape; what changes is the backing, so it is never lost on the paper
+  // (a white see-through logo on white, a dark one on a dark header) — see lib/logo-look.
+  const logoH = pos ? Math.min(design.logo.size, 48) : small ? design.logo.size * 0.75 : design.logo.size;
+  const backing = logoBacking(logoLook, headerDark);
   const logoImg = data.studio.logoUrl && /^https:\/\//.test(data.studio.logoUrl)
-    ? <img src={data.studio.logoUrl} alt="" crossOrigin="anonymous" style={{ height: pos ? Math.min(design.logo.size, 48) : small ? design.logo.size * 0.75 : design.logo.size, maxWidth: pos ? 160 : 260, objectFit: "contain", display: "block" }} />
+    ? (
+      <span style={{ display: "inline-block", lineHeight: 0, borderRadius: backing ? Math.max(6, logoH * 0.14) : 0, overflow: "hidden", background: backing?.background, padding: backing?.pad ? Math.max(4, logoH * 0.12) : 0 }}>
+        <img src={data.studio.logoUrl} alt="" crossOrigin="anonymous" style={{ height: backing?.pad ? logoH * 0.76 : logoH, maxWidth: pos ? 160 : 260, objectFit: "contain", display: "block" }} />
+      </span>
+    )
     : null;
   const studioName = design.logo.showName || !logoImg
     ? <div style={{ ...head, fontSize: pos ? 13 : small ? 15 : 19, color: headText, lineHeight: 1.2 }}>{data.studio.name}</div>

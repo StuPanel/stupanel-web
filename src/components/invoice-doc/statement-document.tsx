@@ -1,6 +1,7 @@
 "use client";
 
 /** A client's account statement, in the studio's invoice colours and fonts. */
+import { logoBacking, useLogoLook } from "@/lib/logo-look";
 import { currencySymbol } from "@/lib/format";
 import { BN_FONT, FONTS, PAPER, colorsOf, type InvoiceDesign } from "./design";
 import { docDate, type DocStudio } from "./invoice-document";
@@ -29,12 +30,17 @@ export function StatementDocument({ data, design }: { data: StatementData; desig
   const th: React.CSSProperties = { padding: "8px 8px", fontSize: fs - 1.5, textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "left", background: primary, color: "#fff" };
   const td: React.CSSProperties = { padding: "7px 8px", fontSize: fs, borderBottom: `1px solid ${line}`, fontFeatureSettings: "'tnum'" };
   const logo = data.studio.logoUrl && /^https:\/\//.test(data.studio.logoUrl) ? data.studio.logoUrl : null;
+  const backing = logoBacking(useLogoLook(logo), false);
 
   return (
     <div style={{ width: paper.w, minHeight: paper.h ?? undefined, padding: paper.pad, boxSizing: "border-box", background: "#fff", color: ink, fontFamily: `'${font.body}', '${BN_FONT}', system-ui, sans-serif`, fontSize: fs }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, borderBottom: `3px solid ${primary}`, paddingBottom: 16 }}>
         <div>
-          {logo && <img src={logo} alt="" crossOrigin="anonymous" style={{ height: Math.min(design.logo.size, 64), objectFit: "contain", display: "block", marginBottom: 6 }} />}
+          {logo && (
+            <span style={{ display: "inline-block", lineHeight: 0, marginBottom: 6, borderRadius: backing ? 8 : 0, overflow: "hidden", background: backing?.background, padding: backing?.pad ? 6 : 0 }}>
+              <img src={logo} alt="" crossOrigin="anonymous" style={{ height: Math.min(design.logo.size, 64) * (backing?.pad ? 0.8 : 1), objectFit: "contain", display: "block" }} />
+            </span>
+          )}
           <div style={{ ...head, fontSize: 17 }}>{data.studio.name}</div>
           <div style={{ color: soft, fontSize: fs - 1 }}>{[data.studio.phone, data.studio.email].filter(Boolean).join(" · ")}</div>
         </div>

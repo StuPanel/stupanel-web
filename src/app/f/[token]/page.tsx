@@ -5,6 +5,7 @@
  * The selfie is made small here and sent once; the server keeps only its face data. The guest's key stays
  * in this browser, so coming back shows the photos again (and any new ones) without another selfie.
  */
+import { StudioLogo } from "@/components/studio-logo";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL as API } from "@/lib/api";
 import { PhotoViewer } from "@/components/photo-viewer";
@@ -454,7 +455,7 @@ function Landing({ g, base, note, onStart, onCode }: { g: Open; base: string; no
         <div className="gf-drop gf-glass" style={{ position: "absolute", top: 18, left: 18, display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 7px", borderRadius: 18, animationDelay: ".15s" }}>
           {g.studio.logoUrl
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={g.studio.logoUrl} alt="" style={{ width: 34, height: 34, borderRadius: 12 }} />
+            ? <StudioLogo url={g.studio.logoUrl} name={g.studio.name} size={34} tone="onDark" />
             : <span style={{ width: 34, height: 34, borderRadius: 12, background: "#17151F", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{initials(g.studio.name)}</span>}
           <span style={{ fontWeight: 700, fontSize: 14 }}>{g.studio.name}</span>
         </div>
@@ -855,7 +856,7 @@ function BookSheet({ g, onDone, onClose }: { g: Open; onDone: (booked: boolean) 
 function Avatar({ g, size = 64 }: { g: Open; size?: number }) {
   return g.studio.logoUrl
     // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={g.studio.logoUrl} alt="" className="gf-ava" style={{ width: size, height: size }} />
+    ? <StudioLogo url={g.studio.logoUrl} name={g.studio.name} size={size} tone="onDark" className="gf-ava" />
     : <span className="gf-ava" style={{ width: size, height: size, fontSize: size * 0.32 }}>{initials(g.studio.name)}</span>;
 }
 

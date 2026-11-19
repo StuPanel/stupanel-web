@@ -61,9 +61,8 @@ function Row({ it, enabled, onAsk, wa }: { it: CorrectionItem; enabled: boolean;
             <span className="mt-1 h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center gap-1.5 bg-[#FFF3E0] text-[#7A4800]"><Clock className="w-3.5 h-3.5" />Being changed</span>
           ) : it.last?.status === "done" ? (
             <span className="mt-1 h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center gap-1.5 bg-[#E7F5EE] text-[#14613F]"><CheckCircle2 className="w-3.5 h-3.5" />Updated{it.last.at ? ` ${fmtDate(it.last.at)}` : ""}</span>
-          ) : leftText ? (
-            <p className="mt-0.5 text-[13px] text-[#6B6680]">{leftText}</p>
           ) : null}
+          {it.state !== "open" && leftText && <p className="mt-0.5 text-[13px] text-[#6B6680]">{leftText}</p>}
         </div>
         {it.state === "can_ask" && enabled && (
           <button type="button" onClick={onAsk}

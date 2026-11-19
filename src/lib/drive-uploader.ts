@@ -38,7 +38,7 @@ export type DriveFileResult = {
 export type UploadPlan = { name?: string; replaceFileId?: string };
 
 /** "delivery" = StuPanel Deliveries (client can open); "raw" = private StuPanel Raw. */
-export type DriveKind = "delivery" | "raw" | "raw-member" | "edited";
+export type DriveKind = "delivery" | "raw" | "raw-member" | "edited" | "edited-link";
 
 const ENDPOINTS = {
   delivery: (id: string) => ({ session: `/google-drive/upload-session/${id}`, complete: `/google-drive/upload-complete/${id}`, check: `/google-drive/upload-check/${id}`, status: "/google-drive/upload-status" }),
@@ -46,6 +46,8 @@ const ENDPOINTS = {
   // A team member uploading into their own raw folder from the member panel.
   // An editor uploading a version of their work for review (id = editor assignment id).
   edited: (id: string) => ({ session: `/member/editing/${id}/files/session`, complete: `/member/editing/${id}/files/complete`, check: `/member/editing/${id}/files/check`, status: "/member/raw/upload-status" }),
+  // The same from an editor's private work link, no login (id = the link's token).
+  "edited-link": (id: string) => ({ session: `/public/work/${id}/files/session`, complete: `/public/work/${id}/files/complete`, check: `/public/work/${id}/files/check`, status: `/public/work/${id}/files/upload-status` }),
   "raw-member": (id: string) => ({ session: `/member/programs/${id}/raw/session`, complete: `/member/programs/${id}/raw/complete`, check: `/member/programs/${id}/raw/check`, status: "/member/raw/upload-status" }),
 };
 
@@ -311,7 +313,7 @@ export function uploadToDrive(opts: {
     uploadStore.add({
       id, fileName: plan?.name ?? file.name, progress: 0, done: false, type: "drive",
       bookingId: opts.bookingId, bookingName: opts.bookingName,
-      folderName: kind === "edited" ? ["Edited", folderPath].filter(Boolean).join(" / ") : kind !== "delivery" ? ["Raw", folderPath].filter(Boolean).join(" / ") : folderPath,
+      folderName: kind === "edited" || kind === "edited-link" ? ["Edited", folderPath].filter(Boolean).join(" / ") : kind !== "delivery" ? ["Raw", folderPath].filter(Boolean).join(" / ") : folderPath,
       size: file.size, sent: 0, status: "queued",
     });
     uploadStore.registerCancel(id, () => {

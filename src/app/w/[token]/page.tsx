@@ -16,7 +16,8 @@ import { notify } from "@/components/feedback";
 import { waLink } from "@/lib/portal-session";
 import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/public-shell";
 import { CARD_SHADOW } from "@/components/ui/apple";
-import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
+import { inputCls } from "@/components/ui/form-kit";
+import { SubmitWorkDrawer } from "@/app/member/editing/[id]/submit-drawer";
 
 type Sub = { id: string; deliverableType: string; link: string | null; notes?: string | null; reviewStatus: string; reviewFeedback?: string | null; submittedAt: string };
 type Song = { youtubeId: string; url: string; title: string; thumb?: string; note?: string; instrumental?: boolean };
@@ -34,10 +35,6 @@ type View = {
 const LABEL: Record<string, string> = {
   highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
   photo_delivery: "Photos", album: "Album", other: "Other",
-};
-const TYPES: Record<string, string[]> = {
-  video_editor: ["teaser", "highlight_video", "full_video", "reel", "other"],
-  photo_editor: ["photo_delivery", "album", "other"],
 };
 const card = cn("bg-white rounded-[22px]", CARD_SHADOW);
 const primary = "h-12 px-6 rounded-full bg-[#7D5CEF] hover:bg-[#6B4AE0] text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50";
@@ -98,9 +95,9 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
 
   const next = finished ? { title: "All done — thank you", text: "The studio has everything from you for this program.", tone: "green" as const }
     : work.status === "assigned" ? { title: "Start when you begin", text: "Press Start editing so the studio knows you are on it.", tone: "violet" as const }
-    : toFix.length ? { title: `The studio asked for changes to ${toFix.map(s => LABEL[s.type] ?? s.type).join(", ")}`, text: "Read the note below, fix it and send a new link.", tone: "red" as const }
+    : toFix.length ? { title: `The studio asked for changes to ${toFix.map(s => LABEL[s.type] ?? s.type).join(", ")}`, text: "Read the note below, fix it and send a new version.", tone: "red" as const }
     : progress.canComplete ? { title: "Everything is approved", text: "Mark the work complete to finish.", tone: "green" as const }
-    : todo.length || !plan.length ? { title: "Hand in your work when it is ready", text: "Upload the files to Google Drive (or any place you use) and paste the link here.", tone: "violet" as const }
+    : todo.length || !plan.length ? { title: "Hand in your work when it is ready", text: "Upload the files here, or paste a link to them.", tone: "violet" as const }
     : { title: "The studio is checking your work", text: waiting.length ? "You will see the answer here. Open this page again later." : "Nothing more to do right now.", tone: "amber" as const };
   const toneCls = { green: "bg-[#E7F5EE] text-[#14613F]", violet: "bg-[#EEE8FD] text-[#5B3FD0]", red: "bg-[#FDECEF] text-[#9C2340]", amber: "bg-[#FFF3E0] text-[#7A4800]" }[next.tone];
   const NextIcon = finished || progress.canComplete ? CheckCircle2 : toFix.length ? PenLine : next.tone === "amber" ? Clock : Scissors;
@@ -221,9 +218,12 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
       )}
 
       {sendFor !== null && (
-        <HandIn types={TYPES[work.role] ?? Object.keys(LABEL)} plan={plan} initial={sendFor}
+        <SubmitWorkDrawer token={token} assignmentId={token} role={work.role} title={program.name ?? program.number ?? "Editing work"}
+          toFix={[...toFix].sort((a, b) => Number(b.type === sendFor) - Number(a.type === sendFor)).map(s => ({ type: s.type, feedback: s.sub?.reviewFeedback ?? null }))}
+          sent={states.filter(s => s.sub).map(s => ({ type: s.type, status: s.sub!.reviewStatus, version: submissions.filter(x => x.deliverableType === s.type).length }))}
+          first={sendFor || undefined}
           onClose={() => setSendFor(null)}
-          onSend={async body => { await post("submit", body); notify("Sent — the studio will check it"); setSendFor(null); await load(); }} />
+          onDone={async () => { setSendFor(null); await load(); }} />
       )}
     </PublicShell>
   );
@@ -271,51 +271,5 @@ function RawFiles({ raw, onShare, reload }: { raw: NonNullable<View["raw"]>; onS
         )}
       </div>
     </section>
-  );
-}
-
-function HandIn({ types, plan, initial, onClose, onSend }: {
-  types: string[]; plan: string[]; initial: string; onClose: () => void;
-  onSend: (body: { deliverableType: string; link: string; notes?: string }) => Promise<void>;
-}) {
-  const options = plan.length ? [...plan, ...types.filter(t => !plan.includes(t))] : types;
-  const [type, setType] = useState(initial || options[0]);
-  const [link, setLink] = useState("");
-  const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  async function send() {
-    setErr("");
-    if (!/^https?:\/\/\S+\.\S+$/i.test(link.trim())) { setErr("Paste the link to your files. It starts with https://"); return; }
-    setBusy(true);
-    try { await onSend({ deliverableType: type, link: link.trim(), notes: notes.trim() || undefined }); }
-    catch (e) { setErr((e as Error).message); }
-    finally { setBusy(false); }
-  }
-  return (
-    <FormDrawer open onClose={onClose} icon={Send} color="violet" title="Hand in work" sub="The studio checks it and answers here"
-      footer={<>
-        <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-sm font-semibold text-[#17151F]">Close</button>
-        <button type="button" onClick={send} disabled={busy} className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6B4AE0] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
-          {busy && <Loader2 className="w-4 h-4 animate-spin" />}Send to the studio
-        </button>
-      </>}>
-      <FormGroup>
-        <Field label="What is it?">{id => (
-          <select id={id} value={type} onChange={e => setType(e.target.value)} className={inputCls}>
-            {options.map(t => <option key={t} value={t}>{LABEL[t] ?? t}</option>)}
-          </select>
-        )}</Field>
-        <Field label="Link to the files" required hint="Google Drive, Dropbox, WeTransfer or any other link the studio can open.">{id => (
-          <>
-            <input id={id} type="url" inputMode="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://drive.google.com/…" className={inputCls} aria-invalid={!!err} />
-            {err && <p role="alert" className="mt-1.5 text-[13px] font-semibold text-[#C2304F]">{err}</p>}
-          </>
-        )}</Field>
-        <Field label="Note for the studio">{id => (
-          <textarea id={id} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Optional" className={cn(inputCls, "h-auto py-2.5 resize-none")} />
-        )}</Field>
-      </FormGroup>
-    </FormDrawer>
   );
 }

@@ -42,6 +42,8 @@ type Workspace = {
     id: string; deliverableType: string; deliveryLink?: string; driveLink?: string;
     dropboxLink?: string; wetransferLink?: string; notes?: string;
     revisionNotes?: string; reviewStatus: string; reviewFeedback?: string;
+    /** Who asked for the change: a user id, or "client". */
+    reviewedBy?: string | null;
     submittedAt: string;
   }[];
   chat: { id: string; senderName?: string; content: string; createdAt: string; isStudio?: boolean }[];
@@ -340,12 +342,12 @@ export default function EditorWorkspacePage() {
           {/* Panels stay mounted so switching is instant and nothing typed is lost. */}
           <div role="tabpanel" hidden={tab !== "work"}>
             {toFix.length > 0 && (
-              <Section title="Changes the studio asked for">
+              <Section title="Changes asked for">
                 <div className={cn(card, "p-4 space-y-2")}>
                   {toFix.map(g => (
                     <div key={g.type} className="rounded-[14px] bg-[#FDECEF] px-4 py-3" role="status">
                       <p className="text-[13.5px] font-bold text-[#9C2340]">{typeLabel(g.type)}</p>
-                      <p className="text-[13px] text-[#9C2340] mt-0.5 whitespace-pre-wrap break-words">{g.latest.reviewFeedback || "The studio asked for changes."}</p>
+                      <p className="text-[13px] text-[#9C2340] mt-0.5 whitespace-pre-wrap break-words">{g.latest.reviewedBy === "client" && <b>The client asked: </b>}{g.latest.reviewFeedback || "The studio asked for changes."}</p>
                     </div>
                   ))}
                 </div>
@@ -394,7 +396,7 @@ export default function EditorWorkspacePage() {
                                   {links.map(l => <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={linkBtn}><Link2 className="w-3.5 h-3.5" />{l.text}</a>)}
                                 </div>
                               )}
-                              {s.reviewFeedback && <p className="text-[12.5px] text-[#9C2340] mt-1.5 break-words">Studio: {s.reviewFeedback}</p>}
+                              {s.reviewFeedback && <p className="text-[12.5px] text-[#9C2340] mt-1.5 break-words">{s.reviewedBy === "client" ? "Client" : "Studio"}: {s.reviewFeedback}</p>}
                               {(s.revisionNotes || s.notes) && <p className="text-[12.5px] text-[#6B6680] mt-1.5 break-words">{[s.revisionNotes, s.notes].filter(Boolean).join(" · ")}</p>}
                             </div>
                           );
@@ -516,7 +518,7 @@ export default function EditorWorkspacePage() {
 
       {showSubmitForm && (
         <SubmitWorkDrawer assignmentId={id} role={assignment.role} isRevision={isRevision}
-          toFix={toFix.map(g => ({ type: g.type, feedback: g.latest.reviewFeedback ?? null }))}
+          toFix={toFix.map(g => ({ type: g.type, feedback: g.latest.reviewFeedback ?? null, byClient: g.latest.reviewedBy === "client" }))}
           sent={groups.map(g => ({ type: g.type, status: g.latest.reviewStatus, version: g.versions.length }))}
           title={booking.eventName ?? booking.bookingNumber}
           onClose={() => setShowSubmitForm(false)}

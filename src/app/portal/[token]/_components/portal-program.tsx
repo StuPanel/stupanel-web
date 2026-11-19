@@ -6,6 +6,7 @@
  *  • ProgramPage — the cover, then one part at a time in tabs: Overview · Files · Album · Music · Payment.
  *    On a computer the cover, the next step and the summary stay on the left; the tab fills the right.
  */
+import { Corrections } from "./portal-corrections";
 import { SideBadge, cleanSide } from "@/lib/coverage-side";
 import { ArrowLeft, CheckCircle, RotateCcw, ChevronRight, ExternalLink, FileSignature, Images, MapPin, MessageCircle, Music2, Package, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -293,6 +294,7 @@ function Files({ b, due, token, brand, studio }: { b: PortalBooking; due: number
         <DeliverySection delivery={{ ...d, driveFiles: [], links: [] }} dueAmount={0} currency={b.currency} brand={brand} token={token} bookingId={b.id}
           studio={studio} programName={programName(b)} hidePay />
       )}
+      {b.corrections && b.corrections.items.length > 0 && <Corrections b={b} token={token} studio={studio} />}
     </div>
   );
 }

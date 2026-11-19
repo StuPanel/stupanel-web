@@ -33,6 +33,7 @@ import { InvoiceCard } from "../_components/invoice-card";
 import { ContractCard } from "../_components/contract-card";
 import { RawDriveSection } from "../_components/raw-drive-section";
 import { MusicSection } from "../_components/music-section";
+import { ClientChanges } from "../_components/client-changes";
 import { CreativeBriefSection, DeliveryOverview, EditorsSection, PrivateNotes, ROLE_LABEL, SETUP_LABEL } from "../_components/sections";
 import { DeliveryModal } from "../../delivery/_components/delivery-modal";
 import { PortalCoverCard } from "../_components/portal-cover-card";
@@ -62,6 +63,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const sp = useSearchParams();
   const [tab, setTab] = useTab<Tab>(`/programs/${id}`, TABS, sp.get("tab"));
+  /** Editing tab: the editors' list and the client's change requests read again when the other one changed. */
+  const [editVer, setEditVer] = useState({ editors: 0, changes: 0 });
 
   const [b, setB] = useState<Booking | null>(null);
   const [missing, setMissing] = useState(false);
@@ -548,7 +551,8 @@ export default function ProgramPage({ params }: { params: Promise<{ id: string }
           {tab === "editing" && (
             <Section>
               <div className={cn(card, "p-3 space-y-3")}>
-                <EditorsSection booking={b} teamMembers={team} onSaved={load} />
+                <EditorsSection key={`ed-${editVer.editors}`} booking={b} teamMembers={team} onSaved={load} onReviewed={() => setEditVer(v => ({ ...v, changes: v.changes + 1 }))} />
+                <ClientChanges bookingId={b.id} refresh={editVer.changes} onChanged={() => { load(); setEditVer(v => ({ ...v, editors: v.editors + 1 })); }} />
                 <button type="button" onClick={() => setTab("raw")} className="w-full rounded-2xl border border-[#E6E2EE] p-3 flex items-center gap-3 text-left hover:border-[#CFC8DD] transition-colors">
                   <Tile icon={HardDrive} color="green" size={36} />
                   <span className="min-w-0 flex-1">

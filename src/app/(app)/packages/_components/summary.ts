@@ -15,6 +15,8 @@ export interface Pkg {
   photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
   ritualsIncluded?: string[]; deliveryMethod?: string;
   isActive: boolean; isVisibleInPortal: boolean; sortOrder: number;
+  /** Client corrections after delivery: null = the studio's setting; limit 0 = no limit. */
+  correctionsIncluded?: boolean | null; correctionLimit?: number | null;
 }
 
 export const DELIVERY_METHODS = [
@@ -49,6 +51,7 @@ export function summaryLines(p: Partial<Pkg>): string[] {
   }
   if (p.ritualsIncluded?.length) lines.push(`Also: ${p.ritualsIncluded.join(", ")}`);
   if (p.deliveryMethod) lines.push(`Delivered via ${DELIVERY_LABELS[p.deliveryMethod] ?? p.deliveryMethod}`);
+  if (p.correctionsIncluded) lines.push(p.correctionLimit ? `${p.correctionLimit} change${p.correctionLimit > 1 ? "s" : ""} after delivery for each video or photo set` : "Changes after delivery included");
   return lines;
 }
 

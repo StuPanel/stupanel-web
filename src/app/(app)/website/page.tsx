@@ -32,6 +32,7 @@ const THEMES: { id: string; name: string; note: string; colors: [string, string,
   { id: "cream", name: "Soft Cream", note: "Sage green, round arches", colors: ["#FBF7F1", "#5E6F5A", "#F4E7DF"] },
   { id: "dark", name: "Cinematic Dark", note: "Navy and champagne", colors: ["#0B1320", "#E6C58F", "#111C2E"] },
   { id: "gold", name: "Classic Gold", note: "Emerald and gold", colors: ["#FAF6EE", "#B8964A", "#0F3D36"] },
+  { id: "mono", name: "Gallery White", note: "Full-screen photo, plain type", colors: ["#FFFFFF", "#1A1A1A", "#ECECEA"] },
 ];
 const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -250,8 +251,8 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "design"}>
-      <FormGroup title="Look" note="All five have the same sections and animation. You can change the look any time; your text and photos stay.">
-        <div className="p-3 grid grid-cols-2 sm:grid-cols-5 gap-2.5" role="radiogroup" aria-label="Website look">
+      <FormGroup title="Look" note="All six have the same sections. You can change the look any time; your text and photos stay.">
+        <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Website look">
           {THEMES.map(t => {
             const on = site.theme === t.id;
             return (

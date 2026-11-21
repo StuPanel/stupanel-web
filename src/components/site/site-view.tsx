@@ -41,6 +41,7 @@ export const SITE_FONTS: Record<string, string> = {
   cream: "family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Pinyon+Script&family=DM+Sans:wght@300;400;500",
   dark: "family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Pinyon+Script&family=Jost:wght@300;400;500",
   gold: "family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Pinyon+Script&family=Mulish:wght@300;400;600",
+  mono: "family=Hanken+Grotesk:wght@300;400;500;600",
 };
 export const fontHref = (theme: string) => `https://fonts.googleapis.com/css2?${SITE_FONTS[theme] ?? SITE_FONTS.signature}&display=swap`;
 
@@ -91,6 +92,50 @@ export function AlbumCard({ a, photo, crop, onOpen, i, eager, count }: { a: Site
         <span className="cap gold alb">View gallery</span>
       </span>
     </button>
+  );
+}
+
+/** Gallery look: photos fill the first screen and change by themselves; arrows move by hand. */
+function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop; name: string }) {
+  const [n, setN] = useState(0);
+  const count = slides.length;
+  useEffect(() => {
+    if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setN(v => (v + 1) % count), 5500);
+    return () => clearInterval(t);
+  }, [count]);
+  return (
+    <section className="mhero" aria-label={`${name}: selected photos`}>
+      {slides.map((p, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={p.url} src={p.url} alt="" className={i === n ? "on" : undefined} loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined}
+          style={{ backgroundImage: `url(${p.blur})`, ...(i === 0 ? cropStyle(crop) : {}) }} />
+      ))}
+      {count > 1 && <>
+        <button type="button" className="mprev" aria-label="Previous photo" onClick={() => setN(v => (v - 1 + count) % count)}><Ic d={ICON.prev} size={22} w={1.2} /></button>
+        <button type="button" className="mnext" aria-label="Next photo" onClick={() => setN(v => (v + 1) % count)}><Ic d={ICON.next} size={22} w={1.2} /></button>
+      </>}
+    </section>
+  );
+}
+
+/** Gallery look: albums in groups of five, one large and four small, the large one changing sides; names sit under the photos. */
+export function MonoAlbums({ albums, photos, crops, onOpen }: { albums: SiteAlbum[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; onOpen: (a: SiteAlbum) => void }) {
+  const groups: SiteAlbum[][] = [];
+  for (let i = 0; i < albums.length; i += 5) groups.push(albums.slice(i, i + 5));
+  return (
+    <div className="wrap">
+      {groups.map((g, k) => (
+        <div key={k} className={`mgrid${k % 2 ? " flip" : ""}`}>
+          {g.map((a, i) => (
+            <button type="button" key={a.id} className={`mal${i === 0 ? " big" : ""}`} onClick={() => onOpen(a)} aria-label={`Open the album ${a.title}`}>
+              <span className="mim"><Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes={i === 0 ? "(max-width: 860px) 92vw, 620px" : "(max-width: 860px) 46vw, 300px"} crop={crops?.[`album:${a.id}`]} /></span>
+              <span className="mnm">{a.title}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -195,6 +240,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
   const wa = waLink(c.whatsapp || c.phone);
   const films = c.films ?? [];
+  /** The gallery look: full-screen photo, plain type, a mosaic of albums. */
+  const mono = data.theme === "mono";
   const hide = c.hide ?? [];
   const router = useRouter();
   const thanks = useCallback(() => router.push(L("/thank-you")), [router, L]);
@@ -214,7 +261,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const nRev = c.reviews.length;
 
   return (
-    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? "" : " noin inner"}`}>
+    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}`}>
       <link rel="stylesheet" href={fontHref(data.theme)} precedence="default" />
       <div className="prog" aria-hidden="true" />
 
@@ -251,6 +298,15 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
 
       <main>
         {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : <>
+        {mono && (
+          <>
+            <MonoHero slides={[...c.heroPhotos, ...c.albums.map(a => a.cover ?? a.photos[0])].filter((id, k, all): id is string => !!id && !!photos[id] && all.indexOf(id) === k).slice(0, 6).map(id => photos[id])} crop={c.crop?.hero0} name={studio.name} />
+            <section className="wrap mst">
+              <h1 className="cz">{[c.script, c.headline].filter(Boolean).join(" ")}</h1>
+              {c.intro && <p>{c.intro}</p>}
+            </section>
+          </>
+        )}
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
@@ -291,8 +347,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
 
         <section id="about" className="wrap g2 sec">
           <div className="rv">
-            {aboutRest.length > 0 && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
-            <h2 className="cz h2" style={{ marginBottom: 26 }}>{aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
+            {aboutRest.length > 0 && !mono && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
+            <h2 className="cz h2" style={{ marginBottom: 26 }}>{mono ? c.aboutTitle : aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
             {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 460 }}>{t}</p>)}
             <a href="#book" className="cap ul" style={{ display: "inline-block", marginTop: 12 }}>Talk to the studio</a>
           </div>
@@ -307,9 +363,11 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         {c.albums.length > 0 && !hide.includes("albums") && (
           <section id="albums" style={{ paddingBottom: "clamp(70px,8vw,120px)" }}>
             <div className="wrap rv" style={{ textAlign: "center", marginBottom: 40 }}><Heading script="recent" title="Albums" /></div>
-            <div className="wrap agrid">
-              {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
-            </div>
+            {mono ? <MonoAlbums albums={c.albums.slice(0, 10)} photos={photos} crops={c.crop} onOpen={openAlbum} /> : (
+              <div className="wrap agrid">
+                {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
+              </div>
+            )}
             <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
           </section>
         )}

@@ -20,7 +20,7 @@ const small = (p: Photo) => p.thumbUrl || p.url;
 const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
-const RATIO = { hero0: 4 / 3.1, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
+const RATIO = { hero0: 3 / 2, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
 type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
   photos: Photo[]; photoLimit: number; studio: { name: string; logoUrl: string | null };
@@ -41,12 +41,12 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 async function shrink(file: File): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const s = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
-    if (s === 1 && file.size < 3_000_000) return file;
+    const s = Math.min(1, 3200 / Math.max(bmp.width, bmp.height));
+    if (s === 1 && file.size < 8_000_000) return file;
     const c = document.createElement("canvas");
     c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
     c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
-    const out = await new Promise<Blob | null>(r => c.toBlob(r, "image/jpeg", 0.9));
+    const out = await new Promise<Blob | null>(r => c.toBlob(r, "image/jpeg", 0.93));
     return out ?? file;
   } catch {
     return file;
@@ -199,6 +199,8 @@ export default function WebsitePage() {
 
   const ph = (id: string | null | undefined) => (id ? byId.get(id) : undefined);
   const crops = c.crop ?? {};
+  /** Gallery White: the photos of its full-screen slideshow. */
+  const slides = (c.slides ?? []).filter(id => byId.has(id));
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
   const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
@@ -304,10 +306,30 @@ export default function WebsitePage() {
         <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
         <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
         <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
-        <div className="px-4 py-3.5 flex gap-4">
+        {site.theme === "mono" && (
+            <div className="px-4 py-3.5">
+              <div className="text-sm font-semibold text-[#1F1B2E]">Home screen photos (slideshow)</div>
+              <p className="text-[13px] text-[#6B6680] mt-0.5">Gallery White fills the first screen with these, one after another. Wide (landscape) photos look best. Pick up to 8, in the order they should show.</p>
+              {slides.length > 0 && (
+                <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                  {slides.map(id => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={id} src={small(byId.get(id)!)} alt="" loading="lazy" className="w-[84px] h-14 rounded-[8px] object-cover" />
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 mt-2.5 flex-wrap">
+                <button type="button" onClick={() => choose("Home screen photos (wide)", slides, ids => set("slides", ids), true, 8)}
+                  className="h-11 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{slides.length ? "Change photos" : "Choose photos"}</button>
+                {slides.length > 0 && <button type="button" onClick={() => set("slides", [])} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F5F3FA]">Clear</button>}
+              </div>
+              {slides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">Nothing chosen yet, so the site shows your album covers here.</p>}
+            </div>
+        )}
+        {site.theme !== "mono" && <div className="px-4 py-3.5 flex gap-4">
           <Slot p={ph(c.heroPhotos[0])} crop={crops.hero0} onAdjust={() => adjust("hero0", c.heroPhotos[0], "Main photo", RATIO.hero0)} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
           <Slot p={ph(c.heroPhotos[1])} crop={crops.hero1} onAdjust={() => adjust("hero1", c.heroPhotos[1], "Second photo", RATIO.hero1)} label="Second photo" onPick={() => choose("Second photo (tall)", c.heroPhotos.slice(1, 2), ids => set("heroPhotos", [c.heroPhotos[0] ?? ids[0], ids[0]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(0, 1))} />
-        </div>
+        </div>}
         <Field label="Moving words" hint="The events you cover, with a comma between them.">
           {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>

@@ -21,7 +21,7 @@ export type SiteAddon = { id: string; name: string; price: number; currency: str
 export type SiteAlbum = { id: string; title: string; tag: string; cover: string | null; photos: string[] };
 export type SitePackage = { id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[] };
 export type SiteContent = {
-  script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; events: string[];
+  script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; /** Slideshow photos of the Gallery White look */ slides?: string[]; events: string[];
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
@@ -108,7 +108,7 @@ function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop
     <section className="mhero" aria-label={`${name}: selected photos`}>
       {slides.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={p.url} src={p.url} alt="" className={i === n ? "on" : undefined} loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined}
+        <img key={p.url} src={p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="100vw" alt="" className={i === n ? "on" : undefined} loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined}
           style={{ backgroundImage: `url(${p.blur})`, ...(i === 0 ? cropStyle(crop) : {}) }} />
       ))}
       {count > 1 && <>
@@ -120,22 +120,60 @@ function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop
 }
 
 /** Gallery look: albums in groups of five, one large and four small, the large one changing sides; names sit under the photos. */
-export function MonoAlbums({ albums, photos, crops, onOpen }: { albums: SiteAlbum[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; onOpen: (a: SiteAlbum) => void }) {
+export function MonoAlbums({ albums, photos, crops, onOpen, rows }: { albums: SiteAlbum[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; onOpen: (a: SiteAlbum) => void; /** Portfolio page: three in a row, all the same size */ rows?: boolean }) {
+  const card = (a: SiteAlbum, big: boolean, eager?: boolean) => (
+    <button type="button" key={a.id} className={`mal${big ? " big" : ""}`} onClick={() => onOpen(a)} aria-label={`Open the album ${a.title}`}>
+      <span className="mim"><Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" eager={eager} sizes={big ? "(max-width: 860px) 92vw, 620px" : rows ? "(max-width: 860px) 92vw, 400px" : "(max-width: 860px) 46vw, 300px"} crop={crops?.[`album:${a.id}`]} /></span>
+      <span className="mnm">{a.title}</span>
+    </button>
+  );
+  if (rows) return <div className="mwork">{albums.map((a, i) => card(a, false, i < 3))}</div>;
   const groups: SiteAlbum[][] = [];
   for (let i = 0; i < albums.length; i += 5) groups.push(albums.slice(i, i + 5));
+  return <>{groups.map((g, k) => <div key={k} className={`mgrid${k % 2 ? " flip" : ""}`}>{g.map((a, i) => card(a, i === 0))}</div>)}</>;
+}
+
+const shortDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "");
+/** Gallery look: stories as plain rows, photo on the left, title and date beside it, a hairline between. */
+export function MonoRows({ stories, photos, crops, L }: { stories: SiteStory[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; L: (path: string) => string }) {
   return (
-    <div className="wrap">
-      {groups.map((g, k) => (
-        <div key={k} className={`mgrid${k % 2 ? " flip" : ""}`}>
-          {g.map((a, i) => (
-            <button type="button" key={a.id} className={`mal${i === 0 ? " big" : ""}`} onClick={() => onOpen(a)} aria-label={`Open the album ${a.title}`}>
-              <span className="mim"><Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes={i === 0 ? "(max-width: 860px) 92vw, 620px" : "(max-width: 860px) 46vw, 300px"} crop={crops?.[`album:${a.id}`]} /></span>
-              <span className="mnm">{a.title}</span>
-            </button>
-          ))}
-        </div>
+    <div className="mrows">
+      {stories.map(x => (
+        <Link key={x.id} href={L(`/stories/${x.id}`)} className="mrow">
+          <span className="mri"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 480px" crop={crops?.[`story:${x.id}`]} /></span>
+          <span className="mrt">
+            <span className="mrh">{x.title}</span>
+            <span className="mrd">{[shortDate(x.date), "View"].filter(Boolean).join("  ·  ")}</span>
+          </span>
+        </Link>
       ))}
     </div>
+  );
+}
+
+/** Gallery look, Home: photos across the whole first screen, one plain sentence, the mosaic of albums, then the stories. */
+function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void }) {
+  const { content: c, photos, studio } = data;
+  const own = (c.slides ?? []).filter(id => photos[id]);
+  const ids = (own.length ? own : [...c.heroPhotos, ...c.albums.map(a => a.cover ?? a.photos[0])]).filter((id, k, all): id is string => !!id && !!photos[id] && all.indexOf(id) === k).slice(0, 8);
+  const stories = (c.stories ?? []).slice(0, 6);
+  const hide = c.hide ?? [];
+  return (
+    <>
+      <MonoHero slides={ids.map(id => photos[id])} crop={own.length ? undefined : c.crop?.hero0} name={studio.name} />
+      <section className="wrap mst">
+        <h1 className="cz">{[c.script, c.headline].filter(Boolean).join(" ")}</h1>
+        {c.intro && <p>{c.intro}</p>}
+      </section>
+      {c.albums.length > 0 && !hide.includes("albums") && (
+        <section id="albums" className="wrap">
+          <MonoAlbums albums={c.albums.slice(0, 10)} photos={photos} crops={c.crop} onOpen={openAlbum} />
+          {c.albums.length > 5 && <div className="mmore"><Link href={L("/portfolio")} className="mlk">All work</Link></div>}
+        </section>
+      )}
+      {stories.length > 0 && <section className="wrap" style={{ paddingTop: "clamp(40px,6vw,90px)" }}><MonoRows stories={stories} photos={photos} crops={c.crop} L={L} /></section>}
+      <div style={{ height: "clamp(60px,8vw,110px)" }} />
+    </>
   );
 }
 
@@ -249,7 +287,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
     c.albums.length ? [L("/portfolio"), "Portfolio"] : null, films.length || c.filmId ? [L("/films"), "Films"] : null, [L("/about"), "About"],
     packages.length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null, c.reviews.length ? [L("/reviews"), "Reviews"] : null,
   ].filter(Boolean) as [string, string][];
-  const bookHref = home ? "#book" : L("/contact");
+  const bookHref = home && !mono ? "#book" : L("/contact");
   const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
   const d = (s: number) => ({ animationDelay: `calc(var(--d) + ${s}s)` });
@@ -261,7 +299,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const nRev = c.reviews.length;
 
   return (
-    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}`}>
+    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}${mono && (home || (page === "about" && !!c.aboutPhoto && !!photos[c.aboutPhoto])) ? " ovr" : ""}`}>
       <link rel="stylesheet" href={fontHref(data.theme)} precedence="default" />
       <div className="prog" aria-hidden="true" />
 
@@ -297,20 +335,11 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
       </div>
 
       <main>
-        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : <>
-        {mono && (
-          <>
-            <MonoHero slides={[...c.heroPhotos, ...c.albums.map(a => a.cover ?? a.photos[0])].filter((id, k, all): id is string => !!id && !!photos[id] && all.indexOf(id) === k).slice(0, 6).map(id => photos[id])} crop={c.crop?.hero0} name={studio.name} />
-            <section className="wrap mst">
-              <h1 className="cz">{[c.script, c.headline].filter(Boolean).join(" ")}</h1>
-              {c.intro && <p>{c.intro}</p>}
-            </section>
-          </>
-        )}
+        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : mono ? <MonoHome data={data} L={L} openAlbum={openAlbum} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
-            <div className="card dev hmain" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
-              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} />
+            <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
+              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
             </div>
             <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
               <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />
@@ -347,8 +376,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
 
         <section id="about" className="wrap g2 sec">
           <div className="rv">
-            {aboutRest.length > 0 && !mono && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
-            <h2 className="cz h2" style={{ marginBottom: 26 }}>{mono ? c.aboutTitle : aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
+            {aboutRest.length > 0 && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
+            <h2 className="cz h2" style={{ marginBottom: 26 }}>{aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
             {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 460 }}>{t}</p>)}
             <a href="#book" className="cap ul" style={{ display: "inline-block", marginTop: 12 }}>Talk to the studio</a>
           </div>
@@ -363,11 +392,9 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         {c.albums.length > 0 && !hide.includes("albums") && (
           <section id="albums" style={{ paddingBottom: "clamp(70px,8vw,120px)" }}>
             <div className="wrap rv" style={{ textAlign: "center", marginBottom: 40 }}><Heading script="recent" title="Albums" /></div>
-            {mono ? <MonoAlbums albums={c.albums.slice(0, 10)} photos={photos} crops={c.crop} onOpen={openAlbum} /> : (
               <div className="wrap agrid">
                 {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
               </div>
-            )}
             <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
           </section>
         )}
@@ -440,6 +467,20 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         </>}
       </main>
 
+      {mono ? (
+        <footer className="wrap mft">
+          <div>
+            <span>© {new Date().getFullYear()} {studio.name}</span>
+            <span className="mfl"><Link href={L("/privacy")}>Privacy Policy</Link><Link href={L("/terms")}>Terms &amp; Conditions</Link><a href="https://stupanel.com" target="_blank" rel="noopener noreferrer">Made with StuPanel</a></span>
+          </div>
+          <div className="mfl">
+            {c.instagram && <a href={c.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>}
+            {c.youtube && <a href={c.youtube} target="_blank" rel="noopener noreferrer">YouTube</a>}
+            {c.facebook && <a href={c.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>}
+            {c.phone && <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a>}
+          </div>
+        </footer>
+      ) : (
       <footer style={{ background: "var(--dark)", color: "var(--ond)", position: "relative", overflow: "hidden" }}>
         <div className="wrap" style={{ paddingTop: "clamp(70px,9vw,110px)", textAlign: "center" }}>
           <div className="sc rv" style={{ fontSize: "clamp(34px, 3.4vw, 48px)", lineHeight: 1, color: "var(--sc2)" }}>let us tell</div>
@@ -490,6 +531,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           <a href="#top" className="cap ftop" style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 10, color: "var(--ond2)" }}>Back to top<span style={{ width: 44, height: 44, border: "1px solid var(--ond2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic d={<path d="M12 20V5M5 11l7-7 7 7" />} size={14} w={1.6} /></span></a>
         </div>
       </footer>
+      )}
 
       {album && (
         <div className="ab" role="dialog" aria-modal="true" aria-label={album.title}>
@@ -502,7 +544,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           </div>
           <div className="abg">
             {shots.map((p, i) => (
-              <button type="button" key={p.url} onClick={() => setShot(i)} aria-label={`Open photo ${i + 1} of ${shots.length}`} style={{ ["--i" as string]: Math.min(i, 12) }}>
+              <button type="button" key={p.url} onClick={() => setShot(i)} aria-label={`Open photo ${i + 1} of ${shots.length}`} className={i === 0 && p.w > p.h ? "wide" : undefined} style={{ ["--i" as string]: Math.min(i, 12) }}>
                 <Ph p={p} alt="" eager={i < 4} sizes="(max-width: 860px) 46vw, 32vw" />
               </button>
             ))}

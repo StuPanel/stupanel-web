@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   MessageCircle, FileText, Wrench, Wallet, Landmark, Handshake, Receipt, Target, Music2, Images,
-  ScanFace, FileSignature, UserCog,
+  ScanFace, FileSignature, UserCog, Globe,
 } from "lucide-react";
 import type { TileColor } from "@/components/ui/apple";
 import { API_URL as API, apiFetch } from "@/lib/api";
@@ -38,6 +38,7 @@ export const DEFAULT_MENU: MenuGroup[] = [
     I("contracts", "Contracts", "/contracts", FileSignature, "ink"),
     I("packages", "Packages", "/packages", Package, "violet"),
     I("referrals", "Referrals", "/referrals", Handshake, "teal"),
+    I("website", "Website", "/website", Globe, "violet"),
   ] },
   { id: "delivery", title: "Delivery & gallery", items: [
     I("delivery", "Delivery", "/delivery", ImageIcon, "teal"),

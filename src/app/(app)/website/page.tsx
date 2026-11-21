@@ -306,6 +306,21 @@ export default function WebsitePage() {
         <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
       </FormGroup>
 
+      <FormGroup title="More films" note="These show on the Films page, under the film above. Up to 9.">
+        {(c.films ?? []).map((f, i) => (
+          <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
+            <div className="flex-1 grid sm:grid-cols-2 gap-2">
+              <input aria-label="YouTube link" className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={f.url} maxLength={200} onChange={e => set("films", (c.films ?? []).map((x, k) => (k === i ? { ...x, url: e.target.value } : x)))} />
+              <input aria-label="Film name" className={inputCls} placeholder="Film name" value={f.title} maxLength={80} onChange={e => set("films", (c.films ?? []).map((x, k) => (k === i ? { ...x, title: e.target.value } : x)))} />
+            </div>
+            <button type="button" aria-label="Remove this film" onClick={() => set("films", (c.films ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+        {(c.films ?? []).length < 9 && (
+          <button type="button" onClick={() => set("films", [...(c.films ?? []), { url: "", title: "", id: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a film</button>
+        )}
+      </FormGroup>
+
       <FormGroup title="Packages" note="Shows your active packages from the Packages page, grouped by category, with their prices.">
         <SwitchRow label="Show packages and prices" on={c.showPackages} onChange={v => set("showPackages", v)} />
       </FormGroup>
@@ -322,6 +337,21 @@ export default function WebsitePage() {
         ))}
         {c.reviews.length < 8 && (
           <button type="button" onClick={() => set("reviews", [...c.reviews, { text: "", name: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a review</button>
+        )}
+      </FormGroup>
+
+      <FormGroup title="Questions and answers (FAQ)" note="The FAQ page appears in the menu when there is at least one question with an answer.">
+        {(c.faqs ?? []).map((f, i) => (
+          <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
+            <div className="flex-1 grid gap-2">
+              <input aria-label="Question" className={inputCls} placeholder="How do we book a date?" value={f.q} maxLength={160} onChange={e => set("faqs", (c.faqs ?? []).map((x, k) => (k === i ? { ...x, q: e.target.value } : x)))} />
+              <textarea aria-label="Answer" className={areaCls.replace("96px", "76px")} placeholder="Answer" value={f.a} maxLength={800} onChange={e => set("faqs", (c.faqs ?? []).map((x, k) => (k === i ? { ...x, a: e.target.value } : x)))} />
+            </div>
+            <button type="button" aria-label="Remove this question" onClick={() => set("faqs", (c.faqs ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+        {(c.faqs ?? []).length < 12 && (
+          <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
         )}
       </FormGroup>
 

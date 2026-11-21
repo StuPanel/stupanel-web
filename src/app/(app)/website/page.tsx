@@ -262,6 +262,7 @@ export default function WebsitePage() {
         <Field label="Big headline" hint="Two or three words look best.">{id => <input id={id} className={inputCls} value={c.headline} maxLength={60} onChange={e => set("headline", e.target.value)} />}</Field>
         <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
         <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
+        <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
         <div className="px-4 py-3.5 flex gap-4">
           <Slot p={ph(c.heroPhotos[0])} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
           <Slot p={ph(c.heroPhotos[1])} label="Second photo" onPick={() => choose("Second photo (tall)", c.heroPhotos.slice(1, 2), ids => set("heroPhotos", [c.heroPhotos[0] ?? ids[0], ids[0]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(0, 1))} />

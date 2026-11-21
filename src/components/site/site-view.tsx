@@ -547,13 +547,13 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
             <label><span className="cap" style={{ fontSize: 10 }}>Date</span><input type="date" value={ev.date} onChange={e => setEv(i, { date: e.target.value })} /></label>
             <label><span className="cap" style={{ fontSize: 10 }}>Time of day</span>
               <select value={ev.shift} onChange={e => setEv(i, { shift: e.target.value })}>
-                <option value="">Not sure yet</option><option>Morning</option><option>Day</option><option>Evening</option><option>Full day</option>
+                <option value="">Not sure</option><option>Morning</option><option>Day</option><option>Evening</option><option>Full day</option>
               </select>
             </label>
             {packages.length > 0 && (
               <label><span className="cap" style={{ fontSize: 10 }}>Package</span>
                 <select value={i === 0 ? ask : ev.pkg} onChange={e => (i === 0 ? setAsk(e.target.value) : setEv(i, { pkg: e.target.value }))}>
-                  <option value="">Not sure yet</option>
+                  <option value="">Not sure</option>
                   {packages.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                 </select>
               </label>

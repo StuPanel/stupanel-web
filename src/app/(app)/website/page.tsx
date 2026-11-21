@@ -5,7 +5,8 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Copy, Crop, ExternalLink, Eye, Globe, ImagePlus, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Package, Palette, Phone, Plus, Trash2, Upload, X } from "lucide-react";
+import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -16,7 +17,7 @@ import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteSt
 type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string };
 const small = (p: Photo) => p.thumbUrl || p.url;
 
-const TABS = [["design", "Design"], ["home", "Home page"], ["albums", "Albums"], ["films", "Films"], ["stories", "Stories"], ["more", "Packages, reviews, FAQ"], ["contact", "Contact"], ["photos", "All photos"]] as const;
+const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
 const RATIO = { hero0: 4 / 3.1, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
@@ -61,7 +62,7 @@ export default function WebsitePage() {
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [slug, setSlug] = useState("");
   const [slugNote, setSlugNote] = useState<{ ok: boolean; message: string } | null>(null);
-  const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void } | null>(null);
+  const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
   const [tab, setTab] = useState<Tab>("design");
   const [allPhotos, setAllPhotos] = useState(false);
   const [frame, setFrame] = useState<{ key: string; photo: Photo; title: string; ratio: number } | null>(null);
@@ -191,7 +192,7 @@ export default function WebsitePage() {
   const byId = new Map(site.photos.map(p => [p.id, p]));
   const origin = typeof window !== "undefined" ? window.location.origin : "https://app.stupanel.com";
   const url = `${origin}/site/${site.slug}`;
-  const choose = (title: string, value: string[], done: (ids: string[]) => void, multi = false, max = 1) => setPick({ title, multi, max, value, done });
+  const choose = (title: string, value: string[], done: (ids: string[]) => void, multi = false, max = 1, first?: string[]) => setPick({ title, multi, max, value, done, first });
   const setAlbum = (i: number, patch: Partial<SiteAlbum>) => set("albums", c.albums.map((a, k) => (k === i ? { ...a, ...patch } : a)));
   const status = !site.isPublished ? "Not published yet" : site.hasChanges ? "Published, with changes not yet published" : "Published";
 
@@ -203,7 +204,7 @@ export default function WebsitePage() {
 
   return (
     <div className="xl:flex xl:gap-8 xl:items-start">
-    <div className="max-w-[820px] flex-1 min-w-0">
+    <div className="site-ed max-w-[820px] flex-1 min-w-0">
       <PageHeader icon={Globe} color="violet" title="Website" sub={<>{status}{saving === "saving" ? " · Saving" : saving === "saved" ? " · Draft saved" : ""}</>}>
         <a href={`/site/${site.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
           className="h-10 px-4 rounded-full bg-white border border-[#E4E0EC] hover:bg-[#F5F3FA] text-sm font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-1 sm:flex-none justify-center">
@@ -214,11 +215,16 @@ export default function WebsitePage() {
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{site.isPublished ? (site.hasChanges ? "Publish changes" : "Published") : "Publish"}
         </button>
       </PageHeader>
-      <div role="tablist" aria-label="Website parts" className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 sticky top-0 z-20 bg-[#F5F3FA]/90 backdrop-blur pt-2">
-        {TABS.map(([id, name]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
-            className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors flex-shrink-0", tab === id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#EEEBF4]")}>{name}</button>
-        ))}
+      <div className="sticky top-3 z-20 mb-5">
+        <div role="tablist" aria-label="Website parts" className="ed-tabs sp-card bg-white rounded-[18px] p-1.5 flex gap-1 overflow-x-auto">
+          {TABS.map(([id, name, Icon]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
+              className={cn("h-10 px-3.5 rounded-[13px] text-[13px] font-semibold whitespace-nowrap transition-all flex-shrink-0 inline-flex items-center gap-1.5",
+                tab === id ? "bg-[#7D5CEF] text-white shadow-[0_6px_16px_-6px_rgba(125,92,239,.8)]" : "text-[#4A4658] hover:bg-[#F1EEF8]")}>
+              <Icon className="w-4 h-4" aria-hidden="true" />{name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div hidden={tab !== "design"}>
@@ -316,28 +322,47 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "albums"}>
-      <FormGroup title="Albums" note="Each album opens as its own gallery. The first photo is the cover. Six or more albums fill two moving rows.">
-        {c.albums.map((a, i) => (
-          <div key={a.id} className="px-4 py-3.5">
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 grid sm:grid-cols-[1fr_170px] gap-2">
-                <input aria-label="Album name" className={inputCls} placeholder="Nabil and Riya" value={a.title} maxLength={60} onChange={e => setAlbum(i, { title: e.target.value })} />
-                <input aria-label="Event" className={inputCls} placeholder="Wedding" value={a.tag} maxLength={30} onChange={e => setAlbum(i, { tag: e.target.value })} />
+      <FormGroup title="Albums" note="Each album opens as its own gallery. Tap the cover to pick another photo for it. Six or more albums fill two moving rows.">
+        {c.albums.map((a, i) => {
+          const cover = ph(a.cover) ?? ph(a.photos[0]);
+          const name = a.title || "this album";
+          return (
+            <div key={a.id} className="px-4 py-4 flex gap-3.5">
+              <div className="flex-shrink-0 w-[84px]">
+                <button type="button" onClick={() => choose(`Cover of ${name}`, a.cover ? [a.cover] : [], ids => setAlbum(i, { cover: ids[0] ?? null, photos: ids[0] && !a.photos.includes(ids[0]) ? [ids[0], ...a.photos].slice(0, 30) : a.photos }), false, 1, a.photos)}
+                  aria-label={`Change the cover of ${name}`} className="block w-[84px] h-[112px] rounded-[12px] overflow-hidden bg-[#F5F3FA] border border-dashed border-[#C9C3DA] hover:border-[#7D5CEF] text-[#6B6680]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(crops[`album:${a.id}`])} /> : <ImagePlus className="w-6 h-6 mx-auto" />}
+                </button>
+                <p className="text-xs text-[#6B6680] mt-1 text-center">Cover</p>
               </div>
-              <button type="button" aria-label={`Remove the album ${a.title || i + 1}`} onClick={() => set("albums", c.albums.filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex-1 min-w-0">
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 grid sm:grid-cols-[1fr_150px] gap-2">
+                    <input aria-label="Album name" className={inputCls} placeholder="Nabil and Riya" value={a.title} maxLength={60} onChange={e => setAlbum(i, { title: e.target.value })} />
+                    <input aria-label="Event" className={inputCls} placeholder="Wedding" value={a.tag} maxLength={30} onChange={e => setAlbum(i, { tag: e.target.value })} />
+                  </div>
+                  <button type="button" aria-label={`Remove the album ${a.title || i + 1}`} onClick={() => set("albums", c.albums.filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                </div>
+                <div className="flex gap-1.5 mt-2.5 items-center">
+                  {a.photos.slice(0, 6).map(id => byId.get(id) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={id} src={small(byId.get(id)!)} alt="" loading="lazy" className="w-10 h-10 rounded-[8px] object-cover flex-shrink-0" />
+                  ))}
+                  <span className="text-xs text-[#6B6680] px-1 whitespace-nowrap">{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
+                </div>
+                <div className="flex gap-2 mt-2.5 flex-wrap">
+                  <button type="button" onClick={() => choose(`Photos for ${name}`, a.photos, ids => setAlbum(i, { photos: ids, cover: a.cover && ids.includes(a.cover) ? a.cover : ids[0] ?? null }), true, 30)}
+                    className="h-9 px-3 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{a.photos.length ? "Change photos" : "Choose photos"}</button>
+                  {a.photos.length > 0 && <button type="button" onClick={() => choose(`Cover of ${name}`, a.cover ? [a.cover] : [], ids => setAlbum(i, { cover: ids[0] ?? null, photos: ids[0] && !a.photos.includes(ids[0]) ? [ids[0], ...a.photos].slice(0, 30) : a.photos }), false, 1, a.photos)}
+                    className="h-9 px-3 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Images className="w-4 h-4" />Change cover</button>}
+                  {cover && <button type="button" onClick={() => adjust(`album:${a.id}`, cover.id, `Cover of ${name}`, RATIO.album)}
+                    className="h-9 px-3 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Crop className="w-4 h-4" />Adjust cover</button>}
+                </div>
+              </div>
             </div>
-            <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
-              {a.photos.slice(0, 7).map(id => byId.get(id) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={id} src={small(byId.get(id)!)} alt="" loading="lazy" className="w-12 h-12 rounded-[8px] object-cover" />
-              ))}
-              {a.photos.length > 7 && <span className="text-xs text-[#6B6680] px-1">+{a.photos.length - 7}</span>}
-              <button type="button" onClick={() => choose(`Photos for ${a.title || "this album"}`, a.photos, ids => setAlbum(i, { photos: ids, cover: ids[0] ?? null }), true, 30)}
-                className="h-12 px-3.5 rounded-[8px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{a.photos.length ? "Change photos" : "Choose photos"}</button>
-              {ph(a.cover) && <button type="button" onClick={() => adjust(`album:${a.id}`, a.cover, `Cover of ${a.title || "this album"}`, RATIO.album)} className="h-12 px-3.5 rounded-[8px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Crop className="w-4 h-4" />Adjust cover</button>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {c.albums.length < 12 && (
           <button type="button" onClick={() => set("albums", [...c.albums, { id: newId(), title: "", tag: "", cover: null, photos: [] }])}
             className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add an album</button>
@@ -553,14 +578,16 @@ function FrameModal({ photo, title, ratio, value, onSave, onClose }: {
   );
 }
 
-function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload, uploading }: {
+function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload, uploading, first }: {
+  /** Photos to list before the others (an album's own photos when choosing its cover) */ first?: string[];
   photos: Photo[]; title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; onClose: () => void;
   /** Add photos from the computer or phone right here; they also land in All photos. */
   onUpload: (files: FileList | null) => Promise<Photo[]>; uploading: { done: number; total: number } | null;
 }) {
   const file = useRef<HTMLInputElement>(null);
   // Photos already in this place come first (in their order), then the rest, newest first.
-  const shown = [...value.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p), ...photos.filter(p => !value.includes(p.id))];
+  const lead = [...new Set([...value, ...(first ?? [])])];
+  const shown = [...lead.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p), ...photos.filter(p => !lead.includes(p.id))];
   const add = async (files: FileList | null) => {
     const added = await onUpload(files);
     if (file.current) file.current.value = "";

@@ -79,6 +79,21 @@ export function Ph({ p, alt, eager, className, style, sizes, crop }: { p?: SiteP
   );
 }
 
+/** An album as a clean photo; its name and "View gallery" come in on hover (always shown on touch screens). */
+export function AlbumCard({ a, photo, crop, onOpen, i, eager, count }: { a: SiteAlbum; photo?: SitePhoto; crop?: SiteCrop; onOpen: () => void; i: number; eager?: boolean; count?: boolean }) {
+  return (
+    <button type="button" className="alc" style={{ ["--i" as string]: Math.min(i, 9) }} onClick={onOpen} aria-label={`Open the album ${a.title}`}>
+      <Ph p={photo} alt="" eager={eager} sizes="(max-width: 860px) 46vw, 300px" crop={crop} />
+      <span className="alo">
+        <span className="alf" aria-hidden="true" />
+        <span className="pf alt">{a.title}</span>
+        {a.tag && <span className="cap altag">{count ? `${a.tag}  ·  ${a.photos.length} photos` : a.tag}</span>}
+        <span className="cap gold alb">View gallery</span>
+      </span>
+    </button>
+  );
+}
+
 export function Heading({ script, title, light }: { script: string; title: string; light?: boolean }) {
   return (
     <>
@@ -177,8 +192,6 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const shown = packages.filter(p => p.group === groups[Math.min(tab, groups.length - 1)]);
   const words = c.headline.split(/\s+/).filter(Boolean);
   const [aboutScript, ...aboutRest] = c.aboutTitle.split(/\s+/).filter(Boolean);
-  const half = Math.ceil(c.albums.length / 2);
-  const rows = c.albums.length > 5 ? [c.albums.slice(0, half), c.albums.slice(half)] : [c.albums];
   const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
   const wa = waLink(c.whatsapp || c.phone);
   const films = c.films ?? [];
@@ -240,10 +253,10 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
-            <div className="card dev" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
+            <div className="card dev hmain" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
               <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} />
             </div>
-            <div className="card dev" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
+            <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
               <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />
             </div>
             <div className="bob badge" aria-hidden="true" style={{ position: "absolute", left: -18, bottom: 18, width: 128, height: 128, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", translate: "calc(var(--mx, 0) * -30px) calc(var(--my, 0) * -22px)" }}>
@@ -255,15 +268,15 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             </div>
           </div>
           <div>
-            {c.script && <div className="sc" style={{ fontSize: "clamp(44px, 5vw, 74px)", lineHeight: 1, marginLeft: 6 }}><span className="wr" style={d(0.4)}>{c.script}</span></div>}
-            <h1 className="cz" style={{ margin: "6px 0 0", fontSize: "clamp(42px, 6.2vw, 96px)", lineHeight: 1.04, letterSpacing: ".04em" }}>
+            {c.script && <div className="sc hscr" style={{ lineHeight: 1, marginLeft: 6 }}><span className="wr" style={d(0.4)}>{c.script}</span></div>}
+            <h1 className="cz hh1" style={{ margin: "6px 0 0", lineHeight: 1.04, letterSpacing: ".04em" }}>
               {words.map((w, i) => (
                 <span key={i}><span className="wd"><span style={d(0.7 + i * 0.15)}>{w}</span></span>{words.length <= 3 ? <br /> : " "}</span>
               ))}
             </h1>
             {c.kicker && <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "30px 0 26px" }}><span style={{ width: 70, height: 1, background: "var(--ac)", flex: "none" }} /><span className="cap">{c.kicker}</span></div>}
-            {c.intro && <p style={{ margin: "0 0 34px", maxWidth: 420 }}>{c.intro}</p>}
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {c.intro && <p className="hintro" style={{ margin: "0 0 34px", maxWidth: 420 }}>{c.intro}</p>}
+            <div className="hbtns" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
               <a href="#book" className="cap gold shine btn">Book your date</a>
               {c.albums.length > 0 && <a href="#albums" className="cap ol">See our albums</a>}
             </div>
@@ -292,18 +305,11 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         </section>
 
         {c.albums.length > 0 && !hide.includes("albums") && (
-          <section id="albums" style={{ paddingBottom: "clamp(80px,10vw,150px)", overflow: "hidden" }}>
-            <div className="wrap rv" style={{ textAlign: "center", marginBottom: 54 }}><Heading script="recent" title="Albums" /></div>
-            {rows.map((row, r) => (
-              <div key={r} className={`rowx ${r ? "slR" : "slL"}`} style={{ marginBottom: r ? 0 : 26, padding: "14px 0" }}>
-                {Array.from({ length: Math.max(row.length, Math.ceil(9 / row.length) * row.length) }, (_, i) => row[i % row.length]).map((a, i) => (
-                  <button type="button" key={`${a.id}-${i}`} className="al" onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
-                    <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes="(max-width: 860px) 230px, 320px" crop={c.crop?.[`album:${a.id}`]} />
-                    <span className="nm"><span className="pf" style={{ fontSize: 21 }}>{a.title}</span><span className="ln" />{a.tag && <span className="cap" style={{ fontSize: 9 }}>{a.tag}</span>}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
+          <section id="albums" style={{ paddingBottom: "clamp(70px,8vw,120px)" }}>
+            <div className="wrap rv" style={{ textAlign: "center", marginBottom: 40 }}><Heading script="recent" title="Albums" /></div>
+            <div className="wrap agrid">
+              {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
+            </div>
             <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
           </section>
         )}
@@ -378,8 +384,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
 
       <footer style={{ background: "var(--dark)", color: "var(--ond)", position: "relative", overflow: "hidden" }}>
         <div className="wrap" style={{ paddingTop: "clamp(70px,9vw,110px)", textAlign: "center" }}>
-          <div className="sc rv" style={{ fontSize: "clamp(44px, 5vw, 70px)", lineHeight: 1, color: "var(--sc2)" }}>let us tell</div>
-          <h2 className="cz rv" style={{ margin: "4px 0 34px", fontSize: "clamp(30px, 5vw, 76px)", letterSpacing: ".08em", lineHeight: 1.1 }}>Your story next</h2>
+          <div className="sc rv" style={{ fontSize: "clamp(34px, 3.4vw, 48px)", lineHeight: 1, color: "var(--sc2)" }}>let us tell</div>
+          <h2 className="cz rv" style={{ margin: "4px 0 28px", fontSize: "clamp(26px, 3.2vw, 46px)", letterSpacing: ".08em", lineHeight: 1.1 }}>Your story next</h2>
           <Link href={bookHref} className="cap fbtn" style={{ display: "inline-block", padding: "18px 38px", border: "1px solid var(--ond2)", color: "var(--ond2)" }}>Book your date</Link>
         </div>
         <div className="wrap" style={{ paddingTop: "clamp(60px,8vw,90px)" }}>
@@ -420,7 +426,6 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             )}
           </div>
         </div>
-        <div aria-hidden="true" className="fbig cz">{studio.name}</div>
         <div className="wrap" style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap", paddingTop: 22, paddingBottom: 26, fontSize: 12 }}>
           <span style={{ opacity: 0.75 }}>© {new Date().getFullYear()} {studio.name}. All rights reserved.</span>
           <span style={{ display: "flex", gap: 22, opacity: 0.75, flexWrap: "wrap" }}><Link className="fl" href={L("/privacy")}>Privacy</Link><Link className="fl" href={L("/terms")}>Terms</Link><a href="https://stupanel.com" target="_blank" rel="noopener noreferrer" className="fl">Made with StuPanel</a></span>

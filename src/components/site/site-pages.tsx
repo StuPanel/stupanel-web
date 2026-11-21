@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
-import { BookForm, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
+import { AlbumCard, BookForm, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
@@ -84,10 +84,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         )}
         <section className="wrap pgrid" style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((a, i) => (
-            <button type="button" key={`${tag}-${a.id}`} className="al gal" style={{ ["--i" as string]: Math.min(i, 9) }} onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
-              <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" eager={i < 3} sizes="(max-width: 860px) 46vw, 400px" crop={c.crop?.[`album:${a.id}`]} />
-              <span className="nm"><span className="pf" style={{ fontSize: 22 }}>{a.title}</span><span className="ln" /><span className="cap" style={{ fontSize: 9 }}>{[a.tag, `${a.photos.length} photos`].filter(Boolean).join("  ·  ")}</span></span>
-            </button>
+            <AlbumCard key={`${tag}-${a.id}`} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} eager={i < 4} count />
           ))}
           {list.length === 0 && <p style={{ gridColumn: "1 / -1", textAlign: "center" }}>Albums are on their way.</p>}
         </section>

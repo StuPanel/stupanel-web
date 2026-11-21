@@ -5,15 +5,21 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Copy, ExternalLink, Eye, Globe, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy, Crop, ExternalLink, Eye, Globe, ImagePlus, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { SiteAlbum, SiteContent, SiteStory } from "@/components/site/site-view";
+import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory } from "@/components/site/site-view";
 
-type Photo = { id: string; url: string; width: number; height: number; blur: string };
+type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string };
+const small = (p: Photo) => p.thumbUrl || p.url;
+
+const TABS = [["design", "Design"], ["home", "Home page"], ["albums", "Albums"], ["films", "Films"], ["stories", "Stories"], ["more", "Packages, reviews, FAQ"], ["contact", "Contact"], ["photos", "All photos"]] as const;
+type Tab = (typeof TABS)[number][0];
+/** Shape of each place a photo goes (width / height), so the framing window matches the website. */
+const RATIO = { hero0: 4 / 3.1, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
 type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
   photos: Photo[]; photoLimit: number; studio: { name: string; logoUrl: string | null };
@@ -56,6 +62,9 @@ export default function WebsitePage() {
   const [slug, setSlug] = useState("");
   const [slugNote, setSlugNote] = useState<{ ok: boolean; message: string } | null>(null);
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void } | null>(null);
+  const [tab, setTab] = useState<Tab>("design");
+  const [allPhotos, setAllPhotos] = useState(false);
+  const [frame, setFrame] = useState<{ key: string; photo: Photo; title: string; ratio: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ theme?: string; content?: SiteContent }>({});
   const fileRef = useRef<HTMLInputElement>(null);
@@ -138,13 +147,14 @@ export default function WebsitePage() {
     } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
   };
 
-  const upload = async (files: FileList | null) => {
-    if (!files?.length || !site) return;
+  const upload = async (files: FileList | null): Promise<Photo[]> => {
+    if (!files?.length || !site) return [];
     const room = site.photoLimit - site.photos.length;
     const list = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, room);
-    if (!list.length) return notify(room <= 0 ? `The website holds ${site.photoLimit} photos. Remove some first.` : "Choose JPG, PNG or WebP photos.", { error: true });
+    if (!list.length) { notify(room <= 0 ? `The website holds ${site.photoLimit} photos. Remove some first.` : "Choose JPG, PNG or WebP photos.", { error: true }); return []; }
     if (files.length > list.length) notify(`Only ${list.length} added: the website holds ${site.photoLimit} photos.`);
     let failed = 0;
+    const added: Photo[] = [];
     setUploading({ done: 0, total: list.length });
     for (let i = 0; i < list.length; i++) {
       try {
@@ -153,6 +163,7 @@ export default function WebsitePage() {
         const res = await apiFetch(`${API}/site/photos`, { method: "POST", body: fd });
         if (!res.ok) throw new Error();
         const p = (await res.json()) as Photo;
+        added.push(p);
         setSite(s => (s ? { ...s, photos: [p, ...s.photos] } : s));
       } catch { failed++; }
       setUploading({ done: i + 1, total: list.length });
@@ -160,6 +171,7 @@ export default function WebsitePage() {
     setUploading(null);
     if (fileRef.current) fileRef.current.value = "";
     if (failed) notify(`${failed} photo${failed > 1 ? "s" : ""} could not be added. Try them again.`, { error: true });
+    return added;
   };
   const removePhoto = async (p: Photo) => {
     if (!(await askConfirm({ title: "Remove this photo?", message: "It is taken off the website and deleted. This cannot be undone.", confirmLabel: "Remove", danger: true }))) return;
@@ -184,6 +196,10 @@ export default function WebsitePage() {
   const status = !site.isPublished ? "Not published yet" : site.hasChanges ? "Published, with changes not yet published" : "Published";
 
   const ph = (id: string | null | undefined) => (id ? byId.get(id) : undefined);
+  const crops = c.crop ?? {};
+  /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
+  const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
+  const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
 
   return (
     <div className="xl:flex xl:gap-8 xl:items-start">
@@ -198,7 +214,14 @@ export default function WebsitePage() {
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{site.isPublished ? (site.hasChanges ? "Publish changes" : "Published") : "Publish"}
         </button>
       </PageHeader>
+      <div role="tablist" aria-label="Website parts" className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1 sticky top-0 z-20 bg-[#F5F3FA]/90 backdrop-blur pt-2">
+        {TABS.map(([id, name]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
+            className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors flex-shrink-0", tab === id ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658] hover:bg-[#EEEBF4]")}>{name}</button>
+        ))}
+      </div>
 
+      <div hidden={tab !== "design"}>
       <FormGroup title="Address" note={site.isPublished ? undefined : "The link works after you publish."}>
         <Field label="Your website link" hint={slugNote && slug !== site.slug ? <span className={slugNote.ok ? "text-[#1F8A4C]" : "text-[#C2304F]"}>{slugNote.message}</span> : "Small letters, numbers and dashes."}>
           {id => (
@@ -218,7 +241,9 @@ export default function WebsitePage() {
           )}
         </Field>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "design"}>
       <FormGroup title="Look" note="All five have the same sections and animation. You can change the look any time; your text and photos stay.">
         <div className="p-3 grid grid-cols-2 sm:grid-cols-5 gap-2.5" role="radiogroup" aria-label="Website look">
           {THEMES.map(t => {
@@ -236,8 +261,10 @@ export default function WebsitePage() {
           })}
         </div>
       </FormGroup>
+      </div>
 
-      <FormGroup title={`Photos (${site.photos.length} of ${site.photoLimit})`} note="Add your best photos here first, then choose where each one goes below. Use only photos you have the right to show.">
+      <div hidden={tab !== "photos"}>
+      <FormGroup title={`Photos (${site.photos.length} of ${site.photoLimit})`} note="Every photo on your website is kept here. You can also add a photo right where you use it. Use only photos you have the right to show.">
         <div className="p-3">
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => upload(e.target.files)} />
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -245,18 +272,25 @@ export default function WebsitePage() {
               className="aspect-square rounded-[12px] border border-dashed border-[#C9C3DA] hover:border-[#7D5CEF] bg-[#F5F3FA] text-[#4A4658] flex flex-col items-center justify-center gap-1 text-xs font-semibold">
               {uploading ? <><Loader2 className="w-5 h-5 animate-spin" />{uploading.done} of {uploading.total}</> : <><ImagePlus className="w-5 h-5" />Add photos</>}
             </button>
-            {site.photos.map(p => (
+            {shownPhotos.map(p => (
               <div key={p.id} className="relative aspect-square rounded-[12px] overflow-hidden group bg-[#F5F3FA]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover" }} />
+                <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover" }} />
                 <button type="button" onClick={() => removePhoto(p)} aria-label="Remove this photo"
                   className="absolute top-1 right-1 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
+          {site.photos.length > 11 && (
+            <button type="button" onClick={() => setAllPhotos(v => !v)} aria-expanded={allPhotos} className="mt-3 w-full h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center justify-center gap-1.5">
+              {allPhotos ? <><ChevronUp className="w-4 h-4" />Show fewer</> : <><ChevronDown className="w-4 h-4" />Show all {site.photos.length} photos</>}
+            </button>
+          )}
         </div>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "home"}>
       <FormGroup title="Top of the page">
         <Field label="Small handwritten line">{id => <input id={id} className={inputCls} value={c.script} maxLength={40} onChange={e => set("script", e.target.value)} />}</Field>
         <Field label="Big headline" hint="Two or three words look best.">{id => <input id={id} className={inputCls} value={c.headline} maxLength={60} onChange={e => set("headline", e.target.value)} />}</Field>
@@ -264,20 +298,24 @@ export default function WebsitePage() {
         <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
         <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
         <div className="px-4 py-3.5 flex gap-4">
-          <Slot p={ph(c.heroPhotos[0])} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
-          <Slot p={ph(c.heroPhotos[1])} label="Second photo" onPick={() => choose("Second photo (tall)", c.heroPhotos.slice(1, 2), ids => set("heroPhotos", [c.heroPhotos[0] ?? ids[0], ids[0]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(0, 1))} />
+          <Slot p={ph(c.heroPhotos[0])} crop={crops.hero0} onAdjust={() => adjust("hero0", c.heroPhotos[0], "Main photo", RATIO.hero0)} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
+          <Slot p={ph(c.heroPhotos[1])} crop={crops.hero1} onAdjust={() => adjust("hero1", c.heroPhotos[1], "Second photo", RATIO.hero1)} label="Second photo" onPick={() => choose("Second photo (tall)", c.heroPhotos.slice(1, 2), ids => set("heroPhotos", [c.heroPhotos[0] ?? ids[0], ids[0]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(0, 1))} />
         </div>
         <Field label="Moving words" hint="The events you cover, with a comma between them.">
           {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "home"}>
       <FormGroup title="About the studio">
         <Field label="Title" hint="The first word is shown in handwriting.">{id => <input id={id} className={inputCls} value={c.aboutTitle} maxLength={40} onChange={e => set("aboutTitle", e.target.value)} />}</Field>
         <Field label="Text">{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
-        <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
+        <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} crop={crops.about} onAdjust={() => adjust("about", c.aboutPhoto, "About photo", RATIO.about)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "albums"}>
       <FormGroup title="Albums" note="Each album opens as its own gallery. The first photo is the cover. Six or more albums fill two moving rows.">
         {c.albums.map((a, i) => (
           <div key={a.id} className="px-4 py-3.5">
@@ -291,11 +329,12 @@ export default function WebsitePage() {
             <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
               {a.photos.slice(0, 7).map(id => byId.get(id) && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={id} src={byId.get(id)!.url} alt="" className="w-12 h-12 rounded-[8px] object-cover" />
+                <img key={id} src={small(byId.get(id)!)} alt="" loading="lazy" className="w-12 h-12 rounded-[8px] object-cover" />
               ))}
               {a.photos.length > 7 && <span className="text-xs text-[#6B6680] px-1">+{a.photos.length - 7}</span>}
               <button type="button" onClick={() => choose(`Photos for ${a.title || "this album"}`, a.photos, ids => setAlbum(i, { photos: ids, cover: ids[0] ?? null }), true, 30)}
                 className="h-12 px-3.5 rounded-[8px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{a.photos.length ? "Change photos" : "Choose photos"}</button>
+              {ph(a.cover) && <button type="button" onClick={() => adjust(`album:${a.id}`, a.cover, `Cover of ${a.title || "this album"}`, RATIO.album)} className="h-12 px-3.5 rounded-[8px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Crop className="w-4 h-4" />Adjust cover</button>}
             </div>
           </div>
         ))}
@@ -304,13 +343,17 @@ export default function WebsitePage() {
             className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add an album</button>
         )}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "films"}>
       <FormGroup title="Wedding film" note="Leave the link empty to hide this part.">
         <Field label="YouTube link">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={c.filmUrl} maxLength={200} onChange={e => set("filmUrl", e.target.value)} />}</Field>
         <Field label="Film name">{id => <input id={id} className={inputCls} placeholder="Tanvir and Nusrat, the wedding film" value={c.filmTitle} maxLength={80} onChange={e => set("filmTitle", e.target.value)} />}</Field>
-        <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
+        <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} crop={crops.film} onAdjust={() => adjust("film", c.filmPhoto, "Film cover", RATIO.film)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "films"}>
       <FormGroup title="More films" note="These show on the Films page, under the film above. Up to 9.">
         {(c.films ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
@@ -325,11 +368,15 @@ export default function WebsitePage() {
           <button type="button" onClick={() => set("films", [...(c.films ?? []), { url: "", title: "", id: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a film</button>
         )}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "more"}>
       <FormGroup title="Packages" note="Shows your active packages from the Packages page, grouped by category, with their prices.">
         <SwitchRow label="Show packages and prices" on={c.showPackages} onChange={v => set("showPackages", v)} />
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "more"}>
       <FormGroup title="Reviews" note="Use real words from your clients, with their permission.">
         {c.reviews.map((r, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
@@ -344,7 +391,9 @@ export default function WebsitePage() {
           <button type="button" onClick={() => set("reviews", [...c.reviews, { text: "", name: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a review</button>
         )}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "stories"}>
       <FormGroup title="Stories (blog)" note="Short posts about weddings you covered. The Stories page appears in the menu when there is at least one with a title and text.">
         {(c.stories ?? []).map((x, i) => {
           const put = (patch: Partial<SiteStory>) => set("stories", (c.stories ?? []).map((y, k) => (k === i ? { ...y, ...patch } : y)));
@@ -358,7 +407,7 @@ export default function WebsitePage() {
                 <button type="button" aria-label={`Remove the story ${x.title || i + 1}`} onClick={() => set("stories", (c.stories ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
               </div>
               <textarea aria-label="Story text" className={cn(areaCls.replace("96px", "150px"), "mt-2")} placeholder="Write the story. An empty line starts a new paragraph." value={x.text} maxLength={4000} onChange={e => put({ text: e.target.value })} />
-              <div className="mt-2.5"><Slot p={ph(x.cover)} label="Cover photo" onPick={() => choose("Story cover (wide)", x.cover ? [x.cover] : [], ids => put({ cover: ids[0] ?? null }))} onClear={() => put({ cover: null })} /></div>
+              <div className="mt-2.5"><Slot p={ph(x.cover)} crop={crops[`story:${x.id}`]} onAdjust={() => adjust(`story:${x.id}`, x.cover, "Story cover", RATIO.story)} label="Cover photo" onPick={() => choose("Story cover (wide)", x.cover ? [x.cover] : [], ids => put({ cover: ids[0] ?? null }))} onClear={() => put({ cover: null })} /></div>
             </div>
           );
         })}
@@ -366,7 +415,9 @@ export default function WebsitePage() {
           <button type="button" onClick={() => set("stories", [...(c.stories ?? []), { id: newId(), title: "", date: "", cover: null, text: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a story</button>
         )}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "more"}>
       <FormGroup title="Questions and answers (FAQ)" note="The FAQ page appears in the menu when there is at least one question with an answer.">
         {(c.faqs ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
@@ -381,13 +432,17 @@ export default function WebsitePage() {
           <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
         )}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "design"}>
       <FormGroup title="Home page parts" note="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
         {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
           <SwitchRow key={k} label={label} on={!(c.hide ?? []).includes(k)} onChange={v => set("hide", v ? (c.hide ?? []).filter(x => x !== k) : [...(c.hide ?? []), k])} />
         ))}
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "contact"}>
       <FormGroup title="Contact" note="Empty boxes use the phone, email and address from your studio settings.">
         <Field label="Phone">{id => <input id={id} className={inputCls} inputMode="tel" value={c.phone} maxLength={30} onChange={e => set("phone", e.target.value)} />}</Field>
         <Field label="WhatsApp number">{id => <input id={id} className={inputCls} inputMode="tel" value={c.whatsapp} maxLength={30} onChange={e => set("whatsapp", e.target.value)} />}</Field>
@@ -395,19 +450,30 @@ export default function WebsitePage() {
         <Field label="Address">{id => <input id={id} className={inputCls} value={c.address} maxLength={200} onChange={e => set("address", e.target.value)} />}</Field>
         <Field label="Open hours">{id => <input id={id} className={inputCls} placeholder="Sat to Thu, 10 am to 8 pm" value={c.hours} maxLength={80} onChange={e => set("hours", e.target.value)} />}</Field>
       </FormGroup>
+      </div>
 
+      <div hidden={tab !== "contact"}>
       <FormGroup title="Social links and footer">
         <Field label="Facebook page">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://facebook.com/…" value={c.facebook} maxLength={200} onChange={e => set("facebook", e.target.value)} />}</Field>
         <Field label="Instagram">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://instagram.com/…" value={c.instagram} maxLength={200} onChange={e => set("instagram", e.target.value)} />}</Field>
         <Field label="YouTube channel">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtube.com/…" value={c.youtube} maxLength={200} onChange={e => set("youtube", e.target.value)} />}</Field>
         <Field label="One line about the studio (footer)">{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
       </FormGroup>
+      </div>
 
       {site.isPublished && (
         <button type="button" disabled={busy} onClick={() => publish(false)} className="text-sm font-semibold text-[#C2304F] px-1 mb-10">Take the website offline</button>
       )}
 
-      {pick && <PhotoPicker photos={site.photos} {...pick} onClose={() => setPick(null)} />}
+      {site.isPublished && site.hasChanges && (
+        <div className="sticky bottom-3 z-20 flex items-center gap-3 rounded-[16px] bg-[#17151F] text-white px-4 py-3 shadow-[0_12px_30px_rgba(22,18,40,.3)]" role="status">
+          <p className="flex-1 text-[13px] leading-snug">Your changes are saved, but visitors do not see them yet.</p>
+          <button type="button" disabled={busy} onClick={() => publish(true)} className="h-9 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-sm font-semibold flex-shrink-0">Publish changes</button>
+        </div>
+      )}
+      {pick && <PhotoPicker photos={site.photos} {...pick} onUpload={upload} uploading={uploading} onClose={() => setPick(null)} />}
+      {frame && <FrameModal {...frame} value={crops[frame.key]} onClose={() => setFrame(null)}
+        onSave={v => { const next = { ...crops }; if (v) next[frame.key] = v; else delete next[frame.key]; set("crop", next); setFrame(null); }} />}
     </div>
     <aside className="hidden xl:block sticky top-6 flex-shrink-0" aria-label="Live preview of your website">
       <p className="text-[13px] font-bold text-[#4A4658] mb-2 px-1">Live preview (phone)</p>
@@ -420,23 +486,86 @@ export default function WebsitePage() {
   );
 }
 
-function Slot({ p, label, onPick, onClear }: { p: Photo | undefined; label: string; onPick: () => void; onClear: () => void }) {
+function Slot({ p, label, onPick, onClear, crop, onAdjust }: { p: Photo | undefined; label: string; onPick: () => void; onClear: () => void; crop?: SiteCrop; onAdjust?: () => void }) {
   return (
-    <div className="relative w-[104px]">
+    <div className="relative w-[112px]">
       <button type="button" onClick={onPick} aria-label={p ? `Change ${label}` : `Choose ${label}`}
-        className="w-[104px] h-[104px] rounded-[14px] overflow-hidden bg-[#F5F3FA] border border-dashed border-[#C9C3DA] hover:border-[#7D5CEF] flex items-center justify-center text-[#6B6680] transition-colors">
+        className="w-[112px] h-[112px] rounded-[14px] overflow-hidden bg-[#F5F3FA] border border-dashed border-[#C9C3DA] hover:border-[#7D5CEF] flex items-center justify-center text-[#6B6680] transition-colors">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {p ? <img src={p.url} alt="" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover" }} /> : <ImagePlus className="w-6 h-6" />}
+        {p ? <img src={small(p)} alt="" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover", ...cropStyle(crop) }} /> : <ImagePlus className="w-6 h-6" />}
       </button>
       {p && <button type="button" onClick={onClear} aria-label={`Remove ${label}`} className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#17151F] text-white flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>}
       <p className="text-xs text-[#6B6680] mt-1.5 text-center">{label}</p>
+      {p && onAdjust && <button type="button" onClick={onAdjust} className="mt-1 w-full h-8 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-xs font-semibold text-[#4A4658] inline-flex items-center justify-center gap-1"><Crop className="w-3.5 h-3.5" />Adjust</button>}
     </div>
   );
 }
 
-function PhotoPicker({ photos, title, multi, max, value, done, onClose }: {
-  photos: Photo[]; title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; onClose: () => void;
+/** Move and zoom a photo inside the shape it has on the website. Nothing is cut from the photo itself. */
+function FrameModal({ photo, title, ratio, value, onSave, onClose }: {
+  photo: Photo; title: string; ratio: number; value?: SiteCrop; onSave: (v: SiteCrop | null) => void; onClose: () => void;
 }) {
+  const [v, setV] = useState<SiteCrop>(value ?? { x: 50, y: 50, z: 1 });
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [onClose]);
+  const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n * 10) / 10));
+  const move = (e: React.PointerEvent) => {
+    if (!drag.current || !box.current) return;
+    const r = box.current.getBoundingClientRect();
+    const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y;
+    drag.current = { x: e.clientX, y: e.clientY };
+    // Dragging right shows more of the left side of the photo.
+    setV(c => ({ ...c, x: clamp(c.x - (dx / r.width) * 140 / c.z), y: clamp(c.y - (dy / r.height) * 140 / c.z) }));
+  };
+  return (
+    <>
+      <div className="sp-backdrop z-[60]" onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label={`Adjust: ${title}`} className="fixed z-[70] inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-[520px] sm:h-fit max-h-[94dvh] overflow-y-auto bg-white rounded-t-[24px] sm:rounded-[24px] shadow-2xl p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[18px] font-extrabold text-[#17151F] truncate">Adjust: {title}</h2>
+            <p className="text-[13px] text-[#6B6680]">Drag the photo to move it. Use the slider to zoom.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] text-[#6B6680]"><X className="w-4 h-4" /></button>
+        </div>
+        <div ref={box} className="relative mx-auto overflow-hidden rounded-[12px] bg-[#F5F3FA] touch-none cursor-grab active:cursor-grabbing select-none"
+          style={{ aspectRatio: String(ratio), width: ratio >= 1 ? "100%" : `min(100%, ${Math.round(420 * ratio)}px)` }}
+          onPointerDown={e => { drag.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
+          onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={cropStyle({ ...v, z: Math.max(v.z, 1.0001) })} />
+        </div>
+        <label className="flex items-center gap-3 mt-4 text-[13px] font-semibold text-[#4A4658]">Zoom
+          <input type="range" min={1} max={3} step={0.05} value={v.z} onChange={e => setV(c => ({ ...c, z: Number(e.target.value) }))} className="flex-1 accent-[#7D5CEF]" />
+          <span className="w-10 text-right tabular-nums">{v.z.toFixed(1)}×</span>
+        </label>
+        <div className="flex gap-2 mt-5">
+          <button type="button" onClick={() => setV({ x: 50, y: 50, z: 1 })} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold text-[#4A4658]">Reset</button>
+          <button type="button" onClick={() => onSave(v.x === 50 && v.y === 50 && v.z === 1 ? null : v)} className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold">Use this</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload, uploading }: {
+  photos: Photo[]; title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; onClose: () => void;
+  /** Add photos from the computer or phone right here; they also land in All photos. */
+  onUpload: (files: FileList | null) => Promise<Photo[]>; uploading: { done: number; total: number } | null;
+}) {
+  const file = useRef<HTMLInputElement>(null);
+  const add = async (files: FileList | null) => {
+    const added = await onUpload(files);
+    if (file.current) file.current.value = "";
+    if (!added.length) return;
+    if (!multi) { done([added[0].id]); onClose(); return; }
+    setSel(s => [...s, ...added.map(p => p.id)].slice(0, max));
+  };
   const [sel, setSel] = useState<string[]>(value.filter(id => photos.some(p => p.id === id)));
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -459,16 +588,19 @@ function PhotoPicker({ photos, title, multi, max, value, done, onClose }: {
           <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] text-[#6B6680]"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 pb-4">
-          {photos.length === 0
-            ? <p className="text-sm text-[#6B6680] py-10 text-center">No photos yet. Close this and use “Add photos” first.</p>
-            : <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" multiple={multi} hidden onChange={e => add(e.target.files)} />
+          {<div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <button type="button" disabled={!!uploading} onClick={() => file.current?.click()}
+                className="aspect-square rounded-[12px] border border-dashed border-[#7D5CEF] bg-[#F5F3FA] text-[#7D5CEF] flex flex-col items-center justify-center gap-1 text-xs font-semibold text-center px-1">
+                {uploading ? <><Loader2 className="w-5 h-5 animate-spin" />{uploading.done} of {uploading.total}</> : <><Upload className="w-5 h-5" />Upload from this device</>}
+              </button>
               {photos.map(p => {
                 const n = sel.indexOf(p.id);
                 return (
                   <button key={p.id} type="button" onClick={() => tap(p.id)} aria-pressed={n >= 0} aria-label={n >= 0 ? "Chosen photo" : "Choose this photo"}
                     className={cn("relative aspect-square rounded-[12px] overflow-hidden border-[3px]", n >= 0 ? "border-[#7D5CEF]" : "border-transparent")}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" />
                     {n >= 0 && <span className="absolute top-1 right-1 min-w-6 h-6 px-1 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">{multi ? n + 1 : <Check className="w-3.5 h-3.5" />}</span>}
                   </button>
                 );

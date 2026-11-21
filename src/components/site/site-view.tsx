@@ -14,6 +14,9 @@ import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; blur: string };
 export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };
+/** How a photo sits in its frame: centre point in % and zoom (1 = fills the frame). */
+export type SiteCrop = { x: number; y: number; z: number };
+export const cropStyle = (c?: SiteCrop): React.CSSProperties => (c ? { objectPosition: `${c.x}% ${c.y}%`, transformOrigin: `${c.x}% ${c.y}%`, scale: c.z > 1 ? String(c.z) : undefined } : {});
 export type SiteAddon = { id: string; name: string; price: number; currency: string; unit: string };
 export type SiteAlbum = { id: string; title: string; tag: string; cover: string | null; photos: string[] };
 export type SitePackage = { id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[] };
@@ -23,7 +26,7 @@ export type SiteContent = {
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
-  stories?: SiteStory[]; hide?: string[];
+  stories?: SiteStory[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
 };
@@ -66,13 +69,13 @@ export const Ic = ({ d, size = 18, w = 1.5 }: { d: React.ReactNode; size?: numbe
 );
 
 /** A photo that shows its tiny blurred copy until the real one arrives. */
-export function Ph({ p, alt, eager, className, style, sizes }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties; /** How wide it is shown (CSS sizes); picks the small or the full copy */ sizes?: string }) {
+export function Ph({ p, alt, eager, className, style, sizes, crop }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties; /** Position and zoom chosen by the studio for this place */ crop?: SiteCrop; /** How wide it is shown (CSS sizes); picks the small or the full copy */ sizes?: string }) {
   if (!p) return <div className={`ph ${className ?? ""}`} style={{ width: "100%", height: "100%", ...style }} aria-hidden="true" />;
   const small = p.sm && p.w > 900 ? p.sm : null;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img className={`ph ${className ?? ""}`} src={p.url} srcSet={small ? `${small} 900w, ${p.url} ${p.w}w` : undefined} sizes={small ? sizes ?? "(max-width: 860px) 92vw, 50vw" : undefined}
-      alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async" fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: `url(${p.blur})`, ...style }} />
+      alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async" fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: `url(${p.blur})`, ...style, ...cropStyle(crop) }} />
   );
 }
 
@@ -238,10 +241,10 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
-              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager />
+              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} />
             </div>
             <div className="card dev" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
-              <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager />
+              <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />
             </div>
             <div className="bob badge" aria-hidden="true" style={{ position: "absolute", left: -18, bottom: 18, width: 128, height: 128, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", translate: "calc(var(--mx, 0) * -30px) calc(var(--my, 0) * -22px)" }}>
               <svg className="spin" viewBox="0 0 128 128" width="128" height="128" style={{ position: "absolute", inset: 0 }}>
@@ -283,7 +286,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           <div style={{ position: "relative", margin: "0 22px 22px 0" }}>
             <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
             <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
-              <Ph className="par" p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
+              <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
             </div>
           </div>
         </section>
@@ -295,7 +298,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
               <div key={r} className={`rowx ${r ? "slR" : "slL"}`} style={{ marginBottom: r ? 0 : 26, padding: "14px 0" }}>
                 {Array.from({ length: Math.max(row.length, Math.ceil(9 / row.length) * row.length) }, (_, i) => row[i % row.length]).map((a, i) => (
                   <button type="button" key={`${a.id}-${i}`} className="al" onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
-                    <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes="(max-width: 860px) 230px, 320px" />
+                    <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes="(max-width: 860px) 230px, 320px" crop={c.crop?.[`album:${a.id}`]} />
                     <span className="nm"><span className="pf" style={{ fontSize: 21 }}>{a.title}</span><span className="ln" />{a.tag && <span className="cap" style={{ fontSize: 9 }}>{a.tag}</span>}</span>
                   </button>
                 ))}
@@ -315,7 +318,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
               ) : (
                 <button type="button" className="film iris" onClick={() => setPlaying(true)} aria-label={`Play ${c.filmTitle || "the wedding film"}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {filmPoster && <img src={filmPoster} alt="" loading="lazy" decoding="async" />}
+                  {filmPoster && <img src={filmPoster} alt="" loading="lazy" decoding="async" style={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />}
                   <span className="play"><span className="gold"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 5 }}><path d="M6 4l14 8-14 8z" /></svg></span></span>
                 </button>
               )}

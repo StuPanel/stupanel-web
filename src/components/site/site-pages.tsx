@@ -85,7 +85,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <section className="wrap pgrid" style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((a, i) => (
             <button type="button" key={`${tag}-${a.id}`} className="al gal" style={{ ["--i" as string]: Math.min(i, 9) }} onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
-              <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" eager={i < 3} />
+              <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" eager={i < 3} sizes="(max-width: 860px) 46vw, 400px" crop={c.crop?.[`album:${a.id}`]} />
               <span className="nm"><span className="pf" style={{ fontSize: 22 }}>{a.title}</span><span className="ln" /><span className="cap" style={{ fontSize: 9 }}>{[a.tag, `${a.photos.length} photos`].filter(Boolean).join("  ·  ")}</span></span>
             </button>
           ))}
@@ -191,7 +191,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
           <div style={{ position: "relative", margin: "0 22px 22px 0" }}>
             <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
             <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
-              <Ph className="par" p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} eager style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
+              <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} eager style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
             </div>
           </div>
         </section>
@@ -274,7 +274,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <>
           <PageHead script={longDate(story.date) || "a story"} title={story.title} />
           <article className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
-            {story.cover && photos[story.cover] && <div style={{ maxWidth: 1080, margin: "0 auto 50px", aspectRatio: "16 / 9", overflow: "hidden" }}><Ph p={photos[story.cover]} alt="" eager sizes="(max-width: 860px) 92vw, 1080px" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
+            {story.cover && photos[story.cover] && <div style={{ maxWidth: 1080, margin: "0 auto 50px", aspectRatio: "16 / 9", overflow: "hidden" }}><Ph p={photos[story.cover]} alt="" eager crop={c.crop?.[`story:${story.id}`]} sizes="(max-width: 860px) 92vw, 1080px" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
             <div className="art">{story.text.split(/\n+/).filter(Boolean).map((t, i) => <p key={i}>{t}</p>)}</div>
             <div style={{ textAlign: "center", marginTop: 40 }}><Link href={L("/stories")} className="cap ul">All stories</Link></div>
           </article>
@@ -288,7 +288,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <section className="wrap stg" style={{ paddingTop: 56, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((x, i) => (
             <Link key={x.id} href={L(`/stories/${x.id}`)} className="stc" style={{ ["--i" as string]: Math.min(i, 8) }}>
-              <div className="im"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 33vw" /></div>
+              <div className="im"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 33vw" crop={c.crop?.[`story:${x.id}`]} /></div>
               {x.date && <div className="cap" style={{ fontSize: 9, color: "var(--mut)" }}>{longDate(x.date)}</div>}
               <h2 className="pf" style={{ margin: "6px 0 8px", fontSize: 26, fontWeight: 400, lineHeight: 1.25 }}>{x.title}</h2>
               <p style={{ margin: 0 }}>{x.text.replace(/\s+/g, " ").slice(0, 130)}{x.text.length > 130 ? "…" : ""}</p>

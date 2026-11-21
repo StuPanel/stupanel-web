@@ -1,6 +1,6 @@
 /**
  * A studio's public website: app.stupanel.com/site/<address>[/page].
- * The published copy is fetched on the server (fast first paint, readable by Google);
+ * The published copy is fetched on the server for every visit (readable by Google, and a Publish shows at once);
  * ?preview=1 shows the studio's own draft instead (needs the studio to be signed in).
  */
 import type { Metadata } from "next";
@@ -27,7 +27,7 @@ function route(path: string[] | undefined): { page: SitePageName; albumId?: stri
 async function load(slug: string): Promise<SiteData | null> {
   if (!/^[a-z0-9-]{1,40}$/.test(slug)) return null;
   try {
-    const res = await fetch(`${API_URL}/public/site/${slug}`, { next: { revalidate: 30 } });
+    const res = await fetch(`${API_URL}/public/site/${slug}`, { cache: "no-store" });
     return res.ok ? ((await res.json()) as SiteData) : null;
   } catch {
     return null;

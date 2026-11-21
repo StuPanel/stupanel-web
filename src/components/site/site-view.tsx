@@ -6,7 +6,9 @@
  * own preview of the draft.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { API_URL as API } from "@/lib/api";
+import { InnerPage } from "./site-pages";
 import "./site.css";
 
 export type SitePhoto = { url: string; w: number; h: number; blur: string };
@@ -17,6 +19,7 @@ export type SiteContent = {
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean;
   reviews: { text: string; name: string }[];
+  films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
 };
@@ -34,15 +37,17 @@ export const SITE_FONTS: Record<string, string> = {
 };
 export const fontHref = (theme: string) => `https://fonts.googleapis.com/css2?${SITE_FONTS[theme] ?? SITE_FONTS.signature}&display=swap`;
 
+export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms";
+
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
-const money = (n: number, cur: string) => (cur === "BDT" ? `৳ ${n.toLocaleString("en-IN")}` : `${cur} ${n.toLocaleString("en-US")}`);
+export const money = (n: number, cur: string) => (cur === "BDT" ? `৳ ${n.toLocaleString("en-IN")}` : `${cur} ${n.toLocaleString("en-US")}`);
 /** 017… (Bangladesh) → 88017…; anything else keeps its digits. */
-const waLink = (v: string) => {
+export const waLink = (v: string) => {
   const d = v.replace(/\D/g, "");
   return d ? `https://wa.me/${d.startsWith("0") ? "88" + d : d}` : "";
 };
 
-const ICON = {
+export const ICON = {
   fb: <path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z" />,
   ig: <><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r=".6" /></>,
   yt: <><rect x="2.5" y="5.5" width="19" height="13" rx="4" /><path d="M10 9.5l5 2.5-5 2.5z" /></>,
@@ -52,12 +57,12 @@ const ICON = {
   next: <path d="M9 5l7 7-7 7" />,
   menu: <path d="M4 8h16M4 16h16" />,
 };
-const Ic = ({ d, size = 18, w = 1.5 }: { d: React.ReactNode; size?: number; w?: number }) => (
+export const Ic = ({ d, size = 18, w = 1.5 }: { d: React.ReactNode; size?: number; w?: number }) => (
   <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 );
 
 /** A photo that shows its tiny blurred copy until the real one arrives. */
-function Ph({ p, alt, eager, className, style }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties }) {
+export function Ph({ p, alt, eager, className, style }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties }) {
   if (!p) return <div className={`ph ${className ?? ""}`} style={{ width: "100%", height: "100%", ...style }} aria-hidden="true" />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -66,7 +71,7 @@ function Ph({ p, alt, eager, className, style }: { p?: SitePhoto; alt: string; e
   );
 }
 
-function Heading({ script, title, light }: { script: string; title: string; light?: boolean }) {
+export function Heading({ script, title, light }: { script: string; title: string; light?: boolean }) {
   return (
     <>
       <div className="sc sch" style={light ? { color: "var(--sc2)" } : undefined}>{script}</div>
@@ -75,12 +80,12 @@ function Heading({ script, title, light }: { script: string; title: string; ligh
   );
 }
 
-export function SiteView({ data, preview }: { data: SiteData; preview?: boolean }) {
+export function SiteView({ data, preview, page = "home", albumId }: { data: SiteData; preview?: boolean; page?: SitePageName; albumId?: string }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
   const hero = useRef<HTMLElement>(null);
   const [menu, setMenu] = useState(false);
-  const [album, setAlbum] = useState<SiteAlbum | null>(null);
+  const [album, setAlbum] = useState<SiteAlbum | null>(() => (albumId ? data.content.albums.find(a => a.id === albumId) ?? null : null));
   const [shot, setShot] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [tab, setTab] = useState(0);
@@ -119,8 +124,15 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
   }, []);
 
   // Album and photo viewer: the phone's Back button closes them; the page behind does not scroll.
-  const openAlbum = (a: SiteAlbum) => { history.pushState({ sgAlbum: a.id }, ""); setAlbum(a); };
-  const closeAlbum = useCallback(() => { if (history.state?.sgAlbum) history.back(); else { setAlbum(null); setShot(null); } }, []);
+  const home = page === "home";
+  /** A page of this site (keeps the preview flag). */
+  const L = useCallback((path: string) => `/site/${data.slug}${path}${preview ? "?preview=1" : ""}`, [data.slug, preview]);
+  // Opening an album changes the address (so its link can be shared) without leaving the page.
+  const openAlbum = (a: SiteAlbum) => { history.pushState({ sgAlbum: a.id }, "", L(`/portfolio/${a.id}`)); setAlbum(a); };
+  const closeAlbum = useCallback(() => {
+    if (history.state?.sgAlbum) history.back();
+    else { setAlbum(null); setShot(null); if (albumId) history.replaceState(null, "", L("/portfolio")); }
+  }, [albumId, L]);
   useEffect(() => {
     const pop = () => { setShot(null); setAlbum(null); };
     window.addEventListener("popstate", pop);
@@ -153,10 +165,13 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
   const rows = c.albums.length > 5 ? [c.albums.slice(0, half), c.albums.slice(half)] : [c.albums];
   const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
   const wa = waLink(c.whatsapp || c.phone);
+  const films = c.films ?? [];
   const nav = [
-    c.albums.length ? ["#albums", "Photos"] : null, c.filmId ? ["#film", "Films"] : null, ["#about", "About"],
-    packages.length ? ["#packages", "Packages"] : null, c.reviews.length ? ["#reviews", "Reviews"] : null,
+    c.albums.length ? [L("/portfolio"), "Portfolio"] : null, films.length || c.filmId ? [L("/films"), "Films"] : null, [L("/about"), "About"],
+    packages.length ? [L("/packages"), "Packages"] : null, c.reviews.length ? [L("/reviews"), "Reviews"] : null,
   ].filter(Boolean) as [string, string][];
+  const bookHref = home ? "#book" : L("/contact");
+  const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
   const d = (s: number) => ({ animationDelay: `calc(var(--d) + ${s}s)` });
   const slot = [
@@ -167,42 +182,43 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
   const nRev = c.reviews.length;
 
   return (
-    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}`}>
+    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? "" : " noin inner"}`}>
       <link rel="stylesheet" href={fontHref(data.theme)} precedence="default" />
       <div className="prog" aria-hidden="true" />
 
-      <div className="cur" aria-hidden="true">
+      {home && <div className="cur" aria-hidden="true">
         <svg width="190" height="190" viewBox="0 0 200 200" fill="none">
           <circle cx="100" cy="100" r="92" stroke="var(--ac)" strokeWidth="1" />
           <path d="M100 22l14 14-14 14-14-14z" stroke="var(--ac)" strokeWidth="1" />
           <text x="100" y="118" textAnchor="middle" fill="var(--ond2)" style={{ fontFamily: "var(--fd)", fontSize: 44 }}>{initials(studio.name)}</text>
           <text x="100" y="150" textAnchor="middle" fill="var(--ac)" style={{ fontFamily: "var(--fb)", fontSize: 9, letterSpacing: 5 }}>{studio.name.toUpperCase().slice(0, 22)}</text>
         </svg>
-      </div>
+      </div>}
 
       <header className="wrap hd">
         <button type="button" className="mbtn" aria-label="Open the menu" aria-expanded={menu} onClick={() => setMenu(true)}><Ic d={ICON.menu} size={26} /></button>
-        <nav className="cap hnav" aria-label="Main" style={{ display: "flex", gap: 34 }}>{left.map(([h, t]) => <a key={h} className="navl" href={h}>{t}</a>)}</nav>
-        <a href="#top" style={{ textAlign: "center", gridColumn: 2 }} aria-label={studio.name}>
+        <nav className="cap hnav" aria-label="Main" style={{ display: "flex", gap: 34 }}>{left.map(([h, t]) => <Link key={h} className="navl" href={h} aria-current={h === L(`/${page}`) ? "page" : undefined}>{t}</Link>)}</nav>
+        <Link href={L("")} style={{ textAlign: "center", gridColumn: 2 }} aria-label={`${studio.name}, home`}>
           {studio.logoUrl
             // eslint-disable-next-line @next/next/no-img-element
             ? <img className="logo" src={studio.logoUrl} alt={studio.name} />
             : <span className="cz" style={{ display: "block", fontSize: "clamp(18px,2vw,26px)", letterSpacing: ".14em", lineHeight: 1.1 }}>{studio.name}</span>}
-        </a>
+        </Link>
         <div className="cap" style={{ display: "flex", gap: 30, justifyContent: "flex-end", alignItems: "center" }}>
-          {right.map(([h, t]) => <a key={h} className="navl" href={h}>{t}</a>)}
-          <a href="#book" className="gold shine hbook" style={{ padding: "13px 22px" }}>Book us</a>
+          {right.map(([h, t]) => <Link key={h} className="navl" href={h} aria-current={h === L(`/${page}`) ? "page" : undefined}>{t}</Link>)}
+          <Link href={bookHref} className="gold shine hbook" style={{ padding: "13px 22px" }}>Book us</Link>
         </div>
       </header>
 
       <div className={`mnu${menu ? " on" : ""}`} aria-hidden={!menu}>
         <button type="button" className="x" aria-label="Close the menu" onClick={() => setMenu(false)} tabIndex={menu ? 0 : -1}><Ic d={ICON.x} size={26} /></button>
-        {[...nav, ["#book", "Book us"] as [string, string]].map(([h, t], i) => (
-          <a key={h} href={h} onClick={() => setMenu(false)} tabIndex={menu ? 0 : -1} style={{ ["--i" as string]: i }}>{t}</a>
+        {[[L(""), "Home"] as [string, string], ...more].map(([h, t], i) => (
+          <Link key={h} href={h} onClick={() => setMenu(false)} tabIndex={menu ? 0 : -1} style={{ ["--i" as string]: i }}>{t}</Link>
         ))}
       </div>
 
       <main>
+        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
@@ -261,7 +277,7 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
             <div className="wrap rv" style={{ textAlign: "center", marginBottom: 54 }}><Heading script="recent" title="Albums" /></div>
             {rows.map((row, r) => (
               <div key={r} className={`rowx ${r ? "slR" : "slL"}`} style={{ marginBottom: r ? 0 : 26, padding: "14px 0" }}>
-                {[...row, ...(row.length < 6 ? row : [])].map((a, i) => (
+                {Array.from({ length: Math.max(row.length, Math.ceil(9 / row.length) * row.length) }, (_, i) => row[i % row.length]).map((a, i) => (
                   <button type="button" key={`${a.id}-${i}`} className="al" onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
                     <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" />
                     <span className="nm"><span className="pf" style={{ fontSize: 21 }}>{a.title}</span><span className="ln" />{a.tag && <span className="cap" style={{ fontSize: 9 }}>{a.tag}</span>}</span>
@@ -269,6 +285,7 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
                 ))}
               </div>
             ))}
+            <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
           </section>
         )}
 
@@ -337,13 +354,14 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
             <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} />
           </div>
         </section>
+        </>}
       </main>
 
       <footer style={{ background: "var(--dark)", color: "var(--ond)", position: "relative", overflow: "hidden" }}>
         <div className="wrap" style={{ paddingTop: "clamp(70px,9vw,110px)", textAlign: "center" }}>
           <div className="sc rv" style={{ fontSize: "clamp(44px, 5vw, 70px)", lineHeight: 1, color: "var(--sc2)" }}>let us tell</div>
           <h2 className="cz rv" style={{ margin: "4px 0 34px", fontSize: "clamp(30px, 5vw, 76px)", letterSpacing: ".08em", lineHeight: 1.1 }}>Your story next</h2>
-          <a href="#book" className="cap fbtn" style={{ display: "inline-block", padding: "18px 38px", border: "1px solid var(--ond2)", color: "var(--ond2)" }}>Book your date</a>
+          <Link href={bookHref} className="cap fbtn" style={{ display: "inline-block", padding: "18px 38px", border: "1px solid var(--ond2)", color: "var(--ond2)" }}>Book your date</Link>
         </div>
         <div className="wrap" style={{ paddingTop: "clamp(60px,8vw,90px)" }}>
           <div className="fline" aria-hidden="true" style={{ height: 1, background: "var(--ond2)", opacity: 0.35, transformOrigin: "left" }} />
@@ -368,7 +386,7 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
             )}
             <div>
               <div className="cap" style={{ fontSize: 10, color: "var(--ond2)", marginBottom: 16 }}>Explore</div>
-              {[...nav, ["#book", "Book us"] as [string, string]].map(([h, t]) => <span key={h}><a className="fl" href={h}>{t}</a><br /></span>)}
+              {more.map(([h, t]) => <span key={h}><Link className="fl" href={h}>{t}</Link><br /></span>)}
             </div>
             {(c.facebook || c.instagram || c.youtube || wa) && (
               <div>
@@ -386,7 +404,7 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
         <div aria-hidden="true" className="fbig cz">{studio.name}</div>
         <div className="wrap" style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap", paddingTop: 22, paddingBottom: 26, fontSize: 12 }}>
           <span style={{ opacity: 0.75 }}>© {new Date().getFullYear()} {studio.name}. All rights reserved.</span>
-          <a href="https://stupanel.com" target="_blank" rel="noopener noreferrer" className="fl" style={{ opacity: 0.6 }}>Made with StuPanel</a>
+          <span style={{ display: "flex", gap: 22, opacity: 0.75, flexWrap: "wrap" }}><Link className="fl" href={L("/privacy")}>Privacy</Link><Link className="fl" href={L("/terms")}>Terms</Link><a href="https://stupanel.com" target="_blank" rel="noopener noreferrer" className="fl">Made with StuPanel</a></span>
           <a href="#top" className="cap ftop" style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 10, color: "var(--ond2)" }}>Back to top<span style={{ width: 44, height: 44, border: "1px solid var(--ond2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic d={<path d="M12 20V5M5 11l7-7 7 7" />} size={14} w={1.6} /></span></a>
         </div>
       </footer>
@@ -428,7 +446,7 @@ export function SiteView({ data, preview }: { data: SiteData; preview?: boolean 
   );
 }
 
-function BookForm({ slug, preview, packages, ask, setAsk, wa }: { slug: string; preview?: boolean; packages: SitePackage[]; ask: string; setAsk: (v: string) => void; wa: string }) {
+export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare }: { slug: string; preview?: boolean; packages: SitePackage[]; ask: string; setAsk: (v: string) => void; wa: string; /** The page already has the heading */ bare?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
@@ -474,9 +492,11 @@ function BookForm({ slug, preview, packages, ask, setAsk, wa }: { slug: string; 
   }
   return (
     <>
-      <div className="sc sch">save</div>
-      <h2 className="cz h2" style={{ marginBottom: 14, letterSpacing: ".1em" }}>Your date</h2>
-      <p style={{ margin: "0 auto 40px", maxWidth: 460 }}>Tell us the date and we will get back to you with a quote.</p>
+      {!bare && <>
+        <div className="sc sch">save</div>
+        <h2 className="cz h2" style={{ marginBottom: 14, letterSpacing: ".1em" }}>Your date</h2>
+        <p style={{ margin: "0 auto 40px", maxWidth: 460 }}>Tell us the date and we will get back to you with a quote.</p>
+      </>}
       <form onSubmit={send} style={{ textAlign: "left" }} noValidate>
         <div className="fm">
           <label><span className="cap" style={{ fontSize: 10 }}>Your name</span><input type="text" name="name" autoComplete="name" maxLength={150} required /></label>

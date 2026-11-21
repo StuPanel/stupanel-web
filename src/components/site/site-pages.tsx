@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
-import { AlbumCard, BookForm, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
+import { AlbumCard, BookForm, MonoAlbums, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
@@ -82,12 +82,14 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             {["", ...tags].map(t => <button key={t} type="button" className="tab cap" onClick={() => setTag(t)} aria-pressed={t === tag}>{t || "All"}</button>)}
           </div>
         )}
+        {data.theme === "mono" ? <div style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}><MonoAlbums albums={list} photos={photos} crops={c.crop} onOpen={openAlbum} /></div> : (
         <section className="wrap pgrid" style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((a, i) => (
             <AlbumCard key={`${tag}-${a.id}`} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} eager={i < 4} count />
           ))}
           {list.length === 0 && <p style={{ gridColumn: "1 / -1", textAlign: "center" }}>Albums are on their way.</p>}
         </section>
+        )}
         {cta}
       </>
     );

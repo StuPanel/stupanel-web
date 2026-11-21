@@ -18,10 +18,12 @@ const TITLES: Record<Exclude<SitePageName, "home">, [string, string]> = {
 };
 
 function PageHead({ script, title, sub }: { script: string; title: string; sub?: string }) {
+  // A long title (a story's name) is set smaller so it stays two or three lines on a phone.
+  const long = title.length > 24;
   return (
     <div className="wrap pgh">
-      <div className="sc" style={{ fontSize: "clamp(44px, 5vw, 70px)", lineHeight: 1 }}><span className="wr" style={{ animationDelay: ".1s" }}>{script}</span></div>
-      <h1 className="cz" style={{ margin: "4px 0 0", fontSize: "clamp(36px, 5.4vw, 80px)", lineHeight: 1.06, letterSpacing: ".06em" }}>
+      <div className="sc" style={{ fontSize: long ? "clamp(30px, 3.4vw, 46px)" : "clamp(44px, 5vw, 70px)", lineHeight: 1 }}><span className="wr" style={{ animationDelay: ".1s" }}>{script}</span></div>
+      <h1 className="cz" style={{ margin: long ? "10px auto 0" : "4px 0 0", maxWidth: long ? 900 : undefined, fontSize: long ? "clamp(24px, 3.6vw, 50px)" : "clamp(36px, 5.4vw, 80px)", lineHeight: long ? 1.2 : 1.06, letterSpacing: long ? ".03em" : ".06em", textWrap: "balance" }}>
         {title.split(/\s+/).map((w, i) => <span key={i}><span className="wd"><span style={{ animationDelay: `${0.25 + i * 0.12}s` }}>{w}</span></span>{" "}</span>)}
       </h1>
       <div className="pgl" aria-hidden="true" />
@@ -286,7 +288,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <section className="wrap stg" style={{ paddingTop: 56, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((x, i) => (
             <Link key={x.id} href={L(`/stories/${x.id}`)} className="stc" style={{ ["--i" as string]: Math.min(i, 8) }}>
-              <div className="im ph"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 33vw" /></div>
+              <div className="im"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 33vw" /></div>
               {x.date && <div className="cap" style={{ fontSize: 9, color: "var(--mut)" }}>{longDate(x.date)}</div>}
               <h2 className="pf" style={{ margin: "6px 0 8px", fontSize: 26, fontWeight: 400, lineHeight: 1.25 }}>{x.title}</h2>
               <p style={{ margin: 0 }}>{x.text.replace(/\s+/g, " ").slice(0, 130)}{x.text.length > 130 ? "…" : ""}</p>

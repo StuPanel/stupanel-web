@@ -20,7 +20,7 @@ export type SitePackage = { id: string; name: string; group: string; price: numb
 export type SiteContent = {
   script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; events: string[];
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
-  filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean;
+  filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
   stories?: SiteStory[]; hide?: string[];
@@ -215,7 +215,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         <button type="button" className="mbtn" aria-label="Open the menu" aria-expanded={menu} onClick={() => setMenu(true)}><Ic d={ICON.menu} size={26} /></button>
         <nav className="cap hnav" aria-label="Main" style={{ display: "flex", gap: 34 }}>{left.map(([h, t]) => <Link key={h} className="navl" href={h} aria-current={h === L(`/${page}`) ? "page" : undefined}>{t}</Link>)}</nav>
         <Link href={L("")} style={{ textAlign: "center", gridColumn: 2 }} aria-label={`${studio.name}, home`}>
-          {studio.logoUrl
+          {studio.logoUrl && c.showLogo
             // eslint-disable-next-line @next/next/no-img-element
             ? <img className="logo" src={studio.logoUrl} alt={studio.name} />
             : <span className="cz" style={{ display: "block", fontSize: "clamp(18px,2vw,26px)", letterSpacing: ".14em", lineHeight: 1.1 }}>{studio.name}</span>}

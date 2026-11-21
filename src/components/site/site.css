@@ -310,3 +310,49 @@
 .sg .pvb{bottom:84px}
 }
 @media (prefers-reduced-motion:reduce){.sg .stc{opacity:1}}
+
+/* ── calmer Home (22-NOV): one large photo, quiet type, album grid with hover, lighter footer ── */
+.sg .hscr{font-size:clamp(34px,3.6vw,56px)}
+.sg .hh1{font-size:clamp(38px,4.6vw,72px)}
+.sg .h2{font-size:clamp(28px,2.8vw,44px)}
+.sg .sch{font-size:clamp(34px,3.2vw,44px)}
+.sg .sec{padding-top:clamp(60px,7vw,100px);padding-bottom:clamp(60px,7vw,110px)}
+.sg .out{font-size:clamp(26px,3vw,46px);opacity:.7}
+.sg .mq{gap:44px;animation-duration:70s}
+.sg .mq .fill{color:color-mix(in srgb,var(--ink) 60%,transparent)}
+.sg footer{font-size:14px}
+@media (min-width:861px){
+.sg .hero{grid-template-columns:1.45fr 1fr;gap:clamp(40px,5vw,80px);padding-top:26px!important;padding-bottom:70px!important}
+.sg .hero .hcol{padding:0!important}
+.sg .hero .hmain{rotate:0deg!important;translate:none!important;aspect-ratio:16 / 10!important;padding:0;box-shadow:0 24px 60px rgba(var(--sh),.2)}
+.sg .hero .hsec,.sg .hero .badge,.sg .hero .hintro,.sg .hero .hbtns{display:none!important}
+}
+.sg .agrid,.sg .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+.sg .alc{position:relative;display:block;width:100%;aspect-ratio:4 / 5;padding:0;border:0;overflow:hidden;background:var(--ph);cursor:pointer;color:#fff;font:inherit;box-shadow:0 14px 30px rgba(var(--sh),.14);opacity:0;animation:sgabi .9s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(.15s + var(--i) * .06s)}
+.sg .alc img,.sg .alc .ph{width:100%;height:100%;object-fit:cover;display:block;transition:transform 1.4s cubic-bezier(.2,.7,.2,1)}
+.sg .alc .alo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:26px;text-align:center;background:rgba(20,14,8,.5);opacity:0;transition:opacity .55s cubic-bezier(.2,.7,.2,1)}
+.sg .alc .alf{position:absolute;inset:16px;border:1px solid rgba(255,255,255,.75);transform:scale(1.06);opacity:0;transition:transform .7s cubic-bezier(.2,.7,.2,1),opacity .7s}
+.sg .alc .alt{font-size:clamp(17px,1.5vw,22px);line-height:1.25;transform:translateY(14px);transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.sg .alc .altag{font-size:9px;opacity:.85;transform:translateY(14px);transition:transform .6s cubic-bezier(.2,.7,.2,1) .04s}
+.sg .alc .alb{margin-top:6px;padding:10px 16px;font-size:9px;transform:translateY(18px);opacity:0;transition:transform .6s cubic-bezier(.2,.7,.2,1) .08s,opacity .6s .08s}
+.sg .alc:hover img,.sg .alc:focus-visible img{transform:scale(1.07)}
+.sg .alc:hover .alo,.sg .alc:focus-visible .alo{opacity:1}
+.sg .alc:hover .alf,.sg .alc:focus-visible .alf{transform:none;opacity:1}
+.sg .alc:hover .alt,.sg .alc:hover .altag,.sg .alc:focus-visible .alt,.sg .alc:focus-visible .altag{transform:none}
+.sg .alc:hover .alb,.sg .alc:focus-visible .alb{transform:none;opacity:1}
+/* touch screens have no hover: the name sits at the bottom, always */
+@media (hover:none){
+.sg .alc .alo{opacity:1;justify-content:flex-end;align-items:flex-start;text-align:left;padding:14px;gap:4px;background:linear-gradient(transparent 45%,rgba(20,14,8,.78))}
+.sg .alc .alf,.sg .alc .alb{display:none}
+.sg .alc .alt,.sg .alc .altag{transform:none}
+}
+.sg.t-cream .alc{border-radius:999px 999px 0 0;box-shadow:none}
+.sg.t-cream .alc .alf{border-radius:999px 999px 0 0}
+.sg.t-editorial .alc{box-shadow:none}
+.sg.t-dark .alc{box-shadow:0 18px 40px rgba(0,0,0,.5)}
+@media (max-width:860px){
+.sg .agrid,.sg .pgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.sg .alc .alt{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){.sg .alc{opacity:1}}
+@media (min-width:861px){.sg.t-cream .hero .hmain{border-radius:28px}.sg.t-gold .hero .hmain{padding:0;outline-offset:10px}}

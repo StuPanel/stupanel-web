@@ -11,7 +11,7 @@ import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit"
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { SiteAlbum, SiteContent } from "@/components/site/site-view";
+import type { SiteAlbum, SiteContent, SiteStory } from "@/components/site/site-view";
 
 type Photo = { id: string; url: string; width: number; height: number; blur: string };
 type Mine = {
@@ -49,6 +49,8 @@ export default function WebsitePage() {
   const [site, setSite] = useState<Mine | null>(null);
   const [state, setState] = useState<"load" | "ok" | "denied" | "error">("load");
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  /** Goes up after every saved change, so the side preview loads the new draft. */
+  const [rev, setRev] = useState(0);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [slug, setSlug] = useState("");
@@ -81,6 +83,7 @@ export default function WebsitePage() {
       // Keep what is on screen (the person may still be typing); take only the server's status.
       setSite(s => (s ? { ...s, hasChanges: d.hasChanges, isPublished: d.isPublished } : d));
       setSaving("saved");
+      setRev(n => n + 1);
     } catch {
       setSaving("idle");
       notify("Could not save. Check your internet and change it again.", { error: true });
@@ -183,7 +186,8 @@ export default function WebsitePage() {
   const ph = (id: string | null | undefined) => (id ? byId.get(id) : undefined);
 
   return (
-    <div className="max-w-[820px]">
+    <div className="xl:flex xl:gap-8 xl:items-start">
+    <div className="max-w-[820px] flex-1 min-w-0">
       <PageHeader icon={Globe} color="violet" title="Website" sub={<>{status}{saving === "saving" ? " · Saving" : saving === "saved" ? " · Draft saved" : ""}</>}>
         <a href={`/site/${site.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
           className="h-10 px-4 rounded-full bg-white border border-[#E4E0EC] hover:bg-[#F5F3FA] text-sm font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-1 sm:flex-none justify-center">
@@ -340,6 +344,28 @@ export default function WebsitePage() {
         )}
       </FormGroup>
 
+      <FormGroup title="Stories (blog)" note="Short posts about weddings you covered. The Stories page appears in the menu when there is at least one with a title and text.">
+        {(c.stories ?? []).map((x, i) => {
+          const put = (patch: Partial<SiteStory>) => set("stories", (c.stories ?? []).map((y, k) => (k === i ? { ...y, ...patch } : y)));
+          return (
+            <div key={x.id} className="px-4 py-3.5">
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 grid sm:grid-cols-[1fr_170px] gap-2">
+                  <input aria-label="Story title" className={inputCls} placeholder="A winter wedding in Feni" value={x.title} maxLength={100} onChange={e => put({ title: e.target.value })} />
+                  <input aria-label="Date" type="date" className={inputCls} value={x.date} onChange={e => put({ date: e.target.value })} />
+                </div>
+                <button type="button" aria-label={`Remove the story ${x.title || i + 1}`} onClick={() => set("stories", (c.stories ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+              </div>
+              <textarea aria-label="Story text" className={cn(areaCls.replace("96px", "150px"), "mt-2")} placeholder="Write the story. An empty line starts a new paragraph." value={x.text} maxLength={4000} onChange={e => put({ text: e.target.value })} />
+              <div className="mt-2.5"><Slot p={ph(x.cover)} label="Cover photo" onPick={() => choose("Story cover (wide)", x.cover ? [x.cover] : [], ids => put({ cover: ids[0] ?? null }))} onClear={() => put({ cover: null })} /></div>
+            </div>
+          );
+        })}
+        {(c.stories ?? []).length < 12 && (
+          <button type="button" onClick={() => set("stories", [...(c.stories ?? []), { id: newId(), title: "", date: "", cover: null, text: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a story</button>
+        )}
+      </FormGroup>
+
       <FormGroup title="Questions and answers (FAQ)" note="The FAQ page appears in the menu when there is at least one question with an answer.">
         {(c.faqs ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
@@ -353,6 +379,12 @@ export default function WebsitePage() {
         {(c.faqs ?? []).length < 12 && (
           <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
         )}
+      </FormGroup>
+
+      <FormGroup title="Home page parts" note="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
+        {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
+          <SwitchRow key={k} label={label} on={!(c.hide ?? []).includes(k)} onChange={v => set("hide", v ? (c.hide ?? []).filter(x => x !== k) : [...(c.hide ?? []), k])} />
+        ))}
       </FormGroup>
 
       <FormGroup title="Contact" note="Empty boxes use the phone, email and address from your studio settings.">
@@ -375,6 +407,14 @@ export default function WebsitePage() {
       )}
 
       {pick && <PhotoPicker photos={site.photos} {...pick} onClose={() => setPick(null)} />}
+    </div>
+    <aside className="hidden xl:block sticky top-6 flex-shrink-0" aria-label="Live preview of your website">
+      <p className="text-[13px] font-bold text-[#4A4658] mb-2 px-1">Live preview (phone)</p>
+      <div className="w-[390px] h-[760px] rounded-[36px] border-[10px] border-[#17151F] overflow-hidden bg-white shadow-[0_20px_50px_rgba(22,18,40,.18)]">
+        <iframe key={rev} src={`/site/${site.slug}?preview=1`} title="Website preview" className="w-full h-full border-0" />
+      </div>
+      <p className="text-xs text-[#6B6680] mt-2 px-1">Shows your draft. It reloads after each saved change.</p>
+    </aside>
     </div>
   );
 }

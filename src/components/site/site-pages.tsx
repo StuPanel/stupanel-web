@@ -7,13 +7,14 @@
  */
 import Link from "next/link";
 import { useState } from "react";
-import { BookForm, Ph, money, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
+import { BookForm, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
 
-type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string };
+type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
 const TITLES: Record<Exclude<SitePageName, "home">, [string, string]> = {
   portfolio: ["our", "Portfolio"], films: ["wedding", "Films"], packages: ["our", "Packages"], about: ["about", "The studio"],
   reviews: ["kind", "Words"], faq: ["good to", "Know"], contact: ["save", "Your date"], privacy: ["your", "Privacy"], terms: ["the", "Terms"],
+  stories: ["wedding", "Stories"], "thank-you": ["thank", "You"], notfound: ["lost", "Page"],
 };
 
 function PageHead({ script, title, sub }: { script: string; title: string; sub?: string }) {
@@ -47,11 +48,18 @@ function Film({ id, title, poster }: { id: string; title: string; poster?: strin
   );
 }
 
-export function InnerPage({ page, data, preview, L, openAlbum, wa }: Props) {
+const longDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
+
+export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId }: Props) {
   const { content: c, photos, packages, studio } = data;
+  const addons = data.addons ?? [];
+  // Build your own: one package and any add-ons; the choice travels to the booking form.
+  const [pick, setPick] = useState(() => (typeof window === "undefined" ? "" : readBuild(data.slug).pkg));
+  const [extra, setExtra] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(data.slug).addons));
+  const keep = (pkg: string, list: string[]) => { try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg, addons: list })); } catch { /* private window */ } };
   const [tag, setTag] = useState("");
   const [tab, setTab] = useState(0);
-  const [ask, setAsk] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? ""));
+  const [ask, setAsk] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? readBuild(data.slug).pkg));
   if (page === "home") return null;
   const [script, title] = TITLES[page];
   const askHref = (name: string) => `${L("/contact")}${preview ? "&" : "?"}package=${encodeURIComponent(name)}`;
@@ -126,8 +134,42 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa }: Props) {
             ))}
           </div>
           {packages.length === 0 && <p>Ask us for the current packages.</p>}
+          {packages.length > 0 && addons.length > 0 && (() => {
+            const chosen = packages.find(p => p.name === pick);
+            const cur = (chosen ?? packages[0]).currency;
+            const total = (chosen?.price ?? 0) + addons.filter(a => extra.includes(a.name)).reduce((n, a) => n + a.price, 0);
+            const toggle = (name: string) => { const list = extra.includes(name) ? extra.filter(x => x !== name) : [...extra, name]; setExtra(list); keep(pick, list); };
+            return (
+              <div id="build" style={{ marginTop: "clamp(70px,9vw,120px)" }}>
+                <div className="sc sch rv">build</div>
+                <h2 className="cz h2 rv">Your own</h2>
+                <div className="bld">
+                  <div>
+                    <div className="cap" style={{ fontSize: 10, color: "var(--mut)", marginBottom: 12 }}>1. Start with a package</div>
+                    {packages.map(p => (
+                      <label key={p.id} className="opt"><input type="radio" name="sg-pkg" checked={pick === p.name} onChange={() => { setPick(p.name); keep(p.name, extra); }} />
+                        <span><span className="pf" style={{ fontSize: 19 }}>{p.name}</span>{p.group && <span style={{ display: "block", fontSize: 12, color: "var(--mut)" }}>{p.group}</span>}</span><span className="pr">{money(p.price, p.currency)}</span></label>
+                    ))}
+                    <div className="cap" style={{ fontSize: 10, color: "var(--mut)", margin: "30px 0 12px" }}>2. Add what you need</div>
+                    {addons.map(a => (
+                      <label key={a.id} className="opt"><input type="checkbox" checked={extra.includes(a.name)} onChange={() => toggle(a.name)} />
+                        <span>{a.name}</span><span className="pr">+ {money(a.price, a.currency)}</span></label>
+                    ))}
+                  </div>
+                  <div className="sum" aria-live="polite">
+                    <div className="cap" style={{ fontSize: 10, color: "var(--ond2)", marginBottom: 14 }}>Your package</div>
+                    <div className="row"><span>{chosen?.name ?? "No package yet"}</span><span>{chosen ? money(chosen.price, chosen.currency) : ""}</span></div>
+                    {addons.filter(a => extra.includes(a.name)).map(a => <div className="row" key={a.id} style={{ opacity: 0.85 }}><span>{a.name}</span><span>{money(a.price, a.currency)}</span></div>)}
+                    <div className="row tot"><span>Total</span><span>{money(total, cur)}</span></div>
+                    <p style={{ margin: "14px 0 22px", fontSize: 13, opacity: 0.75 }}>A guide price for one event. The studio confirms the final quote.</p>
+                    <Link href={L("/contact")} className="cap gold shine btn" style={{ display: "block", textAlign: "center" }} onClick={() => keep(pick, extra)}>Send this to the studio</Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <p className="rv" style={{ margin: "56px auto 26px", maxWidth: 520 }}>Need something between two packages, or more days? We make custom quotes every week.</p>
-          <Link href={L("/contact")} className="cap gold shine btn">Ask for a custom quote</Link>
+          <Link href={L("/contact")} className="cap ol">Ask for a custom quote</Link>
         </section>
       </>
     );
@@ -207,7 +249,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa }: Props) {
         <section className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
           <div className="ctg">
             <div style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(30px,5vw,56px) clamp(22px,4vw,56px)", textAlign: "center", borderTop: "4px solid var(--ac)" }} id="book">
-              <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} bare />
+              <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
             </div>
             <aside>
               {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap ol" style={{ display: "block", textAlign: "center", marginBottom: 34 }}>Chat on WhatsApp</a>}
@@ -219,6 +261,64 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa }: Props) {
           </div>
         </section>
       </>
+    );
+  }
+
+  if (page === "stories") {
+    const list = c.stories ?? [];
+    const story = storyId ? list.find(x => x.id === storyId) : undefined;
+    if (story) {
+      return (
+        <>
+          <PageHead script={longDate(story.date) || "a story"} title={story.title} />
+          <article className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
+            {story.cover && photos[story.cover] && <div style={{ maxWidth: 1080, margin: "0 auto 50px", aspectRatio: "16 / 9", overflow: "hidden" }}><Ph p={photos[story.cover]} alt="" eager sizes="(max-width: 860px) 92vw, 1080px" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
+            <div className="art">{story.text.split(/\n+/).filter(Boolean).map((t, i) => <p key={i}>{t}</p>)}</div>
+            <div style={{ textAlign: "center", marginTop: 40 }}><Link href={L("/stories")} className="cap ul">All stories</Link></div>
+          </article>
+          {cta}
+        </>
+      );
+    }
+    return (
+      <>
+        <PageHead script={script} title={title} sub="Notes from the weddings we photograph." />
+        <section className="wrap stg" style={{ paddingTop: 56, paddingBottom: "clamp(70px,9vw,130px)" }}>
+          {list.map((x, i) => (
+            <Link key={x.id} href={L(`/stories/${x.id}`)} className="stc" style={{ ["--i" as string]: Math.min(i, 8) }}>
+              <div className="im ph"><Ph p={photos[x.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 33vw" /></div>
+              {x.date && <div className="cap" style={{ fontSize: 9, color: "var(--mut)" }}>{longDate(x.date)}</div>}
+              <h2 className="pf" style={{ margin: "6px 0 8px", fontSize: 26, fontWeight: 400, lineHeight: 1.25 }}>{x.title}</h2>
+              <p style={{ margin: 0 }}>{x.text.replace(/\s+/g, " ").slice(0, 130)}{x.text.length > 130 ? "…" : ""}</p>
+            </Link>
+          ))}
+          {list.length === 0 && <p style={{ gridColumn: "1 / -1", textAlign: "center" }}>Stories are on their way.</p>}
+        </section>
+      </>
+    );
+  }
+
+  if (page === "thank-you" || page === "notfound") {
+    const ok = page === "thank-you";
+    return (
+      <section className="wrap" style={{ textAlign: "center", paddingTop: "clamp(60px,9vw,120px)", paddingBottom: "clamp(90px,12vw,170px)" }}>
+        {ok && (
+          <svg width="84" height="84" viewBox="0 0 74 74" fill="none" aria-hidden="true" style={{ margin: "0 auto 22px", display: "block" }}>
+            <circle className="okc" style={{ strokeDasharray: 230, strokeDashoffset: 230 }} cx="37" cy="37" r="36" stroke="var(--ac)" strokeWidth="1" /><path className="okc" d="M22 38l10 10 20-22" stroke="var(--ac)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        <div className="sc" style={{ fontSize: "clamp(44px, 5vw, 70px)", lineHeight: 1 }}><span className="wr" style={{ animationDelay: ".1s" }}>{script}</span></div>
+        <h1 className="cz" style={{ margin: "4px 0 22px", fontSize: "clamp(36px, 5.4vw, 80px)", lineHeight: 1.06, letterSpacing: ".06em" }}><span className="wd"><span style={{ animationDelay: ".3s" }}>{title}</span></span></h1>
+        <p style={{ margin: "0 auto 34px", maxWidth: 480 }}>
+          {ok ? (preview ? "This is the preview, so nothing was sent. Visitors see this page after they send the form." : `Your enquiry reached ${studio.name}. We will call or message you soon.`)
+            : "This page is not here any more. The albums and packages are one tap away."}
+        </p>
+        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+          {ok && wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap gold shine btn">Chat on WhatsApp</a>}
+          <Link href={L("")} className="cap ol">Back to home</Link>
+          {c.albums.length > 0 && <Link href={L("/portfolio")} className="cap ol">See our albums</Link>}
+        </div>
+      </section>
     );
   }
 

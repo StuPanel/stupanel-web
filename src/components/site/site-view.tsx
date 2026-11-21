@@ -7,11 +7,14 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
 import "./site.css";
 
-export type SitePhoto = { url: string; w: number; h: number; blur: string };
+export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; blur: string };
+export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };
+export type SiteAddon = { id: string; name: string; price: number; currency: string; unit: string };
 export type SiteAlbum = { id: string; title: string; tag: string; cover: string | null; photos: string[] };
 export type SitePackage = { id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[] };
 export type SiteContent = {
@@ -20,12 +23,13 @@ export type SiteContent = {
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
+  stories?: SiteStory[]; hide?: string[];
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
 };
 export type SiteData = {
   slug: string; theme: string; studio: { name: string; logoUrl: string | null };
-  content: SiteContent; photos: Record<string, SitePhoto>; packages: SitePackage[];
+  content: SiteContent; photos: Record<string, SitePhoto>; packages: SitePackage[]; addons?: SiteAddon[];
 };
 
 export const SITE_FONTS: Record<string, string> = {
@@ -37,7 +41,7 @@ export const SITE_FONTS: Record<string, string> = {
 };
 export const fontHref = (theme: string) => `https://fonts.googleapis.com/css2?${SITE_FONTS[theme] ?? SITE_FONTS.signature}&display=swap`;
 
-export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms";
+export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms" | "stories" | "thank-you" | "notfound";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
 export const money = (n: number, cur: string) => (cur === "BDT" ? `৳ ${n.toLocaleString("en-IN")}` : `${cur} ${n.toLocaleString("en-US")}`);
@@ -62,12 +66,13 @@ export const Ic = ({ d, size = 18, w = 1.5 }: { d: React.ReactNode; size?: numbe
 );
 
 /** A photo that shows its tiny blurred copy until the real one arrives. */
-export function Ph({ p, alt, eager, className, style }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties }) {
+export function Ph({ p, alt, eager, className, style, sizes }: { p?: SitePhoto; alt: string; eager?: boolean; className?: string; style?: React.CSSProperties; /** How wide it is shown (CSS sizes); picks the small or the full copy */ sizes?: string }) {
   if (!p) return <div className={`ph ${className ?? ""}`} style={{ width: "100%", height: "100%", ...style }} aria-hidden="true" />;
+  const small = p.sm && p.w > 900 ? p.sm : null;
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img className={`ph ${className ?? ""}`} src={p.url} alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async"
-      fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: `url(${p.blur})`, ...style }} />
+    <img className={`ph ${className ?? ""}`} src={p.url} srcSet={small ? `${small} 900w, ${p.url} ${p.w}w` : undefined} sizes={small ? sizes ?? "(max-width: 860px) 92vw, 50vw" : undefined}
+      alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async" fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: `url(${p.blur})`, ...style }} />
   );
 }
 
@@ -80,7 +85,7 @@ export function Heading({ script, title, light }: { script: string; title: strin
   );
 }
 
-export function SiteView({ data, preview, page = "home", albumId }: { data: SiteData; preview?: boolean; page?: SitePageName; albumId?: string }) {
+export function SiteView({ data, preview, page = "home", albumId, storyId }: { data: SiteData; preview?: boolean; page?: SitePageName; albumId?: string; storyId?: string }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
   const hero = useRef<HTMLElement>(null);
@@ -91,6 +96,14 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
   const [tab, setTab] = useState(0);
   const [rev, setRev] = useState(0);
   const [ask, setAsk] = useState("");
+  // A slim bar with the menu and Book us comes back when the visitor scrolls up.
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const on = () => { const y = window.scrollY; setStuck(y > 500 && y < last); last = y; };
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
 
   // The opening curtain plays once per visit, not on every load.
   useLayoutEffect(() => {
@@ -166,9 +179,12 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
   const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
   const wa = waLink(c.whatsapp || c.phone);
   const films = c.films ?? [];
+  const hide = c.hide ?? [];
+  const router = useRouter();
+  const thanks = useCallback(() => router.push(L("/thank-you")), [router, L]);
   const nav = [
     c.albums.length ? [L("/portfolio"), "Portfolio"] : null, films.length || c.filmId ? [L("/films"), "Films"] : null, [L("/about"), "About"],
-    packages.length ? [L("/packages"), "Packages"] : null, c.reviews.length ? [L("/reviews"), "Reviews"] : null,
+    packages.length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null, c.reviews.length ? [L("/reviews"), "Reviews"] : null,
   ].filter(Boolean) as [string, string][];
   const bookHref = home ? "#book" : L("/contact");
   const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
@@ -218,7 +234,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
       </div>
 
       <main>
-        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} /> : <>
+        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev" style={{ aspectRatio: "4 / 3.1", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
@@ -251,7 +267,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           </div>
         </section>
 
-        {c.events.length > 0 && (
+        {c.events.length > 0 && !hide.includes("marquee") && (
           <div aria-hidden="true" style={{ overflow: "hidden", padding: "10px 0 40px" }}>
             <div className="mq cz out">{[...c.events, ...c.events, ...c.events, ...c.events].map((e, i) => <span key={i} className={i % 2 ? "fill" : undefined}>{e}</span>)}</div>
           </div>
@@ -272,14 +288,14 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           </div>
         </section>
 
-        {c.albums.length > 0 && (
+        {c.albums.length > 0 && !hide.includes("albums") && (
           <section id="albums" style={{ paddingBottom: "clamp(80px,10vw,150px)", overflow: "hidden" }}>
             <div className="wrap rv" style={{ textAlign: "center", marginBottom: 54 }}><Heading script="recent" title="Albums" /></div>
             {rows.map((row, r) => (
               <div key={r} className={`rowx ${r ? "slR" : "slL"}`} style={{ marginBottom: r ? 0 : 26, padding: "14px 0" }}>
                 {Array.from({ length: Math.max(row.length, Math.ceil(9 / row.length) * row.length) }, (_, i) => row[i % row.length]).map((a, i) => (
                   <button type="button" key={`${a.id}-${i}`} className="al" onClick={() => openAlbum(a)} aria-label={`Open the album ${a.title}`}>
-                    <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" />
+                    <Ph p={photos[a.cover ?? a.photos[0] ?? ""]} alt="" sizes="(max-width: 860px) 230px, 320px" />
                     <span className="nm"><span className="pf" style={{ fontSize: 21 }}>{a.title}</span><span className="ln" />{a.tag && <span className="cap" style={{ fontSize: 9 }}>{a.tag}</span>}</span>
                   </button>
                 ))}
@@ -289,7 +305,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           </section>
         )}
 
-        {c.filmId && (
+        {c.filmId && !hide.includes("film") && (
           <section id="film" style={{ background: "var(--dark)", color: "var(--ond)", padding: "clamp(70px,9vw,120px) 0" }}>
             <div className="wrap" style={{ textAlign: "center" }}>
               <Heading script="wedding" title="Films" light />
@@ -308,7 +324,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           </section>
         )}
 
-        {packages.length > 0 && (
+        {packages.length > 0 && !hide.includes("packages") && (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
             <Heading script="our" title="Packages" />
             {groups.length > 1 && (
@@ -330,7 +346,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           </section>
         )}
 
-        {nRev > 0 && (
+        {nRev > 0 && !hide.includes("reviews") && (
           <section id="reviews" style={{ background: "var(--panel)", padding: "clamp(70px,9vw,120px) 28px clamp(80px,9vw,130px)", textAlign: "center" }}>
             <Heading script="kind" title="Words" />
             <div style={{ height: 56 }} />
@@ -351,7 +367,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
 
         <section id="book" className="wrap sec">
           <div className="rv" style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(44px,6vw,70px) clamp(22px, 6vw, 90px)", textAlign: "center", borderTop: "4px solid var(--ac)" }}>
-            <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} />
+            <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} onDone={thanks} />
           </div>
         </section>
         </>}
@@ -421,7 +437,7 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           <div className="abg">
             {shots.map((p, i) => (
               <button type="button" key={p.url} onClick={() => setShot(i)} aria-label={`Open photo ${i + 1} of ${shots.length}`} style={{ ["--i" as string]: Math.min(i, 12) }}>
-                <Ph p={p} alt="" eager={i < 4} />
+                <Ph p={p} alt="" eager={i < 4} sizes="(max-width: 860px) 46vw, 32vw" />
               </button>
             ))}
           </div>
@@ -441,33 +457,59 @@ export function SiteView({ data, preview, page = "home", albumId }: { data: Site
           <div className="vc" aria-hidden="true">{shot + 1} / {shots.length}</div>
         </div>
       )}
+      <div className={`stk${stuck ? " on" : ""}`} aria-hidden={!stuck}>
+        <button type="button" className="mbtn2" aria-label="Open the menu" onClick={() => setMenu(true)} tabIndex={stuck ? 0 : -1}><Ic d={ICON.menu} size={24} /></button>
+        <Link href={L("")} className="cz" tabIndex={stuck ? 0 : -1} style={{ fontSize: 17, letterSpacing: ".14em" }}>{studio.name}</Link>
+        <Link href={bookHref} className="cap gold" tabIndex={stuck ? 0 : -1} style={{ padding: "11px 18px", fontSize: 10 }}>Book us</Link>
+      </div>
+      {wa && !album && <a className="waf" href={wa} target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp"><Ic d={ICON.wa} size={26} w={1.6} /></a>}
       {preview && <div className="pvb" role="status">Preview: only you can see this</div>}
     </div>
   );
 }
 
-export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare }: { slug: string; preview?: boolean; packages: SitePackage[]; ask: string; setAsk: (v: string) => void; wa: string; /** The page already has the heading */ bare?: boolean }) {
+type Ev = { date: string; shift: string; pkg: string };
+/** What the visitor put together on the Packages page, carried to the form (this browser tab only). */
+export const buildKey = (slug: string) => `sg-build-${slug}`;
+export function readBuild(slug: string): { pkg: string; addons: string[] } {
+  try {
+    const b = JSON.parse(sessionStorage.getItem(buildKey(slug)) || "null");
+    return { pkg: typeof b?.pkg === "string" ? b.pkg : "", addons: Array.isArray(b?.addons) ? b.addons.filter((x: unknown) => typeof x === "string").slice(0, 20) : [] };
+  } catch { return { pkg: "", addons: [] }; }
+}
+
+export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDone }: {
+  slug: string; preview?: boolean; packages: SitePackage[]; ask: string; setAsk: (v: string) => void; wa: string;
+  /** The page already has the heading */ bare?: boolean; /** After a sent enquiry (goes to the Thank-you page) */ onDone?: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
+  // The first event's package is `ask` (set by "Ask about this"); the others keep their own.
+  const [events, setEvents] = useState<Ev[]>([{ date: "", shift: "", pkg: "" }]);
+  const [addons, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
+  const setEv = (i: number, patch: Partial<Ev>) => setEvents(list => list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
 
   const send = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
     const f = new FormData(e.currentTarget);
+    const list = events.map((ev, i) => ({ date: ev.date || undefined, shift: ev.shift || undefined, packageName: (i === 0 ? ask : ev.pkg) || undefined })).filter(ev => ev.date || ev.shift || ev.packageName);
     const body = {
       name: String(f.get("name") || "").trim(), phone: String(f.get("phone") || "").trim(),
-      date: String(f.get("date") || "") || undefined, packageName: ask || undefined,
+      date: list.find(ev => ev.date)?.date, packageName: ask || undefined,
+      events: list.length > 1 || list[0]?.shift ? list : undefined, addons: addons.length ? addons : undefined,
       message: String(f.get("message") || "").trim() || undefined, website: String(f.get("website") || "") || undefined,
     };
     if (!body.name) return setErr("Please write your name.");
     if (body.phone.replace(/\D/g, "").length < 7) return setErr("Please write a phone number we can reach you on.");
     setErr("");
-    if (preview) return setDone(true);
+    const finish = () => { try { sessionStorage.removeItem(buildKey(slug)); } catch { /* private window */ } if (onDone) onDone(); else setDone(true); };
+    if (preview) return finish();
     setBusy(true);
     try {
       const res = await fetch(`${API}/public/site/${slug}/enquiry`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) setDone(true);
+      if (res.ok) finish();
       else if (res.status === 429) setErr("Too many tries. Please wait a minute and send again.");
       else setErr("That did not go through. Please check the phone number and send again.");
     } catch {
@@ -480,9 +522,6 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare }: { s
   if (done) {
     return (
       <div className="ok" role="status">
-        <svg width="74" height="74" viewBox="0 0 74 74" fill="none" aria-hidden="true" style={{ margin: "0 auto 18px", display: "block" }}>
-          <circle cx="37" cy="37" r="36" stroke="var(--ac)" strokeWidth="1" /><path className="okc" d="M22 38l10 10 20-22" stroke="var(--ac)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
         <div className="sc sch">thank you</div>
         <h2 className="cz h2" style={{ marginBottom: 14 }}>Enquiry sent</h2>
         <p style={{ margin: "0 auto 26px", maxWidth: 460 }}>{preview ? "This is the preview, so nothing was sent." : "We have your date. The studio will call or message you soon."}</p>
@@ -498,22 +537,40 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare }: { s
         <p style={{ margin: "0 auto 40px", maxWidth: 460 }}>Tell us the date and we will get back to you with a quote.</p>
       </>}
       <form onSubmit={send} style={{ textAlign: "left" }} noValidate>
-        <div className="fm">
+        <div className="fm2" style={{ marginTop: 0 }}>
           <label><span className="cap" style={{ fontSize: 10 }}>Your name</span><input type="text" name="name" autoComplete="name" maxLength={150} required /></label>
           <label><span className="cap" style={{ fontSize: 10 }}>Phone or WhatsApp</span><input type="tel" name="phone" autoComplete="tel" inputMode="tel" maxLength={30} required /></label>
-          <label><span className="cap" style={{ fontSize: 10 }}>Wedding date</span><input type="date" name="date" /></label>
         </div>
-        <div className="fm2">
-          {packages.length > 0 && (
-            <label><span className="cap" style={{ fontSize: 10 }}>Package (if you have one in mind)</span>
-              <select name="packageName" value={ask} onChange={e => setAsk(e.target.value)}>
-                <option value="">Not sure yet</option>
-                {packages.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+        {events.map((ev, i) => (
+          <fieldset key={i} className="evr">
+            <legend className="cap" style={{ fontSize: 10 }}>{events.length > 1 ? `Event ${i + 1}` : "Your event"}</legend>
+            <label><span className="cap" style={{ fontSize: 10 }}>Date</span><input type="date" value={ev.date} onChange={e => setEv(i, { date: e.target.value })} /></label>
+            <label><span className="cap" style={{ fontSize: 10 }}>Time of day</span>
+              <select value={ev.shift} onChange={e => setEv(i, { shift: e.target.value })}>
+                <option value="">Not sure yet</option><option>Morning</option><option>Day</option><option>Evening</option><option>Full day</option>
               </select>
             </label>
-          )}
-          <label style={packages.length ? undefined : { gridColumn: "1 / -1" }}><span className="cap" style={{ fontSize: 10 }}>Anything we should know</span><textarea name="message" maxLength={1000} placeholder="Venue, events, number of days" /></label>
-        </div>
+            {packages.length > 0 && (
+              <label><span className="cap" style={{ fontSize: 10 }}>Package</span>
+                <select value={i === 0 ? ask : ev.pkg} onChange={e => (i === 0 ? setAsk(e.target.value) : setEv(i, { pkg: e.target.value }))}>
+                  <option value="">Not sure yet</option>
+                  {packages.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              </label>
+            )}
+            {events.length > 1 && <button type="button" className="evx" aria-label={`Remove event ${i + 1}`} onClick={() => { if (i === 0) setAsk(events[1].pkg); setEvents(list => list.filter((_, k) => k !== i)); }}><Ic d={ICON.x} size={16} /></button>}
+          </fieldset>
+        ))}
+        {events.length < 6 && <button type="button" className="cap ul" style={{ marginTop: 18, fontSize: 10 }} onClick={() => setEvents(list => [...list, { date: "", shift: "", pkg: "" }])}>+ Add another event</button>}
+        {addons.length > 0 && (
+          <div style={{ marginTop: 26 }}>
+            <span className="cap" style={{ fontSize: 10, display: "block", marginBottom: 8 }}>Add-ons you picked</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {addons.map(a => <button type="button" key={a} className="chip" onClick={() => setAddons(l => l.filter(x => x !== a))} aria-label={`Remove ${a}`}>{a}<Ic d={ICON.x} size={12} /></button>)}
+            </div>
+          </div>
+        )}
+        <label style={{ display: "block", marginTop: 26 }}><span className="cap" style={{ fontSize: 10 }}>Anything we should know</span><textarea name="message" maxLength={1000} placeholder="Venue, number of guests, anything special" /></label>
         <label className="hp" aria-hidden="true">Website<input type="text" name="website" tabIndex={-1} autoComplete="off" /></label>
         {err && <p className="err" role="alert">{err}</p>}
         <div style={{ textAlign: "center", marginTop: 34 }}>

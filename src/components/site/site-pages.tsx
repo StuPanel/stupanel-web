@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
-import { AlbumCard, BookForm, MonoAlbums, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
+import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
@@ -64,6 +64,8 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   const [ask, setAsk] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? readBuild(data.slug).pkg));
   if (page === "home") return null;
   const [script, title] = TITLES[page];
+  /** The gallery look has its own, plainer pages. */
+  const mono = data.theme === "mono";
   const askHref = (name: string) => `${L("/contact")}${preview ? "&" : "?"}package=${encodeURIComponent(name)}`;
   const cta = (
     <div className="wrap rv" style={{ textAlign: "center", paddingBottom: "clamp(70px,9vw,130px)" }}>
@@ -74,6 +76,16 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   if (page === "portfolio") {
     const tags = Array.from(new Set(c.albums.map(a => a.tag).filter(Boolean)));
     const list = c.albums.filter(a => !tag || a.tag === tag);
+    if (mono) return (
+      <section className="wrap" style={{ paddingBottom: "clamp(70px,9vw,130px)" }}>
+        <div className="mhd">
+          <h1 className="cz">Work</h1>
+          {tags.length > 1 && <div className="mtabs">{["", ...tags].map(t => <button key={t} type="button" onClick={() => setTag(t)} aria-pressed={t === tag}>{t || "All work"}</button>)}</div>}
+        </div>
+        <MonoAlbums key={tag} albums={list} photos={photos} crops={c.crop} onOpen={openAlbum} rows />
+        {list.length === 0 && <p>Albums are on their way.</p>}
+      </section>
+    );
     return (
       <>
         <PageHead script={script} title={title} sub="Every album is one family's day. Open one to see it in full." />
@@ -82,14 +94,12 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             {["", ...tags].map(t => <button key={t} type="button" className="tab cap" onClick={() => setTag(t)} aria-pressed={t === tag}>{t || "All"}</button>)}
           </div>
         )}
-        {data.theme === "mono" ? <div style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}><MonoAlbums albums={list} photos={photos} crops={c.crop} onOpen={openAlbum} /></div> : (
         <section className="wrap pgrid" style={{ paddingTop: 46, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {list.map((a, i) => (
             <AlbumCard key={`${tag}-${a.id}`} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} eager={i < 4} count />
           ))}
           {list.length === 0 && <p style={{ gridColumn: "1 / -1", textAlign: "center" }}>Albums are on their way.</p>}
         </section>
-        )}
         {cta}
       </>
     );
@@ -176,6 +186,24 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
     );
   }
 
+  if (page === "about" && mono) {
+    const banner = c.aboutPhoto ? photos[c.aboutPhoto] : undefined;
+    return (
+      <>
+        {banner && <div className="mban"><Ph p={banner} alt={`${studio.name} at work`} eager sizes="100vw" crop={c.crop?.about} /></div>}
+        <section className="wrap mab">
+          <h1 className="cz">About {studio.name}</h1>
+          <div>
+            {c.aboutTitle && <p className="mlead">{c.aboutTitle}</p>}
+            {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i}>{t}</p>)}
+            {(c.address || c.hours) && <p style={{ whiteSpace: "pre-line", color: "var(--mut)" }}>{[c.address, c.hours].filter(Boolean).join("\n")}</p>}
+            <p style={{ marginTop: 30 }}><Link href={L("/contact")} className="mlk">Book us</Link></p>
+          </div>
+        </section>
+      </>
+    );
+  }
+
   if (page === "about") {
     return (
       <>
@@ -243,6 +271,25 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
     );
   }
 
+  if (page === "contact" && mono) {
+    return (
+      <section className="wrap" style={{ paddingTop: 20, paddingBottom: "clamp(70px,9vw,130px)" }}>
+        <div className="mbk" id="book">
+          <h1 className="cz">Make a booking</h1>
+          <p className="mbs">Fill in the form and we will prepare your quotation.</p>
+          <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
+        </div>
+        <div className="mct">
+          {c.phone && <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a>}
+          {wa && <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+          {c.email && <a href={`mailto:${c.email}`} style={{ overflowWrap: "anywhere" }}>{c.email}</a>}
+          {c.address && <span style={{ whiteSpace: "pre-line" }}>{c.address}</span>}
+          {c.hours && <span>{c.hours}</span>}
+        </div>
+      </section>
+    );
+  }
+
   if (page === "contact") {
     return (
       <>
@@ -281,6 +328,13 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         </>
       );
     }
+    if (mono) return (
+      <section className="wrap" style={{ paddingBottom: "clamp(70px,9vw,130px)" }}>
+        <div className="mhd"><h1 className="cz">Stories</h1></div>
+        <MonoRows stories={list} photos={photos} crops={c.crop} L={L} />
+        {list.length === 0 && <p>Stories are on their way.</p>}
+      </section>
+    );
     return (
       <>
         <PageHead script={script} title={title} sub="Notes from the weddings we photograph." />

@@ -33,8 +33,9 @@
 .sg .wd{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.08em}
 .sg .wd>span{display:inline-block;transform:translateY(115%) rotate(6deg);animation:sgup 1.1s cubic-bezier(.2,.7,.2,1) forwards}
 @keyframes sgup{to{transform:none}}
-.sg .wr{display:inline-block;clip-path:inset(0 100% 0 0);animation:sgwr 1.6s ease forwards}
-@keyframes sgwr{to{clip-path:inset(0 -10% 0 0)}}
+/* the script letters reach above and below their line, so the wipe leaves room on every side */
+.sg .wr{display:inline-block;padding:0 .12em;clip-path:inset(-40% 100% -40% -10%);animation:sgwr 1.6s ease forwards}
+@keyframes sgwr{to{clip-path:inset(-40% -10% -40% -10%)}}
 .sg .spin{animation:sgspin 24s linear infinite}
 @keyframes sgspin{to{transform:rotate(360deg)}}
 .sg .bob{animation:sgbob 6s ease-in-out infinite alternate}

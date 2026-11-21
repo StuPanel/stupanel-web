@@ -559,6 +559,8 @@ function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload
   onUpload: (files: FileList | null) => Promise<Photo[]>; uploading: { done: number; total: number } | null;
 }) {
   const file = useRef<HTMLInputElement>(null);
+  // Photos already in this place come first (in their order), then the rest, newest first.
+  const shown = [...value.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p), ...photos.filter(p => !value.includes(p.id))];
   const add = async (files: FileList | null) => {
     const added = await onUpload(files);
     if (file.current) file.current.value = "";
@@ -594,7 +596,7 @@ function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload
                 className="aspect-square rounded-[12px] border border-dashed border-[#7D5CEF] bg-[#F5F3FA] text-[#7D5CEF] flex flex-col items-center justify-center gap-1 text-xs font-semibold text-center px-1">
                 {uploading ? <><Loader2 className="w-5 h-5 animate-spin" />{uploading.done} of {uploading.total}</> : <><Upload className="w-5 h-5" />Upload from this device</>}
               </button>
-              {photos.map(p => {
+              {shown.map(p => {
                 const n = sel.indexOf(p.id);
                 return (
                   <button key={p.id} type="button" onClick={() => tap(p.id)} aria-pressed={n >= 0} aria-label={n >= 0 ? "Chosen photo" : "Choose this photo"}

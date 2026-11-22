@@ -126,12 +126,18 @@ export function StatCard({ icon, color, label, value, sub, href }: {
 export function DateBox({ date }: { date?: string | Date | null }) {
   const dt = date ? new Date(date) : null;
   const ok = dt && !isNaN(dt.getTime());
+  // No date yet: a quiet grey tile (red would read as a mistake).
+  if (!ok) return (
+    <span className="w-12 h-[46px] flex-shrink-0 rounded-[12px] bg-[#F1EFF5] text-center flex items-center justify-center" aria-hidden="true">
+      <span className="text-[10px] font-semibold text-[#8A8597] leading-tight">No<br />date</span>
+    </span>
+  );
   return (
     <span className="w-12 flex-shrink-0 rounded-[12px] bg-[#FDECEF] text-center py-1.5" aria-hidden="true">
       <span className="block text-[11px] font-bold text-[#C2304F] leading-none">
-        {ok ? new Intl.DateTimeFormat("en-GB", { month: "short" }).format(dt!).toUpperCase() : "—"}
+        {new Intl.DateTimeFormat("en-GB", { month: "short" }).format(dt!).toUpperCase()}
       </span>
-      <span className="block text-lg font-extrabold text-[#17151F] leading-tight tabular-nums">{ok ? dt!.getDate() : ""}</span>
+      <span className="block text-lg font-extrabold text-[#17151F] leading-tight tabular-nums">{dt!.getDate()}</span>
     </span>
   );
 }

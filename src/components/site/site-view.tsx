@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
+import { PackageBrowser } from "./site-packages";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
@@ -22,7 +23,12 @@ export type SiteCrop = { x: number; y: number; z: number };
 export const cropStyle = (c?: SiteCrop): React.CSSProperties => (c ? { objectPosition: `${c.x}% ${c.y}%`, transformOrigin: `${c.x}% ${c.y}%`, scale: c.z > 1 ? String(c.z) : undefined } : {});
 export type SiteAddon = { id: string; name: string; price: number; currency: string; unit: string };
 export type SiteAlbum = { id: string; title: string; tag: string; cover: string | null; photos: string[] };
-export type SitePackage = { id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[] };
+export type SitePackage = {
+  id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[];
+  /** Details for grouping and comparing (newer servers only). */
+  days?: number; photoOnly?: boolean; hours?: number | null; photos?: number | null; trailers?: number | null; films?: number | null;
+  note?: string; extras?: string[]; delivery?: string | null;
+};
 export type SiteContent = {
   script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; /** Slideshow photos of the Gallery White look */ slides?: string[]; /** Main Home photo on phones */ mobileSlides?: string[]; events: string[];
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
@@ -263,7 +269,6 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const [menu, setMenu] = useState(false);
   const [album, setAlbum] = useState<SiteAlbum | null>(() => (albumId ? data.content.albums.find(a => a.id === albumId) ?? null : null));
   const [shot, setShot] = useState<number | null>(null);
-  const [tab, setTab] = useState(0);
   const [rev, setRev] = useState(0);
   const [ask, setAsk] = useState("");
   // A slim bar with the menu and Book us comes back when the visitor scrolls up.
@@ -340,8 +345,6 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   }, [album, menu, shot, step, closeAlbum]);
   const touch = useRef(0);
 
-  const groups = Array.from(new Set(packages.map(p => p.group)));
-  const shown = packages.filter(p => p.group === groups[Math.min(tab, groups.length - 1)]);
   const words = c.headline.split(/\s+/).filter(Boolean);
   const [aboutScript, ...aboutRest] = c.aboutTitle.split(/\s+/).filter(Boolean);
   const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
@@ -492,22 +495,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         {packages.length > 0 && !hide.includes("packages") && (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
             <Heading script="our" title="Packages" />
-            {groups.length > 1 && (
-              <div className="cap" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", margin: "30px 0 14px" }}>
-                {groups.map((g, i) => <button key={g} type="button" className="tab cap" onClick={() => setTab(i)} aria-pressed={i === tab}>{g}</button>)}
-              </div>
-            )}
-            <div className="g3" style={{ marginTop: 30 }}>
-              {shown.map((p, i) => (
-                <div key={`${tab}-${p.id}`} className="pk" style={{ animationName: `sgpk${i % 3}`, animationDelay: `${i * 0.12}s` }}>
-                  <h3 className="pf" style={{ margin: 0, fontSize: 30, fontWeight: 400 }}>{p.name}</h3>
-                  <div className="pf" style={{ fontSize: 24, color: "var(--mut)", margin: "8px 0 6px", fontVariantNumeric: "tabular-nums" }}>{money(p.price, p.currency)}</div>
-                  {p.team && <div className="cap" style={{ fontSize: 10, marginBottom: 20 }}>{p.team}</div>}
-                  <p style={{ margin: "0 0 26px", whiteSpace: "pre-line" }}>{p.lines.join("\n")}</p>
-                  <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>
-                </div>
-              ))}
-            </div>
+            <PackageBrowser packages={packages} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
           </section>
         )}
 

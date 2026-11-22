@@ -493,14 +493,14 @@
 .sg .mhd+.mrows{border-top:0;margin-top:calc(-1 * clamp(28px,4vw,60px))}
 
 /* ── main Home photo on computers (23-NOV): same frame in all five looks: 1400 px row, photo 8 of 12 columns,
-   16:10, 4 px corners, soft shadow, no border; extra photos fade in one after another, nothing else moves ── */
+   3:2 (a whole camera frame), 4 px corners, soft shadow, no border; extra photos fade in one after another, nothing else moves ── */
 .sg .card .hsl{display:none}
 @media (min-width:861px){
 .sg .hero{max-width:1400px;padding:32px 24px 48px!important;grid-template-columns:repeat(12,minmax(0,1fr));gap:32px}
 .sg .hero .hcol{grid-column:span 8}
 .sg .hero .htxt{grid-column:span 4;padding-left:clamp(0px,1.6vw,24px);container-type:inline-size}
 .sg .hero .hh1{font-size:clamp(30px,14cqw,72px)}
-.sg .hero .hmain{aspect-ratio:16 / 10!important;padding:0!important;border:0!important;outline:0!important;border-radius:4px!important;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1)!important}
+.sg .hero .hmain{aspect-ratio:3 / 2!important;padding:0!important;border:0!important;outline:0!important;border-radius:4px!important;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1)!important}
 .sg .hero .hmain:before,.sg .hero .hmain:after{display:none!important}
 .sg .card .hsl{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
 .sg .card .hsl.on{opacity:1}

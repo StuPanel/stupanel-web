@@ -219,6 +219,7 @@ export default function WebsitePage() {
       const res = await apiFetch(`${API}/site/photos/cleanup`, { method: "POST" });
       if (!res.ok) throw new Error();
       put((await res.json()) as Mine);
+      past.current = []; setUndoable(0); // the removed photos cannot come back
       notify("Unused photos removed");
     } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
   };
@@ -282,7 +283,9 @@ export default function WebsitePage() {
   const unusedDays = site.unusedDays ?? 30;
   const unusedMb = `${(unusedList.reduce((n, p) => n + (p.sizeBytes ?? 0) * 1.35, 0) / 1048576).toFixed(1)} MB`;
   const daysLeft = (p: Photo) => {
-    const left = unusedDays - Math.floor((openedAt - new Date(p.unusedSince!).getTime()) / 86_400_000);
+    // A photo added after the page opened has a later date than openedAt: never count more than the full period.
+    const gone = Math.max(0, Math.floor((openedAt - new Date(p.unusedSince!).getTime()) / 86_400_000));
+    const left = Math.min(unusedDays, unusedDays - gone);
     return left <= 1 ? "removed soon" : `${left} days left`;
   };
   /** Tall photos for the main photo on phones (first five looks). */
@@ -381,7 +384,7 @@ export default function WebsitePage() {
               <div key={p.id} className="relative aspect-square rounded-[12px] overflow-hidden group bg-[#F5F3FA]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover" }} />
-                {unusedIds.has(p.id) && <span className="absolute left-1 bottom-1 right-1 px-1.5 py-0.5 rounded-full bg-black/65 text-white text-[10px] font-semibold text-center truncate">Not used · {daysLeft(p)}</span>}
+                {unusedIds.has(p.id) && <span className="absolute left-1 bottom-1 right-1 px-1.5 py-1 rounded-[8px] bg-black/65 text-white text-[10px] leading-tight font-semibold text-center">Not used<br />{daysLeft(p)}</span>}
                 <button type="button" onClick={() => removePhoto(p)} aria-label="Remove this photo"
                   className="absolute top-1 right-1 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>

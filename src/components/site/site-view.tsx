@@ -357,10 +357,11 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const thanks = useCallback(() => router.push(L("/thank-you")), [router, L]);
   const nav = [
     c.albums.length ? [L("/portfolio"), "Portfolio"] : null, films.length || c.filmId ? [L("/films"), "Films"] : null, [L("/about"), "About"],
-    packages.length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null, c.reviews.length ? [L("/reviews"), "Reviews"] : null,
+    packages.length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null,
   ].filter(Boolean) as [string, string][];
   const bookHref = home && !mono ? "#book" : L("/contact");
-  const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
+  // Reviews and FAQ sit in the footer and the phone menu, not the top bar (Faisal, 22-NOV).
+  const more = [...nav, c.reviews.length ? [L("/reviews"), "Reviews"] : null, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
   /** Extra photos for the main Home photo (computers). */
   const heroMore = (c.slides ?? []).filter((id, k, all) => photos[id] && id !== c.heroPhotos[0] && all.indexOf(id) === k);

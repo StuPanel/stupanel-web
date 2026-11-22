@@ -20,7 +20,7 @@ const small = (p: Photo) => p.thumbUrl || p.url;
 const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
-const RATIO = { hero0: 16 / 10, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
+const RATIO = { hero0: 3 / 2, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
 type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
   photos: Photo[]; photoLimit: number; studio: { name: string; logoUrl: string | null };

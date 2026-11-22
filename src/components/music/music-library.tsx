@@ -189,9 +189,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
           {rituals.length > 0 && (
             <div className={cn("rounded-[16px] bg-[#F3EEFF] border border-[#DDD3FA] p-2.5 mt-2", !inSheet && "sm:ml-[68px]")}>
-              <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
-              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
-                <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
+              <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which part?</p>
+              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Parts of ${eventName}`}>
+                <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All parts</button>
                 {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; if (!n && !on) return null; return (
                   <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
                     {t.name}{count(n, on)}
@@ -465,8 +465,8 @@ function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[];
         {hidden > 0 && <button type="button" onClick={() => setMore(true)} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-[#5B3FD0] border border-dashed border-[#CFC8DD] hover:bg-[#F3EFFE]">More ({hidden})</button>}
       </div>
       {open.map(p => (
-        <div key={p.id} className="rounded-[14px] bg-[#F6F2FF] p-2.5" role="group" aria-label={`Rituals of ${p.name}`}>
-          <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{p.name}: which rituals? (none = the whole wedding)</p>
+        <div key={p.id} className="rounded-[14px] bg-[#F6F2FF] p-2.5" role="group" aria-label={`Parts of ${p.name}`}>
+          <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{p.name}: which parts? (none = the whole wedding)</p>
           <div className="flex flex-wrap gap-1.5">{kidsOf(p.id).map(t => pill(t, value.includes(t.id), true))}</div>
         </div>
       ))}

@@ -624,7 +624,7 @@ export default function WebsitePage() {
 
       <div hidden={tab !== "design"}>
       <FormGroup title="Home page parts" note="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
-        {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
+        {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["stories", "Stories"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
           <SwitchRow key={k} label={label} on={!(c.hide ?? []).includes(k)} onChange={v => set("hide", v ? (c.hide ?? []).filter(x => x !== k) : [...(c.hide ?? []), k])} />
         ))}
       </FormGroup>

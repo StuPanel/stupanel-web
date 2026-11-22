@@ -183,6 +183,44 @@ export function MonoRows({ stories, photos, crops, L }: { stories: SiteStory[]; 
   );
 }
 
+/** First five looks, Home: one story told big (photo, date, title, a few lines) and the next three as a short list beside it. */
+function HomeStories({ stories, photos, crops, L }: { stories: SiteStory[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; L: (path: string) => string }) {
+  const [f, ...rest] = stories;
+  const excerpt = (t: string) => { const x = t.replace(/\s+/g, " ").trim(); return x.length > 180 ? `${x.slice(0, 180).replace(/\s+\S*$/, "")}…` : x; };
+  return (
+    <section id="stories" className="hst">
+      <div className="wrap sec">
+        <div style={{ textAlign: "center" }}><Heading script="from our" title="Stories" /></div>
+        <div className={`hstg${rest.length ? "" : " one"}`}>
+          <Link href={L(`/stories/${f.id}`)} className="hstf rv">
+            <span className="hstp"><span className="hsti"><Ph p={photos[f.cover ?? ""]} alt="" sizes="(max-width: 860px) 92vw, 720px" crop={crops?.[`story:${f.id}`]} /></span></span>
+            <span className="hstx">
+              {f.date && <span className="cap hstd">{shortDate(f.date)}</span>}
+              <span className="hstt pf">{f.title}</span>
+              {f.text && <span className="hste">{excerpt(f.text)}</span>}
+              <span className="cap ul hstr">Read the story</span>
+            </span>
+          </Link>
+          {rest.length > 0 && (
+            <div className="hstl">
+              {rest.map(x => (
+                <Link key={x.id} href={L(`/stories/${x.id}`)} className="hstrw rv">
+                  <span className="hstti"><Ph p={photos[x.cover ?? ""]} alt="" sizes="160px" crop={crops?.[`story:${x.id}`]} /></span>
+                  <span className="hstrx">
+                    {x.date && <span className="cap hstd">{shortDate(x.date)}</span>}
+                    <span className="hstrt pf">{x.title}</span>
+                  </span>
+                </Link>
+              ))}
+              <Link href={L("/stories")} className="cap ol hsta">All stories</Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** Gallery look, Home: photos across the whole first screen, one plain sentence, the mosaic of albums, then the stories. */
 function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void }) {
   const { content: c, photos, studio } = data;
@@ -203,7 +241,7 @@ function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) =>
           {c.albums.length > 5 && <div className="mmore"><Link href={L("/portfolio")} className="mlk">All work</Link></div>}
         </section>
       )}
-      {stories.length > 0 && <section className="wrap" style={{ paddingTop: "clamp(40px,6vw,90px)" }}><MonoRows stories={stories} photos={photos} crops={c.crop} L={L} /></section>}
+      {stories.length > 0 && !hide.includes("stories") && <section className="wrap" style={{ paddingTop: "clamp(40px,6vw,90px)" }}><MonoRows stories={stories} photos={photos} crops={c.crop} L={L} /></section>}
       <div style={{ height: "clamp(60px,8vw,110px)" }} />
     </>
   );
@@ -448,6 +486,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             </div>
           </section>
         )}
+
+        {(c.stories ?? []).length > 0 && !hide.includes("stories") && <HomeStories stories={(c.stories ?? []).slice(0, 4)} photos={photos} crops={c.crop} L={L} />}
 
         {packages.length > 0 && !hide.includes("packages") && (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>

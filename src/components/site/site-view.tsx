@@ -83,7 +83,11 @@ export function Ph({ p, alt, eager, className, style, sizes, crop }: { p?: SiteP
 /** An album as a clean photo; its name and "View gallery" come in on hover (always shown on touch screens). */
 export function AlbumCard({ a, photo, crop, onOpen, i, eager, count }: { a: SiteAlbum; photo?: SitePhoto; crop?: SiteCrop; onOpen: () => void; i: number; eager?: boolean; count?: boolean }) {
   return (
-    <button type="button" className="alc" style={{ ["--i" as string]: Math.min(i, 9) }} onClick={onOpen} aria-label={`Open the album ${a.title}`}>
+    <button type="button" className="alc" style={{ ["--i" as string]: Math.min(i, 9) }} onClick={onOpen} aria-label={`Open the album ${a.title}`}
+      // Touch screens have no hover: the card under the finger gets the same look, and keeps it for a moment.
+      onTouchStart={e => { document.querySelectorAll(".sg .alc.tch").forEach(x => x.classList.remove("tch")); e.currentTarget.classList.add("tch"); }}
+      onTouchEnd={e => { const el = e.currentTarget; setTimeout(() => el.classList.remove("tch"), 1600); }}
+      onTouchCancel={e => { const el = e.currentTarget; setTimeout(() => el.classList.remove("tch"), 1600); }}>
       <Ph p={photo} alt="" eager={eager} sizes="(max-width: 860px) 46vw, 300px" crop={crop} />
       <span className="alo">
         <span className="alf" aria-hidden="true" />
@@ -487,7 +491,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
                 );
               })}
             </div>
-            {nRev > 1 && <button type="button" onClick={() => setRev((rev + 1) % nRev)} className="cap ol" style={{ marginTop: 60, background: "transparent", cursor: "pointer", color: "var(--ink)", fontFamily: "inherit" }}>Next review</button>}
+            {nRev > 1 && <button type="button" onClick={() => setRev((rev + 1) % nRev)} className="cap ol nrv" style={{ marginTop: 60, background: "transparent", cursor: "pointer", color: "var(--ink)", fontFamily: "inherit" }}>Next review</button>}
           </section>
         )}
 

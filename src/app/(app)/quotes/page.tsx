@@ -417,7 +417,7 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
         <p className="text-sm font-bold text-[#17151F] tabular-nums">{sym}{Number(q.grandTotal).toLocaleString()}</p>
         {Number(q.advanceRequired) > 0 && <p className="text-xs text-[#6B6680] tabular-nums">Advance {sym}{Number(q.advanceRequired).toLocaleString()}</p>}
       </div>
-      <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: h.bg, color: h.text }}>{sc.label}</span>
+      <span className="hidden sm:inline-flex w-[88px] justify-center px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: h.bg, color: h.text }}>{sc.label}</span>
       <div className="relative flex-shrink-0" ref={menuRef} onClick={e => e.stopPropagation()}>
         <button onClick={() => setMenuOpen(o => !o)} aria-label={`More for ${q.quoteNumber}`} aria-expanded={menuOpen}
           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EEEBF4] text-[#6B6680]">

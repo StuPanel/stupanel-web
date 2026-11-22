@@ -88,11 +88,12 @@ function myEntries(events: Event[], many: boolean): CalEntry[] {
   });
 }
 
-const isOpen = (e: Event, now: Date) => {
-  if (!e.eventDate) return false;
-  const dt = new Date(e.eventDate); dt.setHours(0, 0, 0, 0);
-  return dt >= now && e.status !== "completed" && e.status !== "cancelled";
+/** The first of my work days that is today or later ("" when none). A program of several days stays open until its last day. */
+const nextWorkDay = (e: Event, now: Date) => {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return workDates(e).map(d => d.slice(0, 10)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= today).sort()[0] ?? "";
 };
+const isOpen = (e: Event, now: Date) => e.status !== "completed" && e.status !== "cancelled" && !!nextWorkDay(e, now);
 
 export default function SchedulePage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -123,8 +124,8 @@ export default function SchedulePage() {
     (groups[key] ??= []).push(e);
   }
   // The soonest coming program across all studios (the list comes grouped by studio).
-  const next = events.filter(e => isOpen(e, now)).sort(byDay)[0];
-  const nextDays = next ? daysUntil(next.eventDate) : null;
+  const next = events.filter(e => isOpen(e, now)).sort((a, b) => nextWorkDay(a, now).localeCompare(nextWorkDay(b, now)))[0];
+  const nextDays = next ? daysUntil(nextWorkDay(next, now)) : null;
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const upcomingDays = events.filter(e => e.status !== "cancelled").flatMap(calDays).filter(d => d.date >= today);
   const many = studios.length > 1;

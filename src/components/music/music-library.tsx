@@ -109,6 +109,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const eventName = cat.events.find(t => t.id === event)?.name ?? "";
   const filtering = !!(event || ritual || video || sound);
   const usedVideos = cat.videos.filter(t => source.some(s => s.videos.includes(t.id)));
+  /** Songs (after the search) that fit an event: its own tag or one of its rituals. A chip with none is not shown (the chosen one always is). */
+  const evCount = (id: string) => { const ids = [id, ...cat.events.filter(c => c.parent === id).map(c => c.id)]; return found.filter(s => s.events.some(e => ids.includes(e))).length; };
+  const vidCount = (id: string) => found.filter(s => s.videos.includes(id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length;
   const pasted = youtubeIdOf(q);
   const tabs = [
     { id: "mine" as const, label: "My songs", icon: Music2, on: true },
@@ -171,22 +174,25 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const count = (n: number, on: boolean) => <span className={cn("min-w-[22px] h-[20px] px-1.5 rounded-full text-[11.5px] font-bold tabular-nums inline-flex items-center justify-center", on ? "bg-white/25 text-white" : n ? "bg-[#EEE8FD] text-[#4B32B8]" : "bg-[#F1EFF6] text-[#6B6680]")}>{n}</span>;
   /** How many filters are on (the number on the phone's Filters button). */
   const active = [event, ritual, video, sound].filter(Boolean).length;
-  const hasRows = usedEvents.length > 0 || usedVideos.length > 0 || (hasInst && source.length > 0);
+  const evRow = usedEvents.some(t => event === t.id || evCount(t.id) > 0);
+  const vidRow = usedVideos.some(t => video === t.id || vidCount(t.id) > 0);
+  const soundRow = hasInst && (!!sound || beforeSound.length > 0);
+  const hasRows = evRow || vidRow || soundRow;
   const clearAll = () => { setEvent(""); setRitual(""); setVideo(""); setSound(""); };
   /** Event, Video and Sound. On a wide screen each stays on one line; in the phone's sheet each shows a few and the rest behind More. */
   const filterRows = (inSheet: boolean) => (
     <div className={inSheet ? "space-y-5" : "space-y-2.5"}>
-      {usedEvents.length > 0 && (
+      {evRow && (
         <div>
           <ChipRow label="Event" aria="Event" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!event} onAll={() => { setEvent(""); setRitual(""); }}
-            items={usedEvents.map(t => { const on = event === t.id; return { id: t.id, on, onPick: () => { setEvent(on ? "" : t.id); setRitual(""); }, node: <>{t.name}{count(found.filter(s => s.events.includes(t.id)).length, on)}</> }; })} />
+            items={usedEvents.map(t => ({ t, n: evCount(t.id), on: event === t.id })).filter(x => x.n > 0 || x.on).map(({ t, n, on }) => ({ id: t.id, on, onPick: () => { setEvent(on ? "" : t.id); setRitual(""); }, node: <>{t.name}{count(n, on)}</> }))} />
           {/* The rituals of the chosen event (a Sanatani wedding): shown under it, a step in */}
           {rituals.length > 0 && (
             <div className={cn("rounded-[16px] bg-[#F3EEFF] border border-[#DDD3FA] p-2.5 mt-2", !inSheet && "sm:ml-[68px]")}>
-              <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which ritual?</p>
-              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Rituals of ${eventName}`}>
-                <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All rituals</button>
-                {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; return (
+              <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{eventName}: which part?</p>
+              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={`Parts of ${eventName}`}>
+                <button type="button" aria-pressed={!ritual} onClick={() => setRitual("")} className={subChip(!ritual)}>All parts</button>
+                {rituals.map(t => { const n = found.filter(s => s.events.includes(t.id)).length; const on = ritual === t.id; if (!n && !on) return null; return (
                   <button key={t.id} type="button" aria-pressed={on} onClick={() => setRitual(on ? "" : t.id)} className={subChip(on)}>
                     {t.name}{count(n, on)}
                   </button>
@@ -196,16 +202,16 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
           )}
         </div>
       )}
-      {usedVideos.length > 0 && (
+      {vidRow && (
         <ChipRow label="Video" aria="Kind of video" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!video} onAll={() => setVideo("")}
-          items={usedVideos.map(t => { const on = video === t.id; return { id: t.id, on, onPick: () => setVideo(on ? "" : t.id), node: <>{t.name}{count(found.filter(s => s.videos.includes(t.id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length, on)}</> }; })} />
+          items={usedVideos.map(t => ({ t, n: vidCount(t.id), on: video === t.id })).filter(x => x.n > 0 || x.on).map(({ t, n, on }) => ({ id: t.id, on, onPick: () => setVideo(on ? "" : t.id), node: <>{t.name}{count(n, on)}</> }))} />
       )}
-      {hasInst && source.length > 0 && (
+      {soundRow && (
         <ChipRow label="Sound" aria="With singing or music only" stacked={inSheet} limit={inSheet ? 7 : undefined} chipCls={chip} allOn={!sound} onAll={() => setSound("")}
           items={[
-            { id: "song", on: sound === "song", onPick: () => setSound(sound === "song" ? "" : "song"), node: <><Mic2 className="w-4 h-4" aria-hidden />With singing{count(beforeSound.filter(s => !isInst(s)).length, sound === "song")}</> },
-            { id: "instrumental", on: sound === "instrumental", onPick: () => setSound(sound === "instrumental" ? "" : "instrumental"), node: <><Piano className="w-4 h-4" aria-hidden />Instrumental{count(beforeSound.filter(isInst).length, sound === "instrumental")}</> },
-          ]} />
+            { id: "song", n: beforeSound.filter(s => !isInst(s)).length, on: sound === "song", onPick: () => setSound(sound === "song" ? "" : "song"), node: <><Mic2 className="w-4 h-4" aria-hidden />With singing{count(beforeSound.filter(s => !isInst(s)).length, sound === "song")}</> },
+            { id: "instrumental", n: beforeSound.filter(isInst).length, on: sound === "instrumental", onPick: () => setSound(sound === "instrumental" ? "" : "instrumental"), node: <><Piano className="w-4 h-4" aria-hidden />Instrumental{count(beforeSound.filter(isInst).length, sound === "instrumental")}</> },
+          ].filter(x => x.n > 0 || x.on)} />
       )}
     </div>
   );
@@ -459,8 +465,8 @@ function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[];
         {hidden > 0 && <button type="button" onClick={() => setMore(true)} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-[#5B3FD0] border border-dashed border-[#CFC8DD] hover:bg-[#F3EFFE]">More ({hidden})</button>}
       </div>
       {open.map(p => (
-        <div key={p.id} className="rounded-[14px] bg-[#F6F2FF] p-2.5" role="group" aria-label={`Rituals of ${p.name}`}>
-          <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{p.name}: which rituals? (none = the whole wedding)</p>
+        <div key={p.id} className="rounded-[14px] bg-[#F6F2FF] p-2.5" role="group" aria-label={`Parts of ${p.name}`}>
+          <p className="text-xs font-bold text-[#4B32B8] px-1 mb-1.5">{p.name}: which parts? (none = the whole wedding)</p>
           <div className="flex flex-wrap gap-1.5">{kidsOf(p.id).map(t => pill(t, value.includes(t.id), true))}</div>
         </div>
       ))}
@@ -468,7 +474,7 @@ function TagPicker({ list, value, onChange, single, label }: { list: MusicTag[];
   );
 }
 
-type ChipItem = { id: string; on: boolean; onPick: () => void; node: React.ReactNode };
+type ChipItem = { id: string; on: boolean; onPick: () => void; node: React.ReactNode; n?: number };
 /**
  * One line of filter chips. What does not fit on the line waits behind "More" at its end; pressing it shows all of them.
  * With `limit` (the phone's sheet) the first few show instead of measuring a line. The chosen chip is always in view.

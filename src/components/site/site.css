@@ -544,5 +544,10 @@
 .sg .alc.tch .alo:before{opacity:1}
 .sg .alc.tch .alf{transform:none;opacity:1}
 .sg .alc.tch .alb{transform:translate(-50%,-50%);opacity:1}
+/* a tap leaves :hover stuck on the card; without .tch it must look untouched */
+.sg .alc:hover:not(.tch) img{transform:none}
+.sg .alc:hover:not(.tch) .alf{transform:scale(1.06);opacity:0}
+.sg .alc:hover:not(.tch) .alb{transform:translate(-50%,calc(-50% + 12px));opacity:0}
+.sg .alc.tch .alb{transform:translate(-50%,-50%)!important;opacity:1!important}
 .sg .ol.nrv:hover{background:transparent!important;color:var(--ink)!important}
 }

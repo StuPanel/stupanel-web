@@ -6,7 +6,7 @@
  * and shape from the theme, so each look carries through the whole site.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
 import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
@@ -47,28 +47,99 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w
 /** About page: the team, round portraits. Every look dresses it its own way in site.css (.tgrid). */
 function Team({ team, photos, crops, mono }: { team: SiteTeamMember[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; mono?: boolean }) {
   if (!team.length) return null;
+  const card = (m: SiteTeamMember, copy?: boolean) => (
+    <li key={`${copy ? "b" : "a"}${m.id}`} className="tm" aria-hidden={copy || undefined}>
+      <span className="tmo" aria-hidden="true">
+        <span className="tmi">
+          {m.photo && photos[m.photo]
+            ? <Ph p={photos[m.photo]} alt="" sizes="(max-width: 860px) 46vw, 260px" crop={crops?.[`team:${m.id}`]} />
+            : <span className="tmn cz">{initials(m.name)}</span>}
+        </span>
+      </span>
+      <span className="tmt">
+        <span className="tmname pf">{m.name}</span>
+        {m.role && <span className="tmrole cap">{m.role}</span>}
+      </span>
+    </li>
+  );
   return (
-    <section className={`wrap tsec${mono ? " tmono" : ""}`} aria-label="Our team">
-      {mono ? <div className="mhd"><h2 className="cz" style={{ margin: 0, fontSize: "clamp(28px,3vw,40px)", fontWeight: 600 }}>The team</h2></div>
-        : <div style={{ textAlign: "center" }}><Heading script="meet" title="The team" /></div>}
-      <ul className="tgrid">
-        {team.map((m, i) => (
-          <li key={m.id} className="tm rv" style={{ ["--i" as string]: i % 4 }}>
-            <span className="tmo" aria-hidden="true">
-              <span className="tmi">
-                {m.photo && photos[m.photo]
-                  ? <Ph p={photos[m.photo]} alt="" sizes="(max-width: 860px) 42vw, 240px" crop={crops?.[`team:${m.id}`]} />
-                  : <span className="tmn cz">{initials(m.name)}</span>}
-              </span>
-            </span>
-            <span className="tmt">
-              <span className="tmname pf">{m.name}</span>
-              {m.role && <span className="tmrole cap">{m.role}</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <section className={`tsec${mono ? " tmono" : ""}`} aria-label="Our team">
+      <div className="wrap">
+        {mono ? <div className="mhd"><h2 className="cz" style={{ margin: 0, fontSize: "clamp(28px,3vw,40px)", fontWeight: 600 }}>The team</h2></div>
+          : <div style={{ textAlign: "center" }}><Heading script="meet" title="The team" /></div>}
+      </div>
+      <TeamRow count={team.length} render={copy => team.map(m => card(m, copy))} />
     </section>
+  );
+}
+
+/**
+ * One row of the team that drifts slowly sideways and loops, so a big team takes the room of one row.
+ * It stops while the mouse is over it or a finger holds it, can be dragged by hand, and stays still
+ * (centred) when everyone already fits.
+ */
+function TeamRow({ count, render }: { count: number; render: (copy: boolean) => React.ReactNode }) {
+  const view = useRef<HTMLDivElement>(null);
+  const track = useRef<HTMLUListElement>(null);
+  const [moving, setMoving] = useState(false);
+  // Does one copy of the row fit the screen? If not, it moves (and a second copy follows it round).
+  useEffect(() => {
+    const v = view.current, t = track.current;
+    if (!v || !t) return;
+    const check = () => {
+      const first = t.children[0] as HTMLElement | undefined, last = t.children[count - 1] as HTMLElement | undefined;
+      if (!first || !last) return;
+      const one = last.getBoundingClientRect().right - first.getBoundingClientRect().left;
+      setMoving(one > v.clientWidth + 2);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(v);
+    return () => ro.disconnect();
+  }, [count, moving]);
+  useEffect(() => {
+    const v = view.current, t = track.current;
+    if (!moving || !v || !t) { if (t) t.style.transform = ""; return; }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const speed = window.innerWidth < 861 ? 26 : 34; // px per second
+    let x = 0, last = performance.now(), raf = 0, hold = false, hover = false, restart = 0;
+    let drag: { at: number; x: number } | null = null;
+    const width = () => {
+      const a = t.children[0] as HTMLElement | undefined, b = t.children[count] as HTMLElement | undefined;
+      return a && b ? b.offsetLeft - a.offsetLeft : t.scrollWidth / 2;
+    };
+    const wrap = () => { const w = width(); if (w > 0) { while (x <= -w) x += w; while (x > 0) x -= w; } };
+    const frame = (now: number) => {
+      const dt = Math.min(64, now - last); last = now;
+      if (!reduce && !hold && !hover && !drag && now > restart) x -= (speed * dt) / 1000;
+      wrap();
+      t.style.transform = `translate3d(${x}px,0,0)`;
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    const enter = () => { hover = true; }, leave = () => { hover = false; };
+    const down = (e: PointerEvent) => { hold = true; drag = { at: e.clientX, x }; };
+    const move = (e: PointerEvent) => { if (drag) { x = drag.x + (e.clientX - drag.at); } };
+    const up = () => { hold = false; drag = null; restart = performance.now() + 1400; };
+    const mq = window.matchMedia("(hover: hover)");
+    if (mq.matches) { v.addEventListener("mouseenter", enter); v.addEventListener("mouseleave", leave); }
+    v.addEventListener("pointerdown", down);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      cancelAnimationFrame(raf);
+      v.removeEventListener("mouseenter", enter); v.removeEventListener("mouseleave", leave);
+      v.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [moving, count]);
+  return (
+    <div ref={view} className={`trow${moving ? " moving" : ""}`}>
+      <ul ref={track} className="tgrid">{render(false)}{moving && render(true)}</ul>
+    </div>
   );
 }
 

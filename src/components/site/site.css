@@ -494,7 +494,7 @@
 
 /* ── main Home photo on computers (23-NOV): same frame in all five looks: 1400 px row, photo 8 of 12 columns,
    3:2 (a whole camera frame), 4 px corners, soft shadow, no border; extra photos fade in one after another, nothing else moves ── */
-.sg .card .hsl{display:none}
+.sg .card img.hsl{display:none!important}
 @media (min-width:861px){
 .sg .hero{max-width:1400px;padding:32px 24px 48px!important;grid-template-columns:repeat(12,minmax(0,1fr));gap:32px}
 .sg .hero .hcol{grid-column:span 8}
@@ -502,7 +502,8 @@
 .sg .hero .hh1{font-size:clamp(30px,14cqw,72px)}
 .sg .hero .hmain{aspect-ratio:3 / 2!important;padding:0!important;border:0!important;outline:0!important;border-radius:4px!important;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1)!important}
 .sg .hero .hmain:before,.sg .hero .hmain:after{display:none!important}
-.sg .card .hsl{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
+.sg .hero .hmain{overflow:hidden!important}
+.sg .card img.hsl{display:block!important;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
 .sg .card .hsl.on{opacity:1}
 }
 @media (min-width:861px) and (prefers-reduced-motion:no-preference){

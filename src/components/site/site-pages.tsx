@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
+import { PackageBrowser } from "./site-packages";
 import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
@@ -155,7 +156,6 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   const [extra, setExtra] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(data.slug).addons));
   const keep = (pkg: string, list: string[]) => { try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg, addons: list })); } catch { /* private window */ } };
   const [tag, setTag] = useState("");
-  const [tab, setTab] = useState(0);
   const [ask, setAsk] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? readBuild(data.slug).pkg));
   if (page === "home") return null;
   const [script, title] = TITLES[page];
@@ -224,28 +224,11 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   }
 
   if (page === "packages") {
-    const groups = Array.from(new Set(packages.map(p => p.group)));
-    const shown = packages.filter(p => p.group === groups[Math.min(tab, groups.length - 1)]);
     return (
       <>
         <PageHead script={script} title={title} sub="Clear prices, no surprises. Tell us your events and we will shape one around your days." />
         <section className="wrap" style={{ paddingTop: 30, paddingBottom: "clamp(70px,9vw,130px)", textAlign: "center" }}>
-          {groups.length > 1 && (
-            <div className="cap" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", marginBottom: 14 }}>
-              {groups.map((g, i) => <button key={g} type="button" className="tab cap" onClick={() => setTab(i)} aria-pressed={i === tab}>{g}</button>)}
-            </div>
-          )}
-          <div className="g3" style={{ marginTop: 30 }}>
-            {shown.map((p, i) => (
-              <div key={`${tab}-${p.id}`} className="pk" style={{ animationName: `sgpk${i % 3}`, animationDelay: `${0.2 + i * 0.1}s` }}>
-                <h2 className="pf" style={{ margin: 0, fontSize: 30, fontWeight: 400 }}>{p.name}</h2>
-                <div className="pf" style={{ fontSize: 24, color: "var(--mut)", margin: "8px 0 6px", fontVariantNumeric: "tabular-nums" }}>{money(p.price, p.currency)}</div>
-                {p.team && <div className="cap" style={{ fontSize: 10, marginBottom: 20 }}>{p.team}</div>}
-                <p style={{ margin: "0 0 26px", whiteSpace: "pre-line" }}>{p.lines.join("\n")}</p>
-                <Link href={askHref(p.name)} className="cap ul">Ask about this</Link>
-              </div>
-            ))}
-          </div>
+          <PackageBrowser packages={packages} ask={p => <Link href={askHref(p.name)} className="cap ul">Ask about this</Link>} />
           {packages.length === 0 && <p>Ask us for the current packages.</p>}
           {packages.length > 0 && addons.length > 0 && (() => {
             const chosen = packages.find(p => p.name === pick);

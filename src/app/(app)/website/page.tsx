@@ -5,7 +5,7 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Package, Palette, Phone, Plus, Smartphone, Trash2, Upload, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -107,8 +107,32 @@ export default function WebsitePage() {
   };
   useEffect(() => () => { if (timer.current) { clearTimeout(timer.current); flush(); } }, [flush]);
 
+  // Undo: the draft as it was before each change made in this visit (typing in one box counts as one change).
+  const past = useRef<{ content: SiteContent; theme: string }[]>([]);
+  const lastChange = useRef<{ key: string; t: ReturnType<typeof setTimeout> | null }>({ key: "", t: null });
+  const [undoable, setUndoable] = useState(0);
+  const remember = (key: string, typing = false) => {
+    if (!site) return;
+    const last = lastChange.current;
+    const same = typing && last.key === key && last.t !== null;
+    if (last.t) clearTimeout(last.t);
+    last.key = key;
+    last.t = setTimeout(() => { last.t = null; }, 1500);
+    if (same) return;
+    past.current = [...past.current.slice(-49), { content: site.content, theme: site.theme }];
+    setUndoable(past.current.length);
+  };
+  const undo = () => {
+    const prev = past.current.pop();
+    if (!site || !prev) return;
+    lastChange.current.key = "";
+    setUndoable(past.current.length);
+    setSite({ ...site, content: prev.content, theme: prev.theme, hasChanges: true });
+    queue({ content: prev.content, theme: prev.theme });
+  };
   const set = <K extends keyof SiteContent>(key: K, value: SiteContent[K]) => {
     if (!site) return;
+    remember(key, typeof value === "string");
     const content = { ...site.content, [key]: value };
     setSite({ ...site, content, hasChanges: true });
     queue({ content });
@@ -116,11 +140,12 @@ export default function WebsitePage() {
   /** Several fields in one save (two set() calls in a row would lose the first). */
   const setMany = (patch: Partial<SiteContent>) => {
     if (!site) return;
+    remember(Object.keys(patch).join());
     const content = { ...site.content, ...patch };
     setSite({ ...site, content, hasChanges: true });
     queue({ content });
   };
-  const setTheme = (theme: string) => { if (!site) return; setSite({ ...site, theme, hasChanges: true }); queue({ theme }); };
+  const setTheme = (theme: string) => { if (!site) return; remember("theme:" + theme); setSite({ ...site, theme, hasChanges: true }); queue({ theme }); };
 
   // Address: checked while typing, saved when it is free.
   useEffect(() => {
@@ -141,6 +166,22 @@ export default function WebsitePage() {
     } finally { setBusy(false); }
   };
 
+  /** Throw away everything changed since the last publish. */
+  const discard = async () => {
+    if (!site) return;
+    if (!(await askConfirm({ title: "Go back to the published version?", message: "Every change you made since you last published will be removed. Your uploaded photos stay in All photos.", confirmLabel: "Remove my changes" }))) return;
+    setBusy(true);
+    try {
+      if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+      await flush();
+      const res = await apiFetch(`${API}/site/revert`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      setSite((await res.json()) as Mine);
+      past.current = []; setUndoable(0);
+      setRev(n => n + 1);
+      notify("Back to the published version");
+    } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
+  };
   const publish = async (on: boolean) => {
     if (!site) return;
     if (!on && !(await askConfirm({ title: "Take the website offline?", message: "Visitors will see \"not found\" until you publish again. Nothing is deleted.", confirmLabel: "Take offline" }))) return;
@@ -152,6 +193,7 @@ export default function WebsitePage() {
       if (!res.ok) throw new Error();
       const d = (await res.json()) as Mine;
       setSite(d);
+      if (on) { past.current = []; setUndoable(0); }
       notify(on ? "Published. Visitors now see this version." : "The website is offline");
     } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
   };
@@ -327,14 +369,23 @@ export default function WebsitePage() {
               empty={mono ? "Nothing chosen yet, so the site shows your album covers here." : "Nothing chosen yet."}
               onChoose={() => choose(mono ? "Home screen photos (wide)" : "Computer photos (wide)", deskIds, ids => mono ? set("slides", ids) : setMany({ heroPhotos: ids[0] ? [ids[0], ...(c.heroPhotos[1] && c.heroPhotos[1] !== ids[0] ? [c.heroPhotos[1]] : [])] : [], slides: ids.slice(1) }), true, mono ? 8 : 9)}
               onClear={() => mono ? set("slides", []) : setMany({ heroPhotos: [], slides: [] })}
-              onAdjust={(id, i) => adjust(`slide:${id}`, id, `${mono ? "Home screen" : "Computer"} photo ${i + 1}`, mono ? 16 / 9 : RATIO.hero0)} />
+              onAdjust={(id, i) => adjust(`slide:${id}`, id, `${mono ? "Home screen" : "Computer"} photo ${i + 1}`, mono ? 16 / 9 : RATIO.hero0)}
+              onOrder={ids => {
+                if (mono) return set("slides", ids);
+                // The old main photo's position was kept under "hero0": give it to that photo before it moves.
+                const next = { ...crops };
+                if (next.hero0 && deskIds[0] && !next[`slide:${deskIds[0]}`]) next[`slide:${deskIds[0]}`] = next.hero0;
+                delete next.hero0;
+                setMany({ heroPhotos: ids[0] ? [ids[0], ...(c.heroPhotos[1] && c.heroPhotos[1] !== ids[0] ? [c.heroPhotos[1]] : [])] : [], slides: ids.slice(1), crop: next });
+              }} />
             {!mono && (
               <ScreenPhotos icon={<Smartphone className="w-4 h-4" />} title="Phone" shape="Tall photos, 4:5 frame" ratio={4 / 5}
                 photos={phoneSlides.map(id => byId.get(id)!)} crop={id => crops[`mslide:${id}`]} first
                 empty="Nothing chosen yet, so phones show the computer photos cut to the tall frame."
                 onChoose={() => choose("Phone photos (tall)", phoneSlides, ids => set("mobileSlides", ids), true, 8)}
                 onClear={() => set("mobileSlides", [])}
-                onAdjust={(id, i) => adjust(`mslide:${id}`, id, `Phone photo ${i + 1}`, 4 / 5)} />
+                onAdjust={(id, i) => adjust(`mslide:${id}`, id, `Phone photo ${i + 1}`, 4 / 5)}
+                onOrder={ids => set("mobileSlides", ids)} />
             )}
           </div>
         </div>
@@ -521,10 +572,15 @@ export default function WebsitePage() {
         <button type="button" disabled={busy} onClick={() => publish(false)} className="text-sm font-semibold text-[#C2304F] px-1 mb-10">Take the website offline</button>
       )}
 
-      {site.isPublished && site.hasChanges && (
-        <div className="sticky bottom-3 z-20 flex items-center gap-3 rounded-[16px] bg-[#17151F] text-white px-4 py-3 shadow-[0_12px_30px_rgba(22,18,40,.3)]" role="status">
-          <p className="flex-1 text-[13px] leading-snug">Your changes are saved, but visitors do not see them yet.</p>
-          <button type="button" disabled={busy} onClick={() => publish(true)} className="h-9 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-sm font-semibold flex-shrink-0">Publish changes</button>
+      {((site.isPublished && site.hasChanges) || undoable > 0) && (
+        // Phones: sits above the bottom menu, so it is never hidden behind it.
+        <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+96px)] lg:bottom-3 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[16px] bg-[#17151F] text-white px-4 py-3 shadow-[0_12px_30px_rgba(22,18,40,.3)]" role="status">
+          <p className="flex-1 basis-[220px] text-[13px] leading-snug">{site.isPublished ? (site.hasChanges ? "Your changes are saved, but visitors do not see them yet." : "Draft saved.") : "Draft saved. Not published yet."}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {undoable > 0 && <button type="button" disabled={busy} onClick={undo} className="h-10 px-3.5 rounded-full bg-white/12 hover:bg-white/20 disabled:opacity-50 text-sm font-semibold inline-flex items-center gap-1.5"><Undo2 className="w-4 h-4" />Undo</button>}
+            {site.isPublished && site.hasChanges && <button type="button" disabled={busy} onClick={discard} className="h-10 px-3.5 rounded-full bg-white/12 hover:bg-white/20 disabled:opacity-50 text-sm font-semibold">Remove all changes</button>}
+            {site.isPublished && site.hasChanges && <button type="button" disabled={busy} onClick={() => publish(true)} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-sm font-semibold">Publish changes</button>}
+          </div>
         </div>
       )}
       {pick && <PhotoPicker photos={site.photos} {...pick} onUpload={upload} uploading={uploading} onClose={() => setPick(null)} />}
@@ -559,10 +615,75 @@ function Slot({ p, label, onPick, onClear, crop, onAdjust }: { p: Photo | undefi
 
 /** Move and zoom a photo inside the shape it has on the website. Nothing is cut from the photo itself. */
 /** One device's photos for the first screen: small pictures in the frame's own shape, each opening its own Adjust. */
-function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, onChoose, onClear, onAdjust }: {
+function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, onChoose, onClear, onAdjust, onOrder }: {
   icon: React.ReactNode; title: string; shape: string; ratio: number; photos: Photo[]; crop: (id: string, i: number) => { x: number; y: number; z: number } | undefined;
-  /** Mark the first photo as the one shown first */ first?: boolean; empty: string; onChoose: () => void; onClear: () => void; onAdjust: (id: string, i: number) => void;
+  /** Mark the first photo as the one shown first */ first?: boolean; empty: string; onChoose: () => void; onClear: () => void; onAdjust: (id: string, i: number) => void; /** The photos in their new order, after a drag */ onOrder: (ids: string[]) => void;
 }) {
+  // Drag to reorder: with a mouse, press and move; with a finger, hold a moment first (so the page can still be scrolled).
+  const box = useRef<HTMLDivElement>(null);
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const st = useRef({ id: "", x: 0, y: 0, timer: 0, active: false, skipClick: false, order: [] as string[] });
+  const ids = photos.map(p => p.id);
+  const idsKey = ids.join();
+  const begin = () => {
+    const s = st.current;
+    s.active = true; s.order = idsKey ? idsKey.split(",") : [];
+    setOrder(s.order); setDragId(s.id);
+    try { navigator.vibrate?.(12); } catch { /* not allowed */ }
+  };
+  const over = (x: number, y: number) => {
+    const s = st.current;
+    const el = document.elementFromPoint(x, y)?.closest("[data-pid]");
+    const to = el?.getAttribute("data-pid");
+    if (!el || !to || to === s.id || !box.current?.contains(el)) return;
+    const next = [...s.order];
+    const from = next.indexOf(s.id), at = next.indexOf(to);
+    if (from < 0 || at < 0) return;
+    next.splice(from, 1); next.splice(at, 0, s.id);
+    s.order = next; setOrder(next);
+  };
+  const finish = () => {
+    const s = st.current;
+    window.clearTimeout(s.timer);
+    if (!s.active) return;
+    s.active = false; s.skipClick = true;
+    window.setTimeout(() => { s.skipClick = false; }, 350);
+    setOrder(null); setDragId(null);
+    if (s.order.join() !== idsKey) onOrder(s.order);
+  };
+  const finishRef = useRef(finish); const overRef = useRef(over); const beginRef = useRef(begin);
+  useEffect(() => { finishRef.current = finish; overRef.current = over; beginRef.current = begin; });
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    // Not passive: once a drag has started the page must not scroll under the finger.
+    const move = (e: TouchEvent) => {
+      const s = st.current, t = e.touches[0];
+      if (!t) return;
+      if (s.active) { e.preventDefault(); overRef.current(t.clientX, t.clientY); }
+      else if (Math.hypot(t.clientX - s.x, t.clientY - s.y) > 10) window.clearTimeout(s.timer);
+    };
+    el.addEventListener("touchmove", move, { passive: false });
+    return () => el.removeEventListener("touchmove", move);
+  }, [idsKey]);
+  const mouseDown = (id: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const s = st.current; s.id = id; s.x = e.clientX; s.y = e.clientY;
+    const move = (ev: MouseEvent) => {
+      if (!s.active && Math.hypot(ev.clientX - s.x, ev.clientY - s.y) > 6) beginRef.current();
+      if (s.active) { ev.preventDefault(); overRef.current(ev.clientX, ev.clientY); }
+    };
+    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); finishRef.current(); };
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  };
+  const touchStart = (id: string, e: React.TouchEvent) => {
+    const s = st.current, t = e.touches[0];
+    s.id = id; s.x = t.clientX; s.y = t.clientY;
+    window.clearTimeout(s.timer);
+    s.timer = window.setTimeout(() => beginRef.current(), 260);
+  };
+  const shown = order ? order.map(id => photos.find(p => p.id === id)).filter((p): p is Photo => !!p) : photos;
   return (
     <div className="rounded-[16px] border border-[#E7E3F1] bg-[#FBFAFE] p-3.5">
       <div className="flex items-center gap-2">
@@ -574,21 +695,29 @@ function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, o
       </div>
       {photos.length > 0 ? (
         <>
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            {photos.map((p, i) => {
-              const k = crop(p.id, i);
+          <div ref={box} className="flex gap-2.5 mt-3.5 flex-wrap select-none">
+            {shown.map((p, i) => {
+              const k = crop(p.id, ids.indexOf(p.id));
               return (
-                <button key={p.id} type="button" onClick={() => onAdjust(p.id, i)} aria-label={`Adjust photo ${i + 1}`}
-                  className="relative rounded-[10px] overflow-hidden bg-[#F1EEF8] hover:ring-2 hover:ring-[#7D5CEF] focus-visible:ring-2 focus-visible:ring-[#7D5CEF] outline-none" style={{ aspectRatio: String(ratio), height: 76 }}>
+                <div key={p.id} data-pid={p.id} className="relative" style={{ aspectRatio: String(ratio), height: 76 }}>
+                <button type="button" aria-label={`Photo ${i + 1}: tap to adjust, drag to change the order`}
+                  onClick={() => { if (st.current.skipClick) return; onAdjust(p.id, ids.indexOf(p.id)); }}
+                  onMouseDown={e => mouseDown(p.id, e)} onTouchStart={e => touchStart(p.id, e)} onTouchEnd={() => finishRef.current()} onTouchCancel={() => finishRef.current()}
+                  onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
+                  className={cn("relative rounded-[10px] overflow-hidden bg-[#F1EEF8] outline-none transition-[transform,box-shadow,opacity] duration-200 hover:ring-2 hover:ring-[#7D5CEF] focus-visible:ring-2 focus-visible:ring-[#7D5CEF]", "w-full h-full", dragId === p.id ? "ring-2 ring-[#7D5CEF] scale-105 shadow-lg opacity-80 z-10 cursor-grabbing" : "cursor-grab")}
+                  style={{ WebkitTouchCallout: "none" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                  <img src={small(p)} alt="" loading="lazy" draggable={false} className="w-full h-full object-cover pointer-events-none" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
                   <span className="absolute left-1 top-1 min-w-5 h-5 px-1 rounded-full bg-white/90 text-[10px] font-bold text-[#4A4658] flex items-center justify-center">{first && i === 0 ? "First" : i + 1}</span>
                   <span className="absolute right-1 bottom-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
                 </button>
+                {!dragId && <button type="button" onClick={() => onOrder(ids.filter(id => id !== p.id))} aria-label={`Remove photo ${i + 1}`}
+                  className="absolute -right-1 -top-1 z-10 w-7 h-7 rounded-full bg-white border border-[#E4E0EC] shadow text-[#4A4658] hover:bg-[#FDECEC] hover:text-[#C0392B] flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>}
+                </div>
               );
             })}
           </div>
-          <p className="text-xs text-[#6B6680] mt-2">Tap a photo to move or zoom it inside the frame.</p>
+          <p className="text-xs text-[#6B6680] mt-2">Tap a photo to move or zoom it inside the frame.{photos.length > 1 ? " To change the order, hold a photo and drag it." : ""} The cross removes a photo from here.</p>
         </>
       ) : <p className="text-[13px] text-[#6B6680] mt-3">{empty}</p>}
       <div className="flex gap-2 mt-3 flex-wrap">

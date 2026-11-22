@@ -579,7 +579,8 @@
 .fth-bar button{flex:none;width:40px;height:40px;border:0;background:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%}
 .fth-bar button:hover,.fth-bar button:focus-visible{background:rgba(255,255,255,.14)}
 .fth-t{flex:none;font:500 12px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;opacity:.9;min-width:34px;text-align:center}
-.fth-bar input{flex:1;min-width:40px;height:20px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.fth .fth-bar input{flex:1;min-width:40px;height:20px;min-height:0;margin:0;padding:0;border:0!important;border-radius:0;box-shadow:none!important;outline:none;background:transparent!important;-webkit-appearance:none;appearance:none;cursor:pointer}
+.fth .fth-bar input:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(255,255,255,.35)}
 .fth-bar input::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:linear-gradient(90deg,#fff var(--p),rgba(255,255,255,.3) var(--p))}
 .fth-bar input::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;background:#fff}
 .fth-bar input::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,.3)}

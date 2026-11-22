@@ -145,7 +145,7 @@
 .sg .pkt thead th{font-weight:500;text-align:left}
 .sg .pkt tbody th{font-weight:500;color:var(--mut);white-space:nowrap;position:sticky;left:0;background:var(--card)}
 @media(max-width:900px){.sg .pkg{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px){.sg .pkg{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;margin:24px -28px 0;padding:6px 28px 26px;-webkit-overflow-scrolling:touch}.sg .pkg>.pk{flex:0 0 84%;scroll-snap-align:center}.sg .pkg>.pk:hover{transform:none}.sg .pkv button{padding:9px 13px;font-size:12px}}
+@media(max-width:640px){.sg .pkg{display:flex;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;margin:24px -28px 0;padding:6px 28px 26px;-webkit-overflow-scrolling:touch}.sg .pkg>.pk{flex:0 0 84%;scroll-snap-align:center}.sg .pkg>.pk:hover{transform:none}.sg .pkv button{padding:9px 13px;font-size:12px}}
 .sg .fm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px}
 .sg input{font:inherit;color:inherit;width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--card);padding:14px 16px;border-radius:0}
 .sg label span{display:block;margin-bottom:8px}

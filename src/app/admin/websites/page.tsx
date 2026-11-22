@@ -106,7 +106,7 @@ export default function AdminWebsitesPage() {
     return () => clearTimeout(id);
   }, [tab, loadNames, nq]);
   useEffect(() => {
-    if (tab !== "rules" || rules) return;
+    if (tab === "sites" || rules) return;
     const id = setTimeout(async () => setRules(await get("/settings")), 0);
     return () => clearTimeout(id);
   }, [tab, rules, get]);
@@ -224,7 +224,7 @@ export default function AdminWebsitesPage() {
       {tab === "names" && (
         <section className="space-y-3">
           <p className="text-sm text-slate-400 max-w-3xl">
-            A deleted studio&apos;s address waits {rules?.holdDeletedDays ?? "some"} days so its old links and Google results don&apos;t lead to another studio.
+            A deleted studio&apos;s address waits {rules ? `${rules.holdDeletedDays} days` : "a while"} so its old links and Google results don&apos;t lead to another studio.
             After a rename the old address sends visitors to the new one for a while, and only that studio can take it back. Blocked addresses stay until you free them.
           </p>
           <div className="flex items-center gap-2 flex-wrap">

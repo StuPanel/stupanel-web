@@ -46,6 +46,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (q.preview) return { title: "Website preview", robots: { index: false } };
   const r = route(path);
   const d = await load(slug);
+  // Here too (not only in the page): search engines get a real 308 for an old address, since metadata is
+  // ready before the page streams.
+  if (d && "redirect" in d) permanentRedirect(`/site/${d.redirect}${path?.length ? `/${path.join("/")}` : ""}`);
   if (d && "offline" in d) return { title: "Website not available", robots: { index: false } };
   if (!isSite(d) || r.page === "notfound") return { title: "Page not found", robots: { index: false } };
   if (r.page === "thank-you") return { title: { absolute: `Thank you | ${d.studio.name}` }, robots: { index: false } };

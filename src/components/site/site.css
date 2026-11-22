@@ -551,3 +551,54 @@
 .sg .alc.tch .alb{transform:translate(-50%,-50%)!important;opacity:1!important}
 .sg .ol.nrv:hover{background:transparent!important;color:var(--ink)!important}
 }
+
+/* ── film theatre (23-NOV): the film grows out of its poster, the page behind goes blurred and dark;
+   YouTube's own strip and logo sit outside the visible frame; our controls come and go with a tap ── */
+.sg .fmore{margin-top:34px;color:inherit!important;border-color:currentColor!important}
+.sg .fmore:hover{background:var(--ond)!important;color:var(--dark)!important}
+.fth{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center}
+.fth-bg{position:absolute;inset:0;background:rgba(6,5,4,.82);-webkit-backdrop-filter:blur(16px) saturate(.8);backdrop-filter:blur(16px) saturate(.8);opacity:0;transition:opacity .5s ease}
+.fth.on .fth-bg{opacity:1}
+.fth-stage{position:relative;width:min(94vw,1180px,calc((100dvh - 150px) * 16 / 9));display:flex;flex-direction:column;align-items:center;gap:18px;pointer-events:none}
+.fth-card{position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;overflow:hidden;background:#000;box-shadow:0 40px 90px rgba(0,0,0,.6);transform-origin:0 0;transition:transform .55s cubic-bezier(.2,.75,.2,1);pointer-events:auto}
+/* the player is taller than what we show: its title strip (top) and logo (bottom) fall outside */
+.fth-v{position:absolute;inset:0;overflow:hidden}
+.fth-v iframe{position:absolute;left:0;width:100%;top:-90px;height:calc(100% + 180px);border:0;pointer-events:none}
+.fth-v.tap iframe{pointer-events:auto}
+.fth-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .7s ease;z-index:1}
+.fth-cover.gone{opacity:0;pointer-events:none}
+.fth-cover.tap{opacity:0;pointer-events:none}
+.fth-cover.tap~.fth-tap{display:none}
+.fth-spin{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:fthspin .9s linear infinite;z-index:2}
+@keyframes fthspin{to{transform:rotate(360deg)}}
+.fth-tap{position:absolute;inset:0;z-index:2;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fth-big{position:absolute;left:50%;top:50%;z-index:3;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#111;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:transform .3s}
+.fth-big:hover{transform:scale(1.06)}
+.fth-bar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;gap:6px;padding:28px 12px 10px;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .35s,transform .35s}
+.fth-bar.on{opacity:1;transform:none;pointer-events:auto}
+.fth-bar button{flex:none;width:40px;height:40px;border:0;background:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%}
+.fth-bar button:hover,.fth-bar button:focus-visible{background:rgba(255,255,255,.14)}
+.fth-t{flex:none;font:500 12px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;opacity:.9;min-width:34px;text-align:center}
+.fth-bar input{flex:1;min-width:40px;height:20px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.fth-bar input::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:linear-gradient(90deg,#fff var(--p),rgba(255,255,255,.3) var(--p))}
+.fth-bar input::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;background:#fff}
+.fth-bar input::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,.3)}
+.fth-bar input::-moz-range-progress{height:3px;background:#fff}
+.fth-bar input::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#fff}
+.fth-title{margin:0;color:#fff;font-size:19px;font-style:italic;text-align:center;opacity:0;transform:translateY(10px);transition:opacity .5s .25s,transform .5s .25s;padding:0 10px}
+.fth.on .fth-title{opacity:.92;transform:none}
+.fth-x{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px;z-index:5;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.35);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .4s .15s,background .3s}
+.fth.on .fth-x{opacity:1}
+.fth-x:hover{background:rgba(255,255,255,.15)}
+.fth.full{background:#000}
+.fth.full .fth-stage{width:min(100vw,calc(100dvh * 16 / 9))}
+.fth.full .fth-card{border-radius:0;box-shadow:none}
+.fth.full .fth-title{display:none}
+@media (max-width:640px){
+.fth-stage{width:100vw}
+.fth-card{border-radius:0}
+.fth-v iframe{top:-60px;height:calc(100% + 120px)}
+.fth-bar{gap:2px;padding:22px 6px 4px}
+.fth-bar .fth-t:last-of-type{display:none}
+}
+@media (prefers-reduced-motion:reduce){.fth-card,.fth-bg,.fth-title{transition:none}}

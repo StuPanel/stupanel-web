@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
+import { FilmTheater } from "./site-film";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; blur: string };
@@ -222,7 +223,6 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const [menu, setMenu] = useState(false);
   const [album, setAlbum] = useState<SiteAlbum | null>(() => (albumId ? data.content.albums.find(a => a.id === albumId) ?? null : null));
   const [shot, setShot] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
   const [tab, setTab] = useState(0);
   const [rev, setRev] = useState(0);
   const [ask, setAsk] = useState("");
@@ -440,16 +440,9 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             <div className="wrap" style={{ textAlign: "center" }}>
               <Heading script="wedding" title="Films" light />
               <div style={{ height: 50 }} />
-              {playing ? (
-                <div className="film"><iframe src={`https://www.youtube-nocookie.com/embed/${c.filmId}?autoplay=1&rel=0`} title={c.filmTitle || "Wedding film"} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen /></div>
-              ) : (
-                <button type="button" className="film iris" onClick={() => setPlaying(true)} aria-label={`Play ${c.filmTitle || "the wedding film"}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {filmPoster && <img src={filmPoster} alt="" loading="lazy" decoding="async" style={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />}
-                  <span className="play"><span className="gold"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 5 }}><path d="M6 4l14 8-14 8z" /></svg></span></span>
-                </button>
-              )}
+              <FilmTheater id={c.filmId} title={c.filmTitle} big className="iris" poster={filmPoster || undefined} posterStyle={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />
               {c.filmTitle && <p className="pf" style={{ margin: "34px 0 0", fontSize: 22, fontStyle: "italic" }}>{c.filmTitle}</p>}
+              {films.some(f => f.id !== c.filmId) && <Link href={L("/films")} className="cap ol fmore">More films</Link>}
             </div>
           </section>
         )}

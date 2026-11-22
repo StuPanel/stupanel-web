@@ -602,3 +602,61 @@
 .fth-bar .fth-t:last-of-type{display:none}
 }
 @media (prefers-reduced-motion:reduce){.fth-card,.fth-bg,.fth-title{transition:none}}
+
+/* ── team (About page, 23-NOV): round portraits in a halo ring; the ring turns slowly and the photo
+   warms up on hover. Each look dresses it its own way below. ── */
+.sg .tsec{padding-top:clamp(30px,4vw,60px);padding-bottom:clamp(80px,10vw,140px)}
+.sg .tgrid{list-style:none;margin:clamp(40px,5vw,70px) 0 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(34px,4vw,56px) clamp(18px,3vw,44px)}
+.sg .tm{width:calc((100% - 3 * clamp(18px,3vw,44px)) / 4);max-width:260px;display:flex;flex-direction:column;align-items:center;text-align:center;animation-delay:calc(var(--i) * .08s)}
+.sg .tmo{position:relative;display:block;width:100%;aspect-ratio:1;border-radius:50%;padding:11px}
+/* the ring: a thin circle with a brighter arc that travels round it on hover */
+.sg .tmo:before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid color-mix(in srgb,var(--ac) 45%,transparent);transition:transform .9s cubic-bezier(.2,.7,.2,1)}
+.sg .tmo:after{content:"";position:absolute;inset:-1px;border-radius:50%;padding:2px;background:conic-gradient(from 0deg,transparent 0 62%,var(--ac) 80%,transparent 96%);-webkit-mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);opacity:0;transition:opacity .6s}
+.sg .tm:hover .tmo:after{opacity:1;animation:sgtring 3.2s linear infinite}
+.sg .tm:hover .tmo:before{transform:scale(1.035)}
+@keyframes sgtring{to{transform:rotate(360deg)}}
+.sg .tmi{position:relative;display:block;width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--ph);box-shadow:0 18px 40px rgba(var(--sh),.16)}
+.sg .tmi>img,.sg .tmi>.ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.82);transition:transform 1.2s cubic-bezier(.2,.7,.2,1),filter .8s}
+.sg .tm:hover .tmi>img{transform:scale(1.06);filter:none}
+.sg .tmn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(28px,3vw,42px);color:var(--mut)}
+.sg .tmt{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:22px}
+.sg .tmname{font-size:clamp(19px,1.7vw,24px);line-height:1.2}
+.sg .tmrole{position:relative;font-size:10px;color:var(--mut);padding-top:12px}
+.sg .tmrole:before{content:"";position:absolute;top:0;left:50%;width:18px;height:1px;margin-left:-9px;background:var(--ac);transition:width .6s cubic-bezier(.2,.7,.2,1),margin .6s cubic-bezier(.2,.7,.2,1)}
+.sg .tm:hover .tmrole:before{width:44px;margin-left:-22px}
+/* looks */
+.sg.t-signature .tmrole{color:var(--ac)}
+.sg.t-editorial .tmo{padding:0}
+.sg.t-editorial .tmo:before,.sg.t-editorial .tmo:after{display:none}
+.sg.t-editorial .tmi{box-shadow:none}
+.sg.t-editorial .tmi>img{filter:grayscale(1) contrast(1.05)}
+.sg.t-editorial .tm:hover .tmi>img{filter:grayscale(0)}
+.sg.t-editorial .tmname{text-transform:uppercase;letter-spacing:.14em;font-size:15px;font-style:normal}
+.sg.t-cream .tmo{padding:14px;background:color-mix(in srgb,var(--ac) 12%,transparent)}
+.sg.t-cream .tmo:before{border-style:dashed}
+.sg.t-cream .tmi{box-shadow:none}
+.sg.t-dark .tmo:before{border-color:color-mix(in srgb,var(--ac) 60%,transparent);box-shadow:0 0 30px color-mix(in srgb,var(--ac) 18%,transparent)}
+.sg.t-dark .tmi{box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.sg.t-gold .tmo{padding:13px}
+.sg.t-gold .tmo:before{border-color:#B8964A;box-shadow:inset 0 0 0 5px var(--bg),inset 0 0 0 6px #B8964A}
+.sg.t-gold .tmname{font-style:italic}
+/* Gallery White: small round portraits in rows, left aligned, plain sans */
+.sg .tmono{padding-top:0}
+.sg .tmono .tgrid{justify-content:flex-start;margin-top:0;gap:40px 24px}
+.sg .tmono .tm{align-items:flex-start;text-align:left;max-width:none}
+.sg .tmono .tmo{width:min(100%,190px);padding:0}
+.sg .tmono .tmo:before,.sg .tmono .tmo:after{display:none}
+.sg .tmono .tmi{box-shadow:none}
+.sg .tmono .tmt{align-items:flex-start;gap:4px;margin-top:16px}
+.sg .tmono .tmname{font-family:var(--fb);font-weight:600;font-size:17px;font-style:normal;letter-spacing:-.01em}
+.sg .tmono .tmrole{padding:0;text-transform:none;letter-spacing:0;font-size:13px}
+.sg .tmono .tmrole:before{display:none}
+@media (max-width:860px){
+.sg .tgrid{gap:34px 16px}
+.sg .tm{width:calc((100% - 16px) / 2)}
+.sg .tmo{padding:8px}
+.sg .tmt{margin-top:16px;gap:8px}
+.sg .tmname{font-size:18px}
+.sg .tmono .tgrid{gap:30px 14px}
+}
+@media (hover:none){.sg .tmi>img{filter:none}.sg.t-editorial .tmi>img{filter:grayscale(1)}}

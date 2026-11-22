@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { FilmTheater } from "./site-film";
-import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
+import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
@@ -39,6 +39,36 @@ function Film({ id, title, poster }: { id: string; title: string; poster?: strin
       <FilmTheater id={id} title={title} poster={poster} />
       {title && <figcaption className="pf" style={{ marginTop: 16, fontSize: 19, fontStyle: "italic", textAlign: "center" }}>{title}</figcaption>}
     </figure>
+  );
+}
+
+const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("");
+
+/** About page: the team, round portraits. Every look dresses it its own way in site.css (.tgrid). */
+function Team({ team, photos, crops, mono }: { team: SiteTeamMember[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; mono?: boolean }) {
+  if (!team.length) return null;
+  return (
+    <section className={`wrap tsec${mono ? " tmono" : ""}`} aria-label="Our team">
+      {mono ? <div className="mhd"><h2 className="cz" style={{ margin: 0, fontSize: "clamp(28px,3vw,40px)", fontWeight: 600 }}>The team</h2></div>
+        : <div style={{ textAlign: "center" }}><Heading script="meet" title="The team" /></div>}
+      <ul className="tgrid">
+        {team.map((m, i) => (
+          <li key={m.id} className="tm rv" style={{ ["--i" as string]: i % 4 }}>
+            <span className="tmo" aria-hidden="true">
+              <span className="tmi">
+                {m.photo && photos[m.photo]
+                  ? <Ph p={photos[m.photo]} alt="" sizes="(max-width: 860px) 42vw, 240px" crop={crops?.[`team:${m.id}`]} />
+                  : <span className="tmn cz">{initials(m.name)}</span>}
+              </span>
+            </span>
+            <span className="tmt">
+              <span className="tmname pf">{m.name}</span>
+              {m.role && <span className="tmrole cap">{m.role}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -201,6 +231,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             <p style={{ marginTop: 30 }}><Link href={L("/contact")} className="mlk">Book us</Link></p>
           </div>
         </section>
+        <Team team={c.team ?? []} photos={photos} crops={c.crop} mono />
       </>
     );
   }
@@ -228,6 +259,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             <div className="mq cz out">{[...c.events, ...c.events, ...c.events, ...c.events].map((e, i) => <span key={i} className={i % 2 ? "fill" : undefined}>{e}</span>)}</div>
           </div>
         )}
+        <Team team={c.team ?? []} photos={photos} crops={c.crop} />
       </>
     );
   }

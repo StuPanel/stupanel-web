@@ -14,6 +14,8 @@ import { FilmTheater } from "./site-film";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; blur: string };
+/** A person in the studio's team (About page). */
+export type SiteTeamMember = { id: string; name: string; role: string; photo: string | null };
 export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };
 /** How a photo sits in its frame: centre point in % and zoom (1 = fills the frame). */
 export type SiteCrop = { x: number; y: number; z: number };
@@ -27,7 +29,7 @@ export type SiteContent = {
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
-  stories?: SiteStory[]; hide?: string[]; crop?: Record<string, SiteCrop>;
+  stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
 };

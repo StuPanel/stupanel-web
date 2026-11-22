@@ -13,7 +13,7 @@ import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import "./site.css";
 
-export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; blur: string };
+export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
 /** A person in the studio's team (About page). */
 export type SiteTeamMember = { id: string; name: string; role: string; photo: string | null };
 export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };
@@ -79,7 +79,7 @@ export function Ph({ p, alt, eager, className, style, sizes, crop }: { p?: SiteP
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img className={`ph ${className ?? ""}`} src={p.url} srcSet={small ? `${small} 900w, ${p.url} ${p.w}w` : undefined} sizes={small ? sizes ?? "(max-width: 860px) 92vw, 50vw" : undefined}
-      alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async" fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: `url(${p.blur})`, ...style, ...cropStyle(crop) }} />
+      alt={alt} width={p.w} height={p.h} loading={eager ? "eager" : "lazy"} decoding="async" fetchPriority={eager ? "high" : undefined} style={{ backgroundImage: p.blur ? `url(${p.blur})` : undefined, ...style, ...cropStyle(crop) }} />
   );
 }
 
@@ -116,7 +116,7 @@ function MonoHero({ slides, crops, name }: { slides: SitePhoto[]; /** One per sl
       {slides.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={p.url} src={p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="100vw" alt="" className={i === n ? "on" : undefined} loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined}
-          style={{ backgroundImage: `url(${p.blur})`, ...cropStyle(crops?.[i]) }} />
+          style={{ backgroundImage: p.blur ? `url(${p.blur})` : undefined, ...cropStyle(crops?.[i]) }} />
       ))}
       {count > 1 && <>
         <button type="button" className="mprev" aria-label="Previous photo" onClick={() => setN(v => (v - 1 + count) % count)}><Ic d={ICON.prev} size={22} w={1.2} /></button>
@@ -145,7 +145,7 @@ function HeroSlides({ slides, crops, phone, phoneCrops }: { slides: SitePhoto[];
       ))}
       {phone.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={p.url} src={p.sm ?? p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="92vw" alt="" loading="lazy" className={`hml${i === n % phone.length ? " on" : ""}`} style={{ backgroundImage: `url(${p.blur})`, ...cropStyle(phoneCrops?.[i]) }} />
+        <img key={p.url} src={p.sm ?? p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="92vw" alt="" loading="lazy" className={`hml${i === n % phone.length ? " on" : ""}`} style={{ backgroundImage: p.blur ? `url(${p.blur})` : undefined, ...cropStyle(phoneCrops?.[i]) }} />
       ))}
     </>
   );

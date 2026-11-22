@@ -640,13 +640,14 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
     const f = new FormData(e.currentTarget);
     const list = events.map((ev, i) => ({ date: ev.date || undefined, shift: ev.shift || undefined, packageName: (i === 0 ? ask : ev.pkg) || undefined })).filter(ev => ev.date || ev.shift || ev.packageName);
     const body = {
-      name: String(f.get("name") || "").trim(), phone: String(f.get("phone") || "").trim(),
+      name: String(f.get("name") || "").trim(), phone: String(f.get("phone") || "").trim(), email: String(f.get("email") || "").trim() || undefined,
       date: list.find(ev => ev.date)?.date, packageName: ask || undefined,
       events: list.length > 1 || list[0]?.shift ? list : undefined, addons: addons.length ? addons : undefined,
       message: String(f.get("message") || "").trim() || undefined, website: String(f.get("website") || "") || undefined,
     };
     if (!body.name) return setErr("Please write your name.");
     if (body.phone.replace(/\D/g, "").length < 7) return setErr("Please write a phone number we can reach you on.");
+    if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return setErr("Please check the email address.");
     setErr("");
     const finish = () => { try { sessionStorage.removeItem(buildKey(slug)); } catch { /* private window */ } if (onDone) onDone(); else setDone(true); };
     if (preview) return finish();
@@ -685,6 +686,7 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
           <label><span className="cap" style={{ fontSize: 10 }}>Your name</span><input type="text" name="name" autoComplete="name" maxLength={150} required /></label>
           <label><span className="cap" style={{ fontSize: 10 }}>Phone or WhatsApp</span><input type="tel" name="phone" autoComplete="tel" inputMode="tel" maxLength={30} required /></label>
         </div>
+        <label style={{ display: "block", marginTop: 26 }}><span className="cap" style={{ fontSize: 10 }}>Email (optional)</span><input type="email" name="email" autoComplete="email" inputMode="email" maxLength={255} spellCheck={false} autoCapitalize="none" /></label>
         {events.map((ev, i) => (
           <fieldset key={i} className="evr">
             <legend className="cap" style={{ fontSize: 10 }}>{events.length > 1 ? `Event ${i + 1}` : "Your event"}</legend>

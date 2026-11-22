@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, MessageCircle, Megaphone,
-  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace } from "lucide-react";
+  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
@@ -32,6 +32,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   { label: "Studios", items: [
     { label: "Studios",   href: "/admin/studios",   icon: Building2, perm: "studios.view" },
     { label: "Users",     href: "/admin/users",     icon: Users,     perm: "users.view" },
+    { label: "Websites",  href: "/admin/websites",  icon: Globe,     perm: "studios.view" },
     { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
   ] },
   { label: "Money", items: [

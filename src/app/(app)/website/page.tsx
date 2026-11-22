@@ -5,7 +5,7 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -17,13 +17,32 @@ import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteSt
 type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string; sizeBytes?: number; /** Nothing on the website (draft or published) uses it since then */ unusedSince?: string | null };
 const small = (p: Photo) => p.thumbUrl || p.url;
 
-const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
+/**
+ * The editor in three groups: what is on the pages, how it looks, and the website's settings (address and
+ * status now; Google, ads tracking and visitors join Settings later). Each group shows its own tabs.
+ */
+const TABS = [
+  ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
+  ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
+  ["design", "Look", Palette], ["photos", "All photos", LayoutGrid],
+  ["address", "Address & status", Link2],
+] as const;
 type Tab = (typeof TABS)[number][0];
+const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
+  { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "more", "contact"] },
+  { id: "look", name: "Look & photos", icon: Palette, tabs: ["design", "photos"] },
+  { id: "settings", name: "Settings", icon: Settings2, tabs: ["address"] },
+];
+const groupOf = (t: Tab) => GROUPS.find(g => g.tabs.includes(t)) ?? GROUPS[0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
 const RATIO = { hero0: 3 / 2, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
 type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
   photos: Photo[]; photoLimit: number; /** Unused photos are removed for good after this many days */ unusedDays?: number; studio: { name: string; logoUrl: string | null };
+  /** Visitors can't see the website now: StuPanel took it offline, the studio is closed, or the plan is unpaid. */
+  offline?: "admin" | "closed" | "unpaid" | null; offlineNote?: string | null;
+  /** Days an old address keeps sending visitors to the new one after a change. */
+  renameHoldDays?: number;
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
@@ -64,7 +83,7 @@ export default function WebsitePage() {
   const [slug, setSlug] = useState("");
   const [slugNote, setSlugNote] = useState<{ ok: boolean; message: string } | null>(null);
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
-  const [tab, setTab] = useState<Tab>("design");
+  const [tab, setTab] = useState<Tab>("home");
   const [allPhotos, setAllPhotos] = useState(false);
   /** Time the page opened, for "days left" on unused photos. */
   const [openedAt] = useState(() => Date.now());
@@ -309,20 +328,47 @@ export default function WebsitePage() {
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{site.isPublished ? (site.hasChanges ? "Publish changes" : "Published") : "Publish"}
         </button>
       </PageHeader>
+      {site.offline && (
+        <div className="mb-4 rounded-[16px] border border-[#F3C9D2] bg-[#FFF1F4] px-4 py-3.5 flex gap-3" role="alert">
+          <AlertTriangle className="w-5 h-5 text-[#C2304F] flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="text-[13px] leading-snug text-[#5A1F2C]">
+            <b className="block text-sm">Visitors can&apos;t see your website right now</b>
+            {site.offline === "admin" ? <>StuPanel has taken it offline.{site.offlineNote ? ` Note: ${site.offlineNote}` : ""} Please contact StuPanel support.</>
+              : site.offline === "unpaid" ? <>Your StuPanel plan has ended. It comes back as soon as the plan is paid.</>
+              : <>Your studio is closed. It comes back if the studio is opened again.</>}
+          </div>
+        </div>
+      )}
       <div className="sticky top-3 z-20 mb-5">
-        <div role="tablist" aria-label="Website parts" className="ed-tabs sp-card bg-white rounded-[18px] p-1.5 flex gap-1 overflow-x-auto">
-          {TABS.map(([id, name, Icon]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
-              className={cn("h-10 px-3.5 rounded-[13px] text-[13px] font-semibold whitespace-nowrap transition-all flex-shrink-0 inline-flex items-center gap-1.5",
-                tab === id ? "bg-[#7D5CEF] text-white shadow-[0_6px_16px_-6px_rgba(125,92,239,.8)]" : "text-[#4A4658] hover:bg-[#F1EEF8]")}>
-              <Icon className="w-4 h-4" aria-hidden="true" />{name}
-            </button>
-          ))}
+        <div className="ed-tabs sp-card bg-white rounded-[18px] p-1.5">
+          <div role="tablist" aria-label="Website sections" className="grid grid-cols-3 gap-1">
+            {GROUPS.map(g => {
+              const on = groupOf(tab).id === g.id;
+              return (
+                <button key={g.id} type="button" role="tab" aria-selected={on} onClick={() => { if (!on) { setTab(g.tabs[0]); window.scrollTo({ top: 0 }); } }}
+                  className={cn("h-10 px-2 rounded-[13px] text-[13px] font-semibold transition-all inline-flex items-center justify-center gap-1.5 min-w-0",
+                    on ? "bg-[#7D5CEF] text-white shadow-[0_6px_16px_-6px_rgba(125,92,239,.8)]" : "text-[#4A4658] hover:bg-[#F1EEF8]")}>
+                  <g.icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" /><span className="truncate">{g.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          {groupOf(tab).tabs.length > 1 && (
+            <div role="tablist" aria-label={groupOf(tab).name} className="flex gap-1 overflow-x-auto mt-1.5 pt-1.5 border-t border-[#EEEBF4]">
+              {TABS.filter(([id]) => groupOf(tab).tabs.includes(id)).map(([id, name, Icon]) => (
+                <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
+                  className={cn("h-9 px-3 rounded-[11px] text-[13px] font-semibold whitespace-nowrap transition-colors flex-shrink-0 inline-flex items-center gap-1.5",
+                    tab === id ? "bg-[#F1EEF8] text-[#5B3FD0]" : "text-[#6B6680] hover:bg-[#F7F5FB]")}>
+                  <Icon className="w-4 h-4" aria-hidden="true" />{name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div hidden={tab !== "design"}>
-      <FormGroup title="Address" note={site.isPublished ? undefined : "The link works after you publish."}>
+      <div hidden={tab !== "address"}>
+      <FormGroup title="Address" note={site.isPublished ? `If you change it, your old link keeps sending visitors to the new one for ${site.renameHoldDays ?? 30} days.` : "The link works after you publish."}>
         <Field label="Your website link" hint={slugNote && slug !== site.slug ? <span className={slugNote.ok ? "text-[#1F8A4C]" : "text-[#C2304F]"}>{slugNote.message}</span> : "Small letters, numbers and dashes."}>
           {id => (
             <div className="flex gap-2 items-center flex-wrap">
@@ -340,6 +386,18 @@ export default function WebsitePage() {
             </div>
           )}
         </Field>
+      </FormGroup>
+      <FormGroup title="Status">
+        <div className="px-4 py-3.5 flex flex-wrap items-center gap-3">
+          <span className={cn("inline-flex items-center gap-2 text-sm font-semibold", site.offline ? "text-[#C2304F]" : site.isPublished ? "text-[#1F8A4C]" : "text-[#6B6680]")}>
+            <span className={cn("w-2.5 h-2.5 rounded-full", site.offline ? "bg-[#C2304F]" : site.isPublished ? "bg-[#1F8A4C]" : "bg-[#C9C3DA]")} aria-hidden="true" />
+            {site.offline ? "Offline — visitors can't see it" : site.isPublished ? "Online" : "Not published yet"}
+          </span>
+          <span className="text-[13px] text-[#6B6680] flex-1 basis-[200px]">{site.isPublished && site.publishedAt ? `Last published ${new Date(site.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : "Publish when you are ready. Bookings from the website go to your Leads."}</span>
+          {site.isPublished && (
+            <button type="button" disabled={busy} onClick={() => publish(false)} className="h-10 px-4 rounded-full border border-[#F3C9D2] text-[13px] font-semibold text-[#C2304F] hover:bg-[#FFF1F4] disabled:opacity-50">Take the website offline</button>
+          )}
+        </div>
       </FormGroup>
       </div>
 
@@ -651,10 +709,6 @@ export default function WebsitePage() {
         <Field label="One line about the studio (footer)">{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
       </FormGroup>
       </div>
-
-      {site.isPublished && (
-        <button type="button" disabled={busy} onClick={() => publish(false)} className="text-sm font-semibold text-[#C2304F] px-1 mb-10">Take the website offline</button>
-      )}
 
       {((site.isPublished && site.hasChanges) || undoable > 0) && (
         // Phones: sits above the bottom menu, so it is never hidden behind it.

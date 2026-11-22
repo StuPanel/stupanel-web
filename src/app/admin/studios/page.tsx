@@ -241,6 +241,8 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
   const [exported, setExported] = useState(false);
   const [typed, setTyped] = useState("");
   const [code, setCode] = useState("");
+  /** Website address: held for the usual days (Websites → Rules), or free for anyone at once. */
+  const [freeName, setFreeName] = useState(false);
 
   async function exportExcel() {
     setExporting(true);
@@ -265,7 +267,7 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
       const endpoint = deleteType === "instant" ? "instant-delete" : "archive";
       const res = await fetch(`${API}/admin/studios/${studio.id}/${endpoint}`, {
         method: "POST", headers: authH(),
-        body: deleteType === "instant" ? JSON.stringify({ confirm: typed, code }) : undefined,
+        body: deleteType === "instant" ? JSON.stringify({ confirm: typed, code, freeSiteName: freeName }) : undefined,
       });
       const d = await res.json();
       if (!res.ok) { setError(Array.isArray(d.message) ? d.message.join(", ") : d.message || "Operation failed"); return; }
@@ -338,6 +340,12 @@ function DeleteModal({ studio, onClose, onDeleted, onArchived }: {
               <>
                 {!exported && <p className="text-xs text-amber-200 bg-amber-900/20 border border-amber-800/40 px-3 py-2 rounded-lg">You have not downloaded this studio&apos;s data yet. After deleting there is no copy.</p>}
                 <DeleteProof name={studio.name} typed={typed} setTyped={setTyped} code={code} setCode={setCode} />
+                <label className="flex items-start gap-2.5 text-sm text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer">
+                  <input type="checkbox" checked={freeName} onChange={e => setFreeName(e.target.checked)} className="accent-indigo-500 w-4 h-4 mt-0.5" />
+                  <span>Free its website address right away
+                    <span className="block text-xs text-slate-400 mt-0.5">Otherwise nobody can take it for the days set in Websites → Rules, so old links don&apos;t lead to another studio.</span>
+                  </span>
+                </label>
               </>
             )}
 

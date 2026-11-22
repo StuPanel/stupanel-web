@@ -31,7 +31,7 @@ const P = {
   again: "M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5",
 };
 
-/** Poster + theatre. `className` goes on the poster button (e.g. "cine" for the Home scroll effect). */
+/** Poster + theatre. `className` goes on the poster button (e.g. "cine rv" on Home). */
 export function FilmTheater({ id, title, poster, posterStyle, className, big }: {
   id: string; title: string; poster?: string; posterStyle?: React.CSSProperties; className?: string; /** Home: the larger play button */ big?: boolean;
 }) {

@@ -119,6 +119,26 @@ function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop
   );
 }
 
+/** First five looks, computers only: more photos laid over the main Home photo, changing by themselves with a slow fade. */
+function HeroSlides({ slides }: { slides: SitePhoto[] }) {
+  const [n, setN] = useState(-1);
+  const count = slides.length + 1;
+  useEffect(() => {
+    if (count < 2 || !window.matchMedia("(min-width: 861px)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setN(v => (v + 2) % count - 1), 5000);
+    return () => clearInterval(t);
+  }, [count]);
+  return (
+    <>
+      {slides.map((p, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={p.url} src={p.url} alt="" loading="lazy" className={`hsl${i === n ? " on" : ""}`} />
+      ))}
+      <span className="hdots" aria-hidden="true">{Array.from({ length: count }, (_, i) => <i key={i} className={i === n + 1 ? "on" : undefined} />)}</span>
+    </>
+  );
+}
+
 /** Gallery look: albums in groups of five, one large and four small, the large one changing sides; names sit under the photos. */
 export function MonoAlbums({ albums, photos, crops, onOpen, rows }: { albums: SiteAlbum[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; onOpen: (a: SiteAlbum) => void; /** Portfolio page: three in a row, all the same size */ rows?: boolean }) {
   const card = (a: SiteAlbum, big: boolean, eager?: boolean) => (
@@ -290,6 +310,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const bookHref = home && !mono ? "#book" : L("/contact");
   const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
+  /** Extra photos for the main Home photo (computers). */
+  const heroMore = (c.slides ?? []).filter((id, k, all) => photos[id] && id !== c.heroPhotos[0] && all.indexOf(id) === k).map(id => photos[id]);
   const d = (s: number) => ({ animationDelay: `calc(var(--d) + ${s}s)` });
   const slot = [
     { transform: "translateY(0) rotate(0deg) scale(1)", opacity: 1, zIndex: 3 },
@@ -340,6 +362,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
               <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
+              {heroMore.length > 0 && <HeroSlides slides={heroMore} />}
             </div>
             <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
               <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />
@@ -352,7 +375,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
               <span className="sc" style={{ fontSize: 40, color: "var(--badget)", lineHeight: 1 }}>{initials(studio.name).toLowerCase()}</span>
             </div>
           </div>
-          <div>
+          <div className="htxt">
             {c.script && <div className="sc hscr" style={{ lineHeight: 1, marginLeft: 6 }}><span className="wr" style={d(0.4)}>{c.script}</span></div>}
             <h1 className="cz hh1" style={{ margin: "6px 0 0", lineHeight: 1.04, letterSpacing: ".04em" }}>
               {words.map((w, i) => (

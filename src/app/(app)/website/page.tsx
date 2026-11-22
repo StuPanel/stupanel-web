@@ -201,6 +201,7 @@ export default function WebsitePage() {
   const crops = c.crop ?? {};
   /** Gallery White: the photos of its full-screen slideshow. */
   const slides = (c.slides ?? []).filter(id => byId.has(id));
+  const mono = site.theme === "mono";
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
   const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
@@ -306,10 +307,10 @@ export default function WebsitePage() {
         <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
         <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
         <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
-        {site.theme === "mono" && (
+        {(
             <div className="px-4 py-3.5">
-              <div className="text-sm font-semibold text-[#1F1B2E]">Home screen photos (slideshow)</div>
-              <p className="text-[13px] text-[#6B6680] mt-0.5">Gallery White fills the first screen with these, one after another. Wide (landscape) photos look best. Pick up to 8, in the order they should show.</p>
+              <div className="text-sm font-semibold text-[#1F1B2E]">{mono ? "Home screen photos (slideshow)" : "Main photo slideshow"}</div>
+              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another. Phones show the main photo only."} Wide (landscape) photos look best. Pick up to 8, in the order they should show.</p>
               {slides.length > 0 && (
                 <div className="flex gap-1.5 mt-2.5 flex-wrap">
                   {slides.map(id => (
@@ -319,11 +320,11 @@ export default function WebsitePage() {
                 </div>
               )}
               <div className="flex gap-2 mt-2.5 flex-wrap">
-                <button type="button" onClick={() => choose("Home screen photos (wide)", slides, ids => set("slides", ids), true, 8)}
+                <button type="button" onClick={() => choose(mono ? "Home screen photos (wide)" : "Slideshow photos (wide)", slides, ids => set("slides", ids), true, 8)}
                   className="h-11 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{slides.length ? "Change photos" : "Choose photos"}</button>
                 {slides.length > 0 && <button type="button" onClick={() => set("slides", [])} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F5F3FA]">Clear</button>}
               </div>
-              {slides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">Nothing chosen yet, so the site shows your album covers here.</p>}
+              {slides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">{mono ? "Nothing chosen yet, so the site shows your album covers here." : "Nothing chosen yet, so the main photo stays still."}</p>}
             </div>
         )}
         {site.theme !== "mono" && <div className="px-4 py-3.5 flex gap-4">

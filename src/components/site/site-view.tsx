@@ -96,7 +96,7 @@ export function AlbumCard({ a, photo, crop, onOpen, i, eager, count }: { a: Site
 }
 
 /** Gallery look: photos fill the first screen and change by themselves; arrows move by hand. */
-function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop; name: string }) {
+function MonoHero({ slides, crops, name }: { slides: SitePhoto[]; /** One per slide, in the same order */ crops?: (SiteCrop | undefined)[]; name: string }) {
   const [n, setN] = useState(0);
   const count = slides.length;
   useEffect(() => {
@@ -109,7 +109,7 @@ function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop
       {slides.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={p.url} src={p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="100vw" alt="" className={i === n ? "on" : undefined} loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined}
-          style={{ backgroundImage: `url(${p.blur})`, ...(i === 0 ? cropStyle(crop) : {}) }} />
+          style={{ backgroundImage: `url(${p.blur})`, ...cropStyle(crops?.[i]) }} />
       ))}
       {count > 1 && <>
         <button type="button" className="mprev" aria-label="Previous photo" onClick={() => setN(v => (v - 1 + count) % count)}><Ic d={ICON.prev} size={22} w={1.2} /></button>
@@ -120,7 +120,7 @@ function MonoHero({ slides, crop, name }: { slides: SitePhoto[]; crop?: SiteCrop
 }
 
 /** First five looks, computers only: more photos laid over the main Home photo, changing by themselves with a slow fade. */
-function HeroSlides({ slides }: { slides: SitePhoto[] }) {
+function HeroSlides({ slides, crops }: { slides: SitePhoto[]; crops?: (SiteCrop | undefined)[] }) {
   const [n, setN] = useState(-1);
   const count = slides.length + 1;
   useEffect(() => {
@@ -132,7 +132,7 @@ function HeroSlides({ slides }: { slides: SitePhoto[] }) {
     <>
       {slides.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={p.url} src={p.url} alt="" loading="lazy" className={`hsl${i === n ? " on" : ""}`} />
+        <img key={p.url} src={p.url} alt="" loading="lazy" className={`hsl${i === n ? " on" : ""}`} style={cropStyle(crops?.[i])} />
       ))}
     </>
   );
@@ -179,7 +179,7 @@ function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) =>
   const hide = c.hide ?? [];
   return (
     <>
-      <MonoHero slides={ids.map(id => photos[id])} crop={own.length ? undefined : c.crop?.hero0} name={studio.name} />
+      <MonoHero slides={ids.map(id => photos[id])} crops={ids.map((id, i) => c.crop?.[`slide:${id}`] ?? (!own.length && i === 0 ? c.crop?.hero0 : undefined))} name={studio.name} />
       <section className="wrap mst">
         <h1 className="cz">{[c.script, c.headline].filter(Boolean).join(" ")}</h1>
         {c.intro && <p>{c.intro}</p>}
@@ -310,7 +310,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const more = [...nav, (c.faqs ?? []).length ? [L("/faq"), "FAQ"] : null, [L("/contact"), "Contact"]].filter(Boolean) as [string, string][];
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
   /** Extra photos for the main Home photo (computers). */
-  const heroMore = (c.slides ?? []).filter((id, k, all) => photos[id] && id !== c.heroPhotos[0] && all.indexOf(id) === k).map(id => photos[id]);
+  const heroMore = (c.slides ?? []).filter((id, k, all) => photos[id] && id !== c.heroPhotos[0] && all.indexOf(id) === k);
   const d = (s: number) => ({ animationDelay: `calc(var(--d) + ${s}s)` });
   const slot = [
     { transform: "translateY(0) rotate(0deg) scale(1)", opacity: 1, zIndex: 3 },
@@ -361,7 +361,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
               <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
-              {heroMore.length > 0 && <HeroSlides slides={heroMore} />}
+              {heroMore.length > 0 && <HeroSlides slides={heroMore.map(id => photos[id])} crops={heroMore.map(id => c.crop?.[`slide:${id}`])} />}
             </div>
             <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
               <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />

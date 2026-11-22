@@ -310,13 +310,20 @@ export default function WebsitePage() {
         {(
             <div className="px-4 py-3.5">
               <div className="text-sm font-semibold text-[#1F1B2E]">{mono ? "Home screen photos (slideshow)" : "Main photo slideshow"}</div>
-              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another. Phones show the main photo only."} Wide (landscape) photos look best. Pick up to 8, in the order they should show.</p>
+              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another. Phones show the main photo only."} Wide (landscape) photos look best. Pick up to 8, in the order they should show. Tap a photo below to move or zoom it.</p>
               {slides.length > 0 && (
                 <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                  {slides.map(id => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={id} src={small(byId.get(id)!)} alt="" loading="lazy" className="w-[84px] h-14 rounded-[8px] object-cover" />
-                  ))}
+                  {slides.map((id, i) => {
+                    const k = crops[`slide:${id}`];
+                    return (
+                      <button key={id} type="button" onClick={() => adjust(`slide:${id}`, id, `Slideshow photo ${i + 1}`, mono ? 16 / 9 : RATIO.hero0)} aria-label={`Adjust slideshow photo ${i + 1}`}
+                        className="group relative w-[108px] rounded-[10px] overflow-hidden bg-[#F1EEF8]" style={{ aspectRatio: mono ? "16 / 9" : "3 / 2" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={small(byId.get(id)!)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                        <span className="absolute inset-x-0 bottom-0 py-1 text-[11px] font-semibold text-white bg-black/55 text-center">Adjust</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <div className="flex gap-2 mt-2.5 flex-wrap">
@@ -651,9 +658,11 @@ function PhotoPicker({ photos, title, multi, max, value, done, onClose, onUpload
                 const n = sel.indexOf(p.id);
                 return (
                   <button key={p.id} type="button" onClick={() => tap(p.id)} aria-pressed={n >= 0} aria-label={n >= 0 ? "Chosen photo" : "Choose this photo"}
-                    className={cn("relative aspect-square rounded-[12px] overflow-hidden border-[3px]", n >= 0 ? "border-[#7D5CEF]" : "border-transparent")}>
+                    className={cn("relative aspect-square rounded-[12px] overflow-hidden border-[3px] bg-[#F1EEF8] flex items-center justify-center p-1", n >= 0 ? "border-[#7D5CEF]" : "border-transparent")}>
+                    {/* The whole photo in its own shape, so wide and tall ones are easy to tell apart. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    <img src={small(p)} alt="" loading="lazy" className="max-w-full max-h-full rounded-[6px] object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
+                    <span className="absolute left-1 bottom-1 px-1.5 h-5 rounded-full bg-white/90 text-[10px] font-bold text-[#4A4658] flex items-center">{p.width > p.height * 1.1 ? "Wide" : p.height > p.width * 1.1 ? "Tall" : "Square"}</span>
                     {n >= 0 && <span className="absolute top-1 right-1 min-w-6 h-6 px-1 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">{multi ? n + 1 : <Check className="w-3.5 h-3.5" />}</span>}
                   </button>
                 );

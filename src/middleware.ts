@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SITE_ROOT, SITE_SUBDOMAINS, siteFromHost } from "@/lib/site-url";
 
 // Routes that require authentication
 const PROTECTED_PREFIXES = [
@@ -78,6 +79,24 @@ const PUBLIC_PREFIXES = [
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const host = request.headers.get("host") || "";
+
+  // <address>.stupanel.com is a studio's website: served by /site/<address>/… without changing the address bar.
+  const site = siteFromHost(host);
+  if (site) {
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || pathname === "/robots.txt") return NextResponse.next();
+    // A link written the old way (/site/<address>/…) on the subdomain: back to the short form.
+    const old = pathname.match(/^\/site\/[a-z0-9-]+(\/.*)?$/);
+    if (old) return NextResponse.redirect(new URL(`${old[1] || "/"}${search}`, request.url), 308);
+    const headers = new Headers(request.headers);
+    headers.set("x-site-host", site);
+    return NextResponse.rewrite(new URL(`/site/${site}${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
+  }
+
+  // app.stupanel.com/site/<address>/… → <address>.stupanel.com/… (the studio's own preview stays on the app).
+  if (SITE_SUBDOMAINS && host === APP_HOST && pathname.startsWith("/site/") && !request.nextUrl.searchParams.has("preview")) {
+    const m = pathname.match(/^\/site\/([a-z0-9-]{1,40})(\/.*)?$/);
+    if (m) return NextResponse.redirect(`https://${m[1]}.${SITE_ROOT}${m[2] ?? "/"}${search}`, 308);
+  }
 
   // stupanel.com / www.stupanel.com is marketing-only now — send every app route to app.stupanel.com.
   // Explicit hostname allowlist (not "doesn't start with app.") so localhost and Vercel preview URLs are untouched.

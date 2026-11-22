@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AlertTriangle, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
+import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -285,7 +286,7 @@ export default function WebsitePage() {
   const c = site.content;
   const byId = new Map(site.photos.map(p => [p.id, p]));
   const origin = typeof window !== "undefined" ? window.location.origin : "https://app.stupanel.com";
-  const url = `${origin}/site/${site.slug}`;
+  const url = siteUrl(site.slug, "", origin);
   const choose = (title: string, value: string[], done: (ids: string[]) => void, multi = false, max = 1, first?: string[]) => setPick({ title, multi, max, value, done, first });
   const setAlbum = (i: number, patch: Partial<SiteAlbum>) => set("albums", c.albums.map((a, k) => (k === i ? { ...a, ...patch } : a)));
   const status = !site.isPublished ? "Not published yet" : site.hasChanges ? "Published, with changes not yet published" : "Published";
@@ -373,9 +374,10 @@ export default function WebsitePage() {
           {id => (
             <div className="flex gap-2 items-center flex-wrap">
               <div className="flex items-center flex-1 min-w-[220px]">
-                <span className="text-[13px] text-[#6B6680] mr-1.5 hidden sm:inline">{origin.replace(/^https?:\/\//, "")}/site/</span>
+                {!SITE_SUBDOMAINS && <span className="text-[13px] text-[#6B6680] mr-1.5 hidden sm:inline">{origin.replace(/^https?:\/\//, "")}/site/</span>}
                 <input id={id} className={inputCls} value={slug} maxLength={40} autoCapitalize="none" spellCheck={false}
                   onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+                {SITE_SUBDOMAINS && <span className="text-[13px] text-[#6B6680] ml-1.5 hidden sm:inline">.stupanel.com</span>}
               </div>
               {slug !== site.slug
                 ? <button type="button" disabled={busy || !slugNote?.ok} onClick={saveSlug} className="h-11 px-4 rounded-[12px] bg-[#17151F] disabled:opacity-40 text-white text-sm font-semibold">Use this address</button>

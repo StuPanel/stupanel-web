@@ -262,7 +262,7 @@ export function Heading({ script, title, light }: { script: string; title: strin
   );
 }
 
-export function SiteView({ data, preview, page = "home", albumId, storyId }: { data: SiteData; preview?: boolean; page?: SitePageName; albumId?: string; storyId?: string }) {
+export function SiteView({ data, preview, base, page = "home", albumId, storyId }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
   const hero = useRef<HTMLElement>(null);
@@ -314,7 +314,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   // Album and photo viewer: the phone's Back button closes them; the page behind does not scroll.
   const home = page === "home";
   /** A page of this site (keeps the preview flag). */
-  const L = useCallback((path: string) => `/site/${data.slug}${path}${preview ? "?preview=1" : ""}`, [data.slug, preview]);
+  const L = useCallback((path: string) => `${base ?? `/site/${data.slug}`}${path}${preview ? "?preview=1" : ""}` || "/", [base, data.slug, preview]);
   // Opening an album changes the address (so its link can be shared) without leaving the page.
   const openAlbum = (a: SiteAlbum) => { history.pushState({ sgAlbum: a.id }, "", L(`/portfolio/${a.id}`)); setAlbum(a); };
   const closeAlbum = useCallback(() => {

@@ -368,7 +368,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
-              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
+              <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.[`slide:${c.heroPhotos[0]}`] ?? c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
               {(heroMore.length > 0 || heroPhone.length > 0) && <HeroSlides slides={heroMore.map(id => photos[id])} crops={heroMore.map(id => c.crop?.[`slide:${id}`])} phone={heroPhone.map(id => photos[id])} phoneCrops={heroPhone.map(id => c.crop?.[`mslide:${id}`])} />}
             </div>
             <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
@@ -392,8 +392,10 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             {c.kicker && <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "30px 0 26px" }}><span style={{ width: 70, height: 1, background: "var(--ac)", flex: "none" }} /><span className="cap">{c.kicker}</span></div>}
             {c.intro && <p className="hintro" style={{ margin: "0 0 34px", maxWidth: 420 }}>{c.intro}</p>}
             <div className="hbtns" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <a href="#book" className="cap gold shine btn">Book your date</a>
+              <a href="#book" className={`cap gold shine btn${c.albums.length > 0 ? " hbk" : ""}`}>Book your date</a>
               {c.albums.length > 0 && <a href="#albums" className="cap ol">See our albums</a>}
+              {/* Phones: Book us is already in the header, so the one button here opens the work. */}
+              {c.albums.length > 0 && <a href="#albums" className="cap gold shine btn hwk">See our work</a>}
             </div>
           </div>
         </section>

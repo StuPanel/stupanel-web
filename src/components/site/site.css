@@ -515,6 +515,8 @@
 @keyframes sgheroT{from{transform:none;opacity:1;filter:blur(0)}to{transform:translateY(-70px);opacity:0;filter:blur(7px)}}
 }}
 
+.sg .hero .hbtns .hwk{display:none}
+@media (max-width:860px){.sg .hero .hbtns .hwk{display:inline-block}}
 /* ── main Home photo on phones (23-NOV): one tall 4:5 photo with no frame, second photo and badge gone, short
    words and one button under it; its own photos (mobileSlides) or the computer ones, fading the same way ── */
 @media (max-width:860px){
@@ -528,4 +530,5 @@
 .sg .hero .hh1{font-size:clamp(30px,9.6vw,42px)!important;margin-top:2px!important}
 .sg .hero .hbtns{margin-top:22px}
 .sg .hero .hbtns .btn{flex:1;text-align:center;justify-content:center}
+.sg .hero .hbtns .hbk{display:none!important}
 }

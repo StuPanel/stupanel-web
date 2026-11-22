@@ -5,7 +5,7 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Package, Palette, Phone, Plus, Trash2, Upload, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Package, Palette, Phone, Plus, Smartphone, Trash2, Upload, X } from "lucide-react";
 import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -113,6 +113,13 @@ export default function WebsitePage() {
     setSite({ ...site, content, hasChanges: true });
     queue({ content });
   };
+  /** Several fields in one save (two set() calls in a row would lose the first). */
+  const setMany = (patch: Partial<SiteContent>) => {
+    if (!site) return;
+    const content = { ...site.content, ...patch };
+    setSite({ ...site, content, hasChanges: true });
+    queue({ content });
+  };
   const setTheme = (theme: string) => { if (!site) return; setSite({ ...site, theme, hasChanges: true }); queue({ theme }); };
 
   // Address: checked while typing, saved when it is free.
@@ -203,6 +210,8 @@ export default function WebsitePage() {
   const slides = (c.slides ?? []).filter(id => byId.has(id));
   const mono = site.theme === "mono";
   /** Tall photos for the main photo on phones (first five looks). */
+  /** Computer photos of the first screen: the main photo, then the others (Gallery White: its slideshow). */
+  const deskIds = (mono ? slides : [c.heroPhotos[0], ...slides]).filter((id, k, all): id is string => !!id && byId.has(id) && all.indexOf(id) === k);
   const phoneSlides = (c.mobileSlides ?? []).filter(id => byId.has(id));
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
   const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
@@ -309,63 +318,26 @@ export default function WebsitePage() {
         <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
         <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
         <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
-        {(
-            <div className="px-4 py-3.5">
-              <div className="text-sm font-semibold text-[#1F1B2E]">{mono ? "Home screen photos (slideshow)" : "Main photo slideshow"}</div>
-              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another."} Wide (landscape) photos look best. Pick up to 8, in the order they should show. Tap a photo below to move or zoom it.</p>
-              {slides.length > 0 && (
-                <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                  {slides.map((id, i) => {
-                    const k = crops[`slide:${id}`];
-                    return (
-                      <button key={id} type="button" onClick={() => adjust(`slide:${id}`, id, `Slideshow photo ${i + 1}`, mono ? 16 / 9 : RATIO.hero0)} aria-label={`Adjust slideshow photo ${i + 1}`}
-                        className="group relative w-[108px] rounded-[10px] overflow-hidden bg-[#F1EEF8]" style={{ aspectRatio: mono ? "16 / 9" : "3 / 2" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={small(byId.get(id)!)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
-                        <span className="absolute inset-x-0 bottom-0 py-1 text-[11px] font-semibold text-white bg-black/55 text-center">Adjust</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex gap-2 mt-2.5 flex-wrap">
-                <button type="button" onClick={() => choose(mono ? "Home screen photos (wide)" : "Slideshow photos (wide)", slides, ids => set("slides", ids), true, 8)}
-                  className="h-11 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{slides.length ? "Change photos" : "Choose photos"}</button>
-                {slides.length > 0 && <button type="button" onClick={() => set("slides", [])} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F5F3FA]">Clear</button>}
-              </div>
-              {slides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">{mono ? "Nothing chosen yet, so the site shows your album covers here." : "Nothing chosen yet, so the main photo stays still."}</p>}
-            </div>
-        )}
-        {site.theme !== "mono" && <div className="px-4 py-3.5 flex gap-4">
-          <Slot p={ph(c.heroPhotos[0])} crop={crops.hero0} onAdjust={() => adjust("hero0", c.heroPhotos[0], "Main photo", RATIO.hero0)} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
-        </div>}
-        {!mono && (
-          <div className="px-4 py-3.5">
-            <div className="text-sm font-semibold text-[#1F1B2E]">Phone photos</div>
-            <p className="text-[13px] text-[#6B6680] mt-0.5">Phones show the main photo in a tall frame (4:5). Choose tall photos for it here, up to 8; they change one after another. Tap a photo below to move or zoom it.</p>
-            {phoneSlides.length > 0 && (
-              <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                {phoneSlides.map((id, i) => {
-                  const k = crops[`mslide:${id}`];
-                  return (
-                    <button key={id} type="button" onClick={() => adjust(`mslide:${id}`, id, `Phone photo ${i + 1}`, 4 / 5)} aria-label={`Adjust phone photo ${i + 1}`}
-                      className="relative w-[72px] rounded-[10px] overflow-hidden bg-[#F1EEF8]" style={{ aspectRatio: "4 / 5" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={small(byId.get(id)!)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
-                      <span className="absolute inset-x-0 bottom-0 py-1 text-[11px] font-semibold text-white bg-black/55 text-center">Adjust</span>
-                    </button>
-                  );
-                })}
-              </div>
+        <div className="px-4 py-3.5">
+          <div className="text-sm font-semibold text-[#1F1B2E]">First screen photos</div>
+          <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "Computers and phones each have their own photos, because one frame is wide and the other is tall. With more than one photo they change by themselves, one after another."}</p>
+          <div className={cn("grid gap-3 mt-3", !mono && "lg:grid-cols-2")}>
+            <ScreenPhotos icon={<Monitor className="w-4 h-4" />} title={mono ? "Home screen photos" : "Computer"} shape={mono ? "Wide photos, across the whole screen" : "Wide photos, 3:2 frame"} ratio={mono ? 16 / 9 : RATIO.hero0}
+              photos={deskIds.map(id => byId.get(id)!)} crop={(id, i) => crops[`slide:${id}`] ?? (!mono && i === 0 ? crops.hero0 : undefined)} first={!mono}
+              empty={mono ? "Nothing chosen yet, so the site shows your album covers here." : "Nothing chosen yet."}
+              onChoose={() => choose(mono ? "Home screen photos (wide)" : "Computer photos (wide)", deskIds, ids => mono ? set("slides", ids) : setMany({ heroPhotos: ids[0] ? [ids[0], ...(c.heroPhotos[1] && c.heroPhotos[1] !== ids[0] ? [c.heroPhotos[1]] : [])] : [], slides: ids.slice(1) }), true, mono ? 8 : 9)}
+              onClear={() => mono ? set("slides", []) : setMany({ heroPhotos: [], slides: [] })}
+              onAdjust={(id, i) => adjust(`slide:${id}`, id, `${mono ? "Home screen" : "Computer"} photo ${i + 1}`, mono ? 16 / 9 : RATIO.hero0)} />
+            {!mono && (
+              <ScreenPhotos icon={<Smartphone className="w-4 h-4" />} title="Phone" shape="Tall photos, 4:5 frame" ratio={4 / 5}
+                photos={phoneSlides.map(id => byId.get(id)!)} crop={id => crops[`mslide:${id}`]} first
+                empty="Nothing chosen yet, so phones show the computer photos cut to the tall frame."
+                onChoose={() => choose("Phone photos (tall)", phoneSlides, ids => set("mobileSlides", ids), true, 8)}
+                onClear={() => set("mobileSlides", [])}
+                onAdjust={(id, i) => adjust(`mslide:${id}`, id, `Phone photo ${i + 1}`, 4 / 5)} />
             )}
-            <div className="flex gap-2 mt-2.5 flex-wrap">
-              <button type="button" onClick={() => choose("Phone photos (tall)", phoneSlides, ids => set("mobileSlides", ids), true, 8)}
-                className="h-11 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{phoneSlides.length ? "Change photos" : "Choose photos"}</button>
-              {phoneSlides.length > 0 && <button type="button" onClick={() => set("mobileSlides", [])} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F5F3FA]">Clear</button>}
-            </div>
-            {phoneSlides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">Nothing chosen yet, so phones show the main photo and the slideshow photos, cut to the tall frame.</p>}
           </div>
-        )}
+        </div>
         <Field label="Moving words" hint="The events you cover, with a comma between them.">
           {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>
@@ -586,6 +558,47 @@ function Slot({ p, label, onPick, onClear, crop, onAdjust }: { p: Photo | undefi
 }
 
 /** Move and zoom a photo inside the shape it has on the website. Nothing is cut from the photo itself. */
+/** One device's photos for the first screen: small pictures in the frame's own shape, each opening its own Adjust. */
+function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, onChoose, onClear, onAdjust }: {
+  icon: React.ReactNode; title: string; shape: string; ratio: number; photos: Photo[]; crop: (id: string, i: number) => { x: number; y: number; z: number } | undefined;
+  /** Mark the first photo as the one shown first */ first?: boolean; empty: string; onChoose: () => void; onClear: () => void; onAdjust: (id: string, i: number) => void;
+}) {
+  return (
+    <div className="rounded-[16px] border border-[#E7E3F1] bg-[#FBFAFE] p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="w-8 h-8 rounded-full bg-[#EEE9FB] text-[#6143CF] flex items-center justify-center">{icon}</span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[#1F1B2E]">{title}</div>
+          <div className="text-xs text-[#6B6680]">{shape}{photos.length ? `, ${photos.length} chosen` : ""}</div>
+        </div>
+      </div>
+      {photos.length > 0 ? (
+        <>
+          <div className="flex gap-1.5 mt-3 flex-wrap">
+            {photos.map((p, i) => {
+              const k = crop(p.id, i);
+              return (
+                <button key={p.id} type="button" onClick={() => onAdjust(p.id, i)} aria-label={`Adjust photo ${i + 1}`}
+                  className="relative rounded-[10px] overflow-hidden bg-[#F1EEF8] hover:ring-2 hover:ring-[#7D5CEF] focus-visible:ring-2 focus-visible:ring-[#7D5CEF] outline-none" style={{ aspectRatio: String(ratio), height: 76 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                  <span className="absolute left-1 top-1 min-w-5 h-5 px-1 rounded-full bg-white/90 text-[10px] font-bold text-[#4A4658] flex items-center justify-center">{first && i === 0 ? "First" : i + 1}</span>
+                  <span className="absolute right-1 bottom-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-[#6B6680] mt-2">Tap a photo to move or zoom it inside the frame.</p>
+        </>
+      ) : <p className="text-[13px] text-[#6B6680] mt-3">{empty}</p>}
+      <div className="flex gap-2 mt-3 flex-wrap">
+        <button type="button" onClick={onChoose} className="h-11 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{photos.length ? "Change photos" : "Choose photos"}</button>
+        {photos.length > 0 && <button type="button" onClick={onClear} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F1EEF8]">Clear</button>}
+      </div>
+    </div>
+  );
+}
+
 function FrameModal({ photo, title, ratio, value, onSave, onClose }: {
   photo: Photo; title: string; ratio: number; value?: SiteCrop; onSave: (v: SiteCrop | null) => void; onClose: () => void;
 }) {

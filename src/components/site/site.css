@@ -105,19 +105,16 @@
 @keyframes sgsl{from{transform:translateX(6%)}to{transform:translateX(-22%)}}
 .sg .slR{animation:sgsr linear both;animation-timeline:view()}
 @keyframes sgsr{from{transform:translateX(-26%)}to{transform:translateX(0)}}
-/* Home film: a thin widescreen strip that opens into the full picture as it scrolls in (cinema letterbox) */
-.sg .film.cine{max-width:1240px;animation:sgcine linear both;animation-timeline:view();animation-range:cover 28% cover 55%}
-@keyframes sgcine{from{clip-path:inset(38% 0 38%)}to{clip-path:inset(0 0 0)}}
-.sg .film.cine img{animation:sgcimg linear both;animation-timeline:view();animation-range:cover 28% cover 55%}
-@keyframes sgcimg{from{scale:1.18}to{scale:1}}
-.sg .film.cine .play{animation:sgcplay linear both;animation-timeline:view();animation-range:cover 34% cover 44%}
-@keyframes sgcplay{from{opacity:0}to{opacity:1}}
+/* Home film: a calm, still poster (no scroll effect) that fades in like the other parts */
+.sg .film.cine{max-width:1240px}
+.sg .film.cine img{filter:brightness(.68);transition:transform 2.4s cubic-bezier(.2,.7,.2,1),filter .7s}
+.sg .film.cine:hover img{transform:scale(1.03);filter:brightness(.55)}
 .sg .pcine{gap:18px}
-.sg .pcine .pring{width:84px;height:84px;border-radius:50%;border:1px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;color:#fff;background:rgba(0,0,0,.2);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:transform .5s cubic-bezier(.2,.7,.2,1),background .4s,border-color .4s,color .4s}
+.sg .pcine .pring{width:76px;height:76px;border-radius:50%;border:1px solid rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;color:#fff;background:rgba(255,255,255,.08);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:transform .5s cubic-bezier(.2,.7,.2,1),background .4s,border-color .4s,color .4s}
 .sg .pcine .pring svg{margin-left:3px}
 .sg .pcine .plbl{color:#fff;font-size:22px;font-style:italic;text-shadow:0 1px 12px rgba(0,0,0,.35)}
 .sg .film:hover .pcine .pring,.sg .film:focus-visible .pcine .pring{transform:scale(1.08);background:var(--btn);border-color:var(--btn);color:var(--btnt)}
-@media (max-width:640px){.sg .film.cine{margin:0 -28px;width:calc(100% + 56px);max-width:none}@keyframes sgcine{from{clip-path:inset(28% 0 28%)}to{clip-path:inset(0 0 0)}}.sg .pcine{gap:12px}.sg .pcine .pring{width:58px;height:58px}.sg .pcine .plbl{font-size:18px}.sg.t-cream .film.cine{border-radius:0}}
+@media (max-width:640px){.sg .film.cine{margin:0 -28px;width:calc(100% + 56px);max-width:none}.sg .pcine{gap:12px}.sg .pcine .pring{width:58px;height:58px}.sg .pcine .plbl{font-size:18px}.sg.t-cream .film.cine{border-radius:0}}
 .sg .frm{animation:sgfrm linear both;animation-timeline:view();animation-range:entry 0% cover 45%}
 @keyframes sgfrm{from{transform:translate(70px,70px)}to{transform:translate(22px,22px)}}
 .sg .par{animation:sgpar linear both;animation-timeline:view()}

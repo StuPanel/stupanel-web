@@ -134,7 +134,6 @@ function HeroSlides({ slides }: { slides: SitePhoto[] }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img key={p.url} src={p.url} alt="" loading="lazy" className={`hsl${i === n ? " on" : ""}`} />
       ))}
-      <span className="hdots" aria-hidden="true">{Array.from({ length: count }, (_, i) => <i key={i} className={i === n + 1 ? "on" : undefined} />)}</span>
     </>
   );
 }

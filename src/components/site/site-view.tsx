@@ -686,7 +686,7 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
           <label><span className="cap" style={{ fontSize: 10 }}>Your name</span><input type="text" name="name" autoComplete="name" maxLength={150} required /></label>
           <label><span className="cap" style={{ fontSize: 10 }}>Phone or WhatsApp</span><input type="tel" name="phone" autoComplete="tel" inputMode="tel" maxLength={30} required /></label>
         </div>
-        <label style={{ display: "block", marginTop: 26 }}><span className="cap" style={{ fontSize: 10 }}>Email (optional)</span><input type="email" name="email" autoComplete="email" inputMode="email" maxLength={255} spellCheck={false} autoCapitalize="none" /></label>
+        <label style={{ display: "block", marginTop: 26 }}><span className="cap" style={{ fontSize: 10 }}>Email</span><input type="email" name="email" autoComplete="email" inputMode="email" maxLength={255} spellCheck={false} autoCapitalize="none" /></label>
         {events.map((ev, i) => (
           <fieldset key={i} className="evr">
             <legend className="cap" style={{ fontSize: 10 }}>{events.length > 1 ? `Event ${i + 1}` : "Your event"}</legend>

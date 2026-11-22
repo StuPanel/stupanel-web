@@ -1,6 +1,7 @@
 /**
  * A studio's public website: app.stupanel.com/site/<address>[/page].
- * The published copy is fetched on the server for every visit (readable by Google, and a Publish shows at once);
+ * The published copy is read on the server (readable by Google) and kept in Vercel's cache for 5 minutes;
+ * Publish / Unpublish / a new address clear it at once (the API calls /api/site-refresh), so changes still show straight away.
  * ?preview=1 shows the studio's own draft instead (needs the studio to be signed in).
  */
 import type { Metadata } from "next";
@@ -27,7 +28,7 @@ function route(path: string[] | undefined): { page: SitePageName; albumId?: stri
 async function load(slug: string): Promise<SiteData | null> {
   if (!/^[a-z0-9-]{1,40}$/.test(slug)) return null;
   try {
-    const res = await fetch(`${API_URL}/public/site/${slug}`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/public/site/${slug}`, { next: { revalidate: 300, tags: [`site:${slug}`] } });
     return res.ok ? ((await res.json()) as SiteData) : null;
   } catch {
     return null;

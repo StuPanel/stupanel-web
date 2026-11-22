@@ -163,7 +163,7 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
               <PillButton tone="green" icon={CheckCircle2} onClick={() => setConverting(true)}>Confirm booking</PillButton>
             )}
             {q.status === "draft" && <PillButton tone="primary" icon={sending ? Loader2 : Send} onClick={sendQuote} disabled={sending}>Send</PillButton>}
-            {["draft","rejected"].includes(q.status) && <PillButton icon={Edit2} onClick={onEdit}>Edit</PillButton>}
+            {["draft","rejected","expired"].includes(q.status) && <PillButton icon={Edit2} onClick={onEdit}>Edit</PillButton>}
             {q.status !== "draft" && <PillButton icon={MessageCircle} onClick={shareWA}>WhatsApp</PillButton>}
             {q.convertedBookingId && <PillButton tone="primary" icon={ArrowRight} href={`/programs?view=${q.convertedBookingId}`}>{q.convertedBookingNumber ? `Open ${q.convertedBookingNumber}` : "Open program"}</PillButton>}
             <PillButton icon={Eye} href={publicUrl} external>Preview</PillButton>
@@ -178,6 +178,12 @@ function ViewDrawer({ quote, onClose, onEdit, onRefresh }: {
                 <p className="text-[12.5px] text-[#1F8A5B] mt-0.5">{fmtDateTime(q.acceptedAt)}</p>
                 <p className="text-[12.5px] text-[#14613F] mt-1.5">{q.convertedBookingId ? (q.convertedBookingNumber ? `Booked as ${q.convertedBookingNumber}.` : "It's now a program.") : "Tap Confirm booking to make it a program and record the advance."}</p>
               </div>
+            </div>
+          )}
+          {q.status === "expired" && (
+            <div className="rounded-[18px] bg-[#FBF2FA] px-4 py-3.5 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#9E3A8C] flex-shrink-0 mt-0.5" />
+              <div><p className="text-[14px] font-bold text-[#7A2C6C]">This quote has expired</p><p className="text-[12.5px] text-[#9E3A8C] mt-0.5">{q.validUntil ? `It was valid until ${fmtDate(q.validUntil)}. ` : ""}The client can no longer accept it. Edit it and choose a later date to open it again.</p></div>
             </div>
           )}
           {q.status === "rejected" && (
@@ -397,7 +403,7 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
   const sc = STATUS[q.status] ?? STATUS.draft;
   const h = STATUS_HEX[q.status] ?? STATUS_HEX.draft;
   const sym = currSym(q.currency);
-  const expired = q.validUntil && new Date(q.validUntil) < new Date() && !["converted", "accepted"].includes(q.status);
+  const expired = q.status === "expired";
 
 
   const item = "w-full flex items-center gap-2.5 px-3 h-10 rounded-[12px] text-sm text-[#17151F] hover:bg-[#F5F3FA]";
@@ -410,7 +416,7 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
         <p className="text-xs text-[#6B6680] truncate mt-0.5">
           <span className="font-mono">{q.quoteNumber}</span>{q.eventType ? ` · ${q.eventType}` : ""}{q.venue ? ` · ${q.venue}` : ""}
           {q.viewCount > 0 && <span className="text-[#5B3FD0]"> · <Eye className="inline w-3 h-3 -mt-0.5" /> {q.viewCount}</span>}
-          {expired && <span className="text-[#C2304F] font-semibold"> · Expired</span>}
+          {expired && <span className="sm:hidden text-[#9E3A8C] font-semibold"> · Expired</span>}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
@@ -425,7 +431,7 @@ function QuoteRow({ q, onView, onEdit, onDuplicate, onDelete, onSend }: {
         </button>
         <FloatMenu anchor={menuRef} open={menuOpen} onClose={() => setMenuOpen(false)} width={192}>
             <button role="menuitem" onClick={() => { onView(); setMenuOpen(false); }} className={item}><Eye className="w-4 h-4 text-[#6B6680]" />Open</button>
-            {["draft", "rejected"].includes(q.status) && <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className={item}><Edit2 className="w-4 h-4 text-[#6B6680]" />Edit</button>}
+            {["draft", "rejected", "expired"].includes(q.status) && <button role="menuitem" onClick={() => { onEdit(); setMenuOpen(false); }} className={item}><Edit2 className="w-4 h-4 text-[#6B6680]" />Edit</button>}
             {q.status === "draft" && <button role="menuitem" onClick={() => { onSend(); setMenuOpen(false); }} className={item}><Send className="w-4 h-4 text-[#5B3FD0]" />Send quote</button>}
             <button role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }} className={item}><Copy className="w-4 h-4 text-[#6B6680]" />Duplicate</button>
             {["draft", "rejected", "expired"].includes(q.status) && <button role="menuitem" onClick={() => { onDelete(); setMenuOpen(false); }} className={cn(item, "text-[#C2304F] hover:bg-[#FDECEF]")}><Trash2 className="w-4 h-4" />Delete</button>}
@@ -521,7 +527,7 @@ function QuotesPageInner() {
   const TABS = [
     { key: "all", label: "All" }, { key: "draft", label: "Draft" }, { key: "sent", label: "Sent" },
     { key: "viewed", label: "Viewed" }, { key: "accepted", label: "Accepted" },
-    { key: "converted", label: "Converted" }, { key: "rejected", label: "Rejected" },
+    { key: "converted", label: "Converted" }, { key: "rejected", label: "Rejected" }, { key: "expired", label: "Expired" },
   ];
 
   return (

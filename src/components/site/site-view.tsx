@@ -480,7 +480,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
             <div className="wrap" style={{ textAlign: "center" }}>
               <Heading script="wedding" title="Films" light />
               <div style={{ height: 50 }} />
-              <FilmTheater id={c.filmId} title={c.filmTitle} big className="iris" poster={filmPoster || undefined} posterStyle={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />
+              <FilmTheater id={c.filmId} title={c.filmTitle} big className="cine" poster={filmPoster || undefined} posterStyle={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />
               {c.filmTitle && <p className="pf" style={{ margin: "34px 0 0", fontSize: 22, fontStyle: "italic" }}>{c.filmTitle}</p>}
               {films.some(f => f.id !== c.filmId) && <Link href={L("/films")} className="cap ol fmore">More films</Link>}
             </div>

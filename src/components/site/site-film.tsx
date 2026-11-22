@@ -31,7 +31,7 @@ const P = {
   again: "M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5",
 };
 
-/** Poster + theatre. `className` goes on the poster button (e.g. "iris" for the Home scroll effect). */
+/** Poster + theatre. `className` goes on the poster button (e.g. "cine" for the Home scroll effect). */
 export function FilmTheater({ id, title, poster, posterStyle, className, big }: {
   id: string; title: string; poster?: string; posterStyle?: React.CSSProperties; className?: string; /** Home: the larger play button */ big?: boolean;
 }) {
@@ -44,7 +44,9 @@ export function FilmTheater({ id, title, poster, posterStyle, className, big }: 
       <button ref={btn} type="button" className={`film${className ? ` ${className}` : ""}`} onClick={() => btn.current && setOpen(btn.current.getBoundingClientRect())} aria-label={`Play ${title || "the wedding film"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" loading="lazy" decoding="async" style={posterStyle} />
-        <span className="play"><span className="gold" style={{ width: ring, height: ring }}><Svg d={P.play} size={big ? 26 : 22} /></span></span>
+        {big
+          ? <span className="play pcine"><span className="pring"><Svg d={P.play} size={24} /></span><span className="pf plbl">Play film</span></span>
+          : <span className="play"><span className="gold" style={{ width: ring, height: ring }}><Svg d={P.play} size={22} /></span></span>}
       </button>
       {open && <Theater id={id} title={title} poster={src} from={open} back={() => btn.current?.getBoundingClientRect() ?? open} anchor={() => btn.current} onClosed={() => setOpen(null)} />}
     </>

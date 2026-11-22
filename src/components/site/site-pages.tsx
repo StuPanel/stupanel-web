@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
+import { FilmTheater } from "./site-film";
 import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
@@ -33,18 +34,9 @@ function PageHead({ script, title, sub }: { script: string; title: string; sub?:
 }
 
 function Film({ id, title, poster }: { id: string; title: string; poster?: string }) {
-  const [on, setOn] = useState(false);
   return (
     <figure className="rv" style={{ margin: 0 }}>
-      {on ? (
-        <div className="film"><iframe src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`} title={title || "Wedding film"} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen /></div>
-      ) : (
-        <button type="button" className="film" onClick={() => setOn(true)} aria-label={`Play ${title || "the film"}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poster || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" decoding="async" />
-          <span className="play"><span className="gold" style={{ width: 70, height: 70 }}><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 4 }}><path d="M6 4l14 8-14 8z" /></svg></span></span>
-        </button>
-      )}
+      <FilmTheater id={id} title={title} poster={poster} />
       {title && <figcaption className="pf" style={{ marginTop: 16, fontSize: 19, fontStyle: "italic", textAlign: "center" }}>{title}</figcaption>}
     </figure>
   );
@@ -53,6 +45,8 @@ function Film({ id, title, poster }: { id: string; title: string; poster?: strin
 const longDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
 
 export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId }: Props) {
+  // Films page: ten at a time.
+  const [filmCount, setFilmCount] = useState(10);
   const { content: c, photos, packages, studio } = data;
   const addons = data.addons ?? [];
   // Build your own: one package and any add-ons; the choice travels to the booking form.
@@ -113,7 +107,14 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <PageHead script={script} title={title} sub="Cut to the sound of the day itself. Press play and turn the volume up." />
         <section className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {films[0] && <div style={{ maxWidth: 1080, margin: "0 auto 60px" }}><Film {...films[0]} /></div>}
-          <div className="g2" style={{ gap: 40, alignItems: "start" }}>{films.slice(1).map(f => <Film key={f.id} {...f} />)}</div>
+          <div className="g2" style={{ gap: 40, alignItems: "start" }}>{films.slice(1, filmCount).map(f => <Film key={f.id} {...f} />)}</div>
+          {films.length > filmCount && (
+            <div style={{ textAlign: "center", marginTop: 56 }}>
+              <button type="button" className="cap ol" style={{ background: "transparent", color: "var(--ink)", fontFamily: "inherit", cursor: "pointer" }} onClick={() => setFilmCount(n => n + 10)}>
+                Load more films ({films.length - filmCount} more)
+              </button>
+            </div>
+          )}
           {films.length === 0 && <p style={{ textAlign: "center" }}>Films are on their way.</p>}
         </section>
         {cta}

@@ -461,7 +461,7 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "films"}>
-      <FormGroup title="More films" note="These show on the Films page, under the film above. Up to 9.">
+      <FormGroup title="More films" note="These show on the Films page, under the film above, ten at a time with Load more. Up to 60.">
         {(c.films ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
             <div className="flex-1 grid sm:grid-cols-2 gap-2">
@@ -471,7 +471,7 @@ export default function WebsitePage() {
             <button type="button" aria-label="Remove this film" onClick={() => set("films", (c.films ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
           </div>
         ))}
-        {(c.films ?? []).length < 9 && (
+        {(c.films ?? []).length < 60 && (
           <button type="button" onClick={() => set("films", [...(c.films ?? []), { url: "", title: "", id: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a film</button>
         )}
       </FormGroup>

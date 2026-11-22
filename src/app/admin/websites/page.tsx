@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { askConfirm, askText, notify } from "@/components/feedback";
 import { can, getPlatformUser } from "@/lib/platform-api";
+import { siteUrl } from "@/lib/site-url";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 const msg = (d: { message?: string | string[] }) => (Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save";
@@ -34,7 +35,6 @@ const STATE: Record<string, [string, string]> = {
   offline_unpaid: ["Offline: plan unpaid", "bg-amber-500/15 text-amber-300 border-amber-500/30"],
 };
 const REASON: Record<Hold["reason"], string> = { deleted: "Studio deleted", renamed: "Old address (renamed)", blocked: "Blocked" };
-const siteUrl = (slug: string) => `/site/${slug}`;
 const date = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 function Pager({ page, total, size, go }: { page: number; total: number; size: number; go: (p: number) => void }) {

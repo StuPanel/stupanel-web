@@ -5,7 +5,9 @@
  * ?preview=1 shows the studio's own draft instead (needs the studio to be signed in).
  */
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
+import { SITE_ROOT } from "@/lib/site-url";
 import { API_URL } from "@/lib/api";
 import { SiteView, type SiteData, type SitePageName } from "@/components/site/site-view";
 import { SitePreview } from "./preview";
@@ -39,6 +41,16 @@ async function load(slug: string): Promise<Loaded | null> {
   }
 }
 
+/** Served on <address>.stupanel.com (the middleware rewrote it here)? Then links have no /site/<address> part. */
+async function onSubdomain(slug: string) {
+  return (await headers()).get("x-site-host") === slug;
+}
+/** Where an old address (after a rename) sends visitors. */
+async function movedTo(slug: string, to: string, path?: string[]) {
+  const rest = path?.length ? `/${path.join("/")}` : "";
+  return (await onSubdomain(slug)) ? `https://${to}.${SITE_ROOT}${rest || "/"}` : `/site/${to}${rest}`;
+}
+
 type Props = { params: Promise<{ slug: string; path?: string[] }>; searchParams: Promise<{ preview?: string }> };
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -48,7 +60,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const d = await load(slug);
   // Here too (not only in the page): search engines get a real 308 for an old address, since metadata is
   // ready before the page streams.
-  if (d && "redirect" in d) permanentRedirect(`/site/${d.redirect}${path?.length ? `/${path.join("/")}` : ""}`);
+  if (d && "redirect" in d) permanentRedirect(await movedTo(slug, d.redirect, path));
   if (d && "offline" in d) return { title: "Website not available", robots: { index: false } };
   if (!isSite(d) || r.page === "notfound") return { title: "Page not found", robots: { index: false } };
   if (r.page === "thank-you") return { title: { absolute: `Thank you | ${d.studio.name}` }, robots: { index: false } };
@@ -66,12 +78,13 @@ export default async function StudioSitePage({ params, searchParams }: Props) {
   const r = route(path);
   if (q.preview) return <SitePreview page={r.page} albumId={r.albumId} storyId={r.storyId} />;
   const data = await load(slug);
-  if (data && "redirect" in data) permanentRedirect(`/site/${data.redirect}${path?.length ? `/${path.join("/")}` : ""}`);
+  if (data && "redirect" in data) permanentRedirect(await movedTo(slug, data.redirect, path));
   if (data && "offline" in data) return <SiteOffline />;
   if (!isSite(data)) notFound();
   const missing = (r.albumId && !data.content.albums.some(a => a.id === r.albumId)) || (r.storyId && !(data.content.stories ?? []).some(x => x.id === r.storyId));
   const page = missing ? "notfound" : r.page;
-  return <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />;
+  const base = (await onSubdomain(slug)) ? "" : undefined;
+  return <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />;
 }
 
 /** Closed, unpaid or taken down: no studio name, no reason — just that it isn't available. */

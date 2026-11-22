@@ -532,3 +532,17 @@
 .sg .hero .hbtns .btn{flex:1;text-align:center;justify-content:center}
 .sg .hero .hbtns .hbk{display:none!important}
 }
+
+/* ── touch screens (23-NOV): the album under the finger gets the computer's hover look (darker photo, thin frame,
+   View gallery, slow zoom); Next review no longer turns solid after a tap, where it became unreadable ── */
+@media (hover:none){
+.sg .alc .alo:before{content:"";position:absolute;inset:0;background:rgba(20,14,8,.42);opacity:0;transition:opacity .5s cubic-bezier(.2,.7,.2,1)}
+.sg .alc .alt,.sg .alc .altag{position:relative}
+.sg .alc .alf{display:block;inset:9px}
+.sg .alc .alb{display:block;position:absolute;left:50%;top:50%;margin:0;white-space:nowrap;padding:9px 13px;transform:translate(-50%,calc(-50% + 12px));opacity:0}
+.sg .alc.tch img{transform:scale(1.07)}
+.sg .alc.tch .alo:before{opacity:1}
+.sg .alc.tch .alf{transform:none;opacity:1}
+.sg .alc.tch .alb{transform:translate(-50%,-50%);opacity:1}
+.sg .ol.nrv:hover{background:transparent!important;color:var(--ink)!important}
+}

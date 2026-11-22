@@ -14,7 +14,7 @@ import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory, type SiteTeamMember } from "@/components/site/site-view";
 
-type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string };
+type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string; sizeBytes?: number; /** Nothing on the website (draft or published) uses it since then */ unusedSince?: string | null };
 const small = (p: Photo) => p.thumbUrl || p.url;
 
 const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
@@ -23,7 +23,7 @@ type Tab = (typeof TABS)[number][0];
 const RATIO = { hero0: 3 / 2, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
 type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
-  photos: Photo[]; photoLimit: number; studio: { name: string; logoUrl: string | null };
+  photos: Photo[]; photoLimit: number; /** Unused photos are removed for good after this many days */ unusedDays?: number; studio: { name: string; logoUrl: string | null };
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
@@ -66,6 +66,8 @@ export default function WebsitePage() {
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
   const [tab, setTab] = useState<Tab>("design");
   const [allPhotos, setAllPhotos] = useState(false);
+  /** Time the page opened, for "days left" on unused photos. */
+  const [openedAt] = useState(() => Date.now());
   const [frame, setFrame] = useState<{ key: string; photo: Photo; title: string; ratio: number; round?: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ theme?: string; content?: SiteContent }>({});
@@ -207,6 +209,19 @@ export default function WebsitePage() {
     } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
   };
 
+  /** Remove, for good, every photo the website does not use. */
+  const cleanup = async (count: number, mb: string) => {
+    if (!(await askConfirm({ title: `Remove ${count} unused photo${count > 1 ? "s" : ""}?`, message: `They are not used anywhere on your website, neither in your changes nor in the published version. They are deleted for good (${mb}). This cannot be undone.`, confirmLabel: "Remove for good", danger: true }))) return;
+    setBusy(true);
+    try {
+      if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+      await flush();
+      const res = await apiFetch(`${API}/site/photos/cleanup`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      put((await res.json()) as Mine);
+      notify("Unused photos removed");
+    } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
+  };
   const upload = async (files: FileList | null): Promise<Photo[]> => {
     if (!files?.length || !site) return [];
     const room = site.photoLimit - site.photos.length;
@@ -260,6 +275,16 @@ export default function WebsitePage() {
   /** Gallery White: the photos of its full-screen slideshow. */
   const slides = (c.slides ?? []).filter(id => byId.has(id));
   const mono = site.theme === "mono";
+  // Photos the website does not use: the server knows the published side (unusedSince), the draft is checked here.
+  const draftJson = JSON.stringify(c);
+  const unusedList = site.photos.filter(p => p.unusedSince && !draftJson.includes(`"${p.id}"`));
+  const unusedIds = new Set(unusedList.map(p => p.id));
+  const unusedDays = site.unusedDays ?? 30;
+  const unusedMb = `${(unusedList.reduce((n, p) => n + (p.sizeBytes ?? 0) * 1.35, 0) / 1048576).toFixed(1)} MB`;
+  const daysLeft = (p: Photo) => {
+    const left = unusedDays - Math.floor((openedAt - new Date(p.unusedSince!).getTime()) / 86_400_000);
+    return left <= 1 ? "removed soon" : `${left} days left`;
+  };
   /** Tall photos for the main photo on phones (first five looks). */
   /** Computer photos of the first screen: the main photo, then the others (Gallery White: its slideshow). */
   const deskIds = (mono ? slides : [c.heroPhotos[0], ...slides]).filter((id, k, all): id is string => !!id && byId.has(id) && all.indexOf(id) === k);
@@ -338,6 +363,14 @@ export default function WebsitePage() {
       <div hidden={tab !== "photos"}>
       <FormGroup title={`Photos (${site.photos.length} of ${site.photoLimit})`} note="Every photo on your website is kept here. You can also add a photo right where you use it. Use only photos you have the right to show.">
         <div className="p-3">
+          {unusedList.length > 0 && (
+            <div className="mb-3 rounded-[14px] bg-[#FFF7E8] border border-[#F3E1B8] px-3.5 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="flex-1 basis-[240px] text-[13px] leading-snug text-[#5A4A22]">
+                <b>{unusedList.length} photo{unusedList.length > 1 ? "s are" : " is"} not used</b> anywhere on your website ({unusedMb}). Photos nobody uses are removed for good after {unusedDays} days, to save space.
+              </p>
+              <button type="button" disabled={busy} onClick={() => cleanup(unusedList.length, unusedMb)} className="h-10 px-4 rounded-full bg-white border border-[#E8D7AE] hover:bg-[#FFF1D6] disabled:opacity-50 text-[13px] font-semibold text-[#5A4A22] inline-flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" />Remove them now</button>
+            </div>
+          )}
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => upload(e.target.files)} />
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             <button type="button" disabled={!!uploading} onClick={() => fileRef.current?.click()}
@@ -348,6 +381,7 @@ export default function WebsitePage() {
               <div key={p.id} className="relative aspect-square rounded-[12px] overflow-hidden group bg-[#F5F3FA]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={small(p)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ backgroundImage: `url(${p.blur})`, backgroundSize: "cover" }} />
+                {unusedIds.has(p.id) && <span className="absolute left-1 bottom-1 right-1 px-1.5 py-0.5 rounded-full bg-black/65 text-white text-[10px] font-semibold text-center truncate">Not used · {daysLeft(p)}</span>}
                 <button type="button" onClick={() => removePhoto(p)} aria-label="Remove this photo"
                   className="absolute top-1 right-1 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>

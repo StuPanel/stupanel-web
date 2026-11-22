@@ -660,3 +660,19 @@
 .sg .tmono .tgrid{gap:30px 14px}
 }
 @media (hover:none){.sg .tmi>img{filter:none}.sg.t-editorial .tmi>img{filter:grayscale(1)}}
+
+/* ── team as one drifting row (23-NOV): the row loops slowly sideways; soft fade at both edges ── */
+.sg .trow{position:relative;margin-top:clamp(40px,5vw,70px);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.sg .trow .tgrid{margin:0;flex-wrap:nowrap;justify-content:center;gap:0;padding:6px 0 10px;width:100%}
+.sg .trow.moving{cursor:grab;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.sg .trow.moving:active{cursor:grabbing}
+.sg .trow.moving .tgrid{justify-content:flex-start;width:max-content;will-change:transform}
+.sg .trow .tm{flex:none;width:clamp(200px,19vw,270px);max-width:none;padding:0 clamp(14px,1.6vw,26px);box-sizing:content-box}
+.sg .trow .tm img{pointer-events:none;-webkit-user-drag:none}
+.sg .tmono .trow{margin-top:0}
+.sg .tmono .trow .tm{width:clamp(150px,13vw,190px);padding:0 14px}
+.sg .tmono .trow:not(.moving) .tgrid{justify-content:flex-start}
+@media (max-width:860px){
+.sg .trow .tm{width:40vw;padding:0 3vw}
+.sg .tmono .trow .tm{width:36vw}
+}

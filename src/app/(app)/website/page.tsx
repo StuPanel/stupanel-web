@@ -202,6 +202,8 @@ export default function WebsitePage() {
   /** Gallery White: the photos of its full-screen slideshow. */
   const slides = (c.slides ?? []).filter(id => byId.has(id));
   const mono = site.theme === "mono";
+  /** Tall photos for the main photo on phones (first five looks). */
+  const phoneSlides = (c.mobileSlides ?? []).filter(id => byId.has(id));
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
   const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
@@ -310,7 +312,7 @@ export default function WebsitePage() {
         {(
             <div className="px-4 py-3.5">
               <div className="text-sm font-semibold text-[#1F1B2E]">{mono ? "Home screen photos (slideshow)" : "Main photo slideshow"}</div>
-              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another. Phones show the main photo only."} Wide (landscape) photos look best. Pick up to 8, in the order they should show. Tap a photo below to move or zoom it.</p>
+              <p className="text-[13px] text-[#6B6680] mt-0.5">{mono ? "Gallery White fills the first screen with these, one after another." : "On computers the main photo changes to these, one after another."} Wide (landscape) photos look best. Pick up to 8, in the order they should show. Tap a photo below to move or zoom it.</p>
               {slides.length > 0 && (
                 <div className="flex gap-1.5 mt-2.5 flex-wrap">
                   {slides.map((id, i) => {
@@ -336,8 +338,34 @@ export default function WebsitePage() {
         )}
         {site.theme !== "mono" && <div className="px-4 py-3.5 flex gap-4">
           <Slot p={ph(c.heroPhotos[0])} crop={crops.hero0} onAdjust={() => adjust("hero0", c.heroPhotos[0], "Main photo", RATIO.hero0)} label="Main photo" onPick={() => choose("Main photo (wide)", c.heroPhotos.slice(0, 1), ids => set("heroPhotos", [ids[0], c.heroPhotos[1]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(1))} />
-          <Slot p={ph(c.heroPhotos[1])} crop={crops.hero1} onAdjust={() => adjust("hero1", c.heroPhotos[1], "Second photo", RATIO.hero1)} label="Second photo" onPick={() => choose("Second photo (tall)", c.heroPhotos.slice(1, 2), ids => set("heroPhotos", [c.heroPhotos[0] ?? ids[0], ids[0]].filter(Boolean) as string[]))} onClear={() => set("heroPhotos", c.heroPhotos.slice(0, 1))} />
         </div>}
+        {!mono && (
+          <div className="px-4 py-3.5">
+            <div className="text-sm font-semibold text-[#1F1B2E]">Phone photos</div>
+            <p className="text-[13px] text-[#6B6680] mt-0.5">Phones show the main photo in a tall frame (4:5). Choose tall photos for it here, up to 8; they change one after another. Tap a photo below to move or zoom it.</p>
+            {phoneSlides.length > 0 && (
+              <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                {phoneSlides.map((id, i) => {
+                  const k = crops[`mslide:${id}`];
+                  return (
+                    <button key={id} type="button" onClick={() => adjust(`mslide:${id}`, id, `Phone photo ${i + 1}`, 4 / 5)} aria-label={`Adjust phone photo ${i + 1}`}
+                      className="relative w-[72px] rounded-[10px] overflow-hidden bg-[#F1EEF8]" style={{ aspectRatio: "4 / 5" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={small(byId.get(id)!)} alt="" loading="lazy" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                      <span className="absolute inset-x-0 bottom-0 py-1 text-[11px] font-semibold text-white bg-black/55 text-center">Adjust</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex gap-2 mt-2.5 flex-wrap">
+              <button type="button" onClick={() => choose("Phone photos (tall)", phoneSlides, ids => set("mobileSlides", ids), true, 8)}
+                className="h-11 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-[13px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><ImagePlus className="w-4 h-4" />{phoneSlides.length ? "Change photos" : "Choose photos"}</button>
+              {phoneSlides.length > 0 && <button type="button" onClick={() => set("mobileSlides", [])} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F5F3FA]">Clear</button>}
+            </div>
+            {phoneSlides.length === 0 && <p className="text-[13px] text-[#6B6680] mt-2">Nothing chosen yet, so phones show the main photo and the slideshow photos, cut to the tall frame.</p>}
+          </div>
+        )}
         <Field label="Moving words" hint="The events you cover, with a comma between them.">
           {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>

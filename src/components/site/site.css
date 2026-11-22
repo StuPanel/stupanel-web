@@ -494,7 +494,8 @@
 
 /* ── main Home photo on computers (23-NOV): same frame in all five looks: 1400 px row, photo 8 of 12 columns,
    3:2 (a whole camera frame), 4 px corners, soft shadow, no border; extra photos fade in one after another, nothing else moves ── */
-.sg .card img.hsl{display:none!important}
+.sg .card img.hsl,.sg .card img.hml{display:none!important;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background-size:cover;background-position:center;opacity:0;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
+.sg .card img.hsl.on,.sg .card img.hml.on{opacity:1}
 @media (min-width:861px){
 .sg .hero{max-width:1400px;padding:32px 24px 48px!important;grid-template-columns:repeat(12,minmax(0,1fr));gap:32px}
 .sg .hero .hcol{grid-column:span 8}
@@ -503,8 +504,7 @@
 .sg .hero .hmain{aspect-ratio:3 / 2!important;padding:0!important;border:0!important;outline:0!important;border-radius:4px!important;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1)!important}
 .sg .hero .hmain:before,.sg .hero .hmain:after{display:none!important}
 .sg .hero .hmain{overflow:hidden!important}
-.sg .card img.hsl{display:block!important;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
-.sg .card .hsl.on{opacity:1}
+.sg .card img.hsl{display:block!important}
 }
 @media (min-width:861px) and (prefers-reduced-motion:no-preference){
 @supports (animation-timeline: scroll()){
@@ -514,3 +514,18 @@
 @keyframes sgheroP{from{transform:none;clip-path:inset(-90px -90px -90px -90px)}55%{opacity:1}to{transform:translateY(34vh) scale(.9);clip-path:inset(-90px -90px 100% -90px);opacity:.35}}
 @keyframes sgheroT{from{transform:none;opacity:1;filter:blur(0)}to{transform:translateY(-70px);opacity:0;filter:blur(7px)}}
 }}
+
+/* ── main Home photo on phones (23-NOV): one tall 4:5 photo with no frame, second photo and badge gone, short
+   words and one button under it; its own photos (mobileSlides) or the computer ones, fading the same way ── */
+@media (max-width:860px){
+.sg .hero{gap:26px!important;padding-top:6px!important;padding-bottom:54px!important}
+.sg .hero .hcol{padding:0!important;margin:0!important}
+.sg .hero .hsec,.sg .hero .badge,.sg .hero .hintro,.sg .hero .hbtns .ol{display:none!important}
+.sg .hero .hmain{aspect-ratio:4 / 5!important;padding:0!important;border:0!important;outline:0!important;border-radius:4px!important;rotate:0deg!important;translate:none!important;overflow:hidden!important;box-shadow:0 16px 30px -10px rgba(0,0,0,.18)!important}
+.sg .hero .hmain:before,.sg .hero .hmain:after{display:none!important}
+.sg .card img.hml,.sg .card img.hsl.both{display:block!important}
+.sg .hero .hscr{font-size:clamp(26px,8vw,34px)!important}
+.sg .hero .hh1{font-size:clamp(30px,9.6vw,42px)!important;margin-top:2px!important}
+.sg .hero .hbtns{margin-top:22px}
+.sg .hero .hbtns .btn{flex:1;text-align:center;justify-content:center}
+}

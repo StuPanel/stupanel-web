@@ -21,7 +21,7 @@ export type SiteAddon = { id: string; name: string; price: number; currency: str
 export type SiteAlbum = { id: string; title: string; tag: string; cover: string | null; photos: string[] };
 export type SitePackage = { id: string; name: string; group: string; price: number; currency: string; team: string; lines: string[] };
 export type SiteContent = {
-  script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; /** Slideshow photos of the Gallery White look */ slides?: string[]; events: string[];
+  script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; /** Slideshow photos of the Gallery White look */ slides?: string[]; /** Main Home photo on phones */ mobileSlides?: string[]; events: string[];
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
@@ -120,19 +120,25 @@ function MonoHero({ slides, crops, name }: { slides: SitePhoto[]; /** One per sl
 }
 
 /** First five looks, computers only: more photos laid over the main Home photo, changing by themselves with a slow fade. */
-function HeroSlides({ slides, crops }: { slides: SitePhoto[]; crops?: (SiteCrop | undefined)[] }) {
-  const [n, setN] = useState(-1);
-  const count = slides.length + 1;
+function HeroSlides({ slides, crops, phone, phoneCrops }: { slides: SitePhoto[]; crops?: (SiteCrop | undefined)[]; /** Tall photos for phones; none = phones use the computer ones */ phone: SitePhoto[]; phoneCrops?: (SiteCrop | undefined)[] }) {
+  // 0 = the first photo. Computers: the main photo, then `slides`. Phones: `phone` when chosen, else the same as computers.
+  const [n, setN] = useState(0);
+  const desk = slides.length + 1;
   useEffect(() => {
-    if (count < 2 || !window.matchMedia("(min-width: 861px)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => setN(v => (v + 2) % count - 1), 5000);
+    const count = phone.length && window.matchMedia("(max-width: 860px)").matches ? phone.length : desk;
+    if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setN(v => (v + 1) % count), 5000);
     return () => clearInterval(t);
-  }, [count]);
+  }, [desk, phone.length]);
   return (
     <>
       {slides.map((p, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={p.url} src={p.url} alt="" loading="lazy" className={`hsl${i === n ? " on" : ""}`} style={cropStyle(crops?.[i])} />
+        <img key={p.url} src={p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="(max-width: 860px) 92vw, 1400px" alt="" loading="lazy" className={`hsl${phone.length ? "" : " both"}${i + 1 === n ? " on" : ""}`} style={cropStyle(crops?.[i])} />
+      ))}
+      {phone.map((p, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={p.url} src={p.sm ?? p.url} srcSet={p.sm && p.w > 900 ? `${p.sm} 900w, ${p.url} ${p.w}w` : undefined} sizes="92vw" alt="" loading="lazy" className={`hml${i === n % phone.length ? " on" : ""}`} style={{ backgroundImage: `url(${p.blur})`, ...cropStyle(phoneCrops?.[i]) }} />
       ))}
     </>
   );
@@ -311,6 +317,8 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
   const left = nav.slice(0, Math.ceil(nav.length / 2)), right = nav.slice(Math.ceil(nav.length / 2));
   /** Extra photos for the main Home photo (computers). */
   const heroMore = (c.slides ?? []).filter((id, k, all) => photos[id] && id !== c.heroPhotos[0] && all.indexOf(id) === k);
+  /** Tall photos chosen for phones. */
+  const heroPhone = (c.mobileSlides ?? []).filter((id, k, all) => photos[id] && all.indexOf(id) === k);
   const d = (s: number) => ({ animationDelay: `calc(var(--d) + ${s}s)` });
   const slot = [
     { transform: "translateY(0) rotate(0deg) scale(1)", opacity: 1, zIndex: 3 },
@@ -361,7 +369,7 @@ export function SiteView({ data, preview, page = "home", albumId, storyId }: { d
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
               <Ph p={photos[c.heroPhotos[0]]} alt={`${studio.name}: wedding photo`} eager crop={c.crop?.hero0} sizes="(max-width: 860px) 92vw, 1400px" />
-              {heroMore.length > 0 && <HeroSlides slides={heroMore.map(id => photos[id])} crops={heroMore.map(id => c.crop?.[`slide:${id}`])} />}
+              {(heroMore.length > 0 || heroPhone.length > 0) && <HeroSlides slides={heroMore.map(id => photos[id])} crops={heroMore.map(id => c.crop?.[`slide:${id}`])} phone={heroPhone.map(id => photos[id])} phoneCrops={heroPhone.map(id => c.crop?.[`mslide:${id}`])} />}
             </div>
             <div className="card dev hsec" style={{ position: "absolute", right: 0, bottom: 0, width: "42%", aspectRatio: "3 / 3.6", rotate: "4deg", translate: "calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px)", transition: "translate .6s ease-out", ...d(0.7) }}>
               <Ph p={photos[c.heroPhotos[1]]} alt={`${studio.name}: portrait`} eager crop={c.crop?.hero1} />

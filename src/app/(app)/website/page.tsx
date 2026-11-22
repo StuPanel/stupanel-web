@@ -5,19 +5,19 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory } from "@/components/site/site-view";
+import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory, type SiteTeamMember } from "@/components/site/site-view";
 
 type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string };
 const small = (p: Photo) => p.thumbUrl || p.url;
 
-const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
+const TABS = [["design", "Design", Palette], ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard], ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone], ["photos", "All photos", LayoutGrid]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
 const RATIO = { hero0: 3 / 2, hero1: 3 / 3.6, about: 4 / 4.6, film: 16 / 9, story: 4 / 3, album: 3 / 4 };
@@ -66,7 +66,7 @@ export default function WebsitePage() {
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
   const [tab, setTab] = useState<Tab>("design");
   const [allPhotos, setAllPhotos] = useState(false);
-  const [frame, setFrame] = useState<{ key: string; photo: Photo; title: string; ratio: number } | null>(null);
+  const [frame, setFrame] = useState<{ key: string; photo: Photo; title: string; ratio: number; round?: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ theme?: string; content?: SiteContent }>({});
   const fileRef = useRef<HTMLInputElement>(null);
@@ -256,7 +256,7 @@ export default function WebsitePage() {
   const deskIds = (mono ? slides : [c.heroPhotos[0], ...slides]).filter((id, k, all): id is string => !!id && byId.has(id) && all.indexOf(id) === k);
   const phoneSlides = (c.mobileSlides ?? []).filter(id => byId.has(id));
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
-  const adjust = (key: string, id: string | null | undefined, title: string, ratio: number) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio }); };
+  const adjust = (key: string, id: string | null | undefined, title: string, ratio: number, round?: boolean) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio, round }); };
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
 
   return (
@@ -395,11 +395,49 @@ export default function WebsitePage() {
       </FormGroup>
       </div>
 
-      <div hidden={tab !== "home"}>
+      <div hidden={tab !== "about"}>
       <FormGroup title="About the studio">
         <Field label="Title" hint="The first word is shown in handwriting.">{id => <input id={id} className={inputCls} value={c.aboutTitle} maxLength={40} onChange={e => set("aboutTitle", e.target.value)} />}</Field>
         <Field label="Text">{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} crop={crops.about} onAdjust={() => adjust("about", c.aboutPhoto, "About photo", RATIO.about)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
+      </FormGroup>
+      <FormGroup title="Team" note="Shown on the About page, each with a round photo. Leave it empty to show no team.">
+        {(c.team ?? []).map((m, i) => {
+          const team = c.team ?? [];
+          const put = (patch: Partial<SiteTeamMember>) => set("team", team.map((y, k) => (k === i ? { ...y, ...patch } : y)));
+          const move = (d: number) => { const next = [...team]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); set("team", next); };
+          const p = ph(m.photo);
+          const k = crops[`team:${m.id}`];
+          return (
+            <div key={m.id} className="px-4 py-3.5 flex gap-3 items-start">
+              <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                <button type="button" onClick={() => (p ? adjust(`team:${m.id}`, m.photo, `${m.name || "Team member"}: photo`, 1, true) : choose("Team member photo", [], ids => put({ photo: ids[0] ?? null })))}
+                  aria-label={p ? `Adjust the photo of ${m.name || "this person"}` : "Choose a photo"}
+                  className="relative w-[76px] h-[76px] rounded-full overflow-hidden bg-[#F1EEF8] border-2 border-white shadow-[0_0_0_1px_#E4E0EC] text-[#7D5CEF] flex items-center justify-center">
+                  {p ? <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={small(p)} alt="" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                    <span className="absolute inset-x-0 bottom-0 h-6 bg-black/55 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
+                  </> : <ImagePlus className="w-5 h-5" />}
+                </button>
+                {p && <button type="button" onClick={() => choose("Team member photo", m.photo ? [m.photo] : [], ids => put({ photo: ids[0] ?? null }))} className="text-[12px] font-semibold text-[#7D5CEF] h-7 px-1">Change</button>}
+              </div>
+              <div className="flex-1 min-w-0 grid gap-2">
+                <input aria-label="Name" className={inputCls} placeholder="Name" value={m.name} maxLength={80} onChange={e => put({ name: e.target.value })} />
+                <input aria-label="What they do" list="team-roles" className={inputCls} placeholder="Photographer, Cinematographer…" value={m.role} maxLength={60} onChange={e => put({ role: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 flex-shrink-0">
+                <button type="button" disabled={i === 0} onClick={() => move(-1)} aria-label="Move up" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowUp className="w-4 h-4" /></button>
+                <button type="button" disabled={i === (c.team ?? []).length - 1} onClick={() => move(1)} aria-label="Move down" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowDown className="w-4 h-4" /></button>
+                <button type="button" onClick={() => set("team", team.filter((_, x) => x !== i))} aria-label={`Remove ${m.name || "this person"}`} className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          );
+        })}
+        <datalist id="team-roles">{["Founder", "Lead photographer", "Photographer", "Cinematographer", "Lead cinematographer", "Video editor", "Photo editor", "Drone pilot", "Studio manager"].map(r => <option key={r} value={r} />)}</datalist>
+        {(c.team ?? []).length < 24 && (
+          <button type="button" onClick={() => set("team", [...(c.team ?? []), { id: newId(), name: "", role: "", photo: null }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a team member</button>
+        )}
       </FormGroup>
       </div>
 
@@ -728,8 +766,8 @@ function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, o
   );
 }
 
-function FrameModal({ photo, title, ratio, value, onSave, onClose }: {
-  photo: Photo; title: string; ratio: number; value?: SiteCrop; onSave: (v: SiteCrop | null) => void; onClose: () => void;
+function FrameModal({ photo, title, ratio, round, value, onSave, onClose }: {
+  photo: Photo; title: string; ratio: number; /** Shown in a circle on the site (team) */ round?: boolean; value?: SiteCrop; onSave: (v: SiteCrop | null) => void; onClose: () => void;
 }) {
   const [v, setV] = useState<SiteCrop>(value ?? { x: 50, y: 50, z: 1 });
   const box = useRef<HTMLDivElement>(null);
@@ -759,8 +797,8 @@ function FrameModal({ photo, title, ratio, value, onSave, onClose }: {
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] text-[#6B6680]"><X className="w-4 h-4" /></button>
         </div>
-        <div ref={box} className="relative mx-auto overflow-hidden rounded-[12px] bg-[#F5F3FA] touch-none cursor-grab active:cursor-grabbing select-none"
-          style={{ aspectRatio: String(ratio), width: ratio >= 1 ? "100%" : `min(100%, ${Math.round(420 * ratio)}px)` }}
+        <div ref={box} className={cn("relative mx-auto overflow-hidden bg-[#F5F3FA] touch-none cursor-grab active:cursor-grabbing select-none", round ? "rounded-full" : "rounded-[12px]")}
+          style={{ aspectRatio: String(ratio), width: round ? "min(100%, 340px)" : ratio >= 1 ? "100%" : `min(100%, ${Math.round(420 * ratio)}px)` }}
           onPointerDown={e => { drag.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
           onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

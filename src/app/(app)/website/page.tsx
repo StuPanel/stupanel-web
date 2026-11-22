@@ -4,7 +4,7 @@
  * Website: the studio builds its own public site here. Pick a look, add photos and text, publish.
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BookOpen, Check, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
@@ -111,7 +111,13 @@ export default function WebsitePage() {
   const past = useRef<{ content: SiteContent; theme: string }[]>([]);
   const lastChange = useRef<{ key: string; t: ReturnType<typeof setTimeout> | null }>({ key: "", t: null });
   const [undoable, setUndoable] = useState(0);
+  // The newest site state. Changes made from a picker that stayed open while photos were uploading must
+  // build on this, not on the copy the picker saw when it opened (that copy did not have the new photos).
+  const live = useRef<Mine | null>(null);
+  useLayoutEffect(() => { live.current = site; });
+  const put = (next: Mine) => { live.current = next; setSite(next); };
   const remember = (key: string, typing = false) => {
+    const site = live.current;
     if (!site) return;
     const last = lastChange.current;
     const same = typing && last.key === key && last.t !== null;
@@ -124,28 +130,31 @@ export default function WebsitePage() {
   };
   const undo = () => {
     const prev = past.current.pop();
+    const site = live.current;
     if (!site || !prev) return;
     lastChange.current.key = "";
     setUndoable(past.current.length);
-    setSite({ ...site, content: prev.content, theme: prev.theme, hasChanges: true });
+    put({ ...site, content: prev.content, theme: prev.theme, hasChanges: true });
     queue({ content: prev.content, theme: prev.theme });
   };
   const set = <K extends keyof SiteContent>(key: K, value: SiteContent[K]) => {
-    if (!site) return;
+    if (!live.current) return;
     remember(key, typeof value === "string");
+    const site = live.current;
     const content = { ...site.content, [key]: value };
-    setSite({ ...site, content, hasChanges: true });
+    put({ ...site, content, hasChanges: true });
     queue({ content });
   };
   /** Several fields in one save (two set() calls in a row would lose the first). */
   const setMany = (patch: Partial<SiteContent>) => {
-    if (!site) return;
+    if (!live.current) return;
     remember(Object.keys(patch).join());
+    const site = live.current;
     const content = { ...site.content, ...patch };
-    setSite({ ...site, content, hasChanges: true });
+    put({ ...site, content, hasChanges: true });
     queue({ content });
   };
-  const setTheme = (theme: string) => { if (!site) return; remember("theme:" + theme); setSite({ ...site, theme, hasChanges: true }); queue({ theme }); };
+  const setTheme = (theme: string) => { if (!live.current) return; remember("theme:" + theme); put({ ...live.current, theme, hasChanges: true }); queue({ theme }); };
 
   // Address: checked while typing, saved when it is free.
   useEffect(() => {
@@ -215,7 +224,7 @@ export default function WebsitePage() {
         if (!res.ok) throw new Error();
         const p = (await res.json()) as Photo;
         added.push(p);
-        setSite(s => (s ? { ...s, photos: [p, ...s.photos] } : s));
+        if (live.current) put({ ...live.current, photos: [p, ...live.current.photos] });
       } catch { failed++; }
       setUploading({ done: i + 1, total: list.length });
     }

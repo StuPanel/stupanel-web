@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, Copy, ExternalLink, EyeOff, Undo2, Flame, Globe2, Heart, Grid2x2, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Square, Trash2, Users, X } from "lucide-react";
+import { ArrowUp, Building2, Check, Copy, ExternalLink, EyeOff, Undo2, Flame, Globe2, Heart, Grid2x2, LayoutGrid, Loader2, Mic2, Minus, Music2, Pencil, Piano, Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Square, Trash2, Users, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
@@ -26,6 +26,26 @@ const err = async (r: Response) => { const d = await r.json().catch(() => ({}));
 const thumbOf = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 
 /** The studio's Music Library. `member`: a video editor in the member panel — same library, no studio settings links. */
+/** After a long scroll down the song list: one tap back to the search and filters at the top. */
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const on = () => setShow(window.scrollY > 900);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+  return (
+    <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}
+      aria-label="Back to the top (search and filters)" title="Back to the top"
+      className={cn("fixed right-4 lg:right-8 z-40 w-12 h-12 rounded-full bg-[#7D5CEF] text-white shadow-[0_10px_24px_-8px_rgba(91,63,208,.75)] inline-flex items-center justify-center transition-all duration-300 hover:bg-[#6A4BE0] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40",
+        "bottom-[calc(env(safe-area-inset-bottom)+96px)] lg:bottom-8",
+        show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none")} tabIndex={show ? 0 : -1}>
+      <ArrowUp className="w-5 h-5" />
+    </button>
+  );
+}
+
 export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [songs, setSongs] = useState<LibrarySong[]>([]);
   const [cat, setCat] = useState<TagCatalog>(EMPTY_CATALOG);
@@ -224,6 +244,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
 
   return (
     <div>
+      <BackToTop />
       <PageHeader icon={Music2} color="orchid" title="Music Library" sub={`${songs.length} song${songs.length === 1 ? "" : "s"} — suggested to clients when they choose music`}>
         <button type="button" onClick={() => setForm({})} className="h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center gap-1.5 shadow-[0_10px_24px_-12px_rgba(125,92,239,.9)]">
           <Plus className="w-4 h-4" />Add song

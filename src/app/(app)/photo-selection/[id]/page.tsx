@@ -28,6 +28,8 @@ import { AddPhotos, syncUploadsInfo } from "../_components/add-photos";
 import { uploadStore } from "@/lib/upload-store";
 import { GallerySettings } from "../_components/gallery-settings";
 import { HandoffPanel } from "../_components/handoff";
+import { ClientPreview } from "@/components/client-preview";
+import { CoverPicker } from "@/components/cover-picker";
 
 type Filter = "all" | "picked" | "important" | "rejected" | "none" | "notes" | "highlight" | "problems";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -59,6 +61,8 @@ export default function GalleryPage() {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [choosingCover, setChoosingCover] = useState(false);
   const [portal, setPortal] = useState(false);
   const [sharing, setSharing] = useState(false);
   /** Why the share window is open: first send, opened again, new photos — picks the WhatsApp message. */
@@ -228,9 +232,10 @@ export default function GalleryPage() {
   async function setCover(photoId: string | null) {
     const r = await apiFetch(`${API}/photo-selection/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coverPhotoId: photoId }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
-    if (!r?.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save", { error: true }); return; }
+    if (!r?.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save", { error: true }); return false; }
     setG(d);
     notify(photoId ? "This is the cover photo now — the client sees it first" : "Cover photo removed — the first highlight is used");
+    return true;
   }
   async function removePhotos(ids: string[]) {
     if (!(await askConfirm({ title: `Remove ${ids.length} photo${ids.length > 1 ? "s" : ""}?`, message: "They leave this selection only — your photos on Google Drive are not touched.", confirmLabel: "Remove", danger: true }))) return;
@@ -280,6 +285,11 @@ export default function GalleryPage() {
     { label: "Send to client", done: g.status !== "preparing" },
   ];
   const vp = view !== null ? shown[view] : null;
+  // The cover the client sees first: the chosen one, else the first highlight, else the first photo.
+  const readyPhotos = g.photos.filter(p => p.t);
+  const coverPhoto = readyPhotos.find(p => p.id === g.coverPhotoId) ?? readyPhotos.find(p => p.hl) ?? readyPhotos[0];
+  const coverThumb = coverPhoto ? thumbOf(coverPhoto) : "";
+  const tick = (pid: string) => setSel(s => { const n = new Set(s); if (n.has(pid)) n.delete(pid); else n.add(pid); return n; });
 
   const primary = g.status === "preparing" || g.status === "closed"
     ? <button type="button" onClick={send} disabled={busy || !g.counts.ready} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-45">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send to client</button>
@@ -305,6 +315,16 @@ export default function GalleryPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setAdding(true)} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><ImagePlus className="w-4 h-4" />Add photos</button>
+          <button type="button" onClick={() => setChoosingCover(true)} disabled={!g.counts.ready} title="The first photo the client sees when they open the link"
+            className="h-10 pl-1 pr-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)] disabled:opacity-45">
+            <span className="w-8 h-8 rounded-full overflow-hidden bg-[#F1EFF6] text-[#A29DB3] flex items-center justify-center flex-shrink-0">
+              {coverThumb
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={coverThumb} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                : <ImageIcon className="w-4 h-4" />}
+            </span>Cover photo
+          </button>
+          <button type="button" onClick={() => setPreviewing(true)} disabled={!g.counts.ready} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)] disabled:opacity-45"><Eye className="w-4 h-4" />Client preview</button>
           <button type="button" onClick={() => openShare()} className="h-10 px-4 rounded-full bg-white text-[#17151F] text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Link2 className="w-4 h-4" />Share</button>
           <button type="button" onClick={() => setSettings(true)} aria-label="Settings" title="Settings" className="w-10 h-10 rounded-full bg-white text-[#4A4658] inline-flex items-center justify-center hover:bg-[#F5F3FA] shadow-[0_1px_2px_rgba(22,18,40,.06)]"><Settings2 className="w-4 h-4" /></button>
           <div className="relative">
@@ -531,11 +551,13 @@ export default function GalleryPage() {
           {shown.map((p, i) => {
             const on = sel.has(p.id);
             return (
-              <button key={p.id} type="button"
-                onClick={() => { if (selecting) setSel(s => { const n = new Set(s); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; }); else if (p.t) setView(i); }}
-                className={cn("relative aspect-square rounded-[12px] overflow-hidden bg-[#EEEBF4] group [content-visibility:auto] [contain-intrinsic-size:160px]",
-                  on && "ring-[3px] ring-[#7D5CEF] ring-offset-2", p.m === "rejected" && !selecting && "opacity-60")}
-                aria-label={p.n}>
+              <div key={p.id} className={cn("relative aspect-square rounded-[12px] overflow-hidden bg-[#EEEBF4] group [content-visibility:auto] [contain-intrinsic-size:160px]",
+                  on && "ring-[3px] ring-[#7D5CEF] ring-offset-2", p.m === "rejected" && !selecting && "opacity-60")}>
+              {/* Tap = open the photo; in Select mode (or while some are ticked) tap = tick. */}
+              <button type="button"
+                onClick={() => { if (selecting || sel.size) tick(p.id); else if (p.t) setView(i); }}
+                className="absolute inset-0 w-full h-full focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#7D5CEF]/60"
+                aria-label={selecting || sel.size ? `Tick ${p.n}` : `Open ${p.n}`}>
                 {p.t ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={thumbOf(p)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
@@ -550,10 +572,17 @@ export default function GalleryPage() {
                   {g.coverPhotoId === p.id && <span className="h-6 px-2 rounded-full bg-[#17151F]/85 text-white text-[11px] font-bold inline-flex items-center gap-1 shadow" title="Cover photo — the client sees it first"><ImageIcon className="w-3 h-3" />Cover</span>}
                   {p.hl && <span className="w-6 h-6 rounded-full bg-white/95 text-[#9E3A8C] flex items-center justify-center shadow" title="Highlight"><Star className="w-3.5 h-3.5" fill="currentColor" /></span>}
                 </span>
-                {selecting && <span className={cn("absolute right-1.5 bottom-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white/80 border-white")}>{on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}</span>}
+
                 {nums.get(p.id) && !selecting && <span className="absolute left-1.5 bottom-1.5 h-5 px-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10.5px] font-bold tabular-nums inline-flex items-center pointer-events-none transition-opacity group-hover:opacity-0">{nums.get(p.id)}</span>}
                 {size !== "s" && p.t && <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 pt-5 bg-gradient-to-t from-black/55 to-transparent text-white text-[11.5px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity">{nums.get(p.id) ? `#${nums.get(p.id)} · ` : ""}{p.n}</span>}
               </button>
+              {/* The tick: always there on touch screens, on hover with a mouse. */}
+              <button type="button" onClick={() => { setSelecting(true); tick(p.id); }} aria-pressed={on} aria-label={on ? `Untick ${p.n}` : `Tick ${p.n}`} title={on ? "Untick" : "Tick to choose"}
+                className="absolute right-0 bottom-0 w-11 h-11 flex items-end justify-end p-1.5 focus:outline-none">
+                <span className={cn("w-6 h-6 rounded-full border-2 flex items-center justify-center transition-opacity", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-black/20 border-white text-transparent",
+                  !on && !selecting && "[@media(hover:hover)]:opacity-0 group-hover:opacity-100")}><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>
+              </button>
+              </div>
             );
           })}
         </div>
@@ -611,6 +640,10 @@ export default function GalleryPage() {
           } />
       )}
 
+      {previewing && <ClientPreview src={`/s/preview/${g.id}`} title={`Client preview — what ${g.client.firstName} sees`} onClose={() => setPreviewing(false)}
+        note={g.status === "preparing" ? "Not sent yet: this is how it opens once you send it. Nothing you tap is saved." : "Nothing you tap here is saved, and it is not counted as their visit."} />}
+      {choosingCover && <CoverPicker items={readyPhotos.map(p => ({ id: p.id, src: thumbOf(p), name: p.n }))} current={g.coverPhotoId ?? null} who={g.client.firstName}
+        auto="the first Highlight (or the first photo)" onPick={setCover} onClose={() => setChoosingCover(false)} />}
       {adding && <AddPhotos galleryId={g.id} programId={g.program.id} programName={g.program.name} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} />}
       {settings && <GallerySettings g={g} onClose={() => setSettings(false)} onSaved={load} />}
       {sharing && (

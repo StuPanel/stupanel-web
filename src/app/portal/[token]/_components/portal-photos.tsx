@@ -153,7 +153,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(api.url(""), { headers: api.headers() });
+      const r = await (api.fetch ?? fetch)(api.url(""), { headers: api.headers() });
       if (!r.ok) throw new Error();
       const d: ClientGallery = await r.json();
       setG(d); onLoaded?.(d); setNote(d.clientNote ?? ""); setAsked(!!d.reopenRequestedAt);
@@ -174,6 +174,8 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
   const flush = useCallback(async () => {
     if (!queue.current.size && !noteDirty.current) return true;
+    // The studio's preview: the marks stay on this screen only.
+    if (api.preview) { queue.current.clear(); noteDirty.current = false; setSave("saved"); return true; }
     const changes = [...queue.current.values()];
     queue.current.clear();
     const body: Record<string, unknown> = { changes };
@@ -347,6 +349,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
 
   async function send() {
     if (!(await flush())) return;
+    if (api.preview) { setReviewing(false); setThanks(true); return; }
     setSending(true);
     try {
       const r = await fetch(api.url("/submit"), { method: "POST", headers: api.headers() });
@@ -357,6 +360,7 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
     } finally { setSending(false); }
   }
   async function askChange() {
+    if (api.preview) { setAsked(true); setAsking(false); say(t.asked); return; }
     const r = await fetch(api.url("/reopen"), {
       method: "POST", headers: api.headers({ "Content-Type": "application/json" }), body: JSON.stringify({ reason: why }),
     }).catch(() => null);

@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
+import type { SiteSeo } from "@/lib/site-seo";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
@@ -38,10 +39,14 @@ export type SiteContent = {
   stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
+  /** Google and sharing (older drafts may not have it) */
+  seo?: SiteSeo;
 };
 export type SiteData = {
   /** The studio's own domain when it works (visitors on the stupanel.com address are sent there). */
   domain?: string | null;
+  /** When the published copy was made (sitemap date). */
+  publishedAt?: string | null;
   slug: string; theme: string; studio: { name: string; logoUrl: string | null };
   content: SiteContent; photos: Record<string, SitePhoto>; packages: SitePackage[]; addons?: SiteAddon[];
 };

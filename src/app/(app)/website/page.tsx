@@ -5,10 +5,11 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertTriangle, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
+import { SeoTab } from "./seo-tab";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -27,13 +28,13 @@ const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
   ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
   ["design", "Look", Palette], ["photos", "All photos", LayoutGrid],
-  ["address", "Address & domain", Link2],
+  ["address", "Address & domain", Link2], ["seo", "Google & sharing", Search],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
   { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "more", "contact"] },
   { id: "look", name: "Look & photos", icon: Palette, tabs: ["design", "photos"] },
-  { id: "settings", name: "Settings", icon: Settings2, tabs: ["address"] },
+  { id: "settings", name: "Settings", icon: Settings2, tabs: ["address", "seo"] },
 ];
 const groupOf = (t: Tab) => GROUPS.find(g => g.tabs.includes(t)) ?? GROUPS[0];
 /** Shape of each place a photo goes (width / height), so the framing window matches the website. */
@@ -45,6 +46,8 @@ type Mine = {
   offline?: "admin" | "closed" | "unpaid" | null; offlineNote?: string | null;
   /** Days an old address keeps sending visitors to the new one after a change. */
   renameHoldDays?: number;
+  /** Own Google titles, share picture and codes are part of the plan (switch "website_seo") */
+  seoAllowed?: boolean;
   /** The studio's own domain (pending until its DNS records work, then live). */
   customDomain?: string | null; customDomainState?: "pending" | "live" | null;
 };
@@ -516,6 +519,12 @@ export default function WebsitePage() {
           )}
         </div>
       </FormGroup>
+      </div>
+
+      <div hidden={tab !== "seo"}>
+        <SeoTab content={c} studio={site.studio} url={url} allowed={site.seoAllowed !== false} photo={ph}
+          onChange={seo => set("seo", seo)}
+          onChoosePicture={() => choose("Share picture (wide works best)", c.seo?.image ? [c.seo.image] : [], ids => set("seo", { ...(c.seo ?? { title: "", description: "", image: null, pages: {}, google: "", bing: "", hidden: false }), image: ids[0] ?? null }))} />
       </div>
 
       <div hidden={tab !== "design"}>

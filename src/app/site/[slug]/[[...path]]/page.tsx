@@ -11,6 +11,7 @@ import { SITE_ROOT } from "@/lib/site-url";
 import { API_URL } from "@/lib/api";
 import { SiteView, type SiteData, type SitePageName } from "@/components/site/site-view";
 import { SitePreview } from "./preview";
+import { ldJson, pageSeo, shareImage, siteHome, structuredData } from "@/lib/site-seo";
 
 const PAGES: Record<string, string> = {
   portfolio: "Portfolio", films: "Films", packages: "Packages", about: "About", reviews: "Reviews",
@@ -80,12 +81,23 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (!isSite(d) || r.page === "notfound") return { title: "Page not found", robots: { index: false } };
   if (r.page === "thank-you") return { title: { absolute: `Thank you | ${d.studio.name}` }, robots: { index: false } };
   const album = r.albumId ? d.content.albums.find(a => a.id === r.albumId) : undefined;
-  const cover = d.photos[album?.cover ?? d.content.heroPhotos[0]]?.url;
   const story = r.storyId ? (d.content.stories ?? []).find(x => x.id === r.storyId) : undefined;
-  const title = story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}`
-    : r.page === "home" ? `${d.studio.name} | ${d.content.kicker || "Wedding photography"}` : `${PAGES[r.page]} | ${d.studio.name}`;
-  const description = d.content.intro || d.content.footerLine;
-  return { title: { absolute: title }, description, openGraph: { title, description, images: cover ? [cover] : undefined, type: "website" } };
+  const own = pageSeo(d, r.page);
+  const title = story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}` : own.title;
+  const description = story ? story.text.replace(/\s+/g, " ").slice(0, 155) : album ? `${album.title} — ${album.photos.length} photos by ${d.studio.name}.` : own.description;
+  const img = shareImage(d, album?.cover ?? story?.cover ?? undefined);
+  const home = siteHome(d);
+  const here = r.page === "home" ? "/" : `/${r.page}${r.albumId ? `/${r.albumId}` : r.storyId ? `/${r.storyId}` : ""}`;
+  const seo = d.content.seo;
+  return {
+    title: { absolute: title }, description,
+    metadataBase: new URL(home),
+    alternates: { canonical: `${home}${here}` },
+    robots: seo?.hidden ? { index: false, follow: false } : { index: true, follow: true },
+    openGraph: { title, description, url: `${home}${here}`, siteName: d.studio.name, type: "website", images: img ? [img] : undefined },
+    twitter: { card: img ? "summary_large_image" : "summary", title, description, images: img ? [img.url] : undefined },
+    verification: { google: seo?.google || undefined, other: seo?.bing ? { "msvalidate.01": seo.bing } : undefined },
+  };
 }
 
 export default async function StudioSitePage({ params, searchParams }: Props) {
@@ -100,7 +112,11 @@ export default async function StudioSitePage({ params, searchParams }: Props) {
   const missing = (r.albumId && !data.content.albums.some(a => a.id === r.albumId)) || (r.storyId && !(data.content.stories ?? []).some(x => x.id === r.storyId));
   const page = missing ? "notfound" : r.page;
   const base = (await onSubdomain(slug)) ? "" : undefined;
-  return <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />;
+  const ld = structuredData(data, page);
+  return <>
+    {ld.map((o, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(o) }} />)}
+    <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />
+  </>;
 }
 
 /** Closed, unpaid or taken down: no studio name, no reason — just that it isn't available. */

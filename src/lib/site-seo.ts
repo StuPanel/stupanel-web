@@ -1,0 +1,122 @@
+/**
+ * Google and sharing for studio websites: titles, descriptions, share picture, the site's own address,
+ * structured data (schema.org) and the sitemap. Plain functions, used by the page, sitemap.xml and the editor.
+ */
+import type { SiteData, SitePageName } from "@/components/site/site-view";
+import { SITE_ROOT } from "@/lib/site-url";
+
+export type SiteSeo = {
+  title: string; description: string; image: string | null;
+  pages: Record<string, { title: string; description: string }>;
+  google: string; bing: string; hidden: boolean;
+};
+export const EMPTY_SEO: SiteSeo = { title: "", description: "", image: null, pages: {}, google: "", bing: "", hidden: false };
+
+/** Pages with their own Google title (Home uses the main title). Name = what the visitor sees in the menu. */
+export const SEO_PAGES: [key: string, name: string][] = [
+  ["portfolio", "Portfolio"], ["films", "Films"], ["packages", "Packages"], ["about", "About"],
+  ["reviews", "Reviews"], ["faq", "Questions"], ["contact", "Book your date"], ["stories", "Stories"],
+];
+const PAGE_NAME: Record<string, string> = Object.fromEntries([...SEO_PAGES, ["privacy", "Privacy"], ["terms", "Terms"]]);
+
+/** Google shows about 60 characters of a title and 155 of a description. */
+export const TITLE_FIT = 60;
+export const DESC_FIT = 155;
+
+/** https://pickphoto.com (live own domain) or https://pickphoto.stupanel.com — no trailing slash. */
+export function siteHome(d: Pick<SiteData, "slug" | "domain">) {
+  return d.domain ? `https://${d.domain}` : `https://${d.slug}.${SITE_ROOT}`;
+}
+
+const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).replace(/\s+\S*$/, "")}…` : s);
+
+/** Automatic title and description of a page (what Google gets when the studio leaves the boxes empty). */
+export function autoSeo(d: SiteData, page: string) {
+  const c = d.content, name = d.studio.name;
+  const desc = c.intro || c.footerLine || `Wedding photography and films by ${name}.`;
+  if (page === "home") return { title: `${name} | ${c.kicker || "Wedding photography"}`, description: cut(desc, DESC_FIT) };
+  const about = c.aboutText ? cut(c.aboutText.replace(/\s+/g, " "), DESC_FIT) : desc;
+  const per: Record<string, string> = {
+    portfolio: `Wedding albums by ${name}: holud, wedding and reception.`,
+    films: `Wedding films and trailers by ${name}.`,
+    packages: `Photography and film packages of ${name}, with prices.`,
+    about,
+    reviews: `What couples say about ${name}.`,
+    faq: `Questions couples ask ${name} before booking.`,
+    contact: `Check your date and book ${name}.`,
+    stories: `Wedding stories by ${name}.`,
+  };
+  return { title: `${PAGE_NAME[page] ?? "Page"} | ${name}`, description: cut(per[page] ?? desc, DESC_FIT) };
+}
+
+/** Title and description Google gets for a page: the studio's own words, else automatic. */
+export function pageSeo(d: SiteData, page: string) {
+  const seo = { ...EMPTY_SEO, ...(d.content.seo ?? {}) };
+  const auto = autoSeo(d, page);
+  if (page === "home") return { title: seo.title || auto.title, description: seo.description || auto.description };
+  const own = seo.pages[page];
+  return { title: own?.title || auto.title, description: own?.description || auto.description };
+}
+
+/** The picture a shared link shows: the studio's choice, else the first main photo. Phone-size copy when there is one. */
+export function shareImage(d: SiteData, photoId?: string | null) {
+  const id = photoId ?? d.content.seo?.image ?? d.content.heroPhotos[0] ?? d.content.slides?.[0] ?? d.content.albums[0]?.cover;
+  const p = id ? d.photos[id] : undefined;
+  if (!p) return undefined;
+  const big = Math.max(p.w, p.h) || 1;
+  const k = p.sm ? Math.min(1, 900 / big) : 1;
+  return { url: p.sm || p.url, width: Math.round(p.w * k) || undefined, height: Math.round(p.h * k) || undefined };
+}
+
+/** Pages worth listing for search engines (empty pages are left out). */
+export function sitemapPaths(d: SiteData): { path: string; date?: string }[] {
+  const c = d.content;
+  const out: { path: string; date?: string }[] = [{ path: "/" }, { path: "/portfolio" }];
+  for (const a of c.albums) out.push({ path: `/portfolio/${a.id}` });
+  if (c.filmUrl || (c.films ?? []).length) out.push({ path: "/films" });
+  if (c.showPackages && d.packages.length) out.push({ path: "/packages" });
+  out.push({ path: "/about" });
+  if (c.reviews.length) out.push({ path: "/reviews" });
+  if ((c.faqs ?? []).length) out.push({ path: "/faq" });
+  out.push({ path: "/contact" });
+  if ((c.stories ?? []).length) {
+    out.push({ path: "/stories" });
+    for (const s of c.stories ?? []) out.push({ path: `/stories/${s.id}`, date: s.date || undefined });
+  }
+  return out;
+}
+
+/** schema.org data for Google: the studio as a local business on Home, questions and answers on the FAQ page. */
+export function structuredData(d: SiteData, page: SitePageName): object[] {
+  const c = d.content, home = siteHome(d);
+  if (page === "home") {
+    const img = shareImage(d);
+    const sameAs = [c.facebook, c.instagram, c.youtube].filter(Boolean);
+    return [{
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      "@id": `${home}/#studio`,
+      name: d.studio.name,
+      url: `${home}/`,
+      description: pageSeo(d, "home").description,
+      ...(img ? { image: img.url } : {}),
+      ...(d.studio.logoUrl ? { logo: d.studio.logoUrl } : {}),
+      ...(c.phone ? { telephone: c.phone } : {}),
+      ...(c.email ? { email: c.email } : {}),
+      ...(c.address ? { address: { "@type": "PostalAddress", streetAddress: c.address } } : {}),
+      ...(sameAs.length ? { sameAs } : {}),
+    }, {
+      "@context": "https://schema.org", "@type": "WebSite", name: d.studio.name, url: `${home}/`,
+    }];
+  }
+  if (page === "faq" && (c.faqs ?? []).length) {
+    return [{
+      "@context": "https://schema.org", "@type": "FAQPage",
+      mainEntity: (c.faqs ?? []).map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    }];
+  }
+  return [];
+}
+
+/** JSON for a <script type="application/ld+json">: "<" escaped so text can never close the tag. */
+export const ldJson = (o: object) => JSON.stringify(o).replace(/</g, "\\u003c");

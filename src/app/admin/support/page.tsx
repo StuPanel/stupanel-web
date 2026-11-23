@@ -10,6 +10,23 @@ import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { can, getPlatformUser } from "@/lib/platform-api";
 
+/**
+ * Ready answers. {domain} and {me} are filled in from the ticket and the person answering.
+ * Domain ones follow 05-Guides/support-own-domains.md: never ask for a password.
+ */
+const SAVED_REPLIES: { group: string; title: string; text: string }[] = [
+  { group: "General", title: "Looking into it", text: "Hi! Thanks for writing to us. We're looking into this now and will reply here soon." },
+  { group: "General", title: "Solved — closing", text: "This is fixed now. If anything still looks wrong, just reply here and we'll open the ticket again." },
+  { group: "Own domain", title: "Old A record (parking page)", text: "Hi! We checked {domain}. It still has an old A record for @ (often the domain company's parking page). Please delete that one and keep only the A record from StuPanel (Website → Settings → Your own domain → Record 1). Then press Check now — it usually works within 30 minutes." },
+  { group: "Own domain", title: "Cloudflare cloud is on", text: "Hi! {domain} is on Cloudflare with the orange cloud switched on. Please open Cloudflare → {domain} → DNS → Records, press Edit on the two records for StuPanel and switch the cloud off so it says \"DNS only\". Then press Check now." },
+  { group: "Own domain", title: "Host written wrong", text: "Hi! The record is there, but the Name / Host box has the full domain in it. Please change it to just @ for the first record (or leave it empty if @ isn't accepted) and www for the second one. Then press Check now." },
+  { group: "Own domain", title: "Records right — wait", text: "Hi! Your records for {domain} are correct. The internet needs a little time to pick them up (usually under an hour, at most a day). StuPanel keeps checking by itself and switches your website on as soon as it works — nothing else to do." },
+  { group: "Own domain", title: "TXT record needed", text: "Hi! Your domain was used on another website service before, so it needs one more record to prove it's yours: the TXT record shown first in Website → Settings → Your own domain. Please add it, then press Check now." },
+  { group: "Own domain", title: "Video call (no password)", text: "Hi! We can set this up together on a short video call (WhatsApp or Google Meet). You sign in to your domain company yourself and share your screen, and we guide you — it takes about 10 minutes. When suits you? Please never send us your password." },
+  { group: "Own domain", title: "Give us access (no password)", text: "Hi! If you'd like us to do it for you, you can give us access to the DNS only — no password needed:\n• GoDaddy: Account Settings → Delegate Access → Invite to access\n• Namecheap: Domain List → Manage → Sharing & Transfer → Share Access\n• Cloudflare: Manage Account → Members → Invite (DNS role)\n• Hostinger: Account Sharing / Access manager\nPlease invite {me}. When we're done, you can remove the access again. Please never send us your password." },
+  { group: "Own domain", title: "Working now", text: "Good news — {domain} is working! Your website now opens there, and your stupanel.com address sends visitors to it. Please keep the records at your domain company as they are." },
+];
+
 const H = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dhaka" }) : "—";
 function since(a: string, b?: string | null) {
@@ -55,6 +72,7 @@ function SupportDesk() {
   const [openId, setOpenId] = useState<string | null>(q.get("ticket"));
   const [d, setD] = useState<Detail | null>(null);
   const [text, setText] = useState("");
+  const [savedOpen, setSavedOpen] = useState(false);
   const [internal, setInternal] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
@@ -198,6 +216,7 @@ function SupportDesk() {
                       <p className="text-slate-200 font-medium truncate">{d.company.name} <span className="text-slate-500">· {d.company.plan?.name ?? "No plan"} · {d.company.access.state}</span></p>
                       {d.owner && <p className="text-slate-500 truncate">{`${d.owner.firstName} ${d.owner.lastName ?? ""}`.trim()} · {d.owner.email}{d.owner.phone ? ` · ${d.owner.phone}` : ""}</p>}
                     </div>
+                    {d.category === "website" && <Link href={`/admin/websites?company=${d.company.id}`} className="text-amber-300 hover:text-amber-200 inline-flex items-center gap-1 whitespace-nowrap">Domain status<ExternalLink className="w-3 h-3" /></Link>}
                     <Link href={`/admin/studios/${d.company.id}`} className="text-indigo-300 hover:text-indigo-200 inline-flex items-center gap-1 whitespace-nowrap">Studio 360<ExternalLink className="w-3 h-3" /></Link>
                   </div>
                 )}
@@ -226,6 +245,25 @@ function SupportDesk() {
                   <div className="flex gap-1 text-xs">
                     <button onClick={() => setInternal(false)} className={cn("px-3 py-1 rounded-full", !internal ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white")}>Reply to studio</button>
                     <button onClick={() => setInternal(true)} className={cn("px-3 py-1 rounded-full inline-flex items-center gap-1", internal ? "bg-amber-600 text-white" : "text-slate-400 hover:text-white")}><Lock className="w-3 h-3" />Team note</button>
+                    <div className="relative ml-auto">
+                      <button type="button" onClick={() => setSavedOpen(o => !o)} aria-expanded={savedOpen} className="px-3 py-1 rounded-full text-slate-300 hover:text-white border border-slate-600">Saved replies</button>
+                      {savedOpen && (
+                        <div className="absolute right-0 bottom-full mb-1.5 z-20 w-72 max-h-80 overflow-y-auto rounded-xl border border-slate-600 bg-slate-800 shadow-2xl p-1.5">
+                          {Array.from(new Set(SAVED_REPLIES.map(r => r.group))).map(g => (
+                            <div key={g}>
+                              <p className="px-2 pt-1.5 pb-0.5 text-[10px] uppercase tracking-wide text-slate-500">{g}</p>
+                              {SAVED_REPLIES.filter(r => r.group === g).map(r => (
+                                <button key={r.title} type="button" onClick={() => {
+                                  const dom = d.subject.match(/domain\s+([a-z0-9.-]+\.[a-z]{2,})/i)?.[1] ?? "your domain";
+                                  const filled = r.text.replaceAll("{domain}", dom).replaceAll("{me}", me?.email ?? "our support email");
+                                  setText(t => (t.trim() ? `${t.trim()}\n\n${filled}` : filled)); setInternal(false); setSavedOpen(false);
+                                }} className="w-full text-left px-2 py-1.5 rounded-lg text-sm text-slate-200 hover:bg-slate-700">{r.title}</button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <textarea value={text} onChange={e => setText(e.target.value)} rows={3}

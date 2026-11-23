@@ -40,7 +40,7 @@ export type SiteContent = {
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
-  films?: { url: string; title: string; id: string }[]; faqs?: { q: string; a: string }[];
+  films?: { url: string; title: string; id: string; /** Own cover photo */ cover?: string | null }[]; faqs?: { q: string; a: string }[];
   stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;

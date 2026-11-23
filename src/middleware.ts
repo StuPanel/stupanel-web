@@ -131,6 +131,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(new URL(`/site/${slug}${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
   }
 
+  // StuPanel's own robots.txt / sitemap.xml (studio websites got their own above).
+  if (pathname === "/robots.txt" || pathname === "/sitemap.xml") return NextResponse.next();
+
   // app.stupanel.com/site/<address>/… → <address>.stupanel.com/… (the studio's own preview stays on the app).
   if (SITE_SUBDOMAINS && host === APP_HOST && pathname.startsWith("/site/") && !request.nextUrl.searchParams.has("preview")) {
     const m = pathname.match(/^\/site\/([a-z0-9-]{1,40})(\/.*)?$/);
@@ -206,6 +209,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

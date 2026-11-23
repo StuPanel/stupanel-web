@@ -44,7 +44,11 @@ function LoginInner() {
     const ch = q.get("challenge");
     const st = q.get("step");
     if (err) setError(err);
-    if (ch && (st === "2fa" || st === "setup")) {
+    if (st === "done") {
+      // Google sign-in without the app code: the session is already in the cookie.
+      window.history.replaceState(null, "", window.location.pathname);
+      refreshPlatform().then(okay => { if (okay) goIn(); else setError("Sign-in did not finish. Please try again."); });
+    } else if (ch && (st === "2fa" || st === "setup")) {
       setChallenge(ch); setStep(st);
       window.history.replaceState(null, "", window.location.pathname); // keep the link out of history
     } else if (!err) {
@@ -68,8 +72,11 @@ function LoginInner() {
   }
 
   const signIn = (e: React.FormEvent) => { e.preventDefault(); run(async () => {
-    const r = await platformPost<{ next: "2fa" | "setup"; challenge: string }>("/auth/login", { email: email.trim(), password });
-    setPassword(""); setChallenge(r.challenge); setCode(""); setStep(r.next);
+    const r = await platformPost<{ next: "2fa" | "setup"; challenge: string } | ({ next: "done" } & Session)>("/auth/login", { email: email.trim(), password });
+    setPassword("");
+    // No app code asked (Settings → Sign-in & security): signed in now.
+    if (r.next === "done") { savePlatformSession(r.accessToken, r.user); goIn(); return; }
+    setChallenge(r.challenge); setCode(""); setStep(r.next);
   }); };
 
   const verify = (e: React.FormEvent) => { e.preventDefault(); run(async () => {

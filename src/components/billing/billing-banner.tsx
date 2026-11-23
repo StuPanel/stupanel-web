@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Clock, Lock, X } from "lucide-react";
 import { apiFetch, API_URL, READ_ONLY_EVENT } from "@/lib/api";
+import type { BillingStatus } from "@/lib/billing";
+import { TrialEnded } from "./trial-ended";
 
 export type BillingMode = "full" | "trial" | "grace" | "read_only";
 
@@ -16,7 +18,7 @@ export interface BillingAccess {
 }
 
 /** Shared loader so the banner and sidebar card don't fetch twice. */
-let cached: Promise<{ status: string; access: BillingAccess; pendingRequest: unknown } | null> | null = null;
+let cached: Promise<BillingStatus | null> | null = null;
 export function loadBillingStatus(force = false) {
   if (!cached || force) {
     cached = apiFetch(`${API_URL}/billing/status`)
@@ -37,10 +39,11 @@ export function BillingBanner() {
   const [pending, setPending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [blockedNotice, setBlockedNotice] = useState(false);
+  const [full, setFull] = useState<BillingStatus | null>(null);
 
   useEffect(() => {
     loadBillingStatus().then((d) => {
-      if (d) { setAccess(d.access); setPending(!!d.pendingRequest); }
+      if (d) { setAccess(d.access); setPending(!!d.pendingRequest); setFull(d); }
     });
   }, []);
 
@@ -57,6 +60,7 @@ export function BillingBanner() {
 
   return (
     <>
+      {full && !onBillingPage && <TrialEnded status={full} onExtended={() => window.location.reload()} />}
       {access && !onBillingPage && <Strip access={access} pending={pending} dismissed={dismissed} onDismiss={() => setDismissed(true)} />}
 
       {blockedNotice && !onBillingPage && (

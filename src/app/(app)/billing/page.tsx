@@ -1,63 +1,28 @@
 "use client";
 
-import { fmtMoney } from "@/lib/format";
-import { Crown as HeaderIcon } from "lucide-react";
+/**
+ * Plan & billing: the plan now (with what it allows and what is used), the plans to choose from, and every payment.
+ * Paying happens on its own page: /billing/checkout.
+ */
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  ArrowRight, CalendarPlus, Check, CheckCircle2, Clock, Crown, Gift, Loader2, Lock, Sparkles, XCircle,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
-
-import { useEffect, useMemo, useState } from "react";
-import { CalendarPlus, Check, CheckCircle2, Clock, Copy, Crown, Gift, Loader2, Lock, XCircle } from "lucide-react";
 import { apiFetch, API_URL } from "@/lib/api";
-import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
+import { loadBillingStatus } from "@/components/billing/billing-banner";
 import { cn } from "@/lib/utils";
-
-type Interval = "monthly" | "yearly";
-type Method = "bkash" | "nagad" | "rocket";
-
-interface Plan {
-  id: string; name: string; slug: string; description: string | null; tagline: string | null; isPopular: boolean;
-  priceMonthly: number; priceYearly: number; currency: string;
-  maxClients: number; maxTeamMembers: number; maxStorageGb: number; maxBookingsPerMonth: number;
-  features?: { featureKey: string; featureLabel: string; featureValue: string | null }[];
-}
-interface Account { method: Method; number: string }
-interface PayRequest {
-  id: string; number: string; state: "pending" | "approved" | "rejected"; amount: number; currency: string;
-  method: Method; trxId: string; senderNumber: string | null; planName: string | null; interval: Interval | null;
-  rejectReason: string | null; submittedAt: string; approvedAt: string | null; periodEnd: string | null;
-}
-interface Status {
-  status: string; plan: { id: string; name: string } | null; interval: Interval | null;
-  access: BillingAccess; pendingRequest: PayRequest | null; history: PayRequest[];
-  /** Win-back offer: percent off the first monthly payment, until a date. */
-  offer?: { percent: number; until: string } | null;
-}
-interface TrialState { canExtend: boolean; extendedAt: string | null; extendDays: number }
-
-const METHOD_LABEL: Record<Method, string> = { bkash: "bKash", nagad: "Nagad", rocket: "Rocket" };
-const METHOD_COLOR: Record<Method, string> = { bkash: "#E2136E", nagad: "#EC1C24", rocket: "#8C3494" };
-
-function money(n: number, cur = "BDT") {
-  return fmtMoney(n, cur);
-}
-function fmtDate(d: string | null) {
-  return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
-}
+import {
+  METHOD_LABEL, checkoutHref, fmtDate, money, planLines, priceOf, yearlySavePercent,
+  type BillingStatus, type Interval, type Plan, type TrialState, type Use,
+} from "@/lib/billing";
 
 export default function BillingPage() {
-  const [status, setStatus] = useState<Status | null>(null);
+  const [status, setStatus] = useState<BillingStatus | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [instructions, setInstructions] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [interval, setBillingInterval] = useState<Interval>("monthly");
-  const [planId, setPlanId] = useState<string | null>(null);
-  const [method, setMethod] = useState<Method | null>(null);
-  const [senderNumber, setSenderNumber] = useState("");
-  const [trxId, setTrxId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [interval, setIv] = useState<Interval>("monthly");
   const [trial, setTrial] = useState<TrialState | null>(null);
   const [extending, setExtending] = useState(false);
   const [extendMsg, setExtendMsg] = useState<{ ok?: string; error?: string }>({});
@@ -68,46 +33,17 @@ export default function BillingPage() {
       apiFetch(`${API_URL}/billing/plans`).then((r) => (r.ok ? r.json() : null)),
       apiFetch(`${API_URL}/billing/trial`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
-    if (s) setStatus(s);
+    if (s) { setStatus(s); if (s.interval) setIv(s.interval); }
     setTrial(t);
-    if (p) {
-      setPlans(p.plans ?? []);
-      setAccounts(p.accounts ?? []);
-      setInstructions(p.instructions ?? null);
-      if (!method && p.accounts?.length) setMethod(p.accounts[0].method);
-    }
-    if (s?.plan?.id) setPlanId((cur) => cur ?? s.plan.id);
-    if (s?.interval) setBillingInterval(s.interval);
+    if (p) setPlans(p.plans ?? []);
     setLoading(false);
   }
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
-
-  const plan = useMemo(() => plans.find((p) => p.id === planId) ?? null, [plans, planId]);
-  const offer = status?.offer ?? null;
-  // The offer takes its percent off the first monthly payment (the server works it out the same way).
-  const priceOf = (p: Plan, iv: Interval) => (iv === "monthly" && offer ? Math.round(p.priceMonthly * (100 - offer.percent) / 100) : iv === "yearly" ? p.priceYearly : p.priceMonthly);
-  /** "Have a coupon?": the code and its price for this plan and length (cleared when either changes). */
-  const [couponOpen, setCouponOpen] = useState(false);
-  const [couponText, setCouponText] = useState("");
-  const [coupon, setCoupon] = useState<{ code: string; label: string; price: number; for: string } | null>(null);
-  const [couponErr, setCouponErr] = useState("");
-  const [couponBusy, setCouponBusy] = useState(false);
-  const couponFor = plan ? `${plan.id}:${interval}` : "";
-  const couponNow = coupon && coupon.for === couponFor ? coupon : null;
-  const basePrice = plan ? priceOf(plan, interval) : 0;
-  // One discount per payment: the coupon or the trial offer, whichever is bigger (the server decides the same way).
-  const useCoupon = !!couponNow && couponNow.price < basePrice;
-  const amount = useCoupon ? couponNow!.price : basePrice;
-  async function applyCoupon() {
-    if (!plan || !couponText.trim()) return;
-    setCouponBusy(true); setCouponErr("");
-    const r = await apiFetch(`${API_URL}/billing/coupon`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: couponText, planId: plan.id, interval }) }).catch(() => null);
-    const b = r ? await r.json().catch(() => ({})) : {};
-    setCouponBusy(false);
-    if (!r?.ok) { setCoupon(null); setCouponErr((Array.isArray(b.message) ? b.message[0] : b.message) || "Could not check the code. Try again."); return; }
-    setCoupon({ code: b.code, label: b.label, price: Number(b.price), for: `${plan.id}:${interval}` });
-  }
+  // Opened from "Choose a plan" (…/billing#plans): go to the plans once they are on the page.
+  useEffect(() => {
+    if (!loading && window.location.hash === "#plans") document.getElementById("plans")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
 
   async function extend() {
     setExtending(true); setExtendMsg({});
@@ -119,69 +55,45 @@ export default function BillingPage() {
     } catch { setExtendMsg({ error: "Network problem. Please try again." }); }
     setExtending(false);
   }
-  const account = accounts.find((a) => a.method === method) ?? null;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!plan || !method) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await apiFetch(`${API_URL}/billing/requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, interval, method, senderNumber, trxId, ...(useCoupon ? { couponCode: couponNow!.code } : {}) }),
-      });
-      if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        const msg = Array.isArray(b.message) ? b.message[0] : b.message;
-        setError(msg || "Could not submit. Please try again.");
-      } else {
-        setSenderNumber(""); setTrxId("");
-        await loadBillingStatus(true);
-        await load();
-      }
-    } catch {
-      setError("Network problem. Please try again.");
-    }
-    setSubmitting(false);
-  }
+  if (loading) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" /></div>;
+  if (!status) return <p className="py-24 text-center text-[#6B6680]">Plan &amp; billing could not be opened. Please refresh the page.</p>;
 
-  function copy(text: string) {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopied(text);
-      setTimeout(() => setCopied(null), 1500);
-    }).catch(() => {});
-  }
-
-  if (loading) {
-    return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-[#7D5CEF]" /></div>;
-  }
-
-  const access = status?.access;
-  const pending = status?.pendingRequest ?? null;
-  const yearlySaving = (p: Plan) => Math.max(0, p.priceMonthly * 12 - p.priceYearly);
+  const pending = status.pendingRequest;
+  const offer = status.offer ?? null;
+  const maxSave = Math.max(0, ...plans.map(yearlySavePercent));
+  const currentSlug = status.plan?.slug ?? plans.find(p => p.id === status.plan?.id)?.slug ?? null;
 
   return (
-    <div className="space-y-6">
-      <PageHeader icon={HeaderIcon} color="violet" title="Plan & Billing"
-        sub="Pay with bKash, Nagad or Rocket. Your plan starts as soon as we confirm the payment." />
+    <div className="space-y-6 max-w-[1120px]">
+      <PageHeader icon={Crown} color="violet" title="Plan & billing" sub="Your plan, what it allows, and every payment in one place." />
 
-      {/* Current status */}
-      {access && <StatusCard status={status!} />}
+      <CurrentPlan status={status} />
+
+      {pending && (
+        <div className="rounded-[20px] border border-[#CFC2F8] bg-[#F6F2FF] p-5 flex gap-4">
+          <Clock className="w-6 h-6 text-[#5B3FD0] flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-[#5B3FD0]">
+            <p className="font-semibold text-base">Payment waiting to be checked</p>
+            <p className="mt-1">{pending.planName} · {pending.interval === "yearly" ? "1 year" : "1 month"} · {money(pending.amount, pending.currency)} by {METHOD_LABEL[pending.method]}</p>
+            <p className="mt-0.5">TrxID <span className="font-mono font-semibold">{pending.trxId}</span> from {pending.senderNumber}</p>
+            <p className="mt-2 text-[#4A4658]">We usually check it within a few hours and email you when your plan is on. You don&apos;t need to do anything else.</p>
+          </div>
+        </div>
+      )}
 
       {offer && !pending && (
-        <div className="rounded-2xl border border-[#CDEBDB] bg-[#F1FAF5] p-5 flex items-center gap-4">
+        <div className="rounded-[20px] border border-[#CDEBDB] bg-[#F1FAF5] p-5 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-[#1F8A5B] flex items-center justify-center flex-shrink-0"><Gift className="w-5 h-5 text-white" /></div>
           <div>
             <p className="font-semibold text-[#17151F]">{offer.percent}% off your first month</p>
-            <p className="text-sm text-[#4A4658] mt-0.5">Pay monthly before {fmtDate(offer.until)} and the first month costs {offer.percent}% less. The price below already shows it.</p>
+            <p className="text-sm text-[#4A4658] mt-0.5">Choose a monthly plan before {fmtDate(offer.until)} and the first month costs {offer.percent}% less. The monthly prices below already show it.</p>
           </div>
         </div>
       )}
 
       {trial?.canExtend && !pending && (
-        <div className="rounded-2xl border border-[#E3DFEC] bg-white p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="rounded-[20px] border border-[#E3DFEC] bg-white p-5 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-[#EEE8FD] flex items-center justify-center flex-shrink-0"><CalendarPlus className="w-5 h-5 text-[#7D5CEF]" /></div>
           <div className="flex-1">
             <p className="font-semibold text-[#17151F]">Need more time to try it?</p>
@@ -189,186 +101,80 @@ export default function BillingPage() {
             {extendMsg.error && <p className="text-sm text-[#C2304F] mt-1">{extendMsg.error}</p>}
           </div>
           <button type="button" onClick={() => void extend()} disabled={extending}
-            className="h-11 px-4 rounded-xl bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+            className="h-11 px-5 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">
             {extending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarPlus className="w-4 h-4" />}Take {trial.extendDays} more days
           </button>
         </div>
       )}
       {extendMsg.ok && <p role="status" className="rounded-xl bg-[#F1FAF5] border border-[#CDEBDB] px-4 py-3 text-sm text-[#1F6B47]">{extendMsg.ok}</p>}
 
-      {pending ? (
-        <div className="rounded-2xl border border-[#CFC2F8] bg-[#EEE8FD] p-5 flex gap-4">
-          <Clock className="w-6 h-6 text-[#5B3FD0] flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-[#5B3FD0]">
-            <p className="font-semibold text-base">Payment waiting for confirmation</p>
-            <p className="mt-1">
-              {pending.planName} · {pending.interval === "yearly" ? "1 year" : "1 month"} · {money(pending.amount, pending.currency)} via {METHOD_LABEL[pending.method]}
-            </p>
-            <p className="mt-0.5">TrxID <span className="font-mono font-semibold">{pending.trxId}</span> from {pending.senderNumber}</p>
-            <p className="mt-2 text-[#4A4658]">We usually confirm within a few hours. You don&apos;t need to do anything else.</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Interval toggle */}
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-xl bg-white border border-[#E3DFEC] p-1">
+      {/* Plans */}
+      {!pending && plans.length > 0 && (
+        <section id="plans" className="scroll-mt-24 pt-2">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-[20px] font-extrabold tracking-[-0.01em] text-[#17151F]">Plans</h2>
+              <p className="text-sm text-[#6B6680]">Pay with bKash, Nagad or Rocket. Your plan starts as soon as the payment is checked.</p>
+            </div>
+            <div className="inline-flex rounded-full bg-white border border-[#E3DFEC] p-1" role="radiogroup" aria-label="How long">
               {(["monthly", "yearly"] as Interval[]).map((iv) => (
-                <button key={iv} onClick={() => setBillingInterval(iv)}
-                  className={cn("px-5 py-2 rounded-lg text-sm font-semibold transition-colors",
-                    interval === iv ? "bg-[#7D5CEF] text-white" : "text-[#4A4658] hover:bg-[#F5F3FA]")}>
+                <button key={iv} type="button" role="radio" aria-checked={interval === iv} onClick={() => setIv(iv)}
+                  className={cn("h-9 px-4 rounded-full text-sm font-semibold transition-colors", interval === iv ? "bg-[#17151F] text-white" : "text-[#4A4658] hover:bg-[#F5F3FA]")}>
                   {iv === "monthly" ? "Monthly" : "Yearly"}
-                  {iv === "yearly" && <span className={cn("ml-1.5 text-xs", interval === iv ? "text-white/80" : "text-[#1F8A5B]")}>save more</span>}
+                  {iv === "yearly" && maxSave > 0 && <span className={cn("ml-1.5 text-xs font-bold", interval === iv ? "text-[#9AE6BD]" : "text-[#1F8A5B]")}>save {maxSave}%</span>}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Plans */}
           <div className="grid gap-4 md:grid-cols-3">
             {plans.map((p) => {
-              const selected = p.id === planId;
-              const price = priceOf(p, interval);
+              const price = priceOf(p, interval, offer);
               const full = interval === "yearly" ? p.priceYearly : p.priceMonthly;
+              const mine = currentSlug === p.slug;
+              const save = interval === "yearly" ? p.priceMonthly * 12 - p.priceYearly : 0;
               return (
-                <button key={p.id} type="button" onClick={() => setPlanId(p.id)}
-                  className={cn("relative text-left rounded-2xl border bg-white p-5 transition-all",
-                    selected ? "border-[#7D5CEF] ring-2 ring-[#7D5CEF]/25 shadow-md" : "border-[#E3DFEC] hover:border-[#B29DF8]")}>
-                  {p.isPopular && (
-                    <span className="absolute -top-2.5 left-5 rounded-full bg-[#7D5CEF] px-2.5 py-0.5 text-xs font-semibold text-white">Popular</span>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-[#17151F]">{p.name}</p>
-                    <span className={cn("w-5 h-5 rounded-full border flex items-center justify-center",
-                      selected ? "bg-[#7D5CEF] border-[#7D5CEF]" : "border-[#E3DFEC]")}>
-                      {selected && <Check className="w-3 h-3 text-white" />}
-                    </span>
+                <div key={p.id} className={cn("relative rounded-[22px] border bg-white p-6 flex flex-col",
+                  p.isPopular ? "border-[#7D5CEF] shadow-[0_18px_40px_-24px_rgba(125,92,239,.7)]" : "border-[#E3DFEC]")}>
+                  {p.isPopular && <span className="absolute -top-3 left-6 rounded-full bg-[#7D5CEF] px-3 py-1 text-xs font-bold text-white inline-flex items-center gap-1"><Sparkles className="w-3 h-3" />Most chosen</span>}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[17px] font-bold text-[#17151F]">{p.name}</p>
+                    {mine && <span className="rounded-full bg-[#EEE8FD] px-2.5 py-0.5 text-xs font-bold text-[#5B3FD0]">Your plan</span>}
                   </div>
-                  {p.tagline && <p className="text-xs text-[#6B6680] mt-0.5">{p.tagline}</p>}
-                  {p.description && <p className="text-xs text-[#6B6680] mt-1 leading-snug">{p.description}</p>}
-                  <p className="mt-3">
-                    {price < full && <span className="text-sm text-[#9C97AC] line-through mr-1.5">{money(full, p.currency)}</span>}
-                    <span className="text-2xl font-bold text-[#17151F]">{money(price, p.currency)}</span>
-                    <span className="text-sm text-[#6B6680]"> / {interval === "yearly" ? "year" : "month"}</span>
+                  {p.tagline && <p className="text-[13px] text-[#6B6680] mt-0.5">{p.tagline}</p>}
+                  <p className="mt-4 flex items-baseline gap-1.5 flex-wrap">
+                    {price < full && <span className="text-sm text-[#9C97AC] line-through">{money(full, p.currency)}</span>}
+                    <span className="text-[30px] font-extrabold tracking-[-0.02em] tabular-nums text-[#17151F]">{money(price, p.currency)}</span>
+                    <span className="text-sm text-[#6B6680]">/ {interval === "yearly" ? "year" : "month"}</span>
                   </p>
-                  {price < full && <p className="text-xs font-medium text-[#1F8A5B] mt-0.5">First month, then {money(full, p.currency)} / month</p>}
-                  {interval === "yearly" && yearlySaving(p) > 0 && (
-                    <p className="text-xs font-medium text-[#1F8A5B] mt-0.5">Save {money(yearlySaving(p), p.currency)} a year</p>
-                  )}
-                  <ul className="mt-4 space-y-1.5 text-sm text-[#4A4658]">
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxClients >= 9999 ? "Unlimited" : p.maxClients} clients</li>
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxTeamMembers >= 9999 ? "Unlimited" : p.maxTeamMembers} team members</li>
-                    <li className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{p.maxBookingsPerMonth >= 9999 ? "Unlimited" : p.maxBookingsPerMonth} programs / month</li>
-                    {(p.features ?? []).slice(0, 5).map((f) => (
-                      <li key={f.featureKey} className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" />{f.featureLabel}</li>
-                    ))}
+                  <p className="text-xs font-semibold text-[#1F8A5B] min-h-[18px] mt-0.5">
+                    {price < full ? `First month, then ${money(full, p.currency)} a month` : save > 0 ? `${money(save, p.currency)} less than paying monthly` : ""}
+                  </p>
+                  <ul className="mt-4 space-y-2 text-[14px] text-[#4A4658] flex-1">
+                    {planLines(p, 7).map(l => <li key={l} className="flex gap-2"><Check className="w-4 h-4 text-[#7D5CEF] flex-shrink-0 mt-0.5" strokeWidth={3} />{l}</li>)}
                   </ul>
-                </button>
+                  <Link href={checkoutHref(p.slug, interval)}
+                    className={cn("mt-6 h-12 rounded-full text-[15px] font-bold inline-flex items-center justify-center gap-1.5 transition-colors",
+                      p.isPopular ? "bg-[#7D5CEF] hover:bg-[#6B4BDD] text-white" : "bg-[#F5F3FA] hover:bg-[#ECE8F5] text-[#17151F]")}>
+                    {mine ? `Renew ${p.name}` : `Choose ${p.name}`}<ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               );
             })}
           </div>
-
-          {/* Payment */}
-          {plan && (
-            <form onSubmit={submit} className="rounded-2xl border border-[#E3DFEC] bg-white p-5 sm:p-6 space-y-5">
-              <div className="flex items-baseline justify-between flex-wrap gap-2">
-                <h2 className="text-lg font-semibold text-[#17151F]">Pay {money(amount, plan.currency)}</h2>
-                <p className="text-sm text-[#6B6680]">{plan.name} · {interval === "yearly" ? "1 year" : "1 month"}</p>
-              </div>
-              {/* Coupon */}
-              {couponNow ? (
-                <p className="text-sm text-[#1F6B47] bg-[#E9F5EF] rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{couponNow.label}</span>
-                  {useCoupon ? <span>— you pay {money(couponNow.price, plan.currency)}</span> : <span className="text-[#4A4658]">— your offer is already bigger, so it is used instead</span>}
-                  <button type="button" onClick={() => { setCoupon(null); setCouponText(""); }} className="ml-auto text-[#4A4658] underline text-xs">Remove</button>
-                </p>
-              ) : !couponOpen ? (
-                <button type="button" onClick={() => setCouponOpen(true)} className="text-sm font-semibold text-[#5B3FD0]">Have a coupon?</button>
-              ) : (
-                <div>
-                  <div className="flex gap-2">
-                    <input value={couponText} onChange={e => setCouponText(e.target.value.toUpperCase())} maxLength={50} placeholder="Coupon code" aria-label="Coupon code"
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void applyCoupon(); } }}
-                      className="h-10 flex-1 min-w-0 rounded-lg border border-[#E3DFEC] px-3 text-sm uppercase tracking-wide" />
-                    <button type="button" disabled={couponBusy || !couponText.trim()} onClick={() => void applyCoupon()} className="h-10 px-4 rounded-lg bg-[#17151F] text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">{couponBusy && <Loader2 className="w-4 h-4 animate-spin" />}Apply</button>
-                  </div>
-                  {couponErr && <p role="alert" className="text-xs text-[#C2304F] mt-1.5">{couponErr}</p>}
-                </div>
-              )}
-
-              {accounts.length === 0 ? (
-                <p className="rounded-lg bg-[#F5F3FA] p-4 text-sm text-[#4A4658]">
-                  Payment numbers are not set up yet. Please contact StuPanel support to pay.
-                </p>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-[#17151F] mb-2">1. Choose how you&apos;ll pay</p>
-                    <div className="flex flex-wrap gap-2">
-                      {accounts.map((a) => (
-                        <button key={a.method} type="button" onClick={() => setMethod(a.method)}
-                          className={cn("rounded-xl border px-4 py-2 text-sm font-semibold transition-colors",
-                            method === a.method ? "text-white" : "bg-white text-[#4A4658] border-[#E3DFEC] hover:bg-[#F5F3FA]")}
-                          style={method === a.method ? { background: METHOD_COLOR[a.method], borderColor: METHOD_COLOR[a.method] } : undefined}>
-                          {METHOD_LABEL[a.method]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {account && (
-                    <div>
-                      <p className="text-sm font-medium text-[#17151F] mb-2">2. Send money to this {METHOD_LABEL[account.method]} number</p>
-                      <div className="flex items-center gap-3 rounded-xl bg-[#F5F3FA] px-4 py-3">
-                        <span className="font-mono text-lg font-bold tracking-wide text-[#17151F] flex-1">{account.number}</span>
-                        <button type="button" onClick={() => copy(account.number)}
-                          className="flex items-center gap-1 text-sm font-medium text-[#7D5CEF] hover:text-[#6143CF]">
-                          {copied === account.number ? <><Check className="w-4 h-4" />Copied</> : <><Copy className="w-4 h-4" />Copy</>}
-                        </button>
-                      </div>
-                      <p className="text-xs text-[#6B6680] mt-1.5">
-                        Use &quot;Send Money&quot; and send exactly <span className="font-semibold">{money(amount, plan.currency)}</span>.
-                      </p>
-                      {instructions && <p className="text-xs text-[#6B6680] mt-1 whitespace-pre-line">{instructions}</p>}
-                    </div>
-                  )}
-
-                  <div>
-                    <p className="text-sm font-medium text-[#17151F] mb-2">3. Tell us about the payment</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-xs text-[#6B6680]">Number you sent from</span>
-                        <input value={senderNumber} onChange={(e) => setSenderNumber(e.target.value)} required inputMode="tel"
-                          placeholder="01XXXXXXXXX"
-                          className="mt-1 w-full rounded-lg border border-[#E3DFEC] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30 focus:border-[#7D5CEF]" />
-                      </label>
-                      <label className="block">
-                        <span className="text-xs text-[#6B6680]">Transaction ID (TrxID)</span>
-                        <input value={trxId} onChange={(e) => setTrxId(e.target.value.toUpperCase())} required
-                          placeholder="e.g. 9JK4L2M8NP"
-                          className="mt-1 w-full rounded-lg border border-[#E3DFEC] px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#7D5CEF]/30 focus:border-[#7D5CEF]" />
-                      </label>
-                    </div>
-                  </div>
-
-                  {error && <p className="rounded-lg bg-[#FDECEF] px-3 py-2 text-sm text-[#C2304F]">{error}</p>}
-
-                  <button type="submit" disabled={submitting || !method}
-                    className="w-full sm:w-auto rounded-xl bg-[#7D5CEF] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#6143CF] disabled:opacity-60 flex items-center justify-center gap-2">
-                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Submit payment
-                  </button>
-                </>
-              )}
-            </form>
-          )}
-        </>
+        </section>
       )}
 
-      {/* History */}
-      {status && status.history.length > 0 && (
-        <div className="rounded-2xl border border-[#E3DFEC] bg-white">
-          <p className="px-5 py-4 font-semibold text-[#17151F] border-b border-[#E3DFEC]">Payment history</p>
+      {/* Payments */}
+      <section className="rounded-[20px] border border-[#E3DFEC] bg-white">
+        <div className="px-5 py-4 border-b border-[#E3DFEC] flex items-center justify-between gap-3">
+          <p className="font-semibold text-[#17151F]">Payments</p>
+          {status.history.some(r => r.state === "approved") && (
+            <p className="text-sm text-[#6B6680]">Paid {money(status.history.filter(r => r.state === "approved").reduce((t, r) => t + r.amount, 0))}</p>
+          )}
+        </div>
+        {status.history.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-[#6B6680] text-center">No payments yet. They show here as soon as you send one.</p>
+        ) : (
           <ul className="divide-y divide-[#E3DFEC]">
             {status.history.map((r) => (
               <li key={r.id} className="px-5 py-3 flex items-center gap-3 text-sm">
@@ -376,56 +182,86 @@ export default function BillingPage() {
                   : r.state === "rejected" ? <XCircle className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
                   : <Clock className="w-4 h-4 text-[#7D5CEF] flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#17151F] font-medium truncate">
-                    {r.planName} · {r.interval === "yearly" ? "Yearly" : "Monthly"} · {money(r.amount, r.currency)}
-                  </p>
+                  <p className="text-[#17151F] font-medium truncate">{r.planName} · {r.interval === "yearly" ? "Yearly" : "Monthly"} · {money(r.amount, r.currency)}</p>
                   <p className="text-xs text-[#6B6680] truncate">
                     {fmtDate(r.submittedAt)} · {METHOD_LABEL[r.method]} · {r.trxId}
                     {r.state === "rejected" && r.rejectReason ? ` · Not accepted: ${r.rejectReason}` : ""}
-                    {r.state === "approved" && r.periodEnd ? ` · valid till ${fmtDate(r.periodEnd)}` : ""}
+                    {r.state === "approved" && r.periodEnd ? ` · paid until ${fmtDate(r.periodEnd)}` : ""}
                   </p>
                 </div>
                 <span className={cn("text-xs font-semibold rounded-full px-2 py-0.5",
-                  r.state === "approved" ? "bg-[#E6F4EC] text-[#1F8A5B]"
-                    : r.state === "rejected" ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#5B3FD0]")}>
-                  {r.state === "approved" ? "Confirmed" : r.state === "rejected" ? "Rejected" : "Pending"}
+                  r.state === "approved" ? "bg-[#E6F4EC] text-[#1F8A5B]" : r.state === "rejected" ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#5B3FD0]")}>
+                  {r.state === "approved" ? "Checked" : r.state === "rejected" ? "Not accepted" : "Being checked"}
                 </span>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+        <p className="px-5 py-3 border-t border-[#E3DFEC] text-xs text-[#6B6680]">Payments are usually checked within a few hours. Questions? Open Support from the menu.</p>
+      </section>
     </div>
   );
 }
 
-function StatusCard({ status }: { status: Status }) {
+/** The plan now: its name and state, until when, and what is used of its limits. */
+function CurrentPlan({ status }: { status: BillingStatus }) {
   const a = status.access;
-  const map = {
-    full: { icon: Crown, title: `${status.plan?.name ?? "Paid"} plan active`, tone: "ok" },
-    trial: { icon: Clock, title: "Free trial", tone: "info" },
-    grace: { icon: Clock, title: "Plan ended — grace period", tone: "warn" },
-    read_only: { icon: Lock, title: "Plan ended — view only", tone: "warn" },
-  } as const;
-  const m = map[a.mode];
-  const Icon = m.icon;
-  let detail = "";
-  if (a.mode === "full") detail = a.periodEndsAt ? `Valid till ${fmtDate(a.periodEndsAt)}` : "No end date";
-  else if (a.mode === "trial") detail = a.periodEndsAt ? `Ends ${fmtDate(a.periodEndsAt)}${a.daysLeft !== null ? ` · ${a.daysLeft} day${a.daysLeft === 1 ? "" : "s"} left` : ""}` : "";
-  else if (a.mode === "grace") detail = `Full access until ${fmtDate(a.graceEndsAt)}, then view-only. Pay now to avoid interruption.`;
-  else detail = "Your data is safe. You can view everything; renew to add or change anything.";
-
+  const name = status.plan?.name ?? "Free trial";
+  const tag = a.mode === "full" ? { t: "Active", c: "bg-[#E6F4EC] text-[#1F8A5B]" }
+    : a.mode === "trial" ? { t: a.daysLeft !== null ? `${a.daysLeft} day${a.daysLeft === 1 ? "" : "s"} left` : "Trial", c: "bg-[#EEE8FD] text-[#5B3FD0]" }
+    : a.mode === "grace" ? { t: "Ended — pay to keep going", c: "bg-[#FFF1E0] text-[#A15C07]" }
+    : { t: "Ended", c: "bg-[#FDECEF] text-[#C2304F]" };
+  const line = a.mode === "full" ? (a.periodEndsAt ? `Paid until ${fmtDate(a.periodEndsAt)}` : "No end date")
+    : a.mode === "trial" ? (a.periodEndsAt ? `Free until ${fmtDate(a.periodEndsAt)}` : "")
+    : a.mode === "grace" ? `Ended ${fmtDate(a.periodEndsAt)}. Everything works until ${fmtDate(a.graceEndsAt)}, then the studio becomes view-only.`
+    : `Ended ${fmtDate(a.periodEndsAt)}. Your data is safe and you can look at everything; to add or change anything, choose a plan.`;
+  const u = status.usage;
+  const bars: { label: string; u: Use }[] = u ? [
+    { label: "Clients", u: u.clients }, { label: "Programs this month", u: u.programsThisMonth }, { label: "Team members", u: u.team },
+  ] : [];
+  const bad = a.mode === "read_only" || a.mode === "grace";
   return (
-    <div className={cn("rounded-2xl border p-5 flex items-center gap-4",
-      m.tone === "ok" ? "border-[#CDEBDB] bg-[#F1FAF5]" : m.tone === "warn" ? "border-[#F5C6D0] bg-[#FDECEF]" : "border-[#E3DFEC] bg-white")}>
-      <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0",
-        m.tone === "ok" ? "bg-[#1F8A5B]" : m.tone === "warn" ? "bg-[#C2304F]" : "bg-[#7D5CEF]")}>
-        <Icon className="w-5 h-5 text-white" />
+    <section className="rounded-[22px] border border-[#E3DFEC] bg-white p-5 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0", bad ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#7D5CEF]")}>
+          {bad ? <Lock className="w-6 h-6" /> : <Crown className="w-6 h-6" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] text-[#6B6680]">Your plan</p>
+          <p className="flex items-center gap-2 flex-wrap">
+            <span className="text-[22px] font-extrabold tracking-[-0.01em] text-[#17151F]">{name}</span>
+            <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", tag.c)}>{tag.t}</span>
+          </p>
+          {line && <p className={cn("text-sm mt-0.5", bad ? "text-[#8A1F37]" : "text-[#4A4658]")}>{line}</p>}
+        </div>
+        {!status.pendingRequest && (
+          <a href="#plans" className={cn("h-11 px-5 rounded-full text-sm font-bold inline-flex items-center justify-center gap-1.5 flex-shrink-0",
+            bad || a.mode === "trial" ? "bg-[#7D5CEF] text-white hover:bg-[#6B4BDD]" : "bg-[#F5F3FA] text-[#17151F] hover:bg-[#ECE8F5]")}>
+            {a.mode === "full" ? "Change plan" : bad && status.plan ? "Renew plan" : "Choose a plan"}
+          </a>
+        )}
       </div>
-      <div>
-        <p className="font-semibold text-[#17151F]">{m.title}</p>
-        {detail && <p className="text-sm text-[#4A4658] mt-0.5">{detail}</p>}
-      </div>
-    </div>
+      {bars.length > 0 && (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {bars.map(b => {
+            const pct = b.u.max ? Math.min(100, Math.round((b.u.used / b.u.max) * 100)) : 0;
+            const full = b.u.max !== null && b.u.used >= b.u.max;
+            return (
+              <div key={b.label} className="rounded-2xl bg-[#F7F5FB] px-4 py-3">
+                <p className="flex items-baseline justify-between gap-2 text-[13px]">
+                  <span className="text-[#4A4658]">{b.label}</span>
+                  <span className={cn("font-bold tabular-nums", full ? "text-[#C2304F]" : "text-[#17151F]")}>{b.u.used.toLocaleString("en-US")}{b.u.max ? ` / ${b.u.max.toLocaleString("en-US")}` : ""}</span>
+                </p>
+                <div className="mt-2 h-1.5 rounded-full bg-[#E6E1EF] overflow-hidden" role="progressbar" aria-label={b.label} aria-valuenow={b.u.used} aria-valuemax={b.u.max ?? undefined}>
+                  <div className={cn("h-full rounded-full", full ? "bg-[#C2304F]" : "bg-[#7D5CEF]")} style={{ width: b.u.max ? `${Math.max(pct, b.u.used ? 4 : 0)}%` : "100%", opacity: b.u.max ? 1 : 0.25 }} />
+                </div>
+                {!b.u.max && <p className="text-[11.5px] text-[#6B6680] mt-1">No limit</p>}
+              </div>
+            );
+          })}
+          {status.usage?.trial && <p className="sm:col-span-3 text-xs text-[#6B6680]">During the free trial you can use as much as the {status.usage.planName} plan allows.</p>}
+        </div>
+      )}
+    </section>
   );
 }

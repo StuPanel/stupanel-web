@@ -641,7 +641,8 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
         <Link href={bookHref} className="cap gold" tabIndex={stuck ? 0 : -1} style={{ padding: "11px 18px", fontSize: 10 }}>Book us</Link>
       </div>
       {wa && !album && <a className="waf" href={wa} target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp"><Ic d={ICON.wa} size={26} w={1.6} /></a>}
-      {preview && <div className="pvb" role="status">Preview: only you can see this</div>}
+      {/* Not inside the editor's phone frame (the studio knows it is a preview there); only on the full preview page. */}
+      {preview && typeof window !== "undefined" && window.self === window.top && <div className="pvb" role="status">Preview: only you can see this</div>}
     </div>
   );
 }

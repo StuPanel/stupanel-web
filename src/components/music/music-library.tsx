@@ -71,12 +71,12 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const [form, setForm] = useState<{ song?: LibrarySong; url?: string; from?: OutsideSong } | null>(null);
   /** Songs from outside the studio's library (StuPanel picks, other studios, its clients). */
   const [out, setOut] = useState<OutsideMusic | null>(null);
-  const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients" | "hidden">("mine");
-  /** Opens on StuPanel picks once they have loaded, unless the person already picked a tab (or picks are off). */
+  // Opens on StuPanel picks from the first moment (no "My songs" flash while loading). If the studio turned picks
+  // off, or there are none, it moves to My songs once the lists have loaded.
+  const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients" | "hidden">("picks");
   const [tabTouched, setTabTouched] = useState(false);
   const picksOn = !!out && out.settings.picks !== "off" && out.picks.length > 0;
-  const [openedOnPicks, setOpenedOnPicks] = useState(false);
-  if (picksOn && !tabTouched && !openedOnPicks) { setOpenedOnPicks(true); setTab("picks"); }
+  if (tab === "picks" && !tabTouched && !loading && !picksOn) setTab("mine");
   /** The song just hidden, for Undo (a few seconds). */
   const [justHid, setJustHid] = useState<OutsideSong | null>(null);
   /** The studio's favourite songs (starred from any list), newest first. */
@@ -139,7 +139,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const vidCount = (id: string) => found.filter(s => s.videos.includes(id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length;
   const pasted = youtubeIdOf(q);
   const tabs = [
-    { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: !!out && out.settings.picks !== "off" },
+    { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: (loading && !out) || (!!out && out.settings.picks !== "off") },
     { id: "mine" as const, label: "My songs", icon: Music2, on: true },
     { id: "favs" as const, label: "Favourites", icon: Heart, on: true },
     { id: "community" as const, label: "Popular in studios", icon: Building2, on: !!out && out.settings.community !== "off" },
@@ -273,7 +273,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
                   : t.id === "hidden" ? "bg-transparent border border-dashed border-[#CFC8DD] text-[#6B6680] hover:bg-white/60"
                   : "bg-white text-[#4A4658] hover:bg-[#F5F3FA]")}>
               <t.icon className="w-4 h-4" />{t.label}
-              <span className={cn("h-5 min-w-5 px-1.5 rounded-full text-[11.5px] font-bold inline-flex items-center justify-center tabular-nums", on ? "bg-white/25" : q && n ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#6B6680]")}>{n}</span>
+              {!loading && <span className={cn("h-5 min-w-5 px-1.5 rounded-full text-[11.5px] font-bold inline-flex items-center justify-center tabular-nums", on ? "bg-white/25" : q && n ? "bg-[#EEE8FD] text-[#5B3FD0]" : "bg-[#F5F3FA] text-[#6B6680]")}>{n}</span>}
             </button>
           ); })}
           {!member && <Link href="/settings?pane=music" aria-label="Music settings" title="Choose which lists you and your clients see"

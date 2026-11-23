@@ -5,7 +5,7 @@ import { AlertTriangle, ExternalLink, HardDrive, Loader2, Plus, Star, Trash2 } f
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
-import { Group, Row, Select, SoonRow, TextField, useSettings } from "../_ui";
+import { Group, Row, Select, TextField, useSettings } from "../_ui";
 import { StudioSessions } from "@/components/account/signed-in-devices";
 
 // ─── Security ─────────────────────────────────────────────────────────────────
@@ -33,9 +33,7 @@ export function SecurityPane() {
       <Group title="Who is signed in" note="Everyone in your studio and the devices they are signed in on. Sign out a lost phone, or someone who left, at once. Your own devices are in My Profile.">
         <div id="set-loginActivity"><StudioSessions /></div>
       </Group>
-      <Group title="Coming soon">
-        <SoonRow id="twoFactor" label="Two-step sign-in (2FA)" hint="A code on sign-in for extra safety" />
-      </Group>
+      <p className="px-1 -mt-4 mb-7 text-[12.5px] text-[#6B6680]">2-step sign-in, recovery email and changing your sign-in email are in My Profile → Sign-in &amp; security (each person sets their own).</p>
     </>
   );
 }

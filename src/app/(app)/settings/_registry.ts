@@ -211,12 +211,12 @@ export const ENTRIES: Entry[] = [
   // My profile
   { id: "profile-info", pane: "profile", section: "Personal info", label: "Name and phone", keywords: "first last name mobile" },
   { id: "profile-password", pane: "profile", section: "Password", label: "Change password", keywords: "password" },
+  { id: "profile-security", pane: "profile", section: "Sign-in & security", label: "Sign-in email, recovery email, 2-step sign-in", keywords: "2fa two factor otp authenticator code recovery email change email gmail lost" },
   { id: "profile-devices", pane: "profile", section: "Signed-in devices", label: "Signed-in devices", keywords: "session device log out sign out phone lost login" },
 
   // Security
   { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password" },
   { id: "sessionTimeoutMinutes", pane: "security", section: "Sign-in", label: "Sign out after inactivity", keywords: "session timeout sign off" },
-  { id: "twoFactor", pane: "security", section: "Coming soon", label: "Two-step sign-in (2FA)", keywords: "otp 2fa" },
   { id: "loginActivity", pane: "security", section: "Who is signed in", label: "Who is signed in", keywords: "login history device session sign out log out phone lost" },
 
   // Integrations

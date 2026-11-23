@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { StudioList } from "@/components/studio-list";
 import { NewPasswordStep } from "@/components/new-password-step";
+import { TwoStepStep, type TwoStepTicket } from "@/components/two-step";
 import { enterSession, isChoice, rememberAfterLogin, postPublic, saveSession, type Session, type StudioCard, type StudioChoice } from "@/lib/studio-session";
 
 function LoginForm() {
@@ -27,6 +28,20 @@ function LoginForm() {
   const [choice, setChoice] = useState<StudioChoice | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [newPass, setNewPass] = useState<Session | null>(null);
+  // 2-step sign-in: after the password, or back from Google (?twofa=…).
+  const [twoStep, setTwoStep] = useState<TwoStepTicket | null>(() => {
+    const t = searchParams.get("twofa");
+    return t ? { ticket: t, app: searchParams.get("app") === "1", email: searchParams.get("mail") === "1", sentTo: searchParams.get("to") } : null;
+  });
+
+  /** The answer after the password / 2-step: a studio list, or a session. */
+  function after(data: unknown) {
+    const d = data as { twoFactor?: TwoStepTicket };
+    if (d.twoFactor) { setTwoStep(d.twoFactor); return; }
+    setTwoStep(null);
+    if (isChoice(data as Session | StudioChoice)) { setChoice(data as StudioChoice); return; }
+    open(data as Session);
+  }
 
   /** A session for one studio: set your own password first if the studio chose it. */
   function open(d: Session) {
@@ -78,13 +93,16 @@ function LoginForm() {
         return;
       }
 
-      if (isChoice(data)) { setChoice(data); return; }
-      open(data as Session);
+      after(data);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (twoStep && !choice) {
+    return <TwoStepStep step={twoStep} onDone={after} onBack={() => { setTwoStep(null); setPassword(""); router.replace("/login"); }} />;
   }
 
   if (newPass) {

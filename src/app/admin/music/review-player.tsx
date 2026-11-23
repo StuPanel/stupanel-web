@@ -21,10 +21,12 @@ export function saveChecked(s: Set<string>) {
   try { localStorage.setItem(KEY, JSON.stringify([...s])); } catch { /* private window: forget it */ }
 }
 
-export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove, removeLabel, undo, onUndo, checked }: {
+export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove, removeLabel, undo, onUndo, checked, side }: {
   songs: ReviewSong[]; current: string; onPick: (id: string) => void; onClose: () => void;
   onKeep: (id: string) => void; onRemove?: (id: string) => Promise<void>; removeLabel: string;
   undo: string | null; onUndo: () => void; checked: Set<string>;
+  /** Shown beside the controls: the playing song's tags, to change them while listening. */
+  side?: React.ReactNode;
 }) {
   const i = Math.max(0, songs.findIndex(s => s.youtubeId === current));
   const song = songs[i] ?? null;
@@ -80,7 +82,8 @@ export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove
 
   return (
     <div role="region" aria-label="Song player" className="sticky bottom-0 z-30 -mx-6 md:-mx-8 px-3 md:px-8 pb-3 pt-2 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
-      <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl shadow-black/50 p-3 flex flex-col md:flex-row gap-3 md:items-center">
+      <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl shadow-black/50 p-3 flex flex-col lg:flex-row gap-3 lg:items-start">
+        <div className="flex flex-col md:flex-row gap-3 md:items-center flex-1 min-w-0">
         <div className={cn("relative rounded-xl overflow-hidden bg-black flex-shrink-0 w-full md:w-[320px] aspect-video max-h-[30vh] md:max-h-none", small && "hidden md:hidden")}>
           <iframe ref={frame} key={song.youtubeId} onLoad={listen}
             src={`https://www.youtube-nocookie.com/embed/${song.youtubeId}?autoplay=1&rel=0&enablejsapi=1`}
@@ -116,6 +119,8 @@ export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove
           )}
           <p className="hidden md:block text-[11px] text-slate-500">Keys: K keep · R {removeLabel.toLowerCase()} · N next · P previous</p>
         </div>
+        </div>
+        {side && <div className="lg:w-[46%] xl:w-[44%] flex-shrink-0 lg:border-l border-t lg:border-t-0 border-slate-700 pt-3 lg:pt-0 lg:pl-3 max-h-[34vh] lg:max-h-[300px] overflow-y-auto">{side}</div>}
       </div>
     </div>
   );

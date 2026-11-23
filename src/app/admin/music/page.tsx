@@ -14,6 +14,7 @@ import { API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { SongOrder } from "./song-order";
 import { ReviewPlayer, loadChecked, saveChecked, type ReviewSong } from "./review-player";
+import { SongTags, type SongTagValues } from "./song-tags";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 type Tag = { id: string; name: string };
@@ -106,6 +107,20 @@ export default function AdminMusicPage() {
   const songs: ReviewSong[] = list.map(r => ({ youtubeId: r.youtubeId, title: r.title, channel: r.channel, url: r.url,
     tags: [...r.events.map(e => nameOf(EVENTS, e)), ...r.videos.map(v => nameOf(VIDEOS, v))] }));
   const nextAfter = (id: string) => { const i = list.findIndex(r => r.youtubeId === id); return list[i + 1]?.youtubeId ?? null; };
+
+  /** Change the playing pick's tags at once (only what changed), without reloading the list. */
+  const [tagBusy, setTagBusy] = useState(false);
+  async function setSongTags(row: Row, patch: Partial<SongTagValues>) {
+    const before = data;
+    setData(d => (d ? { ...d, catalog: d.catalog.map(c => (c.youtubeId === row.youtubeId ? { ...c, ...patch } : c)) } : d));
+    setTagBusy(true);
+    try {
+      const r = await fetch(`${API}/admin/music`, { method: "POST", headers: authH(), body: JSON.stringify({ url: row.url, ...patch }) });
+      if (!r.ok) { setData(before); const d = await r.json().catch(() => ({})); notify((Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save the tag", { error: true }); }
+    } catch { setData(before); notify("Couldn't save the tag", { error: true }); }
+    finally { setTagBusy(false); }
+  }
+  const playingRow = tab === "picks" && playing ? picks.find(r => r.youtubeId === playing) : undefined;
 
   function keep(id: string) {
     const s = new Set(checked); s.add(id); setChecked(s); saveChecked(s);
@@ -278,7 +293,8 @@ export default function AdminMusicPage() {
       {listening && playing && songs.some(x => x.youtubeId === playing) && (
         <ReviewPlayer songs={songs} current={playing} checked={checked} onPick={id => { setPlaying(id); }} onClose={() => setPlaying(null)}
           onKeep={keep} onRemove={quickRemove} removeLabel={tab === "picks" ? "Remove" : "Take out"}
-          undo={undo?.text ?? null} onUndo={async () => { const u = undo; setUndo(null); if (u) await u.run(); }} />
+          undo={undo?.text ?? null} onUndo={async () => { const u = undo; setUndo(null); if (u) await u.run(); }}
+          side={playingRow ? <SongTags value={{ events: playingRow.events, videos: playingRow.videos, moods: playingRow.moods, language: playingRow.language }} lists={{ EVENTS, VIDEOS, MOODS, LANGS }} busy={tagBusy} onChange={p => void setSongTags(playingRow, p)} /> : undefined} />
       )}
 
       {tagForm && tags && <TagForm kind={tagForm.kind} tag={tagForm.tag} suggestion={tagForm.suggestion} list={tags[KINDS.find(k => k.kind === tagForm.kind)!.key]} onClose={() => setTagForm(null)}

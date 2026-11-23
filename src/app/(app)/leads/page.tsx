@@ -11,10 +11,11 @@ import { CLIENT_SOURCES } from "@/components/client-form-fields";
 import { waLink } from "@/lib/portal-session";
 import { LeadDrawer } from "./_components/lead-drawer";
 import {
-  LOST_REASONS, STAGES, ago, followUpInfo, lostLabel, money, shortDay, stageOf,
+  LOST_REASONS, STAGES, ago, cameAgo, followUpInfo, lostLabel, money, shortDay, stageOf,
   type Lead, type LeadStage, type LeadStats,
 } from "./_components/lead-kit";
 import { fmtMoney, fmtMoneyShort } from "@/lib/format";
+import { markLeadsSeen } from "@/lib/lead-unseen";
 
 const sourceLabel = (s: string) => CLIENT_SOURCES.find(c => c.value === s)?.label ?? (s === "other" ? "Other" : s);
 const FU_TONE = {
@@ -24,8 +25,9 @@ const FU_TONE = {
   later: "bg-[#F5F3FA] text-[#6B6680]",
 };
 
-function LeadCard({ lead, onOpen, onDragStart, dragging }: {
+function LeadCard({ lead, onOpen, onDragStart, dragging, fresh, now }: {
   lead: Lead; onOpen: () => void; onDragStart: (e: React.DragEvent) => void; dragging: boolean;
+  /** Came since the studio last opened Leads */ fresh?: boolean; /** Ticking clock for "came … ago" */ now: number;
 }) {
   const dates = Array.isArray(lead.eventDates) ? lead.eventDates : [];
   const fu = lead.stage !== "booked" && lead.stage !== "lost" ? followUpInfo(lead.followUpAt) : null;
@@ -36,8 +38,9 @@ function LeadCard({ lead, onOpen, onDragStart, dragging }: {
       onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
       data-lead={lead.id}
       className={cn("group bg-white rounded-[16px] p-3.5 cursor-pointer select-none transition-all hover:-translate-y-px outline-none focus-visible:ring-2 focus-visible:ring-[#7D5CEF]",
-        CARD_SHADOW, dragging && "opacity-40")}>
+        CARD_SHADOW, dragging && "opacity-40", fresh && "ring-2 ring-[#E5484D]/60")}>
       <div className="flex items-start gap-2">
+        {fresh && <span className="mt-0.5 h-5 px-1.5 rounded-full bg-[#E5484D] text-white text-[10.5px] font-bold inline-flex items-center flex-shrink-0">New</span>}
         <p className="flex-1 min-w-0 text-[14.5px] font-bold text-[#17151F] leading-snug truncate">{lead.name}</p>
         {value > 0 && <span className="text-[13px] font-bold text-[#17151F] tabular-nums">{fmtMoneyShort(value)}</span>}
       </div>
@@ -47,6 +50,7 @@ function LeadCard({ lead, onOpen, onDragStart, dragging }: {
           {lead.eventType && <span className="truncate">{dates.length > 0 ? "· " : ""}{lead.eventType}</span>}
         </p>
       )}
+      {lead.client && <p className="mt-1 text-[12px] text-[#1F5C99] font-semibold truncate">Already your client</p>}
       {lead.stage === "lost" && <p className="mt-1 text-[12px] text-[#6B6680]">{lostLabel(lead.lostReason)}</p>}
       {lead.stage === "booked" && lead.booking && <p className="mt-1 text-[12px] text-[#1F8A5B] font-semibold truncate">✓ {lead.booking.eventName || lead.booking.bookingNumber}</p>}
       {lead.stage !== "booked" && lead.quote && <p className="mt-1 text-[12px] text-[#9E3A8C] font-semibold">Quote {lead.quote.quoteNumber} · {lead.quote.status}</p>}
@@ -65,7 +69,9 @@ function LeadCard({ lead, onOpen, onDragStart, dragging }: {
             className="w-7 h-7 rounded-full bg-[#E2F4EA] text-[#1F8A5B] flex items-center justify-center hover:brightness-95"><MessageCircle className="w-3.5 h-3.5" /></a>
         )}
       </div>
-      {lead.lastContactAt && <p className="mt-2 text-[11px] text-[#A29DB3]">Last talked {ago(lead.lastContactAt)}</p>}
+      {lead.lastContactAt
+        ? <p className="mt-2 text-[11px] text-[#A29DB3]">Last talked {ago(lead.lastContactAt)}</p>
+        : <p className={cn("mt-2 text-[11px]", fresh ? "text-[#C2304F] font-semibold" : "text-[#A29DB3]")}>Came {cameAgo(lead.createdAt, now)}</p>}
     </div>
   );
 }
@@ -136,12 +142,31 @@ function LeadsBoard() {
   const [lostAsk, setLostAsk] = useState<{ id: string; index: number } | null>(null);
   const colRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  /** Leads that came since the studio last opened this page: marked "New" for this visit. */
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
   const load = useCallback(async () => {
     try {
       const r = await apiFetch(`${API}/leads`);
-      if (r.ok) { const d = await r.json(); setLeads(d.leads ?? []); setStats(d.stats ?? null); }
+      if (r.ok) {
+        const d = await r.json();
+        const list = (d.leads ?? []) as Lead[];
+        setLeads(list); setStats(d.stats ?? null);
+        const unseen = list.filter(l => !l.seenAt).map(l => l.id);
+        if (unseen.length) { setFresh(f => new Set([...f, ...unseen])); markLeadsSeen(); }
+      }
     } catch { /* keep what we have */ } finally { setLoading(false); }
   }, []);
+  // "Came … ago": every second while a lead is under a minute old, else every half minute. New leads come in by themselves.
+  const [now, setNow] = useState(() => Date.now());
+  const youngest = leads.reduce((m, l) => Math.max(m, new Date(l.createdAt).getTime()), 0);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), now - youngest < 60_000 ? 1000 : 30_000);
+    return () => clearInterval(t);
+  }, [now, youngest]);
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, 60_000);
+    return () => clearInterval(t);
+  }, [load]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -279,7 +304,7 @@ function LeadsBoard() {
             <div className="space-y-2.5">
               {byStage[mobileStage].length === 0 && <p className="text-center text-[13px] text-[#A29DB3] py-10">Nothing here.</p>}
               {byStage[mobileStage].map(l => (
-                <LeadCard key={l.id} lead={l} dragging={false} onDragStart={e => e.preventDefault()} onOpen={() => setDrawer({ open: true, lead: l })} />
+                <LeadCard key={l.id} lead={l} fresh={fresh.has(l.id)} now={now} dragging={false} onDragStart={e => e.preventDefault()} onOpen={() => setDrawer({ open: true, lead: l })} />
               ))}
             </div>
           </div>
@@ -306,7 +331,7 @@ function LeadsBoard() {
                     {list.map((l, i) => (
                       <div key={l.id}>
                         {isOver && over!.index === i && dragId !== l.id && <div className="h-1 rounded-full bg-[#7D5CEF] mb-2" />}
-                        <LeadCard lead={l} dragging={dragId === l.id}
+                        <LeadCard lead={l} fresh={fresh.has(l.id)} now={now} dragging={dragId === l.id}
                           onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", l.id); setDragId(l.id); }}
                           onOpen={() => setDrawer({ open: true, lead: l })} />
                       </div>

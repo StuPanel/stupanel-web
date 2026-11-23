@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarCheck2, CalendarPlus, CalendarX2, Camera, Check, ExternalLink, FileText, Globe, Loader2, Mail, MessageCircle, NotebookPen,
-  Phone, PhoneCall, Plus, Target, Trash2, Users, X, XCircle,
+  Phone, PhoneCall, Plus, Target, Trash2, UserPlus, UserRound, Users, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -89,7 +89,7 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
   const isNew = !lead;
   const [f, setF] = useState<Form>(blank);
   const [saving, setSaving] = useState(false);
-  const [busy, setBusy] = useState<"" | "quote" | "program" | "log" | "lost">("");
+  const [busy, setBusy] = useState<"" | "quote" | "program" | "log" | "lost" | "client">("");
   const [error, setError] = useState("");
   /** Same phone/email is already an open lead — open it, or add anyway. */
   const [dup, setDup] = useState<{ id: string; name: string; stage: string } | null>(null);
@@ -192,6 +192,22 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
     router.push(kind === "quote" ? `/quotes?newFor=${d.clientId}&lead=${l.id}` : `/programs?newFor=${d.clientId}&lead=${l.id}`);
   }
 
+  /** Save this person as a client now (or link them to the client they already are). */
+  async function saveClient() {
+    if (!l) return;
+    if (f.name !== l.name || f.phone !== (l.phone ?? "") || f.email !== (l.email ?? "")) {
+      if (!(await save(false))) return;
+    }
+    setBusy("client");
+    const r = await apiFetch(`${API}/leads/${l.id}/convert`, { method: "POST" }).catch(() => null);
+    const d = await r?.json().catch(() => ({}));
+    setBusy("");
+    if (!r?.ok) { notify(Array.isArray(d?.message) ? d.message[0] : d?.message || "Couldn't save the client", { error: true }); return; }
+    notify(d.created ? "Saved as a new client" : "They were already your client — linked");
+    const next = { ...l, clientId: d.clientId, client: { id: d.clientId, name: f.name || l.name } };
+    setCurrent(next); onSaved(next);
+  }
+
   async function remove() {
     if (!l) return;
     if (!(await askConfirm({ title: "Delete this lead?", message: `${l.name} will be removed from the board.`, confirmLabel: "Delete", danger: true }))) return;
@@ -281,6 +297,19 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
                 <Mail className="w-4 h-4" />Email
               </a>
             </div>
+          </div>
+
+          {/* Client: already one, or save as one */}
+          <div className={cn("rounded-[16px] px-4 py-3 mb-5 flex items-center gap-3", l.client ? "bg-[#E3EEF9]" : "bg-white", !l.client && CARD_SHADOW)}>
+            <span className={cn("w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0", l.client ? "bg-white text-[#1F5C99]" : "bg-[#F1EEF8] text-[#5B3FD0]")}><UserRound className="w-4 h-4" /></span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-bold text-[#17151F] truncate">{l.client ? "Already your client" : "Not a client yet"}</p>
+              <p className="text-[12.5px] text-[#4A4658] truncate">{l.client ? l.client.name : "Save them to your clients with one tap."}</p>
+            </div>
+            {l.client
+              ? <a href={`/clients/${l.client.id}`} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold text-[#1F5C99] inline-flex items-center gap-1.5 flex-shrink-0">Open<ExternalLink className="w-3.5 h-3.5" /></a>
+              : <button type="button" onClick={saveClient} disabled={!!busy} className="h-9 px-3.5 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0 disabled:opacity-60">
+                  {busy === "client" ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}Save as client</button>}
           </div>
 
           {/* What they chose on the website */}

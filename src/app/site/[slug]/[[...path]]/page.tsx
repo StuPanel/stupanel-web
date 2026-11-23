@@ -11,7 +11,7 @@ import { SITE_ROOT } from "@/lib/site-url";
 import { API_URL } from "@/lib/api";
 import { SiteView, type SiteData, type SitePageName } from "@/components/site/site-view";
 import { SitePreview } from "./preview";
-import { SiteTracking } from "@/components/site/site-tracking";
+import { SiteBeacon, SiteTracking } from "@/components/site/site-tracking";
 import { ldJson, pageSeo, shareImage, siteHome, structuredData } from "@/lib/site-seo";
 
 const PAGES: Record<string, string> = {
@@ -116,6 +116,7 @@ export default async function StudioSitePage({ params, searchParams }: Props) {
   const ld = structuredData(data, page);
   return <>
     {data.content.tracking && <SiteTracking ids={data.content.tracking} />}
+    <SiteBeacon slug={data.slug} />
     {ld.map((o, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(o) }} />)}
     <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />
   </>;

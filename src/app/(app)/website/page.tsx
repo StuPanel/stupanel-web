@@ -5,12 +5,13 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertTriangle, BarChart3, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
 import { SeoTab } from "./seo-tab";
 import { TrackingTab } from "./tracking-tab";
+import { VisitorsTab } from "./visitors-tab";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -28,13 +29,14 @@ const small = (p: Photo) => p.thumbUrl || p.url;
 const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
   ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
-  ["design", "Look", Palette], ["photos", "All photos", LayoutGrid],
+  ["design", "Look", Palette], ["photos", "All photos", LayoutGrid], ["visitors", "Visitors", TrendingUp],
   ["address", "Address & domain", Link2], ["seo", "Google & sharing", Search], ["tracking", "Ads & analytics", BarChart3],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
   { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "more", "contact"] },
   { id: "look", name: "Look & photos", icon: Palette, tabs: ["design", "photos"] },
+  { id: "visitors", name: "Visitors", icon: TrendingUp, tabs: ["visitors"] },
   { id: "settings", name: "Settings", icon: Settings2, tabs: ["address", "seo", "tracking"] },
 ];
 const groupOf = (t: Tab) => GROUPS.find(g => g.tabs.includes(t)) ?? GROUPS[0];
@@ -428,14 +430,14 @@ export default function WebsitePage() {
       )}
       <div className="sticky top-3 z-20 mb-5">
         <div className="ed-tabs sp-card bg-white rounded-[18px] p-1.5">
-          <div role="tablist" aria-label="Website sections" className="grid grid-cols-3 gap-1">
+          <div role="tablist" aria-label="Website sections" className="grid grid-cols-4 gap-1">
             {GROUPS.map(g => {
               const on = groupOf(tab).id === g.id;
               return (
                 <button key={g.id} type="button" role="tab" aria-selected={on} onClick={() => { if (!on) { setTab(g.tabs[0]); window.scrollTo({ top: 0 }); } }}
                   className={cn("h-10 px-2 rounded-[13px] text-[13px] font-semibold transition-all inline-flex items-center justify-center gap-1.5 min-w-0",
                     on ? "bg-[#7D5CEF] text-white shadow-[0_6px_16px_-6px_rgba(125,92,239,.8)]" : "text-[#4A4658] hover:bg-[#F1EEF8]")}>
-                  <g.icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" /><span className="truncate">{g.name}</span>
+                  <g.icon className="w-4 h-4 flex-shrink-0 hidden sm:block" aria-hidden="true" /><span className="truncate">{g.name}</span>
                 </button>
               );
             })}
@@ -528,6 +530,10 @@ export default function WebsitePage() {
         <SeoTab content={c} studio={site.studio} url={url} allowed={site.seoAllowed !== false} photo={ph}
           onChange={seo => set("seo", seo)}
           onChoosePicture={() => choose("Share picture (wide works best)", c.seo?.image ? [c.seo.image] : [], ids => set("seo", { ...(c.seo ?? { title: "", description: "", image: null, pages: {}, google: "", bing: "", hidden: false }), image: ids[0] ?? null }))} />
+      </div>
+
+      <div hidden={tab !== "visitors"}>
+        <VisitorsTab active={tab === "visitors"} published={site.isPublished} albums={c.albums} stories={c.stories ?? []} />
       </div>
 
       <div hidden={tab !== "tracking"}>

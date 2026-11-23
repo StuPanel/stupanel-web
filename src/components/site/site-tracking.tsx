@@ -9,6 +9,7 @@
 import { useEffect, useRef } from "react";
 import Script from "next/script";
 import { usePathname } from "next/navigation";
+import { API_URL } from "@/lib/api";
 
 export type SiteTrackingIds = { fbPixel?: string; ga?: string; gtm?: string };
 
@@ -84,4 +85,56 @@ export function SiteTracking({ ids }: { ids: SiteTrackingIds }) {
       )}
     </>
   );
+}
+
+/**
+ * StuPanel's own visitor counter (the studio sees it in Website → Visitors). A tiny beacon per page, no cookie:
+ * the browser only remembers the day of its last visit, so the first page of a day counts as a visitor.
+ */
+export function SiteBeacon({ slug }: { slug: string }) {
+  const path = usePathname();
+  const base = useRef<string | null>(null);
+
+  useEffect(() => {
+    const send = (q: Record<string, string>) => {
+      try {
+        const url = `${API_URL}/public/site/${slug}/hit?${new URLSearchParams(q)}`;
+        if (!navigator.sendBeacon?.(url)) void fetch(url, { method: "POST", keepalive: true, mode: "no-cors" });
+      } catch { /* counting never bothers a visitor */ }
+    };
+    // The page path without /site/<address> (app links) — same on the subdomain and the own domain.
+    const p = window.location.pathname.replace(new RegExp(`^/site/${slug}(?=/|$)`), "") || "/";
+    if (base.current === p) return;
+    base.current = p;
+    const today = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
+    let first = false;
+    try {
+      const k = `sv:${slug}`;
+      first = localStorage.getItem(k) !== today;
+      if (first) localStorage.setItem(k, today);
+    } catch { first = false; }
+    const q: Record<string, string> = { k: "view", p };
+    if (first) {
+      q.n = "1";
+      if (document.referrer) q.r = document.referrer.slice(0, 300);
+      const utm = new URLSearchParams(window.location.search).get("utm_source");
+      if (utm) q.u = utm.slice(0, 40);
+    }
+    send(q);
+  }, [path, slug]);
+
+  useEffect(() => {
+    const click = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a) return;
+      const h = a.href;
+      if (h.startsWith("tel:") || h.startsWith("mailto:") || /wa\.me|whatsapp\.com|m\.me\/|messenger\.com/.test(h)) {
+        try { navigator.sendBeacon?.(`${API_URL}/public/site/${slug}/hit?k=contact`); } catch { /* ignore */ }
+      }
+    };
+    document.addEventListener("click", click, true);
+    return () => document.removeEventListener("click", click, true);
+  }, [slug]);
+
+  return null;
 }

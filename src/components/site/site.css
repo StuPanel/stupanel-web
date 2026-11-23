@@ -237,8 +237,13 @@
 .sg .abg img{display:block;width:100%;height:auto;transition:transform 1.2s cubic-bezier(.2,.7,.2,1)}
 .sg .abg button:hover img{transform:scale(1.05)}
 .sg .vw{position:fixed;inset:0;z-index:80;background:rgba(8,8,10,.96);display:flex;align-items:center;justify-content:center;animation:sgfade .35s ease both;touch-action:pan-y}
-.sg .vw img{max-width:94vw;max-height:88dvh;object-fit:contain;animation:sgvi .45s cubic-bezier(.2,.7,.2,1) both;user-select:none;-webkit-user-drag:none}
-@keyframes sgvi{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.sg .vw img{max-width:94vw;max-height:88dvh;object-fit:contain;background:center/contain no-repeat;animation:sgvi .4s cubic-bezier(.2,.7,.2,1) both;user-select:none;-webkit-user-drag:none}
+.sg .vw img.vin-r{animation-name:sgvir}.sg .vw img.vin-l{animation-name:sgvil}
+/* The photo never fades in from black: its small copy is already there underneath. */
+@keyframes sgvi{from{opacity:.4;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes sgvir{from{opacity:.55;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes sgvil{from{opacity:.55;transform:translateX(-36px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sg .vw img{animation:none}}
 .sg .vw button{position:absolute;width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .3s}
 .sg .vw button:hover{background:rgba(255,255,255,.18)}
 .sg .vw .vx{top:18px;right:18px}.sg .vw .vp{left:18px;top:50%;margin-top:-26px}.sg .vw .vn{right:18px;top:50%;margin-top:-26px}

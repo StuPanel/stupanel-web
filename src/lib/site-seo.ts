@@ -6,6 +6,8 @@ import type { SiteData, SitePageName } from "@/components/site/site-view";
 import { priceNow, type SiteOffer } from "@/lib/site-offer-kit";
 import { SITE_ROOT } from "@/lib/site-url";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+
 export type SiteSeo = {
   title: string; description: string; image: string | null;
   pages: Record<string, { title: string; description: string }>;
@@ -60,13 +62,17 @@ export function pageSeo(d: SiteData, page: string) {
 }
 
 /** The picture a shared link shows: the studio's choice, else the first main photo. Phone-size copy when there is one. */
-export function shareImage(d: SiteData, photoId?: string | null) {
+/**
+ * The link picture (WhatsApp / Facebook): the photo cut by StuPanel to 1200 × 630 — the shape Facebook shows big —
+ * where the studio's Adjust put it (cropKey, e.g. "offer:<id>"), as a JPEG. Width and height are given so the
+ * picture shows on the very first share.
+ */
+export function shareImage(d: SiteData, photoId?: string | null, cropKey?: string) {
   const id = photoId ?? d.content.seo?.image ?? d.content.heroPhotos[0] ?? d.content.slides?.[0] ?? d.content.albums[0]?.cover;
   const p = id ? d.photos[id] : undefined;
-  if (!p) return undefined;
-  const big = Math.max(p.w, p.h) || 1;
-  const k = p.sm ? Math.min(1, 900 / big) : 1;
-  return { url: p.sm || p.url, width: Math.round(p.w * k) || undefined, height: Math.round(p.h * k) || undefined };
+  if (!p || !id) return undefined;
+  const q = new URLSearchParams({ p: id, ...(cropKey && d.content.crop?.[cropKey] ? { c: cropKey } : {}) });
+  return { url: `${API_URL}/public/site/${encodeURIComponent(d.slug)}/share.jpg?${q}`, width: 1200, height: 630, type: "image/jpeg" };
 }
 
 /** Pages worth listing for search engines (empty pages are left out). */
@@ -95,7 +101,7 @@ export function structuredData(d: SiteData, page: SitePageName, offerId?: string
   const offer = page === "packages" && offerId ? (c.offers ?? []).find(o => o.id === offerId && !o.hidden) : undefined;
   if (offer) {
     // A package as a product (Google and Facebook read the name, picture and price).
-    const img = shareImage(d, offer.cover);
+    const img = shareImage(d, offer.cover ?? offer.photos[0], `offer:${offer.id}`);
     return [{
       "@context": "https://schema.org", "@type": "Product", name: offer.name, description: offerSummary(offer, d),
       ...(img ? { image: img.url } : {}), brand: { "@type": "Brand", name: d.studio.name },

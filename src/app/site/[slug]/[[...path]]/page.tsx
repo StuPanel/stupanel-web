@@ -90,7 +90,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const own = pageSeo(d, r.page);
   const title = offer ? `${offer.name} | ${d.studio.name}` : story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}` : own.title;
   const description = offer ? offerSummary(offer, d) : story ? story.text.replace(/\s+/g, " ").slice(0, 155) : album ? `${album.title} — ${album.photos.length} photos by ${d.studio.name}.` : own.description;
-  const img = shareImage(d, offer?.cover ?? album?.cover ?? story?.cover ?? undefined);
+  // Each page's own picture: the package cover, the album cover, the story picture — with its Adjust.
+  const img = offer ? shareImage(d, offer.cover ?? offer.photos[0], `offer:${offer.id}`)
+    : album ? shareImage(d, album.cover ?? album.photos[0], `album:${album.id}`)
+    : story ? shareImage(d, story.cover ?? undefined, `story:${story.id}`)
+    : shareImage(d);
   const home = siteHome(d);
   const here = r.page === "home" ? "/" : `/${r.page}${r.albumId ? `/${r.albumId}` : r.storyId ? `/${r.storyId}` : r.offerId ? `/${r.offerId}` : ""}`;
   const seo = d.content.seo;

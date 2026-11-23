@@ -17,7 +17,7 @@ const post = (p: string, body: unknown) => fetch(`${API}/admin/trials${p}`, { me
 
 type Health = "green" | "yellow" | "red";
 type Row = {
-  id: string; name: string; owner: string; email: string; phone: string | null; createdAt: string; trialEndsAt: string; daysLeft: number;
+  id: string; name: string; country: string | null; lang: "bn" | "en"; owner: string; email: string; phone: string | null; createdAt: string; trialEndsAt: string; daysLeft: number;
   lastActive: string | null; programs: number; clients: number; health: Health; extendedAt: string | null; canExtend: boolean;
   offer: { percent: number; until: string } | null; lastMessage: { key: string; sentAt: string } | null;
   feedback: { reason: string; note: string | null } | null; note: string | null; calledAt: string | null; removeAt: string | null;
@@ -25,7 +25,10 @@ type Row = {
 type List = { view: string; page: number; pageSize: number; total: number; rows: Row[] };
 type Stats = { onTrial: number; ended: number; waiting: number; started: { used: number; of: number }; converted: { paid: number; of: number }; reasons: Record<string, number> };
 type WaItem = { id: string; key: string; sentAt: string; phone: string; text: string; studio: { id: string; name: string } };
-type MsgSetting = { key: string; name: string; when: string; on: boolean; default: { subject: string; body: string; wa: string }; own: { subject?: string; body?: string; wa?: string } };
+type Words = { subject: string; body: string; wa: string };
+type OwnWords = { subject?: string; body?: string; wa?: string };
+/** default/own: Bangla (studios in Bangladesh); defaultEn/ownEn: English (every other country). */
+type MsgSetting = { key: string; name: string; when: string; on: boolean; default: Words; own: OwnWords; defaultEn: Words; ownEn: OwnWords };
 type Settings = { autoRemove: boolean; messages: MsgSetting[] };
 
 const HEALTH: Record<Health, { dot: string; label: string }> = {
@@ -182,6 +185,7 @@ function StudioActions({ r, onSaved }: { r: Row; onSaved: () => void }) {
       <div className="space-y-2 text-sm">
         <p className="text-slate-400">Joined {day(r.createdAt)} · trial {ended(r) ? "ended" : "ends"} {day(r.trialEndsAt)}</p>
         <p className="text-slate-400 break-all">{r.email}</p>
+        <p className="text-slate-500">{r.country || "Bangladesh"} · messages in {r.lang === "en" ? "English" : "Bangla"}</p>
         {r.feedback && <p className="text-amber-200">Said: {REASON[r.feedback.reason] ?? r.feedback.reason}{r.feedback.note ? ` — “${r.feedback.note}”` : ""}</p>}
         {r.offer && <p className="text-emerald-300">{r.offer.percent}% off the first month until {day(r.offer.until)}</p>}
         {r.removeAt && <p className="text-slate-500">Data kept until {day(r.removeAt)}</p>}
@@ -263,6 +267,7 @@ function WhatsAppTab({ onChange }: { onChange: () => void }) {
 
 function MessagesTab() {
   const [s, setS] = useState<Settings | null>(null);
+  const [lang, setLang] = useState<"bn" | "en">("bn");
   const [edit, setEdit] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; error?: string }>({});
@@ -272,16 +277,35 @@ function MessagesTab() {
   const save = async (next: Settings, ok = "Saved.") => {
     setBusy(true); setMsg({});
     try {
-      const texts = Object.fromEntries(next.messages.filter(m => Object.values(m.own).some(Boolean)).map(m => [m.key, m.own]));
+      const texts = Object.fromEntries([
+        ...next.messages.filter(m => Object.values(m.own).some(Boolean)).map(m => [m.key, m.own]),
+        ...next.messages.filter(m => Object.values(m.ownEn ?? {}).some(Boolean)).map(m => [`${m.key}:en`, m.ownEn]),
+      ]);
       setS(await post("/settings", { off: next.messages.filter(m => !m.on).map(m => m.key), texts, autoRemove: next.autoRemove }));
       setMsg({ ok });
     } catch (e) { setMsg({ error: (e as Error).message }); } finally { setBusy(false); }
   };
   const setMsgAt = (key: string, patch: Partial<MsgSetting>) => setS(x => x && { ...x, messages: x.messages.map(m => (m.key === key ? { ...m, ...patch } : m)) });
+  /** [own words, StuPanel's words] in the language being edited. */
+  const words = (m: MsgSetting): [OwnWords, Words] => (lang === "en" ? [m.ownEn ?? {}, m.defaultEn] : [m.own, m.default]);
+  const setWords = (m: MsgSetting, f: keyof Words, v: string) => {
+    const [own, def] = words(m);
+    const next = { ...own, [f]: v === def[f] ? "" : v };
+    setMsgAt(m.key, lang === "en" ? { ownEn: next } : { own: next });
+  };
 
   return (
     <div className="space-y-4">
-      <Panel title="Messages" sub="Each goes once per studio, by email (Bangla) and in the WhatsApp list. Words in {curly brackets} are filled in: {name} {studio} {days} {date} {programs} {clients} {paid} {feature} {offerUntil} {removeDate}.">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="inline-flex rounded-lg bg-slate-800 p-1" role="group" aria-label="Language">
+          {([["bn", "বাংলা — studios in Bangladesh"], ["en", "English — every other country"]] as const).map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setLang(v)} aria-pressed={lang === v}
+              className={cn("h-8 px-3 rounded-md text-sm font-semibold", lang === v ? "bg-slate-600 text-white" : "text-slate-300 hover:bg-slate-700")}>{label}</button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">The studio&apos;s country (Settings → Studio) decides which one it gets.</p>
+      </div>
+      <Panel title="Messages" sub="Each goes once per studio, by email and in the WhatsApp list. Words in {curly brackets} are filled in: {name} {studio} {days} {date} {programs} {clients} {paid} {feature} {offerUntil} {removeDate}.">
         <div className="divide-y divide-slate-700/70">
           {s.messages.map(m => (
             <div key={m.key} className="py-3">
@@ -291,7 +315,7 @@ function MessagesTab() {
                   <span className={cn("absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all", m.on ? "left-[18px]" : "left-0.5")} />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">{m.name}{Object.values(m.own).some(Boolean) && <span className="ml-2 text-[11px] text-indigo-300">own words</span>}</p>
+                  <p className="text-sm font-semibold text-white">{m.name}{(Object.values(m.own).some(Boolean) || Object.values(m.ownEn ?? {}).some(Boolean)) && <span className="ml-2 text-[11px] text-indigo-300">own words</span>}</p>
                   <p className="text-xs text-slate-400">{m.when}</p>
                 </div>
                 <button type="button" onClick={() => setEdit(e => (e === m.key ? null : m.key))} className="text-sm text-indigo-300 hover:text-white font-semibold">{edit === m.key ? "Close" : "Words"}</button>
@@ -302,13 +326,13 @@ function MessagesTab() {
                     <label key={f} className="block">
                       <span className="text-xs font-semibold text-slate-400">{f === "subject" ? "Email subject" : f === "body" ? "Email text (one paragraph per line)" : "WhatsApp text"}</span>
                       {f === "subject"
-                        ? <input value={m.own[f] ?? m.default[f]} onChange={e => setMsgAt(m.key, { own: { ...m.own, [f]: e.target.value === m.default[f] ? "" : e.target.value } })} className={cn(inp, "mt-1")} />
-                        : <textarea value={m.own[f] ?? m.default[f]} rows={f === "body" ? 6 : 3} onChange={e => setMsgAt(m.key, { own: { ...m.own, [f]: e.target.value === m.default[f] ? "" : e.target.value } })} className={cn(inp, "mt-1 h-auto py-2")} />}
+                        ? <input value={words(m)[0][f] || words(m)[1][f]} onChange={e => setWords(m, f, e.target.value)} className={cn(inp, "mt-1")} />
+                        : <textarea value={words(m)[0][f] || words(m)[1][f]} rows={f === "body" ? 6 : 3} onChange={e => setWords(m, f, e.target.value)} className={cn(inp, "mt-1 h-auto py-2")} />}
                     </label>
                   ))}
                   <div className="flex gap-2">
                     <Btn loading={busy} onClick={() => void save(s, `${m.name}: words saved.`)}>Save words</Btn>
-                    <Btn variant="ghost" onClick={() => { const next = { ...s, messages: s.messages.map(x => (x.key === m.key ? { ...x, own: {} } : x)) }; setS(next); void save(next, `${m.name}: back to StuPanel's words.`); }}>Use StuPanel&apos;s words</Btn>
+                    <Btn variant="ghost" onClick={() => { const next = { ...s, messages: s.messages.map(x => (x.key === m.key ? { ...x, ...(lang === "en" ? { ownEn: {} } : { own: {} }) } : x)) }; setS(next); void save(next, `${m.name}: back to StuPanel's words.`); }}>Use StuPanel&apos;s words</Btn>
                   </div>
                 </div>
               )}

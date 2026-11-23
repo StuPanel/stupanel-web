@@ -7,6 +7,11 @@
  * themselves while the film plays). YouTube's title strip and logo are pushed outside the visible frame.
  *
  * The player is driven over postMessage (enablejsapi=1), so no YouTube script has to be loaded.
+ *
+ * Fast start: the player is loaded before the tap (the Home film when it comes near the screen, other films when
+ * the pointer or finger reaches the poster), paused and hidden; the tap only shows it and presses play.
+ * Picture: the player is laid out at 1920 × 1080 and scaled down to fit, so YouTube picks HD (1080p) when the
+ * connection allows (YouTube has no setting to force a quality).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -37,23 +42,34 @@ export function FilmTheater({ id, title, poster, posterStyle, className, big }: 
 }) {
   const btn = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState<DOMRect | null>(null);
+  /** The player is loaded (hidden) before the tap. */
+  const [warm, setWarm] = useState(false);
   const src = poster || `https://i.ytimg.com/vi/${id}/${big ? "maxresdefault" : "hqdefault"}.jpg`;
   const ring = big ? 92 : 70;
+  // The Home film: load the player when it comes near the screen (after the page itself has loaded).
+  useEffect(() => {
+    if (!big || warm || !btn.current || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setWarm(true); io.disconnect(); } }, { rootMargin: "600px 0px" });
+    io.observe(btn.current);
+    return () => io.disconnect();
+  }, [big, warm]);
+  const heat = () => setWarm(true);
   return (
     <>
-      <button ref={btn} type="button" className={`film${className ? ` ${className}` : ""}`} onClick={() => btn.current && setOpen(btn.current.getBoundingClientRect())} aria-label={`Play ${title || "the wedding film"}`}>
+      <button ref={btn} type="button" className={`film${className ? ` ${className}` : ""}`} onPointerEnter={heat} onTouchStart={heat} onFocus={heat}
+        onClick={() => { setWarm(true); if (btn.current) setOpen(btn.current.getBoundingClientRect()); }} aria-label={`Play ${title || "the wedding film"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" loading="lazy" decoding="async" style={posterStyle} />
         {big
           ? <span className="play pcine"><span className="pring"><Svg d={P.play} size={24} /></span><span className="pf plbl">Play film</span></span>
           : <span className="play"><span className="gold" style={{ width: ring, height: ring }}><Svg d={P.play} size={22} /></span></span>}
       </button>
-      {open && <Theater id={id} title={title} poster={src} from={open} back={() => btn.current?.getBoundingClientRect() ?? open} anchor={() => btn.current} onClosed={() => setOpen(null)} />}
+      {(warm || open) && <Theater id={id} title={title} poster={src} from={open} back={() => btn.current?.getBoundingClientRect() ?? open ?? new DOMRect()} anchor={() => btn.current} onClosed={() => setOpen(null)} />}
     </>
   );
 }
 
-function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: string; title: string; poster: string; from: DOMRect; back: () => DOMRect; /** The poster button (the theatre opens in the same page copy) */ anchor: () => HTMLElement | null; onClosed: () => void }) {
+function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: string; title: string; poster: string; /** Where it opens from; null = loaded but hidden */ from: DOMRect | null; back: () => DOMRect; /** The poster button (the theatre opens in the same page copy) */ anchor: () => HTMLElement | null; onClosed: () => void }) {
   // Mount inside the site's root so the theme's colours and fonts apply (only rendered after a tap, so `document` exists).
   const [host] = useState<HTMLElement | null>(() => (typeof document === "undefined" ? null : ((anchor()?.closest(".sg") as HTMLElement | null) ?? document.body)));
   const shell = useRef<HTMLDivElement>(null);
@@ -70,15 +86,24 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
   const [needTap, setNeedTap] = useState(false); // the phone refused to start it for us: let the person tap YouTube's own button once
   const hideT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closing = useRef(false);
+  /** The player has told us it is ready (it may be, long before the tap). */
+  const ready = useRef(false);
+  const isOpen = !!from;
+  /** Opened straight away (not loaded ahead): start by itself. Kept fixed so the player's address never changes. */
+  const [auto] = useState(() => (from ? 1 : 0));
+  const openRef = useRef(isOpen);
+  useEffect(() => { openRef.current = isOpen; }, [isOpen]);
 
   const cmd = useCallback((func: string, args: unknown[] = []) => {
     frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args, id: 1, channel: "widget" }), YT);
   }, []);
 
 
-  // Grow out of the poster (FLIP), lock the page, Esc closes.
+  // Grow out of the poster (FLIP), lock the page, start the film (it is usually loaded already).
   useEffect(() => {
-    if (!host) return;
+    if (!host || !from) return;
+    closing.current = false;
+    if (ready.current) cmd("playVideo");
     const el = card.current;
     if (el) {
       const to = el.getBoundingClientRect();
@@ -94,7 +119,7 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
     return () => { document.documentElement.style.overflow = prev; };
-  }, [host, from]);
+  }, [host, from, cmd]);
 
   const close = useCallback(() => {
     if (closing.current) return;
@@ -104,6 +129,7 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
     const el = card.current;
     const to = back();
     setShown(false);
+    setUi(true);
     if (el && to.width > 0 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const now = el.getBoundingClientRect();
       el.style.transform = `translate(${to.left - now.left}px, ${to.top - now.top}px) scale(${to.width / now.width}, ${to.height / now.height})`;
@@ -112,13 +138,14 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
   }, [back, cmd, onClosed]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !document.fullscreenElement) close();
       if (e.key === " " || e.key === "k") { e.preventDefault(); cmd(state === 1 ? "pauseVideo" : "playVideo"); }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [close, cmd, state]);
+  }, [close, cmd, state, isOpen]);
 
   // While it plays, the controls fade away by themselves.
   const poke = useCallback((show = true) => {
@@ -133,7 +160,7 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
       if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
       let m: { event?: string; info?: unknown };
       try { m = JSON.parse(e.data); } catch { return; }
-      if (m.event === "onReady") { cmd("playVideo"); return; }
+      if (m.event === "onReady") { ready.current = true; if (openRef.current) cmd("playVideo"); return; }
       const apply = (s: number) => {
         setState(prev => {
           if (prev !== s) {
@@ -168,10 +195,21 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
 
   // Some phones (iPhone) do not let a page start a film with sound: after a moment, let the tap go to YouTube.
   useEffect(() => {
-    if (started) return;
+    if (started || !isOpen) return;
     const t = setTimeout(() => setNeedTap(true), 3200);
     return () => clearTimeout(t);
-  }, [started]);
+  }, [started, isOpen]);
+
+  // The player is laid out at 1920 px wide and scaled to the card, so YouTube serves HD.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => el.style.setProperty("--k", String(el.clientWidth / 1920)));
+    ro.observe(el);
+    el.style.setProperty("--k", String(el.clientWidth / 1920));
+    return () => ro.disconnect();
+  }, [host]);
 
   useEffect(() => {
     const f = () => setFull(!!document.fullscreenElement);
@@ -197,14 +235,16 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
 
   if (!host) return null;
   return createPortal(
-    <div ref={shell} className={`fth${shown ? " on" : ""}${full ? " full" : ""}`} role="dialog" aria-modal="true" aria-label={title || "Wedding film"}>
+    <div ref={shell} className={`fth${shown ? " on" : ""}${full ? " full" : ""}${isOpen ? "" : " idle"}`} role="dialog" aria-modal="true" aria-hidden={!isOpen} aria-label={title || "Wedding film"}>
       <div className="fth-bg" onClick={close} />
       <div className="fth-stage">
         <div ref={card} className="fth-card">
-          <div className={`fth-v${needTap && !started ? " tap" : ""}`}>
-            <iframe ref={frame} title={title || "Wedding film"} onLoad={listen}
-              src={`${YT}/embed/${id}?autoplay=1&controls=0&rel=0&playsinline=1&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen" />
+          <div ref={box} className={`fth-v${needTap && !started ? " tap" : ""}`}>
+            <div className="fth-hd">
+              <iframe ref={frame} title={title || "Wedding film"} onLoad={listen} tabIndex={isOpen ? 0 : -1}
+                src={`${YT}/embed/${id}?autoplay=${auto}&controls=0&rel=0&playsinline=1&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1&enablejsapi=1&vq=hd1080&origin=${encodeURIComponent(origin)}`}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen" />
+            </div>
           </div>
           {/* The poster stays over the player until the film really runs, and comes back at the end. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

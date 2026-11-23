@@ -7,7 +7,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronUp, Copy, Crop, ExternalLink, Eye, EyeOff, ImagePlus, Loader2, Package, Plus, RefreshCw, Trash2, X } from "lucide-react";
-import { FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { Sec } from "./ed-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -170,7 +171,8 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
 
   return (
     <>
-      <FormGroup title="Website packages" note="Each package gets its own page and link: share it on Facebook, WhatsApp or in an ad. The cards arrange themselves for any number of packages. When this list is empty, the website shows your price list from the Packages page instead.">
+      <Sec icon={Package} tone="violet" title="Your packages" where="Packages page and Home"
+        help="Tap a package to edit it. Each one has its own page and link for Facebook, WhatsApp or an ad. The cards arrange themselves for any number of packages; change the order with the arrows inside a package.">
         {offers.length === 0 && (
           <div className="px-4 py-6 text-center">
             <Package className="w-8 h-8 mx-auto text-[#A29DB3]" aria-hidden="true" />
@@ -221,7 +223,7 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
             <button type="button" onClick={() => add(emptyOffer())} className="h-10 px-4 rounded-full bg-[#F1EEF8] hover:bg-[#E7E2F3] text-sm font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Start empty</button>
           </div>
         )}
-      </FormGroup>
+      </Sec>
 
       {importing && (
         <>
@@ -256,6 +258,44 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
   );
 }
 
+/** One numbered part of a package: what it is, what it changes on the website, and whether it is filled. */
+function Step({ n, title, help, done, optional, children }: { n: number; title: string; help: string; done: boolean; optional?: boolean; children: React.ReactNode }) {
+  return (
+    <section className="rounded-[16px] bg-white border border-[#ECE8F4] p-3.5 sm:p-4">
+      <header className="flex items-start gap-3 mb-3">
+        <span className={cn("w-7 h-7 rounded-full text-[12px] font-bold flex items-center justify-center flex-shrink-0", done ? "bg-[#E2F4EA] text-[#1F8A5B]" : optional ? "bg-[#F1EEF8] text-[#6B6680]" : "bg-[#FFF4D6] text-[#8A5A00]")}>
+          {done ? <Check className="w-3.5 h-3.5" /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-[14.5px] font-bold text-[#17151F] leading-tight">{title}{!done && !optional && <Need on />}{optional && !done && <span className="ml-2 text-[11px] font-semibold text-[#8B86A0] align-middle">Optional</span>}</h4>
+          <p className="text-[12.5px] text-[#6B6680] mt-1 leading-relaxed">{help}</p>
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/** How the package's card looks on the website (simple, the same in every look), updated while typing. */
+function CardPreview({ o, cover, crop }: { o: SiteOffer; cover?: Photo; crop?: SiteCrop }) {
+  const facts = o.facts.slice(0, 3).map(f => [f.v, f.l].filter(Boolean).join(" ")).filter(Boolean);
+  return (
+    <div className="rounded-[16px] bg-white border border-[#ECE8F4] p-3 flex gap-3 items-center">
+      <span className="w-[92px] h-[70px] rounded-[10px] overflow-hidden bg-[#EEEBF4] flex-shrink-0 relative flex items-center justify-center text-[#A29DB3]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(crop)} /> : <ImagePlus className="w-5 h-5" />}
+        {(o.badge || o.was) && <span className="absolute left-1 top-1 rounded-[4px] bg-[#17151F]/80 text-white text-[9px] font-bold px-1.5 py-0.5">{o.badge || "Offer"}</span>}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-bold tracking-wide text-[#8B86A0] uppercase">On the website</span>
+        <span className="block text-[15px] font-bold text-[#17151F] truncate">{o.name || "Package name"}</span>
+        <span className="block text-[12.5px] text-[#6B6680] truncate">{o.tagline || "One line about it"}</span>
+        <span className="block text-[12.5px] text-[#4A4658] truncate">{facts.join(" · ") || "Short facts"}{" · "}<b className="font-semibold text-[#17151F]">{o.price === null ? "Ask for the price" : `${o.from ? "from " : ""}${money(o.price)}`}</b>{o.was !== null && <s className="ml-1 text-[#A29DB3]">{money(o.was)}</s>}</span>
+      </span>
+    </div>
+  );
+}
+
 function Rows<T>({ list, max, empty, set, row, add, label }: {
   list: T[]; max: number; empty: T; set: (l: T[]) => void; label: string;
   row: (x: T, put: (p: Partial<T>) => void, i: number) => React.ReactNode; add: string;
@@ -287,11 +327,12 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
   const name = o.name || "this package";
   const path = `/packages/${o.id}`;
   const listId = `grp-${i}`;
-  const sec = "text-[13px] font-bold text-[#4A4658] mb-1.5 mt-5";
   const gallery = o.photos.map(id => photo(id)).filter((p): p is Photo => !!p);
   const movePhoto = (k: number, by: number) => { const l = [...o.photos]; const [x] = l.splice(k, 1); l.splice(k + by, 0, x); put({ photos: l }); };
   return (
-    <div className="mt-3 rounded-[16px] bg-[#FAF9FD] border border-[#EEEBF4] p-3.5 sm:p-4">
+    <div className="mt-3 rounded-[18px] bg-[#F7F5FB] p-2.5 sm:p-3.5 space-y-2.5">
+      <CardPreview o={o} cover={cover} crop={crops[`offer:${o.id}`]} />
+      <Step n={1} title="Name and one line" done={!!o.name && !!o.tagline} help="Shown big on the card and at the top of the package page. The category puts it under a tab (Wedding, Holud…).">
       <div className="grid sm:grid-cols-2 gap-2.5">
         <label className="block"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">Name *</span>
           <input className={inputCls} value={o.name} maxLength={80} placeholder="Royal Wedding" onChange={e => put({ name: e.target.value })} onBlur={settle} /></label>
@@ -299,10 +340,11 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
           <input className={inputCls} value={o.group} maxLength={40} placeholder="Wedding" list={listId} onChange={e => put({ group: e.target.value })} />
           <datalist id={listId}>{groups.map(g => <option key={g} value={g} />)}</datalist></label>
       </div>
-      <label className="block mt-2.5"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">One line about it<Need on={!o.tagline} /></span>
+      <label className="block mt-2.5"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">One line about it</span>
         <input className={inputCls} value={o.tagline} maxLength={160} placeholder="Holud, wedding and reception — the whole story" onChange={e => put({ tagline: e.target.value })} /></label>
 
-      <p className={sec}>Photos<Need on={!o.cover || o.photos.length < 3} /></p>
+      </Step>
+      <Step n={2} title="Photos" done={!!o.cover && o.photos.length >= 3} help="The cover is the photo on the card, and the picture Facebook and WhatsApp show when the link is shared. The other photos are on the package page.">
       <div className="flex gap-3 items-start flex-wrap">
         <div className="w-[104px]">
           <button type="button" onClick={() => choose(`Cover of ${name}`, o.cover ? [o.cover] : [], ids => put({ cover: ids[0] ?? null }), false, 1, o.photos)}
@@ -332,7 +374,8 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
         </div>
       </div>
 
-      <p className={sec}>Price</p>
+      </Step>
+      <Step n={3} title="Price and offer" done={o.price !== null} help="Leave the price empty to show “Ask for the price”. For an offer, write the old price too: it shows struck through, with the end date.">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <label className="block"><span className="block text-[12px] text-[#6B6680] mb-1">Price (৳)</span>
           <input className={inputCls} inputMode="numeric" value={o.price ?? ""} placeholder="Ask for the price" onChange={e => { const v = e.target.value.replace(/\D/g, ""); put({ price: v ? Number(v) : null }); }} /></label>
@@ -349,31 +392,38 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
           <input className={inputCls} value={o.badge} maxLength={30} placeholder="Label on the card: Most loved" onChange={e => put({ badge: e.target.value })} /></label>
       </div>
 
-      <p className={sec}>Short facts (on the card)</p>
+      </Step>
+      <Step n={4} title="Short facts" done={o.facts.length > 0} help="Two to three small facts under the name on the card (3 days · 4 people · 3 films). All of them show as tiles on the package page.">
       <Rows label="fact" list={o.facts} max={6} empty={{ v: "", l: "" }} set={l => put({ facts: l })} add="Add a fact"
         row={(f, p) => <div className="grid grid-cols-[90px_1fr] gap-2"><input aria-label="Number" className={inputCls} value={f.v} maxLength={12} placeholder="3" onChange={e => p({ v: e.target.value })} /><input aria-label="What" className={inputCls} value={f.l} maxLength={24} placeholder="days" onChange={e => p({ l: e.target.value })} /></div>} />
 
-      <p className={sec}>Day by day<Need on={!o.days.length} /></p>
+      </Step>
+      <Step n={5} title="Day by day" done={o.days.length > 0} help="One row for each event. On the package page they show in order, and the booking form opens one event for each row, so the client only picks the dates.">
       <Rows label="day" list={o.days} max={7} empty={{ name: "", hours: "", team: "" }} set={l => put({ days: l })} add="Add a day"
         row={(d, p) => <div className="grid sm:grid-cols-[1fr_110px_1.4fr] gap-2"><input aria-label="Event" className={inputCls} value={d.name} maxLength={40} placeholder="Holud" onChange={e => p({ name: e.target.value })} /><input aria-label="Hours" className={inputCls} value={d.hours} maxLength={20} placeholder="6 hours" onChange={e => p({ hours: e.target.value })} /><input aria-label="Team" className={inputCls} value={d.team} maxLength={80} placeholder="1 photographer, 1 cinematographer" onChange={e => p({ team: e.target.value })} /></div>} />
 
-      <p className={sec}>What you get<Need on={!o.gets.length} /></p>
+      </Step>
+      <Step n={6} title="What the client gets" done={o.gets.length > 0} help="Photos, films, album, delivery time. Each line shows with a tick on the package page.">
       <Rows label="item" list={o.gets} max={10} empty={{ t: "", d: "" }} set={l => put({ gets: l })} add="Add a line"
         row={(g, p) => <div className="grid sm:grid-cols-[1fr_1.4fr] gap-2"><input aria-label="What" className={inputCls} value={g.t} maxLength={60} placeholder="40-page album" onChange={e => p({ t: e.target.value })} /><input aria-label="Detail" className={inputCls} value={g.d} maxLength={160} placeholder="Photos chosen online (optional)" onChange={e => p({ d: e.target.value })} /></div>} />
 
-      <p className={sec}>Extras visitors can add<Need on={!o.extras.length} /></p>
+      </Step>
+      <Step n={7} title="Extras (add-ons)" done={o.extras.length > 0} help="Things the client can tick, like Drone or a second album. The total updates as they tick, and you see what they chose on the lead.">
       <Rows label="extra" list={o.extras} max={10} empty={{ name: "", price: 0 }} set={l => put({ extras: l })} add="Add an extra"
         row={(x, p) => <div className="grid grid-cols-[1fr_120px] gap-2"><input aria-label="Extra" className={inputCls} value={x.name} maxLength={60} placeholder="Drone" onChange={e => p({ name: e.target.value })} /><input aria-label="Price" className={inputCls} inputMode="numeric" value={x.price || ""} placeholder="৳ 0" onChange={e => p({ price: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></div>} />
 
-      <p className={sec}>Film (optional)</p>
+      </Step>
+      <Step n={8} title="Film" optional done={!!o.film} help="A YouTube link of a trailer for this package. It plays on the package page (optional).">
       <input aria-label="YouTube link" className={inputCls} inputMode="url" value={o.film ?? ""} maxLength={200} placeholder="https://youtu.be/… (a trailer of this package)" onChange={e => put({ film: e.target.value })} />
 
-      <p className={sec}>Good to know</p>
+      </Step>
+      <Step n={9} title="Good to know and questions" optional done={!!o.note || o.faqs.length > 0} help="Advance, travel, what changes are possible. Questions open with a tap on the package page (optional).">
       <textarea aria-label="Good to know" className={inputCls.replace("h-11", "min-h-[84px] py-2.5 leading-relaxed")} value={o.note} maxLength={1000} placeholder="A 30% advance books your date. Outside the city we add travel." onChange={e => put({ note: e.target.value })} />
       <Rows label="question" list={o.faqs} max={8} empty={{ q: "", a: "" }} set={l => put({ faqs: l })} add="Add a question"
         row={(f, p) => <div className="grid gap-2"><input aria-label="Question" className={inputCls} value={f.q} maxLength={160} placeholder="Can we swap a day?" onChange={e => p({ q: e.target.value })} /><input aria-label="Answer" className={inputCls} value={f.a} maxLength={800} placeholder="Answer" onChange={e => p({ a: e.target.value })} /></div>} />
 
-      <p className={sec}>Link</p>
+      </Step>
+      <Step n={10} title="Link and showing it" done help="Use this link on Facebook, in an ad or on WhatsApp. Turn it off to keep the package here without showing it.">
       {addr === null ? (
         <div className="flex items-center gap-2 flex-wrap">
           <code className="text-[13px] bg-white border border-[#EEEBF4] rounded-[10px] px-3 py-2 break-all flex-1 min-w-[200px]">{link(path)}</code>
@@ -394,7 +444,7 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
       )}
       {!published && <p className="text-xs text-[#6B6680] mt-1.5">The link works after you publish the website.</p>}
 
-      <div className="mt-4 rounded-[14px] bg-white border border-[#EEEBF4]">
+      <div className="mt-3 rounded-[14px] bg-[#F7F5FB]">
         <SwitchRow label="Show on the website" hint={o.hidden ? "Hidden: visitors don't see it; it stays here." : undefined} on={!o.hidden} onChange={v => put({ hidden: !v })} />
       </div>
       <div className="flex gap-2 mt-3 flex-wrap items-center">
@@ -403,6 +453,7 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
         <span className="text-xs text-[#6B6680]">{o.hidden ? <EyeOff className="w-3.5 h-3.5 inline" /> : <Eye className="w-3.5 h-3.5 inline" />} Order on the website</span>
         <button type="button" onClick={remove} className="ml-auto h-10 px-3.5 rounded-full bg-[#FDECEF] hover:bg-[#F9D9E0] text-[#C2304F] text-sm font-semibold inline-flex items-center gap-1.5"><Trash2 className="w-4 h-4" />Remove</button>
       </div>
+      </Step>
     </div>
   );
 }

@@ -22,12 +22,23 @@ export interface Lead {
   lastContactAt: string | null;
   notes: string | null;
   activity: LeadActivity[];
+  /** What they chose on the studio website (a website package page) */
+  request?: LeadRequest | null;
   clientId: string | null;
   bookingId: string | null;
   quoteId: string | null;
   createdAt: string;
   quote?: { id: string; quoteNumber: string; status: string; grandTotal: string } | null;
   booking?: { id: string; bookingNumber: string; eventName: string | null; grandTotal: string } | null;
+}
+
+/** A booking from a website package page: priced from the published site by the server. */
+export interface LeadRequest {
+  offer: { id: string; name: string; price: number | null; was: number | null; from?: boolean; link?: string };
+  extras: { name: string; price: number }[];
+  total: number | null; currency?: string;
+  events: { kind: string | null; date: string | null; shift: string | null }[];
+  at?: string;
 }
 
 export interface LeadStats {

@@ -5,7 +5,7 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertTriangle, BarChart3, BookOpen, Check, Link2, MessageSquareQuote, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
@@ -15,7 +15,8 @@ import { VisitorsTab } from "./visitors-tab";
 import { StylePanel } from "./style-panel";
 import { PackagesTab } from "./packages-tab";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
-import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { Field, SwitchRow, inputCls } from "@/components/ui/form-kit";
+import { Sec, TabIntro } from "./ed-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -101,8 +102,6 @@ export default function WebsitePage() {
   const [site, setSite] = useState<Mine | null>(null);
   const [state, setState] = useState<"load" | "ok" | "denied" | "error">("load");
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
-  /** Goes up after every saved change, so the side preview loads the new draft. */
-  const [rev, setRev] = useState(0);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [slug, setSlug] = useState("");
@@ -133,6 +132,8 @@ export default function WebsitePage() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ theme?: string; content?: SiteContent }>({});
   const fileRef = useRef<HTMLInputElement>(null);
+  /** The phone preview: gets every change at once (no reload, no wait for the save). */
+  const frameRef = useRef<HTMLIFrameElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -157,7 +158,6 @@ export default function WebsitePage() {
       // Keep what is on screen (the person may still be typing); take only the server's status.
       setSite(s => (s ? { ...s, hasChanges: d.hasChanges, isPublished: d.isPublished } : d));
       setSaving("saved");
-      setRev(n => n + 1);
     } catch {
       setSaving("idle");
       notify("Could not save. Check your internet and change it again.", { error: true });
@@ -217,6 +217,26 @@ export default function WebsitePage() {
     put({ ...site, content, hasChanges: true });
     queue({ content });
   };
+  // Send the draft to the phone preview as it changes; the preview asks for it when it (re)loads.
+  const draftMsg = useCallback(() => {
+    const st = live.current;
+    if (!st) return null;
+    const photos: Record<string, { url: string; sm: string | null; w: number; h: number; blur?: string }> = {};
+    for (const p of st.photos) photos[p.id] = { url: p.url, sm: p.thumbUrl ?? null, w: p.width, h: p.height, blur: p.blur };
+    return { type: "sg-draft", theme: st.theme, content: st.content, photos, styleOk: st.styleAllowed !== false };
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { const m = draftMsg(); if (m) frameRef.current?.contentWindow?.postMessage(m, window.location.origin); }, 60);
+    return () => clearTimeout(t);
+  }, [site?.content, site?.theme, site?.photos, draftMsg]);
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.data?.type !== "sg-ready" || e.source !== frameRef.current?.contentWindow) return;
+      const m = draftMsg(); if (m) frameRef.current?.contentWindow?.postMessage(m, window.location.origin);
+    };
+    window.addEventListener("message", on);
+    return () => window.removeEventListener("message", on);
+  }, [draftMsg]);
   const setTheme = (theme: string) => { if (!live.current) return; remember("theme:" + theme); put({ ...live.current, theme, hasChanges: true }); queue({ theme }); };
 
   // Address: checked while typing, saved when it is free.
@@ -302,7 +322,6 @@ export default function WebsitePage() {
       if (!res.ok) throw new Error();
       setSite((await res.json()) as Mine);
       past.current = []; setUndoable(0);
-      setRev(n => n + 1);
       notify("Back to the published version");
     } catch { notify("That did not work. Try again.", { error: true }); } finally { setBusy(false); }
   };
@@ -463,7 +482,8 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "address"}>
-      <FormGroup title="Address" note={site.publishedAt ? "Changing it needs a code from the studio owner's email." : "The link works after you publish."}>
+      <TabIntro icon={Link2} title="Address & domain" text="Your website's link, your own domain and whether it is online." />
+      <Sec icon={Link2} tone="blue" where="Your website link" title="Address" help={site.publishedAt ? "Changing it needs a code from the studio owner's email." : "The link works after you publish."}>
         <Field label="Your website link" hint={slugNote && slug !== site.slug ? <span className={slugNote.ok ? "text-[#1F8A4C]" : "text-[#C2304F]"}>{slugNote.message}</span> : editSlug ? "Small letters, numbers and dashes." : undefined}>
           {id => (
             <div className="flex gap-2 items-center flex-wrap">
@@ -486,8 +506,8 @@ export default function WebsitePage() {
             </div>
           )}
         </Field>
-      </FormGroup>
-      <FormGroup title="Your own domain" note={dom?.domain ? undefined : "Have a domain like pickphoto.com? Connect it and your website opens there. Your stupanel.com address keeps working and sends visitors to it."}>
+      </Sec>
+      <Sec icon={Globe} tone="blue" where="Your own domain" title="Your own domain" help={dom?.domain ? undefined : "Have a domain like pickphoto.com? Connect it and your website opens there. Your stupanel.com address keeps working and sends visitors to it."}>
         {!dom ? <div className="px-4 py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#9A94AE]" /></div>
           : !dom.allowed ? <p className="px-4 py-3.5 text-[13px] text-[#6B6680]">Your plan doesn&apos;t include your own domain.</p>
           : !dom.domain ? (
@@ -517,8 +537,8 @@ export default function WebsitePage() {
               </div>
             </div>
           )}
-      </FormGroup>
-      <FormGroup title="Status">
+      </Sec>
+      <Sec icon={Eye} tone="slate" where="Who can see it" title="Status">
         <div className="px-4 py-3.5 flex flex-wrap items-center gap-3">
           <span className={cn("inline-flex items-center gap-2 text-sm font-semibold", site.offline ? "text-[#C2304F]" : site.isPublished ? "text-[#1F8A4C]" : "text-[#6B6680]")}>
             <span className={cn("w-2.5 h-2.5 rounded-full", site.offline ? "bg-[#C2304F]" : site.isPublished ? "bg-[#1F8A4C]" : "bg-[#C9C3DA]")} aria-hidden="true" />
@@ -529,7 +549,7 @@ export default function WebsitePage() {
             <button type="button" disabled={busy} onClick={() => publish(false)} className="h-10 px-4 rounded-full border border-[#F3C9D2] text-[13px] font-semibold text-[#C2304F] hover:bg-[#FFF1F4] disabled:opacity-50">Take the website offline</button>
           )}
         </div>
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "seo"}>
@@ -547,7 +567,8 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "design"}>
-      <FormGroup title="Look" note="All six have the same sections. You can change the look any time; your text and photos stay.">
+      <TabIntro icon={Palette} title="Look" text="Choose one of the six looks, then make it yours with fonts and colours." />
+      <Sec icon={Palette} tone="violet" where="Every page" title="Look" help="All six have the same sections. You can change the look any time; your text and photos stay.">
         <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Website look">
           {THEMES.map(t => {
             const on = site.theme === t.id;
@@ -563,12 +584,13 @@ export default function WebsitePage() {
             );
           })}
         </div>
-      </FormGroup>
+      </Sec>
       <StylePanel value={c.style} allowed={site.styleAllowed !== false} onChange={v => set("style", v)} />
       </div>
 
       <div hidden={tab !== "photos"}>
-      <FormGroup title={`Photos (${site.photos.length} of ${site.photoLimit})`} note="Every photo on your website is kept here. You can also add a photo right where you use it. Use only photos you have the right to show.">
+      <TabIntro icon={Images} title="All photos" text="Every photo on your website. Add photos here or right where you use them." />
+      <Sec icon={Images} tone="teal" where="Photo library" title={`Photos (${site.photos.length} of ${site.photoLimit})`} help="Every photo on your website is kept here. You can also add a photo right where you use it. Use only photos you have the right to show.">
         <div className="p-3">
           {unusedList.length > 0 && (
             <div className="mb-3 rounded-[14px] bg-[#FFF7E8] border border-[#F3E1B8] px-3.5 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -600,11 +622,12 @@ export default function WebsitePage() {
             </button>
           )}
         </div>
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "home"}>
-      <FormGroup title="Top of the page">
+      <TabIntro icon={Home} title="Home page" text="The first screen visitors see: your words and the main photos. Changes show in the phone preview at once." />
+      <Sec icon={Home} tone="violet" where="Home, first screen" title="Top of the page">
         <Field label="Small handwritten line">{id => <input id={id} className={inputCls} value={c.script} maxLength={40} onChange={e => set("script", e.target.value)} />}</Field>
         <Field label="Big headline" hint="Two or three words look best.">{id => <input id={id} className={inputCls} value={c.headline} maxLength={60} onChange={e => set("headline", e.target.value)} />}</Field>
         <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
@@ -642,16 +665,17 @@ export default function WebsitePage() {
         <Field label="Moving words" hint="The events you cover, with a comma between them.">
           {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "about"}>
-      <FormGroup title="About the studio">
+      <TabIntro icon={Users} title="About" text="Your studio's story, photo and team, shown on the About page." />
+      <Sec icon={Users} tone="amber" where="About page" title="About the studio">
         <Field label="Title" hint="The first word is shown in handwriting.">{id => <input id={id} className={inputCls} value={c.aboutTitle} maxLength={40} onChange={e => set("aboutTitle", e.target.value)} />}</Field>
         <Field label="Text">{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} crop={crops.about} onAdjust={() => adjust("about", c.aboutPhoto, "About photo", RATIO.about)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
-      </FormGroup>
-      <FormGroup title="Team" note="Shown on the About page, each with a round photo. Leave it empty to show no team.">
+      </Sec>
+      <Sec icon={Users} tone="amber" where="About page" title="Team" help="Shown on the About page, each with a round photo. Leave it empty to show no team.">
         {(c.team ?? []).map((m, i) => {
           const team = c.team ?? [];
           const put = (patch: Partial<SiteTeamMember>) => set("team", team.map((y, k) => (k === i ? { ...y, ...patch } : y)));
@@ -688,11 +712,12 @@ export default function WebsitePage() {
         {(c.team ?? []).length < 24 && (
           <button type="button" onClick={() => set("team", [...(c.team ?? []), { id: newId(), name: "", role: "", photo: null }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a team member</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "albums"}>
-      <FormGroup title="Albums" note="Each album opens as its own gallery. Tap the cover to pick another photo for it. Six or more albums fill two moving rows.">
+      <TabIntro icon={Images} title="Albums" text="Each album is a wedding you covered. Visitors open it and swipe through the photos." />
+      <Sec icon={Images} tone="rose" where="Home and Portfolio" title="Albums" help="Each album opens as its own gallery. Tap the cover to pick another photo for it. Six or more albums fill two moving rows.">
         {c.albums.map((a, i) => {
           const cover = ph(a.cover) ?? ph(a.photos[0]);
           const name = a.title || "this album";
@@ -737,19 +762,20 @@ export default function WebsitePage() {
           <button type="button" onClick={() => set("albums", [...c.albums, { id: newId(), title: "", tag: "", cover: null, photos: [] }])}
             className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add an album</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "films"}>
-      <FormGroup title="Wedding film" note="Leave the link empty to hide this part.">
+      <TabIntro icon={Clapperboard} title="Films" text="YouTube films. The first one is shown big on Home; all of them are on the Films page." />
+      <Sec icon={Clapperboard} tone="blue" where="Home and Films" title="Wedding film" help="Leave the link empty to hide this part.">
         <Field label="YouTube link">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={c.filmUrl} maxLength={200} onChange={e => set("filmUrl", e.target.value)} />}</Field>
         <Field label="Film name">{id => <input id={id} className={inputCls} placeholder="Tanvir and Nusrat, the wedding film" value={c.filmTitle} maxLength={80} onChange={e => set("filmTitle", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} crop={crops.film} onAdjust={() => adjust("film", c.filmPhoto, "Film cover", RATIO.film)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "films"}>
-      <FormGroup title="More films" note="These show on the Films page, under the film above, ten at a time with Load more. Up to 60.">
+      <Sec icon={Clapperboard} tone="blue" where="Films page" title="More films" help="These show on the Films page, under the film above, ten at a time with Load more. Up to 60.">
         {(c.films ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
             <div className="flex-1 grid sm:grid-cols-2 gap-2">
@@ -762,19 +788,18 @@ export default function WebsitePage() {
         {(c.films ?? []).length < 60 && (
           <button type="button" onClick={() => set("films", [...(c.films ?? []), { url: "", title: "", id: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a film</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "packages"}>
+      <TabIntro icon={Package} title="Packages" text="What you sell, each with its own page. Visitors add extras, see the total and send it to you." />
       <PackagesTab c={c} setMany={setMany} photo={ph} choose={choose} adjust={adjust} theme={site.theme} published={site.isPublished}
         link={path => `${url}${path}`} />
-      <FormGroup title="Your price list" note={(c.offers ?? []).some(o => !o.hidden) ? "Not shown while there are website packages above. It is still used for the add-on prices." : "Shows your active packages from the Packages page, grouped by category, with their prices."}>
-        <SwitchRow label="Show packages and prices" on={c.showPackages} onChange={v => set("showPackages", v)} />
-      </FormGroup>
       </div>
 
       <div hidden={tab !== "more"}>
-      <FormGroup title="Reviews" note="Use real words from your clients, with their permission.">
+      <TabIntro icon={MessageSquareQuote} title="Reviews & FAQ" text="Words from your clients and answers to the questions people always ask." />
+      <Sec icon={MessageSquareQuote} tone="green" where="Home and Reviews" title="Reviews" help="Use real words from your clients, with their permission.">
         {c.reviews.map((r, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
             <div className="flex-1 grid gap-2">
@@ -787,11 +812,12 @@ export default function WebsitePage() {
         {c.reviews.length < 8 && (
           <button type="button" onClick={() => set("reviews", [...c.reviews, { text: "", name: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a review</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "stories"}>
-      <FormGroup title="Stories (blog)" note="Short posts about weddings you covered. The Stories page appears in the menu when there is at least one with a title and text.">
+      <TabIntro icon={BookOpen} title="Stories" text="Short posts about weddings you covered. They help people find you on Google." />
+      <Sec icon={BookOpen} tone="teal" where="Stories page and Home" title="Stories (blog)" help="Short posts about weddings you covered. The Stories page appears in the menu when there is at least one with a title and text.">
         {(c.stories ?? []).map((x, i) => {
           const put = (patch: Partial<SiteStory>) => set("stories", (c.stories ?? []).map((y, k) => (k === i ? { ...y, ...patch } : y)));
           return (
@@ -811,11 +837,11 @@ export default function WebsitePage() {
         {(c.stories ?? []).length < 12 && (
           <button type="button" onClick={() => set("stories", [...(c.stories ?? []), { id: newId(), title: "", date: "", cover: null, text: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a story</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "more"}>
-      <FormGroup title="Questions and answers (FAQ)" note="The FAQ page appears in the menu when there is at least one question with an answer.">
+      <Sec icon={HelpCircle} tone="amber" where="FAQ page" title="Questions and answers (FAQ)" help="The FAQ page appears in the menu when there is at least one question with an answer.">
         {(c.faqs ?? []).map((f, i) => (
           <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
             <div className="flex-1 grid gap-2">
@@ -828,34 +854,35 @@ export default function WebsitePage() {
         {(c.faqs ?? []).length < 12 && (
           <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
         )}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "design"}>
-      <FormGroup title="Home page parts" note="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
+      <Sec icon={LayoutGrid} tone="violet" where="Home" title="Home page parts" help="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
         {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["stories", "Stories"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
           <SwitchRow key={k} label={label} on={!(c.hide ?? []).includes(k)} onChange={v => set("hide", v ? (c.hide ?? []).filter(x => x !== k) : [...(c.hide ?? []), k])} />
         ))}
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "contact"}>
-      <FormGroup title="Contact" note="Empty boxes use the phone, email and address from your studio settings.">
+      <TabIntro icon={Phone} title="Contact" text="How visitors reach you: phone, WhatsApp, email, address and your social pages." />
+      <Sec icon={Phone} tone="green" where="Footer, Contact page, WhatsApp button" title="Contact" help="Empty boxes use the phone, email and address from your studio settings.">
         <Field label="Phone">{id => <input id={id} className={inputCls} inputMode="tel" value={c.phone} maxLength={30} onChange={e => set("phone", e.target.value)} />}</Field>
         <Field label="WhatsApp number">{id => <input id={id} className={inputCls} inputMode="tel" value={c.whatsapp} maxLength={30} onChange={e => set("whatsapp", e.target.value)} />}</Field>
         <Field label="Email">{id => <input id={id} className={inputCls} inputMode="email" value={c.email} maxLength={120} onChange={e => set("email", e.target.value)} />}</Field>
         <Field label="Address">{id => <input id={id} className={inputCls} value={c.address} maxLength={200} onChange={e => set("address", e.target.value)} />}</Field>
         <Field label="Open hours">{id => <input id={id} className={inputCls} placeholder="Sat to Thu, 10 am to 8 pm" value={c.hours} maxLength={80} onChange={e => set("hours", e.target.value)} />}</Field>
-      </FormGroup>
+      </Sec>
       </div>
 
       <div hidden={tab !== "contact"}>
-      <FormGroup title="Social links and footer">
+      <Sec icon={Share2} tone="slate" where="Footer" title="Social links and footer">
         <Field label="Facebook page">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://facebook.com/…" value={c.facebook} maxLength={200} onChange={e => set("facebook", e.target.value)} />}</Field>
         <Field label="Instagram">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://instagram.com/…" value={c.instagram} maxLength={200} onChange={e => set("instagram", e.target.value)} />}</Field>
         <Field label="YouTube channel">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtube.com/…" value={c.youtube} maxLength={200} onChange={e => set("youtube", e.target.value)} />}</Field>
         <Field label="One line about the studio (footer)">{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
-      </FormGroup>
+      </Sec>
       </div>
 
       {((site.isPublished && site.hasChanges) || undoable > 0) && (
@@ -964,9 +991,9 @@ export default function WebsitePage() {
       {showPhone && (
         <>
           <div className="w-[293px] h-[611px] rounded-[30px] border-[8px] border-[#17151F] overflow-hidden bg-white shadow-[0_20px_50px_rgba(22,18,40,.18)]">
-            <iframe key={rev} src={`/site/${site.slug}?preview=1`} title="Website preview" className="border-0 origin-top-left" style={{ width: 395, height: 850, transform: "scale(0.7)" }} />
+            <iframe ref={frameRef} src={`/site/${site.slug}?preview=1`} title="Website preview" className="border-0 origin-top-left" style={{ width: 395, height: 850, transform: "scale(0.7)" }} />
           </div>
-          <p className="text-[11px] text-[#6B6680] mt-2 px-1 w-[293px]">Your draft. Reloads after each saved change.</p>
+          <p className="text-[11px] text-[#6B6680] mt-2 px-1 w-[293px]">Your draft. Changes show here as you type.</p>
         </>
       )}
     </aside>

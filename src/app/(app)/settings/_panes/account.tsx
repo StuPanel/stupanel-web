@@ -7,6 +7,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { Group, Row, Select, TextField, useSettings } from "../_ui";
 import { StudioSessions } from "@/components/account/signed-in-devices";
+import { OwnershipPanel } from "@/components/account/ownership-panel";
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 const SESSION = [
@@ -32,6 +33,9 @@ export function SecurityPane() {
       </Group>
       <Group title="Who is signed in" note="Everyone in your studio and the devices they are signed in on. Sign out a lost phone, or someone who left, at once. Your own devices are in My Profile.">
         <div id="set-loginActivity"><StudioSessions /></div>
+      </Group>
+      <Group title="Studio owner" note="Give the studio to someone else. Only the owner sees this.">
+        <div id="set-ownership"><OwnershipPanel /></div>
       </Group>
       <p className="px-1 -mt-4 mb-7 text-[12.5px] text-[#6B6680]">2-step sign-in, recovery email and changing your sign-in email are in My Profile → Sign-in &amp; security (each person sets their own).</p>
     </>

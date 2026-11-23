@@ -537,7 +537,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
 
         <section id="book" className="wrap sec">
           <div className="rv" style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(44px,6vw,70px) clamp(22px, 6vw, 90px)", textAlign: "center", borderTop: "4px solid var(--ac)" }}>
-            <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} onDone={thanks} />
+            <BookForm slug={data.slug} preview={preview} packages={packages} kinds={c.events} ask={ask} setAsk={setAsk} wa={wa} onDone={thanks} />
           </div>
         </section>
         </>}
@@ -653,7 +653,11 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
   );
 }
 
-type Ev = { date: string; shift: string; pkg: string };
+type Ev = { kind: string; other: string; date: string; shift: string; pkg: string };
+const NEW_EV: Ev = { kind: "", other: "", date: "", shift: "", pkg: "" };
+/** Events offered in the form when the studio has not listed its own. */
+const DEFAULT_KINDS = ["Holud", "Mehendi", "Akdh", "Wedding", "Reception", "Engagement", "Birthday"];
+const OTHER = "__other";
 /** What the visitor put together on the Packages page, carried to the form (this browser tab only). */
 export const buildKey = (slug: string) => `sg-build-${slug}`;
 export function readBuild(slug: string): { pkg: string; addons: string[] } {
@@ -663,15 +667,18 @@ export function readBuild(slug: string): { pkg: string; addons: string[] } {
   } catch { return { pkg: "", addons: [] }; }
 }
 
-export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDone }: {
-  slug: string; preview?: boolean; packages: SitePackage[]; ask: string; setAsk: (v: string) => void; wa: string;
+export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa, bare, onDone }: {
+  slug: string; preview?: boolean; packages: SitePackage[]; /** The studio's own events (Website → Home); empty = the usual ones */ kinds?: string[];
+  ask: string; setAsk: (v: string) => void; wa: string;
   /** The page already has the heading */ bare?: boolean; /** After a sent enquiry (goes to the Thank-you page) */ onDone?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
   // The first event's package is `ask` (set by "Ask about this"); the others keep their own.
-  const [events, setEvents] = useState<Ev[]>([{ date: "", shift: "", pkg: "" }]);
+  const [events, setEvents] = useState<Ev[]>([NEW_EV]);
+  const kinds = [...new Set((own ?? []).map(k => k.trim()).filter(k => k && k.length <= 60))];
+  const kindList = kinds.length ? kinds : DEFAULT_KINDS;
   const [addons, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
   const setEv = (i: number, patch: Partial<Ev>) => setEvents(list => list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
 
@@ -679,11 +686,14 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
     e.preventDefault();
     if (busy) return;
     const f = new FormData(e.currentTarget);
-    const list = events.map((ev, i) => ({ date: ev.date || undefined, shift: ev.shift || undefined, packageName: (i === 0 ? ask : ev.pkg) || undefined })).filter(ev => ev.date || ev.shift || ev.packageName);
+    const list = events.map((ev, i) => ({
+      kind: (ev.kind === OTHER ? ev.other.trim() : ev.kind).slice(0, 60) || undefined,
+      date: ev.date || undefined, shift: ev.shift || undefined, packageName: (i === 0 ? ask : ev.pkg) || undefined,
+    })).filter(ev => ev.kind || ev.date || ev.shift || ev.packageName);
     const body = {
       name: String(f.get("name") || "").trim(), phone: String(f.get("phone") || "").trim(), email: String(f.get("email") || "").trim() || undefined,
       date: list.find(ev => ev.date)?.date, packageName: ask || undefined,
-      events: list.length > 1 || list[0]?.shift ? list : undefined, addons: addons.length ? addons : undefined,
+      events: list.length > 1 || list[0]?.shift || list[0]?.kind ? list : undefined, addons: addons.length ? addons : undefined,
       message: String(f.get("message") || "").trim() || undefined, website: String(f.get("website") || "") || undefined,
     };
     if (!body.name) return setErr("Please write your name.");
@@ -731,6 +741,14 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
         {events.map((ev, i) => (
           <fieldset key={i} className="evr">
             <legend className="cap" style={{ fontSize: 10 }}>{events.length > 1 ? `Event ${i + 1}` : "Your event"}</legend>
+            <label><span className="cap" style={{ fontSize: 10 }}>Event</span>
+              <select value={ev.kind} onChange={e => setEv(i, { kind: e.target.value })}>
+                <option value="">Not sure</option>
+                {kindList.map(k => <option key={k} value={k}>{k}</option>)}
+                <option value={OTHER}>Other</option>
+              </select>
+            </label>
+            {ev.kind === OTHER && <label className="evo"><span className="cap" style={{ fontSize: 10 }}>Which event?</span><input type="text" value={ev.other} maxLength={60} placeholder="e.g. Aqiqah, anniversary" onChange={e => setEv(i, { other: e.target.value })} /></label>}
             <label><span className="cap" style={{ fontSize: 10 }}>Date</span><input type="date" value={ev.date} onChange={e => setEv(i, { date: e.target.value })} /></label>
             <label><span className="cap" style={{ fontSize: 10 }}>Time of day</span>
               <select value={ev.shift} onChange={e => setEv(i, { shift: e.target.value })}>
@@ -748,7 +766,7 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
             {events.length > 1 && <button type="button" className="evx" aria-label={`Remove event ${i + 1}`} onClick={() => { if (i === 0) setAsk(events[1].pkg); setEvents(list => list.filter((_, k) => k !== i)); }}><Ic d={ICON.x} size={16} /></button>}
           </fieldset>
         ))}
-        {events.length < 6 && <button type="button" className="cap ul" style={{ marginTop: 18, fontSize: 10 }} onClick={() => setEvents(list => [...list, { date: "", shift: "", pkg: "" }])}>+ Add another event</button>}
+        {events.length < 6 && <button type="button" className="cap ul" style={{ marginTop: 18, fontSize: 10 }} onClick={() => setEvents(list => [...list, NEW_EV])}>+ Add another event</button>}
         {addons.length > 0 && (
           <div style={{ marginTop: 26 }}>
             <span className="cap" style={{ fontSize: 10, display: "block", marginBottom: 8 }}>Add-ons you picked</span>

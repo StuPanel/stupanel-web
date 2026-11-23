@@ -137,7 +137,7 @@ export default function AdminCouponsPage() {
         </Button>
       </div>
 
-      <p role="note" className="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">Not connected yet: studios have no box to type a coupon when they pay for a plan, so these codes are not used today.</p>
+      <p role="note" className="text-sm text-slate-300 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">Studios type a code in Plan &amp; billing → &quot;Have a coupon?&quot;. One discount per payment (the coupon or the trial offer, whichever is bigger). A use is counted when you accept the payment, once per studio.</p>
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>

@@ -10,7 +10,8 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FloatingUploadPanel } from "@/components/floating-upload-panel";
-import { BillingBanner } from "@/components/billing/billing-banner";
+import { BillingBanner, useStudioLock } from "@/components/billing/billing-banner";
+import { LockedForTeam, LockedStudio } from "@/components/billing/locked-studio";
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/context/auth-context";
@@ -96,6 +97,8 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, ready, emailVerified } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Plan or trial ended and not renewed: every page but Plan & billing and Support shows the locked page.
+  const lock = useStudioLock(user?.role === "owner");
   const { features, menu } = useStudioMenu();
   // Phone Back closes the menu
   useBackClose(menuOpen, () => setMenuOpen(false));
@@ -199,7 +202,9 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 min-w-0 overflow-x-clip px-3 sm:px-4 lg:px-0 pt-1 pb-28 lg:pb-8">
           <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-            <ErrorBoundary>{canOpen(user, pathname) ? children : null}</ErrorBoundary>
+            <ErrorBoundary>{lock.locked && !pathname.startsWith("/billing") && !pathname.startsWith("/support")
+              ? (user?.role !== "owner" ? <LockedForTeam /> : lock.status ? <LockedStudio status={lock.status} /> : null)
+              : canOpen(user, pathname) ? children : null}</ErrorBoundary>
           </div>
         </main>
 

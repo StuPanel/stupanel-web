@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { MemberPhoto, PROFILE_EVENT } from "./_components/kit";
 import { cn } from "@/lib/utils";
-import { apiFetch, API_URL as API } from "@/lib/api";
+import { apiFetch, API_URL as API, LOCKED_EVENT, studioLocked } from "@/lib/api";
+import { LockedForTeam } from "@/components/billing/locked-studio";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { useBackClose } from "@/lib/back-stack";
@@ -176,6 +177,13 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   // Phone Back closes the menu
   useBackClose(menuOpen, () => setMenuOpen(false));
   const [chatUnread, setChatUnread] = useState(0);
+  // The studio's plan ended and was not renewed: the member area is locked too.
+  const [locked, setLocked] = useState(studioLocked());
+  useEffect(() => {
+    const on = () => setLocked(true);
+    window.addEventListener(LOCKED_EVENT, on);
+    return () => window.removeEventListener(LOCKED_EVENT, on);
+  }, []);
   // Phone top bar: clear at rest, soft glass once the page scrolls under it (same as the studio).
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -269,7 +277,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         </div>
 
         <main className="flex-1 min-w-0 px-3 sm:px-4 lg:px-0 pt-1 lg:pt-6 pb-28 lg:pb-8">
-          <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">{children}</div>
+          <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300">{locked ? <LockedForTeam /> : children}</div>
           <FloatingUploadPanel />
         </main>
 

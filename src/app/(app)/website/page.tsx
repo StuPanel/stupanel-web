@@ -85,6 +85,16 @@ export default function WebsitePage() {
   const [slugNote, setSlugNote] = useState<{ ok: boolean; message: string } | null>(null);
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
   const [tab, setTab] = useState<Tab>("home");
+  /** Phone preview on the right (computers); the choice is remembered on this browser. */
+  const [showPhone, setShowPhone] = useState(true);
+  useEffect(() => {
+    let v: string | null = null;
+    try { v = localStorage.getItem("site-ed-phone"); } catch { /* storage off */ }
+    if (v !== "off") return;
+    const id = setTimeout(() => setShowPhone(false), 0);
+    return () => clearTimeout(id);
+  }, []);
+  const togglePhone = (on: boolean) => { setShowPhone(on); try { localStorage.setItem("site-ed-phone", on ? "on" : "off"); } catch { /* storage off */ } };
   const [allPhotos, setAllPhotos] = useState(false);
   /** Time the page opened, for "days left" on unused photos. */
   const [openedAt] = useState(() => Date.now());
@@ -317,8 +327,8 @@ export default function WebsitePage() {
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
 
   return (
-    <div className="xl:flex xl:gap-8 xl:items-start">
-    <div className="site-ed max-w-[820px] flex-1 min-w-0">
+    <div className="xl:flex xl:gap-6 xl:items-start">
+    <div className={cn("site-ed flex-1 min-w-0", showPhone ? "max-w-[1100px]" : "max-w-[1240px]")}>
       <PageHeader icon={Globe} color="violet" title="Website" sub={<>{status}{saving === "saving" ? " · Saving" : saving === "saved" ? " · Draft saved" : ""}</>}>
         <a href={`/site/${site.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
           className="h-10 px-4 rounded-full bg-white border border-[#E4E0EC] hover:bg-[#F5F3FA] text-sm font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-1 sm:flex-none justify-center">
@@ -727,12 +737,21 @@ export default function WebsitePage() {
       {frame && <FrameModal {...frame} value={crops[frame.key]} onClose={() => setFrame(null)}
         onSave={v => { const next = { ...crops }; if (v) next[frame.key] = v; else delete next[frame.key]; set("crop", next); setFrame(null); }} />}
     </div>
-    <aside className="hidden xl:block sticky top-6 flex-shrink-0" aria-label="Live preview of your website">
-      <p className="text-[13px] font-bold text-[#4A4658] mb-2 px-1">Live preview (phone)</p>
-      <div className="w-[390px] h-[760px] rounded-[36px] border-[10px] border-[#17151F] overflow-hidden bg-white shadow-[0_20px_50px_rgba(22,18,40,.18)]">
-        <iframe key={rev} src={`/site/${site.slug}?preview=1`} title="Website preview" className="w-full h-full border-0" />
+    {/* Phone preview: a real 390 px phone screen drawn at 70 %, so the settings keep most of the width. */}
+    <aside className="hidden xl:block sticky top-6 flex-shrink-0 ml-auto" aria-label="Live preview of your website">
+      <div className="flex items-center gap-1.5 mb-2 px-1 text-[13px] font-bold text-[#4A4658]">
+        <Smartphone className="w-4 h-4" aria-hidden="true" />{showPhone ? "Phone preview" : ""}
+        <button type="button" onClick={() => togglePhone(!showPhone)} aria-pressed={showPhone}
+          className="ml-auto h-7 px-2.5 rounded-full text-xs font-semibold text-[#5B3FD0] hover:bg-[#F1EEF8]">{showPhone ? "Hide" : "Show"}</button>
       </div>
-      <p className="text-xs text-[#6B6680] mt-2 px-1">Shows your draft. It reloads after each saved change.</p>
+      {showPhone && (
+        <>
+          <div className="w-[293px] h-[611px] rounded-[30px] border-[8px] border-[#17151F] overflow-hidden bg-white shadow-[0_20px_50px_rgba(22,18,40,.18)]">
+            <iframe key={rev} src={`/site/${site.slug}?preview=1`} title="Website preview" className="border-0 origin-top-left" style={{ width: 395, height: 850, transform: "scale(0.7)" }} />
+          </div>
+          <p className="text-[11px] text-[#6B6680] mt-2 px-1 w-[293px]">Your draft. Reloads after each saved change.</p>
+        </>
+      )}
     </aside>
     </div>
   );

@@ -497,7 +497,7 @@ export default function WebsitePage() {
               </div>
               {dom.state === "live"
                 ? <p className="text-[13px] text-[#4A4658] mt-1.5">Your website opens at <b>{dom.domain}</b>{dom.twin ? <> (and <b>{dom.twin}</b>)</> : null}. {site.slug}.stupanel.com sends visitors there. Keep the records at your domain company as they are.</p>
-                : <DomainGuide dom={{ ...dom, domain: dom.domain }} studioName={site.studio.name} busy={domBusy === "check"} onCheck={checkDomain} />}
+                : <DomainGuide dom={{ ...dom, domain: dom.domain }} studioName={site.studio.name} address={url.replace(/^https?:\/\//, "")} busy={domBusy === "check"} onCheck={checkDomain} />}
               <div className="mt-3 flex gap-2 flex-wrap">
                 <button type="button" disabled={!!domBusy} onClick={() => { setDomCode(""); setDomStep("warn"); }} className="h-10 px-4 rounded-full border border-[#F3C9D2] text-[13px] font-semibold text-[#C2304F] hover:bg-[#FFF1F4] disabled:opacity-50">Disconnect domain</button>
               </div>

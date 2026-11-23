@@ -6,7 +6,9 @@
  * and a ready-made message to send to whoever can do it for them.
  */
 import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, MessageCircle, Send } from "lucide-react";
+import Link from "next/link";
+import { Check, Copy, LifeBuoy, Loader2, MessageCircle, Send } from "lucide-react";
+import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
 
@@ -40,7 +42,7 @@ function CopyField({ label, value, mono = true, hint }: { label: string; value: 
   );
 }
 
-export function DomainGuide({ dom, studioName, busy, onCheck }: { dom: Info & { domain: string }; studioName: string; busy: boolean; onCheck: () => void }) {
+export function DomainGuide({ dom, studioName, address, busy, onCheck }: { dom: Info & { domain: string }; studioName: string; address: string; busy: boolean; onCheck: () => void }) {
   const d = dom.domain;
   const key = `site-dom-provider:${d}`;
   const [prov, setProv] = useState<string>("");
@@ -56,6 +58,54 @@ export function DomainGuide({ dom, studioName, busy, onCheck }: { dom: Info & { 
   const okFor = (r: Rec) => {
     const host = r.name === "@" ? d.replace(/^www\./, "") : `${r.name}.${d.replace(/^www\./, "")}`;
     return dom.parts?.find(p => p.name === host)?.ok;
+  };
+
+  // StuPanel support: one press files a ticket with everything our team needs (kept per domain for a day).
+  const tKey = `site-dom-ticket:${d}`;
+  const [sent, setSent] = useState<{ id: string; number: string; at: number } | null>(null);
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    let v: string | null = null;
+    try { v = localStorage.getItem(tKey); } catch { /* storage off */ }
+    if (!v) return;
+    try {
+      const t = JSON.parse(v) as { id: string; number: string; at: number };
+      if (Date.now() - t.at > 86_400_000) return;
+      const id = setTimeout(() => setSent(t), 0);
+      return () => clearTimeout(id);
+    } catch { /* old value */ }
+  }, [tKey]);
+  const askSupport = async () => {
+    setSending(true);
+    try {
+      const content = [
+        `Please help me connect my own domain to my StuPanel website.`,
+        ``,
+        `Studio: ${studioName}`,
+        `Website now: ${address}`,
+        `Domain: ${d}`,
+        `Bought from: ${P?.name ?? "not chosen"}`,
+        ``,
+        `Records StuPanel asks for:`,
+        ...dom.records.map((r, i) => {
+          const ok = okFor(r);
+          return `${i + 1}) ${r.type} | ${r.name} | ${r.value}${ok === undefined ? "" : ok ? "  ✓ working" : "  — not seen yet"}`;
+        }),
+        ...(dom.error ? [``, `Last check: ${dom.error}`] : []),
+        ...(note.trim() ? [``, `My note: ${note.trim()}`] : []),
+      ].join("\n");
+      const res = await apiFetch(`${API}/support/tickets`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: `Help connecting my domain ${d}`, content, priority: "high", category: "website" }),
+      });
+      const t = await res.json().catch(() => ({}));
+      if (!res.ok) { notify(Array.isArray(t.message) ? t.message[0] : t.message || "Could not send", { error: true }); return; }
+      const v = { id: t.id, number: t.ticketNumber, at: Date.now() };
+      setSent(v); setNote("");
+      try { localStorage.setItem(tKey, JSON.stringify(v)); } catch { /* storage off */ }
+      notify(`Sent to StuPanel support (${t.ticketNumber})`);
+    } finally { setSending(false); }
   };
 
   const message = [
@@ -122,6 +172,29 @@ export function DomainGuide({ dom, studioName, busy, onCheck }: { dom: Info & { 
         <p className="text-[13px] text-[#4A4658] mt-1">It usually works in 5–30 minutes, sometimes up to a day. We keep checking by ourselves and switch your website on as soon as it works.</p>
         {dom.error && <p className="mt-1.5 text-[12.5px] text-[#B45309]">{dom.error}</p>}
         <button type="button" disabled={busy} onClick={onCheck} className="mt-2.5 h-11 px-5 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-white text-[14px] font-semibold inline-flex items-center gap-2">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Check now</button>
+      </section>
+
+      {/* StuPanel support */}
+      <section className="rounded-[14px] border border-[#DCD3F7] bg-[#F7F4FF] p-3.5">
+        <h4 className="text-[13.5px] font-bold text-[#17151F] flex items-center gap-1.5"><LifeBuoy className="w-4 h-4 text-[#7D5CEF]" />Let StuPanel help</h4>
+        {sent ? (
+          <>
+            <p className="text-[12.5px] text-[#4A4658] mt-1">Sent to StuPanel support as <b>{sent.number}</b>. Our team will reply there — you also get an email.</p>
+            <div className="mt-2.5 flex gap-2 flex-wrap">
+              <Link href={`/support?ticket=${sent.id}`} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-[13px] font-semibold inline-flex items-center">Open the ticket</Link>
+              <button type="button" onClick={() => { setSent(null); try { localStorage.removeItem(tKey); } catch { /* storage off */ } }} className="h-10 px-4 rounded-full text-[13px] font-semibold text-[#5B3FD0] hover:bg-[#EDE8FB]">Send again</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-[12.5px] text-[#4A4658] mt-1">Stuck? Send this to StuPanel support in one press — your domain, where you bought it and the records go with it.</p>
+            <label htmlFor="dom-note" className="sr-only">A note for StuPanel support (optional)</label>
+            <textarea id="dom-note" value={note} onChange={e => setNote(e.target.value.slice(0, 1000))} rows={2} placeholder="Anything we should know? (optional)"
+              className="mt-2.5 w-full rounded-[12px] border border-[#E1DCEC] bg-white px-3 py-2 text-[13.5px] outline-none focus:border-[#7D5CEF] resize-y" />
+            <p className="text-[11.5px] text-[#8A8499] mt-1">Never write a password here. If we need to sign in to your domain company, we&apos;ll tell you the safe way.</p>
+            <button type="button" disabled={sending} onClick={askSupport} className="mt-2.5 h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-white text-[13px] font-semibold inline-flex items-center gap-2">{sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LifeBuoy className="w-4 h-4" />}Send to StuPanel support</button>
+          </>
+        )}
       </section>
 
       {/* someone else can do it */}

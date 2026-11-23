@@ -24,6 +24,10 @@ export interface Lead {
   activity: LeadActivity[];
   /** What they chose on the studio website (a website package page) */
   request?: LeadRequest | null;
+  /** When the studio first saw it (null = new) */
+  seenAt?: string | null;
+  /** The client it belongs to (an existing client who asked again, or saved as a client) */
+  client?: { id: string; name: string } | null;
   clientId: string | null;
   bookingId: string | null;
   quoteId: string | null;
@@ -87,6 +91,19 @@ export function followUpInfo(at: string | null, now = new Date()) {
   if (diff === 0) return { tone: "today" as const, text: "Follow up today" };
   if (diff === 1) return { tone: "soon" as const, text: "Tomorrow" };
   return { tone: "later" as const, text: new Intl.DateTimeFormat("en-GB", { weekday: diff < 7 ? "short" : undefined, day: "numeric", month: "short" }).format(d) };
+}
+
+/** How long ago a lead came, exact while it is fresh: "40 sec ago", "12 min ago", "3 h ago", "2 days ago". */
+export function cameAgo(at: string, now = Date.now()) {
+  const s = Math.max(0, Math.floor((now - new Date(at).getTime()) / 1000));
+  if (s < 60) return `${s} sec ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h ${m % 60 ? `${m % 60} min ` : ""}ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} day${d > 1 ? "s" : ""} ago`;
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(at));
 }
 
 export function ago(at: string | null, now = new Date()) {

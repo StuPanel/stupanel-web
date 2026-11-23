@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { ChevronsLeft, ChevronsRight, X, Settings, LifeBuoy, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHAT_READ_EVENT, loadChatUnread } from "@/lib/chat-unread";
+import { LEADS_SEEN_EVENT, loadLeadUnseen } from "@/lib/lead-unseen";
 import { canOpen, homeFor } from "@/lib/access";
 import { useAuth } from "@/context/auth-context";
 import { StudioSwitcher } from "@/components/layout/studio-switcher";
@@ -53,6 +54,9 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
     .filter(g => g.items.length > 0);
   const bottom = BOTTOM.filter(i => canOpen(user, i.href) && !(i.managersOnly && user?.role !== "manager"));
   const [chatUnread, setChatUnread] = useState(0);
+  /** New leads nobody has opened the Leads page for yet (website bookings…). */
+  const [leadsNew, setLeadsNew] = useState(0);
+  const leadsAllowed = canOpen(user, "/leads");
 
   // Chat unread — poll only when tab is visible, and right after something is read
   useEffect(() => {
@@ -71,6 +75,24 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
       clearInterval(interval);
     };
   }, []);
+
+  // New leads — the same rhythm: when the tab is visible, every minute, and right after the Leads page opened.
+  useEffect(() => {
+    if (!leadsAllowed || !localStorage.getItem("access_token")) return;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      loadLeadUnseen().then(n => { if (n !== null) setLeadsNew(n); });
+    };
+    load();
+    document.addEventListener("visibilitychange", load);
+    window.addEventListener(LEADS_SEEN_EVENT, load);
+    const interval = setInterval(load, 60000);
+    return () => {
+      document.removeEventListener("visibilitychange", load);
+      window.removeEventListener(LEADS_SEEN_EVENT, load);
+      clearInterval(interval);
+    };
+  }, [leadsAllowed]);
 
   const wide = !collapsed;
 
@@ -91,6 +113,13 @@ export function AppSidebar({ onClose, isMobile, collapsed, onToggle }: AppSideba
           <Tile icon={item.icon} color={item.color} size={wide ? 26 : 30}
             className={cn("transition-transform", !isActive && "group-hover:scale-105")} />
           {wide && <span className="flex-1 truncate">{item.name}</span>}
+          {item.href === "/leads" && leadsNew > 0 && !isActive && (
+            wide
+              ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#E5484D] text-white text-xs font-bold flex items-center justify-center" aria-label={`${leadsNew} new lead${leadsNew > 1 ? "s" : ""}`}>
+                  {leadsNew > 9 ? "9+" : leadsNew}
+                </span>
+              : <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E5484D] ring-2 ring-white" aria-label={`${leadsNew} new leads`} />
+          )}
           {item.href === "/chat" && chatUnread > 0 && !isActive && (
             wide
               ? <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#7D5CEF] text-white text-xs font-bold flex items-center justify-center">

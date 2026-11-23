@@ -604,7 +604,12 @@
 .fth-card{position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;overflow:hidden;background:#000;box-shadow:0 40px 90px rgba(0,0,0,.6);transform-origin:0 0;transition:transform .55s cubic-bezier(.2,.75,.2,1);pointer-events:auto}
 /* the player is taller than what we show: its title strip (top) and logo (bottom) fall outside */
 .fth-v{position:absolute;inset:0;overflow:hidden}
-.fth-v iframe{position:absolute;left:0;width:100%;top:-90px;height:calc(100% + 180px);border:0;pointer-events:none}
+/* The player at 1920 × 1080, scaled to the card: YouTube then serves HD. Its title strip and logo stay outside the frame. */
+.fth-hd{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(var(--k,.6));transform-origin:0 0}
+.fth-v iframe{position:absolute;left:0;width:100%;top:-13.6%;height:127.2%;border:0;pointer-events:none}
+/* Loaded before the tap, paused and out of sight. */
+.fth.idle{visibility:hidden;pointer-events:none}
+.fth.idle *{pointer-events:none!important}
 .fth-v.tap iframe{pointer-events:auto}
 .fth-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .7s ease;z-index:1}
 .fth-cover.gone{opacity:0;pointer-events:none}
@@ -639,7 +644,7 @@
 @media (max-width:640px){
 .fth-stage{width:100vw}
 .fth-card{border-radius:0}
-.fth-v iframe{top:-60px;height:calc(100% + 120px)}
+.fth-v iframe{top:-27.4%;height:154.8%}
 .fth-bar{gap:2px;padding:22px 6px 4px}
 .fth-bar .fth-t:last-of-type{display:none}
 }

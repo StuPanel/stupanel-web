@@ -117,8 +117,8 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   }, [o.id, o.name, o.price, cur, preview]);
   // What the visitor chose goes with them to the booking form.
   useEffect(() => {
-    try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg: o.name, addons: addonNames })); } catch { /* private window */ }
-  }, [data.slug, o.name, addonNames.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+    try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg: o.name, addons: addonNames, offer: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name) })); } catch { /* private window */ }
+  }, [data.slug, o.name, o.id, addonNames.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const waText = `Hi ${data.studio.name}, I would like to know about the ${o.name} package${extras.length ? ` with ${extras.map(e => e.name).join(", ")}` : ""}${total !== null ? ` (${money(total, cur)})` : ""}.${typeof window !== "undefined" ? ` ${window.location.href.split("?")[0]}` : ""}`;
   const waHref = wa ? `${wa}?text=${encodeURIComponent(waText)}` : "";
   const book = () => { siteTrack("contact", { content_name: o.name }); router.push(L("/contact")); };
@@ -209,7 +209,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
       )}
       <section className="ofsec ofform rv" id="ask">
         <h2 className="ofh3">Ask for your date</h2>
-        <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare chosen={addonNames} onDone={() => router.push(L("/thank-you"))} />
+        <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare chosen={addonNames} offer={{ id: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name) }} onDone={() => router.push(L("/thank-you"))} />
       </section>
     </div>
   );

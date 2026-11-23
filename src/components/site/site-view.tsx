@@ -695,26 +695,36 @@ const DEFAULT_KINDS = ["Holud", "Mehendi", "Akdh", "Wedding", "Reception", "Enga
 const OTHER = "__other";
 /** What the visitor put together on the Packages page, carried to the form (this browser tab only). */
 export const buildKey = (slug: string) => `sg-build-${slug}`;
-export function readBuild(slug: string): { pkg: string; addons: string[] } {
+export type Build = { pkg: string; addons: string[]; /** Website package: its address, its days (one event each) and the plain names of the extras */ offer?: string; days?: string[]; extras?: string[] };
+export function readBuild(slug: string): Build {
   try {
     const b = JSON.parse(sessionStorage.getItem(buildKey(slug)) || "null");
-    return { pkg: typeof b?.pkg === "string" ? b.pkg : "", addons: Array.isArray(b?.addons) ? b.addons.filter((x: unknown) => typeof x === "string").slice(0, 20) : [] };
+    const list = (v: unknown, n: number) => (Array.isArray(v) ? v.filter((x: unknown): x is string => typeof x === "string").slice(0, n) : []);
+    return { pkg: typeof b?.pkg === "string" ? b.pkg : "", addons: list(b?.addons, 20), offer: typeof b?.offer === "string" ? b.offer : undefined, days: list(b?.days, 6), extras: list(b?.extras, 10) };
   } catch { return { pkg: "", addons: [] }; }
 }
 
-export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa, bare, onDone, chosen }: {
+export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa, bare, onDone, chosen, offer }: {
   slug: string; preview?: boolean; packages: SitePackage[]; /** The studio's own events (Website → Home); empty = the usual ones */ kinds?: string[];
   ask: string; setAsk: (v: string) => void; wa: string;
   /** The page already has the heading */ bare?: boolean; /** After a sent enquiry (goes to the Thank-you page) */ onDone?: () => void;
   /** Extras picked on a package's own page (shown and sent instead of the remembered ones) */ chosen?: string[];
+  /** The website package being booked: one event per day of it, and what to send with the enquiry */ offer?: { id: string; days: string[]; extras: string[] };
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
   // The first event's package is `ask` (set by "Ask about this"); the others keep their own.
-  const [events, setEvents] = useState<Ev[]>([NEW_EV]);
+  // A website package opens one event per day of it (Holud, Wedding…): the visitor only picks the dates.
+  const [events, setEvents] = useState<Ev[]>(() => {
+    const b = typeof window === "undefined" ? null : readBuild(slug);
+    const days = offer?.days ?? (b && b.offer && b.pkg === ask ? b.days ?? [] : []);
+    return days.length ? days.slice(0, 6).map((k, i) => ({ ...NEW_EV, kind: k.slice(0, 60), pkg: i ? ask : "" })) : [NEW_EV];
+  });
   const kinds = [...new Set((own ?? []).map(k => k.trim()).filter(k => k && k.length <= 60))];
-  const kindList = kinds.length ? kinds : DEFAULT_KINDS;
+  const kindList = [...new Set([...(kinds.length ? kinds : DEFAULT_KINDS), ...events.map(e => e.kind).filter(k => k && k !== OTHER)])];
+  /** What goes with the enquiry for a website package: its address and the extras by their plain names */
+  const pkgInfo = offer ?? (() => { if (typeof window === "undefined") return undefined; const b = readBuild(slug); return b.offer && b.pkg === ask ? { id: b.offer, days: b.days ?? [], extras: b.extras ?? [] } : undefined; })();
   const [kept, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
   const addons = chosen ?? kept;
   const setEv = (i: number, patch: Partial<Ev>) => setEvents(list => list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
@@ -732,6 +742,7 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
       date: list.find(ev => ev.date)?.date, packageName: ask || undefined,
       events: list.length > 1 || list[0]?.shift || list[0]?.kind ? list : undefined, addons: addons.length ? addons : undefined,
       message: String(f.get("message") || "").trim() || undefined, website: String(f.get("website") || "") || undefined,
+      ...(pkgInfo && ask ? { offerId: pkgInfo.id, extras: pkgInfo.extras.length ? pkgInfo.extras : undefined } : {}),
     };
     if (!body.name) return setErr("Please write your name.");
     if (body.phone.replace(/\D/g, "").length < 7) return setErr("Please write a phone number we can reach you on.");

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CalendarCheck2, CalendarPlus, CalendarX2, Camera, Check, FileText, Loader2, Mail, MessageCircle, NotebookPen,
+  CalendarCheck2, CalendarPlus, CalendarX2, Camera, Check, ExternalLink, FileText, Globe, Loader2, Mail, MessageCircle, NotebookPen,
   Phone, PhoneCall, Plus, Target, Trash2, Users, X, XCircle,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -283,6 +283,9 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
             </div>
           </div>
 
+          {/* What they chose on the website */}
+          {l.request?.offer && <WebsitePick r={l.request} />}
+
           {/* Next step */}
           {!closed && (
             <FormGroup title="What happened?" note={fu ? <>Next follow-up: <b className={cn(fu.tone === "late" ? "text-[#C2304F]" : fu.tone === "today" ? "text-[#B4690E]" : "text-[#4A4658]")}>{fu.text}</b></> : "No follow-up set."}>
@@ -455,5 +458,49 @@ export function LeadDrawer({ open, lead, workTypes, onClose, onSaved }: {
         </button>
       )}
     </FormDrawer>
+  );
+}
+
+/** The website package a lead chose: package price, each extra, total, and the events with their dates. */
+function WebsitePick({ r }: { r: NonNullable<Lead["request"]> }) {
+  const cur = r.currency || undefined;
+  const day = (d: string | null) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "Date not chosen");
+  return (
+    <section className="mb-5">
+      <h3 className="px-1 mb-2 text-[13px] font-bold text-[#4A4658] flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Chosen on your website</h3>
+      <div className={cn("bg-white rounded-[20px] overflow-hidden", CARD_SHADOW)}>
+        <div className="px-4 pt-4 pb-3 bg-gradient-to-br from-[#F4F0FF] to-white">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold tracking-wide text-[#7D5CEF] uppercase">Package</p>
+              <p className="text-[17px] font-bold text-[#17151F] leading-snug">{r.offer.name}</p>
+            </div>
+            {r.offer.link && <a href={r.offer.link} target="_blank" rel="noopener noreferrer" className="h-8 px-3 rounded-full bg-white border border-[#E4E0EC] text-[12px] font-semibold text-[#4A4658] inline-flex items-center gap-1 flex-shrink-0"><ExternalLink className="w-3.5 h-3.5" />Page</a>}
+          </div>
+        </div>
+        <div className="px-4 py-2 divide-y divide-[#F1EEF6] text-[14px]">
+          <div className="flex justify-between py-2"><span className="text-[#4A4658]">{r.offer.from ? "Package (from)" : "Package"}</span>
+            <span className="font-semibold text-[#17151F]">{r.offer.price === null ? "Ask for the price" : fmtMoney(r.offer.price, cur)}{r.offer.was !== null && r.offer.was !== undefined && <s className="ml-1.5 text-[12px] font-normal text-[#A29DB3]">{fmtMoney(r.offer.was, cur)}</s>}</span></div>
+          {r.extras.map(e => (
+            <div key={e.name} className="flex justify-between py-2"><span className="text-[#4A4658]">+ {e.name}</span><span className="text-[#17151F]">{e.price ? fmtMoney(e.price, cur) : "Free"}</span></div>
+          ))}
+          {r.total !== null && <div className="flex justify-between py-2.5"><span className="font-bold text-[#17151F]">Total</span><span className="font-bold text-[#17151F] text-[16px]">{fmtMoney(r.total, cur)}</span></div>}
+        </div>
+        {r.events.length > 0 && (
+          <div className="px-4 pb-4 pt-1">
+            <p className="text-[12px] font-semibold text-[#6B6680] mb-1.5">Their days</p>
+            <div className="space-y-1.5">
+              {r.events.map((e, i) => (
+                <div key={i} className="flex items-center gap-2.5 rounded-[12px] bg-[#F7F5FB] px-3 py-2 text-[13px]">
+                  <span className="w-6 h-6 rounded-full bg-white text-[#7D5CEF] text-[11px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <span className="font-semibold text-[#17151F] flex-1 min-w-0 truncate">{e.kind || "Event"}</span>
+                  <span className="text-[#4A4658] whitespace-nowrap">{day(e.date)}{e.shift ? ` · ${e.shift}` : ""}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

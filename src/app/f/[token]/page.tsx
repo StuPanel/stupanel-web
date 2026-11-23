@@ -119,6 +119,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   // Taps that help the studio grow are counted against this guest.
   useEffect(() => {
     const key = res?.key;
+    // The studio's preview (?preview=1) counts nothing.
+    if (new URLSearchParams(window.location.search).get("preview") === "1") { track = () => undefined; return; }
     track = (kind, site) => { fetch(`${base}/event`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, ...(site ? { site } : {}), ...(key ? { key } : {}) }), keepalive: true }).catch(() => undefined); };
   }, [base, res?.key]);
   /** The follow card on screen; `gate` = a download waiting for the answer. */
@@ -180,11 +182,14 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       setLinkKey(via.current);
       if (!r?.ok) { setErr(T("This link is not working. Please ask the studio for a new one.")); return setStep("bad"); }
       const d: Open = await r.json();
+      // The studio's preview: the first screen as guests will see it (also before Publish), never the studio's own saved search.
+      const preview = new URLSearchParams(window.location.search).get("preview") === "1";
+      if (preview && d.status === "draft") d.status = "published";
       size.current = d.downloadSize ?? "original";
       setG(d);
       // Came back in the same browser: show the photos again without a selfie.
       let saved: { key?: string; selfie?: string; sentTo?: SentTo } = {};
-      try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
+      if (!preview) try { saved = JSON.parse(localStorage.getItem(store) || "{}"); } catch { /* private window */ }
       if (saved.sentTo) setSentTo(saved.sentTo);
       // The guest's own link (sent by email or WhatsApp) carries their key: keep it, and take it out of the address bar.
       const own = new URLSearchParams(window.location.search).get("k");

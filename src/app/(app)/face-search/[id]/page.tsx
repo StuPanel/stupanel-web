@@ -8,7 +8,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, ExternalLink, EyeOff, FolderOpen, FolderUp, HardDrive,
+  AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Coins, Eye, EyeOff, FolderOpen, FolderUp, HardDrive,
   ImagePlus, Images, Loader2, MonitorUp, PackageCheck, Radio, RefreshCw, ScanFace, Settings as SettingsIcon, Share2,
   Star, Trash2, Users, X,
 } from "lucide-react";
@@ -22,6 +22,9 @@ import { ShareTab } from "./share-tab";
 import { GallerySettings } from "./gallery-settings";
 import { GuestsTab } from "./guests-tab";
 import { LiveTab } from "./live-tab";
+import { PhotoViewer } from "@/components/photo-viewer";
+import { ClientPreview } from "@/components/client-preview";
+import { CoverPicker, type CoverItem } from "@/components/cover-picker";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
@@ -45,6 +48,8 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
   const [tick, setTick] = useState(0);
   /** "Live settings" in the Live tab opens Settings on its StuPanel Live section. */
   const [settingsAt, setSettingsAt] = useState<"live" | undefined>(undefined);
+  const [previewing, setPreviewing] = useState(false);
+  const [choosingCover, setChoosingCover] = useState(false);
 
   const load = useCallback(async () => {
     const r = await apiFetch(`${API}/face-search/${id}`).catch(() => null);
@@ -84,12 +89,13 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
       <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-5">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Link href="/face-search" aria-label="Back to AI Face Search" className={cn("w-11 h-11 rounded-full bg-white flex items-center justify-center text-[#17151F] flex-shrink-0", CARD_SHADOW)}><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="w-12 h-12 rounded-[14px] overflow-hidden bg-[#F1EFF6] flex-shrink-0 flex items-center justify-center text-[#A29DB3]">
+          <button type="button" onClick={() => setChoosingCover(true)} title="Change the cover photo" aria-label="Change the cover photo"
+            className="w-12 h-12 rounded-[14px] overflow-hidden bg-[#F1EFF6] flex-shrink-0 flex items-center justify-center text-[#A29DB3] hover:ring-2 hover:ring-[#7D5CEF] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40">
             {g.cover
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={facePhotoUrl(g.cover, 160)} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
               : <Images className="w-5 h-5" />}
-          </div>
+          </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-[20px] sm:text-[24px] font-extrabold tracking-[-0.02em] text-[#17151F] leading-tight">{g.title}</h1>
@@ -99,7 +105,15 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={g.link} target="_blank" rel="noreferrer" className={cn("h-11 px-4 rounded-full bg-white text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5", CARD_SHADOW)}><ExternalLink className="w-4 h-4" />Guest page</a>
+          <button type="button" onClick={() => setChoosingCover(true)} className={cn("h-11 pl-1.5 pr-4 rounded-full bg-white text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-2", CARD_SHADOW)}>
+            <span className="w-8 h-8 rounded-full overflow-hidden bg-[#F1EFF6] flex items-center justify-center text-[#A29DB3] flex-shrink-0">
+              {g.cover
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={facePhotoUrl(g.cover, 160)} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                : <Images className="w-4 h-4" />}
+            </span>Cover photo
+          </button>
+          <button type="button" onClick={() => setPreviewing(true)} className={cn("h-11 px-4 rounded-full bg-white text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5", CARD_SHADOW)}><Eye className="w-4 h-4" />Guest preview</button>
           {g.status === "published"
             ? <button type="button" disabled={busy} onClick={() => act("unpublish")} className={cn("h-11 px-4 rounded-full bg-white text-[13px] font-semibold text-[#17151F] disabled:opacity-50", CARD_SHADOW)}>Unpublish</button>
             : <button type="button" disabled={busy || !c.ready} onClick={() => act("publish")} title={c.ready ? "" : "Add photos first"} className="h-11 px-5 rounded-full bg-[#1F8A5B] text-white text-[13px] font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Publish</button>}
@@ -138,6 +152,9 @@ export default function FaceGalleryPage({ params }: { params: Promise<{ id: stri
       )}
 
       {tab === "photos" && <Photos g={g} tick={tick} onChanged={load} onAdd={() => setAdding(true)} />}
+      {previewing && <ClientPreview src={`${g.link}?preview=1`} title="Guest preview" onClose={() => setPreviewing(false)}
+        note={g.status === "published" ? "What guests see when they open the link. Taps here are not counted." : "What guests will see once you publish. A search works only after Publish."} />}
+      {choosingCover && <FaceCover g={g} onClose={() => setChoosingCover(false)} onSaved={setG} />}
       {tab === "guests" && <GuestsTab id={g.id} title={g.title} status={g.status} onSettings={() => setTab("settings")} />}
       {tab === "live" && <LiveTab g={g} onSettings={() => { setSettingsAt("live"); setTab("settings"); }} onChanged={() => { load(); setTick(n => n + 1); }} />}
       {tab === "share" && <ShareTab g={g} onSaved={setG} onSettings={() => setTab("settings")} />}
@@ -188,6 +205,8 @@ function Photos({ g, tick, onChanged, onAdd }: { g: FaceDetail; tick: number; on
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [more, setMore] = useState(false);
+  /** The photo opened big (its place in the list). */
+  const [openAt, setOpenAt] = useState<number | null>(null);
 
   const query = useCallback((skip: number) => {
     const p = new URLSearchParams({ take: "200", skip: String(skip) });
@@ -216,6 +235,30 @@ function Photos({ g, tick, onChanged, onAdd }: { g: FaceDetail; tick: number; on
     if (!r?.ok) return notify("Could not change these photos. Please try again.", { error: true });
     notify(done); setPicked(new Set()); const d = await query(0); if (d) setList(d); onChanged();
   }
+  /** One photo from the viewer: highlight, hide / show. */
+  async function changeOne(p: FacePhoto, body: { highlight?: boolean; hidden?: boolean }, done: string) {
+    const r = await apiFetch(`${API}/face-search/${g.id}/photos`, json({ ids: [p.id], ...body }, "PATCH")).catch(() => null);
+    if (!r?.ok) return notify("Could not change this photo. Please try again.", { error: true });
+    notify(done);
+    setList(l => (l ? { ...l, photos: l.photos.map(x => (x.id === p.id ? { ...x, ...body } : x)) } : l));
+    onChanged();
+  }
+  async function coverOne(p: FacePhoto) {
+    const next = g.coverPhotoId === p.id ? null : p.id;
+    const r = await apiFetch(`${API}/face-search/${g.id}`, json({ coverPhotoId: next }, "PATCH")).catch(() => null);
+    if (!r?.ok) return notify("Could not set the cover. Please try again.", { error: true });
+    notify(next ? "Cover photo set — guests see it first" : "Cover photo removed — StuPanel chooses one"); onChanged();
+  }
+  async function removeOne(p: FacePhoto) {
+    if (!(await askConfirm({ title: "Remove this photo?", message: "It leaves this gallery and guests stop seeing it. The file stays on your Google Drive.", confirmLabel: "Remove", danger: true }))) return;
+    const r = await apiFetch(`${API}/face-search/${g.id}/photos/remove`, json({ ids: [p.id] })).catch(() => null);
+    if (!r?.ok) return notify("Could not remove this photo. Please try again.", { error: true });
+    notify("Photo removed");
+    setList(l => (l ? { total: l.total - 1, photos: l.photos.filter(x => x.id !== p.id) } : l));
+    setOpenAt(i => (i === null || !list ? null : list.photos.length <= 1 ? null : Math.min(i, list.photos.length - 2)));
+    onChanged();
+  }
+
   async function remove() {
     if (busy || !picked.size) return;
     const n = picked.size;
@@ -294,12 +337,15 @@ function Photos({ g, tick, onChanged, onAdd }: { g: FaceDetail; tick: number; on
         : (
           <>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-1.5 sm:gap-2">
-              {list.photos.map(p => {
+              {list.photos.map((p, i) => {
                 const on = picked.has(p.id);
                 const label = p.status === "failed" ? "Not read" : p.status !== "ready" ? "Reading…" : p.hidden ? "Hidden" : `${p.faceCount ?? 0} face${p.faceCount === 1 ? "" : "s"}`;
+                const canOpen = p.status === "ready" || p.status === "failed";
                 return (
-                  <button key={p.id} type="button" onClick={() => toggle(p.id)} aria-pressed={on} title={p.error || p.fileName}
-                    className={cn("relative aspect-[4/5] rounded-[12px] overflow-hidden bg-[#F1EFF6] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#7D5CEF]/40", on && "ring-[3px] ring-[#7D5CEF]")}>
+                  <div key={p.id} className={cn("relative aspect-[4/5] rounded-[12px] overflow-hidden bg-[#F1EFF6] group", on && "ring-[3px] ring-[#7D5CEF]")}>
+                  {/* Tap = open the photo; while some are ticked, tap = tick too. */}
+                  <button type="button" onClick={() => (picked.size || !canOpen ? toggle(p.id) : setOpenAt(i))} title={p.error || p.fileName} aria-label={picked.size ? `Choose ${p.fileName}` : `Open ${p.fileName}`}
+                    className="absolute inset-0 w-full h-full focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#7D5CEF]/60">
                     {p.status === "ready" || p.status === "failed"
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={facePhotoUrl(p, 320)} alt={p.fileName} loading="lazy" referrerPolicy="no-referrer" className={cn("w-full h-full object-cover", p.hidden && "opacity-40")} />
@@ -307,8 +353,13 @@ function Photos({ g, tick, onChanged, onAdd }: { g: FaceDetail; tick: number; on
                     <span className={cn("absolute left-1.5 bottom-1.5 h-[22px] px-2 rounded-full text-[11.5px] font-bold inline-flex items-center",
                       p.status === "failed" ? "bg-[#FDECEF] text-[#A82743]" : p.hidden ? "bg-[#17151F]/80 text-white" : "bg-white/90 text-[#17151F]")}>{label}</span>
                     {p.highlight && <span className="absolute left-1.5 top-1.5 w-6 h-6 rounded-full bg-[#7D5CEF] text-white flex items-center justify-center"><Star className="w-3.5 h-3.5" fill="currentColor" /></span>}
-                    <span className={cn("absolute right-1.5 top-1.5 w-6 h-6 rounded-full flex items-center justify-center border-2", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white/70 border-white text-transparent")}><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>
+                    {g.coverPhotoId === p.id && <span className="absolute left-1.5 top-9 h-[22px] px-2 rounded-full bg-[#17151F]/85 text-white text-[11px] font-bold inline-flex items-center">Cover</span>}
                   </button>
+                  <button type="button" onClick={() => toggle(p.id)} aria-pressed={on} aria-label={on ? `Untick ${p.fileName}` : `Tick ${p.fileName}`} title={on ? "Untick" : "Tick to choose"}
+                    className="absolute right-0 top-0 w-11 h-11 flex items-start justify-end p-1.5 focus:outline-none">
+                    <span className={cn("w-6 h-6 rounded-full flex items-center justify-center border-2 transition-opacity", on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-black/20 border-white text-transparent [@media(hover:hover)]:opacity-0 group-hover:opacity-100")}><Check className="w-3.5 h-3.5" strokeWidth={3} /></span>
+                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -321,6 +372,29 @@ function Photos({ g, tick, onChanged, onAdd }: { g: FaceDetail; tick: number; on
             )}
           </>
         )}
+
+      {openAt !== null && list?.photos[openAt] && (() => {
+        const ph = list.photos;
+        const p = ph[openAt];
+        const url = (x: FacePhoto | undefined, w: number) => (x && (x.status === "ready" || x.status === "failed") ? facePhotoUrl(x, w) : "");
+        const isCover = g.coverPhotoId === p.id;
+        const btn = "h-10 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5";
+        return (
+          <PhotoViewer count={ph.length} index={openAt} onIndex={setOpenAt} onClose={() => setOpenAt(null)}
+            src={url(p, 1600)} srcAt={i => url(ph[i], 1600)} thumbAt={i => url(ph[i], 320)} zoomAt={i => url(ph[i], 2560)}
+            preload={[ph[openAt + 1], ph[openAt + 2], ph[openAt - 1]].map(x => url(x, 1600)).filter(Boolean)}
+            title={p.fileName} sub={[p.folder, p.status === "failed" ? "Could not be read" : p.status !== "ready" ? "Being read" : `${p.faceCount ?? 0} face${p.faceCount === 1 ? "" : "s"} found`, p.hidden ? "Hidden from guests" : ""].filter(Boolean).join(" · ")}
+            onKey={e => { if (e.key.toLowerCase() === "h") { void changeOne(p, { highlight: !p.highlight }, p.highlight ? "Highlight removed" : "Marked as Highlight"); return true; } return false; }}
+            footer={
+              <div className="max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-2">
+                <button type="button" onClick={() => changeOne(p, { highlight: !p.highlight }, p.highlight ? "Highlight removed" : "Marked as Highlight")} className={cn(btn, p.highlight ? "bg-white text-[#5B3FD0]" : "bg-white/10 hover:bg-white/20")}><Star className="w-4 h-4" fill={p.highlight ? "currentColor" : "none"} />Highlight</button>
+                <button type="button" onClick={() => changeOne(p, { hidden: !p.hidden }, p.hidden ? "Shown to guests again" : "Hidden from guests")} className={cn(btn, p.hidden ? "bg-white text-[#17151F]" : "bg-white/10 hover:bg-white/20")}>{p.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}{p.hidden ? "Show to guests" : "Hide"}</button>
+                {p.status === "ready" && <button type="button" onClick={() => coverOne(p)} className={cn(btn, isCover ? "bg-white text-[#17151F]" : "bg-white/10 hover:bg-white/20")}><Images className="w-4 h-4" />{isCover ? "Cover photo" : "Set as cover"}</button>}
+                <button type="button" onClick={() => removeOne(p)} aria-label="Remove photo" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#C2304F] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            } />
+        );
+      })()}
 
       {picked.size > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+84px)] lg:bottom-6 z-30 max-w-[calc(100vw-24px)]">
@@ -590,5 +664,28 @@ function AddPhotos({ g, onClose, onAdded, onRefresh }: { g: FaceDetail; onClose:
         </div>
       )}
     </FormDrawer>
+  );
+}
+
+// ─── Cover photo ──────────────────────────────────────────────────────────────
+
+/** Choose the cover: the first photo guests see, and the picture of the link on WhatsApp / Facebook. */
+function FaceCover({ g, onClose, onSaved }: { g: FaceDetail; onClose: () => void; onSaved: (d: FaceDetail) => void }) {
+  const [list, setList] = useState<{ total: number; photos: FacePhoto[] } | null>(null);
+  const [more, setMore] = useState(false);
+  const ask = useCallback((skip: number) => apiFetch(`${API}/face-search/${g.id}/photos?take=120&skip=${skip}&filter=ready`).then(r => (r.ok ? r.json() : null)).catch(() => null), [g.id]);
+  useEffect(() => { let on = true; void ask(0).then(d => { if (on) setList(d ?? { total: 0, photos: [] }); }); return () => { on = false; }; }, [ask]);
+  const items: CoverItem[] = (list?.photos ?? []).filter(p => !p.hidden).map(p => ({ id: p.id, src: facePhotoUrl(p, 320), name: p.fileName }));
+  return (
+    <CoverPicker items={items} current={g.coverPhotoId ?? null} loading={list === null} who="a guest" auto="the first Highlight (or the first photo)"
+      more={list ? { left: list.total - list.photos.length, busy: more, load: async () => { setMore(true); const d = await ask(list.photos.length); setMore(false); if (d) setList({ total: d.total, photos: [...list.photos, ...d.photos] }); } } : undefined}
+      onClose={onClose}
+      onPick={async id => {
+        const r = await apiFetch(`${API}/face-search/${g.id}`, json({ coverPhotoId: id }, "PATCH")).catch(() => null);
+        if (!r?.ok) { notify("Could not set the cover. Please try again.", { error: true }); return false; }
+        onSaved(await r.json());
+        notify(id ? "Cover photo set — guests see it first" : "StuPanel chooses the cover now");
+        return true;
+      }} />
   );
 }

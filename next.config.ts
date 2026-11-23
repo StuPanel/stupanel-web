@@ -53,6 +53,14 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
         ],
       },
+      // Photo selection "Client preview": shown inside StuPanel in a phone / computer frame.
+      {
+        source: "/s/preview/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: `${CSP}; frame-ancestors 'self'` },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
       // Studio websites: the Website editor shows the draft in a phone frame, so StuPanel itself may frame them.
       {
         source: "/site/:path*",

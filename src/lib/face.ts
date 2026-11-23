@@ -72,6 +72,8 @@ export type FaceGallery = {
   publishedAt: string | null; closedAt: string | null; createdAt: string;
   program: { id?: string; number: string; eventName: string | null; eventDate: string | null; client: string } | null;
   counts: FaceCounts; cover: Cover;
+  /** The cover the studio chose (null = StuPanel picks the first highlight, else the first photo). */
+  coverPhotoId?: string | null;
 };
 export type FaceDetail = FaceGallery & { ready: boolean; /** Set while StuPanel has Face Search switched off (for everyone or this studio): the sentence to show. */ off?: string | null; folders: { name: string; photos: number }[]; creditsUsed: number; credits: Credits };
 

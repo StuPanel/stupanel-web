@@ -81,46 +81,51 @@ export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove
   const btn = "h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40";
 
   return (
-    <div role="region" aria-label="Song player" className="sticky bottom-0 z-30 -mx-6 md:-mx-8 px-3 md:px-8 pb-3 pt-2 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
-      <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl shadow-black/50 p-3 flex flex-col lg:flex-row gap-3 lg:items-start">
-        <div className="flex flex-col md:flex-row gap-3 md:items-center flex-1 min-w-0">
-        <div className={cn("relative rounded-xl overflow-hidden bg-black flex-shrink-0 w-full md:w-[320px] aspect-video max-h-[30vh] md:max-h-none", small && "hidden md:hidden")}>
+    // Phones and tablets: a full screen of its own (video on top, big buttons, the tags below to scroll).
+    // Computers: a bar fixed at the bottom of the page, the tags beside the controls.
+    <div role="region" aria-label="Song player" className="fixed inset-0 z-[60] bg-slate-950 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:pt-2 lg:pb-3 lg:sticky lg:inset-auto lg:bottom-0 lg:z-30 lg:-mx-8 lg:px-8 lg:bg-transparent lg:bg-gradient-to-t lg:from-slate-950 lg:via-slate-950/95 lg:to-transparent">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 lg:items-start lg:bg-slate-800 lg:border lg:border-slate-600 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/50 p-3">
+        <div className="flex flex-col md:flex-row gap-3 md:items-center lg:flex-1 min-w-0 flex-shrink-0">
+        <div className={cn("relative rounded-xl overflow-hidden bg-black flex-shrink-0 w-full md:w-[320px] aspect-video", small && "hidden")}>
           <iframe ref={frame} key={song.youtubeId} onLoad={listen}
-            src={`https://www.youtube-nocookie.com/embed/${song.youtubeId}?autoplay=1&rel=0&enablejsapi=1`}
+            src={`https://www.youtube-nocookie.com/embed/${song.youtubeId}?autoplay=1&rel=0&enablejsapi=1&playsinline=1`}
             title={song.title} allow="autoplay; encrypted-media" allowFullScreen className="absolute inset-0 w-full h-full border-0" />
         </div>
-        <div className="flex-1 min-w-0 space-y-2.5">
+        <div className="flex-1 min-w-0 space-y-3 lg:space-y-2.5">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-slate-400 tabular-nums">Song {i + 1} of {songs.length}{checked.has(song.youtubeId) && <span className="ml-2 text-emerald-300">· kept before</span>}</p>
-              <p className="text-[15px] font-semibold text-white truncate">{song.title}</p>
-              <p className="text-xs text-slate-400 truncate">{[song.channel, ...song.tags].filter(Boolean).join(" · ")}</p>
+              <p className="text-base lg:text-[15px] font-semibold text-white line-clamp-2 lg:truncate">{song.title}</p>
+              <p className="text-xs text-slate-400 truncate">{song.channel}</p>
             </div>
-            <button type="button" onClick={() => setSmall(v => !v)} aria-label={small ? "Show the video" : "Hide the video"} className="h-8 w-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 inline-flex items-center justify-center flex-shrink-0">
-              {small ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <button type="button" onClick={() => setSmall(v => !v)} aria-label={small ? "Show the video" : "Hide the video"} className="h-10 w-10 lg:h-8 lg:w-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 inline-flex items-center justify-center flex-shrink-0">
+              {small ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>
-            <button type="button" onClick={onClose} aria-label="Close the player" className="h-8 w-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 inline-flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
+            <button type="button" onClick={onClose} aria-label="Close the player" className="h-10 w-10 lg:h-8 lg:w-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 inline-flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button type="button" onClick={() => prev && onPick(prev)} disabled={!prev} title="Previous (P)" aria-label="Previous song" className={cn(btn, "w-9 px-0 bg-slate-700 hover:bg-slate-600 text-slate-200")}><SkipBack className="w-4 h-4" /></button>
-            <button type="button" onClick={() => onKeep(song.youtubeId)} title="Keep it and play the next (K)" className={cn(btn, "bg-emerald-600 hover:bg-emerald-500 text-white")}><Check className="w-4 h-4" />Keep</button>
-            {onRemove && <button type="button" onClick={() => void remove()} disabled={busy} title={`${removeLabel} and play the next (R)`} className={cn(btn, "bg-rose-600/90 hover:bg-rose-500 text-white")}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}{removeLabel}</button>}
-            <button type="button" onClick={() => next && onPick(next)} disabled={!next} title="Next without deciding (N)" aria-label="Next song" className={cn(btn, "w-9 px-0 bg-slate-700 hover:bg-slate-600 text-slate-200")}><SkipForward className="w-4 h-4" /></button>
-            <label className="inline-flex items-center gap-2 text-xs text-slate-300 ml-1 cursor-pointer select-none">
-              <input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} className="accent-indigo-500 w-4 h-4" />Next song by itself
-            </label>
-            <a href={song.url} target="_blank" rel="noreferrer" className="ml-auto text-xs text-slate-400 hover:text-white inline-flex items-center gap-1">YouTube<ExternalLink className="w-3 h-3" /></a>
+          {/* Phones: four big buttons in one row for the thumb. */}
+          <div className="grid grid-cols-[56px_1fr_1fr_56px] gap-2 lg:flex lg:items-center lg:flex-wrap">
+            <button type="button" onClick={() => prev && onPick(prev)} disabled={!prev} title="Previous (P)" aria-label="Previous song" className={cn(btn, "h-12 lg:h-9 lg:w-9 px-0 bg-slate-700 hover:bg-slate-600 text-slate-200")}><SkipBack className="w-5 h-5 lg:w-4 lg:h-4" /></button>
+            <button type="button" onClick={() => onKeep(song.youtubeId)} title="Keep it and play the next (K)" className={cn(btn, "h-12 lg:h-9 text-base lg:text-sm bg-emerald-600 hover:bg-emerald-500 text-white")}><Check className="w-5 h-5 lg:w-4 lg:h-4" />Keep</button>
+            {onRemove ? <button type="button" onClick={() => void remove()} disabled={busy} title={`${removeLabel} and play the next (R)`} className={cn(btn, "h-12 lg:h-9 text-base lg:text-sm bg-rose-600/90 hover:bg-rose-500 text-white")}>{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 lg:w-4 lg:h-4" />}{removeLabel}</button> : <span />}
+            <button type="button" onClick={() => next && onPick(next)} disabled={!next} title="Next without deciding (N)" aria-label="Next song" className={cn(btn, "h-12 lg:h-9 lg:w-9 px-0 bg-slate-700 hover:bg-slate-600 text-slate-200")}><SkipForward className="w-5 h-5 lg:w-4 lg:h-4" /></button>
+            <div className="col-span-4 flex items-center gap-3 lg:contents">
+              <label className="inline-flex items-center gap-2 text-sm lg:text-xs text-slate-300 lg:ml-1 cursor-pointer select-none min-h-[40px] lg:min-h-0">
+                <input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} className="accent-indigo-500 w-5 h-5 lg:w-4 lg:h-4" />Next song by itself
+              </label>
+              <a href={song.url} target="_blank" rel="noreferrer" className="ml-auto text-xs text-slate-400 hover:text-white inline-flex items-center gap-1">YouTube<ExternalLink className="w-3 h-3" /></a>
+            </div>
           </div>
           {undo && (
-            <p role="status" className="text-xs text-slate-300 flex items-center gap-2">
+            <p role="status" className="text-sm lg:text-xs text-slate-300 flex items-center gap-2">
               <span className="truncate">{undo}</span>
-              <button type="button" onClick={onUndo} className="text-indigo-300 hover:text-white font-semibold inline-flex items-center gap-1 flex-shrink-0"><Undo2 className="w-3.5 h-3.5" />Undo</button>
+              <button type="button" onClick={onUndo} className="text-indigo-300 hover:text-white font-semibold inline-flex items-center gap-1 flex-shrink-0 min-h-[40px] lg:min-h-0"><Undo2 className="w-3.5 h-3.5" />Undo</button>
             </p>
           )}
-          <p className="hidden md:block text-[11px] text-slate-500">Keys: K keep · R {removeLabel.toLowerCase()} · N next · P previous</p>
+          <p className="hidden lg:block text-[11px] text-slate-500">Keys: K keep · R {removeLabel.toLowerCase()} · N next · P previous</p>
         </div>
         </div>
-        {side && <div className="lg:w-[46%] xl:w-[44%] flex-shrink-0 lg:border-l border-t lg:border-t-0 border-slate-700 pt-3 lg:pt-0 lg:pl-3 max-h-[34vh] lg:max-h-[300px] overflow-y-auto">{side}</div>}
+        {side && <div className="flex-1 min-h-0 lg:flex-none lg:w-[46%] xl:w-[44%] lg:border-l border-t lg:border-t-0 border-slate-700 pt-3 lg:pt-0 lg:pl-3 overflow-y-auto overscroll-contain lg:max-h-[300px]">{side}</div>}
       </div>
     </div>
   );

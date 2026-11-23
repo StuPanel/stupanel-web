@@ -12,6 +12,7 @@ import { Ban, Building2, Check, CheckCircle2, ExternalLink, Flame, GitMerge, Hea
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
+import { SongOrder } from "./song-order";
 import { ReviewPlayer, loadChecked, saveChecked, type ReviewSong } from "./review-player";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
@@ -170,6 +171,7 @@ export default function AdminMusicPage() {
       {tab === "tags" ? (
         !tags ? <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div> : (
           <div className="space-y-4">
+            <SongOrder />
             {/* Instrumental music: one switch for the whole feature (it hides or shows the "Instrumental" language tag) */}
             {(() => { const t = tags.languages.find(x => x.id === "instrumental"); if (!t) return null; const on = !t.hidden; return (
               <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-start gap-4">

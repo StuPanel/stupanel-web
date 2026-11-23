@@ -192,7 +192,7 @@
 .sg .navl{position:relative}
 .sg .navl:after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--ac);transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
 .sg .navl:hover:after{transform:scaleX(1)}
-.sg .logo{max-height:54px;max-width:190px;object-fit:contain;display:block;margin:0 auto}
+.sg .logo{max-height:var(--logoh,54px);max-width:190px;object-fit:contain;display:block;margin:0 auto}
 .sg .mbtn{display:none;background:none;border:0;color:inherit;cursor:pointer;width:44px;height:44px;align-items:center;justify-content:center;margin-left:-10px}
 .sg .mnu{position:fixed;inset:0;z-index:45;background:var(--dark);color:var(--ond);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;clip-path:circle(0 at 34px 48px);visibility:hidden;transition:clip-path .7s cubic-bezier(.77,0,.18,1),visibility 0s .7s}
 .sg .mnu.on{clip-path:circle(150% at 34px 48px);visibility:visible;transition:clip-path .7s cubic-bezier(.77,0,.18,1)}
@@ -768,4 +768,24 @@
 .sg.t-cream .hstrw{grid-template-columns:84px minmax(0,1fr)}
 .sg .hsta{align-self:stretch;text-align:center}
 .sg.t-gold .hstp{padding:8px;outline-offset:4px}
+}
+
+/* ---- The studio's own style (Look → Make it yours; site-style.ts). Only present when chosen. ---- */
+.sg.st-ls .cz{letter-spacing:var(--hls)!important}
+.sg.st-h-caps .cz{letter-spacing:.08em}
+.sg.st-r-square :is(.btn,.ol,.gold,.hbook,input,textarea,select,.al,.alc,.alf,.gal,.card,.pk,.rvw,.rvc,.film,.im,.opt,.sum,.frm,.frm+div,.pkv,.pkl,.pkv button,.pkl button,.chip,#book .rv){border-radius:0!important}
+.sg.st-r-soft :is(.btn,.ol,.gold,.hbook,input,textarea,select,.al,.alc,.alf,.gal,.card,.pk,.rvw,.rvc,.film,.im,.opt,.sum,.frm,.frm+div,.pkv,.pkl,.chip,#book .rv){border-radius:6px!important}
+.sg.st-r-soft :is(.pkv button,.pkl button){border-radius:4px!important}
+.sg:is(.st-r-square,.st-r-soft) .play>.gold{border-radius:50%!important}
+.sg.st-b-solid .ol{background:var(--btn);color:var(--btnt);border-color:var(--btn)}
+.sg.st-b-outline :is(.btn.gold,.hbook){background:transparent!important;color:inherit!important;box-shadow:inset 0 0 0 1px var(--ac)!important}
+.sg.st-b-line :is(.btn.gold,.hbook){background:transparent!important;color:inherit!important;padding-left:2px!important;padding-right:2px!important;box-shadow:inset 0 -1px 0 var(--ac)!important}
+.sg:is(.st-b-outline,.st-b-line) :is(.btn.gold,.hbook):after{display:none}
+@media (min-width:641px){
+  .sg.st-l-left .hd{display:flex;align-items:center;gap:28px}
+  .sg.st-l-left .hd>a:not(.hbook){order:-1;margin-right:auto;text-align:left!important}
+  .sg.st-l-left .hd .logo{margin:0}
+  .sg.st-l-center .hd{display:grid;grid-template-columns:1fr auto 1fr}
+  .sg.st-l-center .hd>a:not(.hbook){order:0;margin:0;text-align:center!important}
+  .sg.st-l-center .hd .logo{margin:0 auto}
 }

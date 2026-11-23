@@ -6,7 +6,8 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { Group, Row, Select, TextField, useSettings } from "../_ui";
-import { StudioSessions } from "@/components/account/signed-in-devices";
+import { SignedInDevices, StudioSessions } from "@/components/account/signed-in-devices";
+import { SignInSecurity } from "@/components/account/sign-in-security";
 import { OwnershipPanel } from "@/components/account/ownership-panel";
 
 // ─── Security ─────────────────────────────────────────────────────────────────
@@ -21,7 +22,9 @@ export function SecurityPane() {
   const { data, patch } = useSettings();
   return (
     <>
-      <Group title="Sign-in" note="Never = nobody is signed out for not using StuPanel. Pick a time and anyone in your team who doesn't use it for that long is signed out on that device.">
+      <div id="set-profile-security" className="mb-7"><SignInSecurity /></div>
+      <div id="set-profile-devices" className="mb-7"><SignedInDevices /></div>
+      <Group title="Studio sign-in" note="Never = nobody is signed out for not using StuPanel. Pick a time and anyone in your team who doesn't use it for that long is signed out on that device.">
         <Row id="resetEmail" label="Password reset email" hint="Gets a note when someone in your team resets their password with Forgot password">
           <TextField label="Password reset email" type="email" value={data.resetEmail ?? data.email ?? ""} placeholder="admin@yourstudio.com"
             onCommit={v => patch({ resetEmail: v })} />
@@ -31,13 +34,12 @@ export function SecurityPane() {
             onChange={v => patch({ sessionTimeoutMinutes: v })} />
         </Row>
       </Group>
-      <Group title="Who is signed in" note="Everyone in your studio and the devices they are signed in on. Sign out a lost phone, or someone who left, at once. Your own devices are in My Profile.">
+      <Group title="Who is signed in" note="Everyone in your studio and the devices they are signed in on. Sign out a lost phone, or someone who left, at once. Your own devices are above.">
         <div id="set-loginActivity"><StudioSessions /></div>
       </Group>
       <Group title="Studio owner" note="Give the studio to someone else. Only the owner sees this.">
         <div id="set-ownership"><OwnershipPanel /></div>
       </Group>
-      <p className="px-1 -mt-4 mb-7 text-[12.5px] text-[#6B6680]">2-step sign-in, recovery email and changing your sign-in email are in My Profile → Sign-in &amp; security (each person sets their own).</p>
     </>
   );
 }

@@ -30,22 +30,22 @@ export function siteTrack(what: "lead" | "contact", detail?: Record<string, unkn
   }
 }
 
+let lastPath: string | null = null;
 const ok = (re: RegExp, v?: string) => (v && re.test(v) ? v : "");
 
 export function SiteTracking({ ids }: { ids: SiteTrackingIds }) {
   // The server already checked them; checked again because they go into a script.
   const fb = ok(/^\d{8,20}$/, ids.fbPixel), ga = ok(/^G-[A-Z0-9]{4,15}$/, ids.ga), gtm = ok(/^GTM-[A-Z0-9]{4,12}$/, ids.gtm);
   const path = usePathname();
-  const first = useRef(true);
 
-  // Page views after moving inside the site (the first one is sent by the snippets themselves).
+  // Moving inside the site: the Pixel and GA4 (enhanced measurement, on by default) count page changes by
+  // themselves, so sending one here would count it twice. Tag Manager gets "site_page_view" for its triggers.
+  // This box is drawn again on every page, so the last page is kept outside it.
   useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    const w = window as W;
-    w.fbq?.("track", "PageView");
-    if (ga) w.gtag?.("event", "page_view", { page_location: window.location.href, page_title: document.title });
-    w.dataLayer?.push({ event: "site_page_view", page: window.location.pathname });
-  }, [path, ga]);
+    if (lastPath === null || lastPath === path) { lastPath = path; return; }
+    lastPath = path;
+    if (gtm) (window as W).dataLayer?.push({ event: "site_page_view", page: window.location.pathname });
+  }, [path, gtm]);
 
   // Taps on phone / WhatsApp / Messenger / email links.
   useEffect(() => {

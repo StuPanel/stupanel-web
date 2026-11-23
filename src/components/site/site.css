@@ -79,6 +79,9 @@
 
 /* footer */
 .sg .fcols{display:grid;grid-template-columns:1.5fr 1fr 1.1fr .8fr 1fr;gap:40px}
+.sg .fadr{font-style:normal;white-space:pre-line;opacity:.85;line-height:1.75}
+.sg .fhrs{margin:14px 0 0;opacity:.7;font-size:.93em}
+.sg .fem{white-space:nowrap}
 .sg .fl{position:relative;display:inline-block;opacity:.85;line-height:2.1;transition:opacity .3s}
 .sg .fl:after{content:"";position:absolute;left:0;right:0;bottom:4px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
 .sg .fl:hover{opacity:1}.sg .fl:hover:after{transform:scaleX(1)}
@@ -95,7 +98,7 @@
 .sg .fline{animation:sgfl linear both;animation-timeline:view();animation-range:entry 0% entry 80%}
 @keyframes sgfl{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 }
-@media (max-width:860px){.sg .fcols{grid-template-columns:1fr 1fr;gap:34px}.sg .fcols>div:first-child{grid-column:1 / -1}}
+@media (max-width:860px){.sg .fcols{grid-template-columns:1fr 1fr;gap:34px}.sg .fcols>div:first-child,.sg .fcols>.fcon{grid-column:1 / -1}.sg .fem{white-space:normal;overflow-wrap:anywhere}}
 
 /* scroll driven */
 @supports (animation-timeline: view()){

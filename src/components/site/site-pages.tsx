@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
-import { AlbumCard, BookForm, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
+import { AlbumCard, BookForm, addressLines, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
 
@@ -281,7 +281,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
           <div>
             {c.aboutTitle && <p className="mlead">{c.aboutTitle}</p>}
             {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i}>{t}</p>)}
-            {(c.address || c.hours) && <p style={{ whiteSpace: "pre-line", color: "var(--mut)" }}>{[c.address, c.hours].filter(Boolean).join("\n")}</p>}
+            {(c.address || c.hours) && <p style={{ whiteSpace: "pre-line", color: "var(--mut)" }}>{[addressLines(c.address), c.hours].filter(Boolean).join("\n")}</p>}
             <p style={{ marginTop: 30 }}><Link href={L("/contact")} className="mlk">Book us</Link></p>
           </div>
         </section>
@@ -298,7 +298,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
           <div className="rv">
             <h2 className="cz h2" style={{ marginBottom: 26 }}>{c.aboutTitle}</h2>
             {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 480 }}>{t}</p>)}
-            {(c.address || c.hours) && <p style={{ margin: "26px 0 0", whiteSpace: "pre-line", color: "var(--mut)" }}>{[c.address, c.hours].filter(Boolean).join("\n")}</p>}
+            {(c.address || c.hours) && <p style={{ margin: "26px 0 0", whiteSpace: "pre-line", color: "var(--mut)" }}>{[addressLines(c.address), c.hours].filter(Boolean).join("\n")}</p>}
             <Link href={L("/contact")} className="cap gold shine btn" style={{ marginTop: 30 }}>Talk to the studio</Link>
           </div>
           <div style={{ position: "relative", margin: "0 22px 22px 0" }}>
@@ -370,7 +370,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
           {c.phone && <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a>}
           {wa && <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
           {c.email && <a href={`mailto:${c.email}`} style={{ overflowWrap: "anywhere" }}>{c.email}</a>}
-          {c.address && <span style={{ whiteSpace: "pre-line" }}>{c.address}</span>}
+          {c.address && <span style={{ whiteSpace: "pre-line" }}>{addressLines(c.address)}</span>}
           {c.hours && <span>{c.hours}</span>}
         </div>
       </section>
@@ -390,7 +390,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
               {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap ol" style={{ display: "block", textAlign: "center", marginBottom: 34 }}>Chat on WhatsApp</a>}
               {c.phone && <><div className="cap" style={{ fontSize: 10, color: "var(--mut)" }}>Phone</div><p style={{ margin: "4px 0 22px" }}><a className="ul" style={{ borderBottomWidth: 1 }} href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a></p></>}
               {c.email && <><div className="cap" style={{ fontSize: 10, color: "var(--mut)" }}>Email</div><p style={{ margin: "4px 0 22px", overflowWrap: "anywhere" }}><a className="ul" style={{ borderBottomWidth: 1 }} href={`mailto:${c.email}`}>{c.email}</a></p></>}
-              {c.address && <><div className="cap" style={{ fontSize: 10, color: "var(--mut)" }}>Studio</div><p style={{ margin: "4px 0 22px", whiteSpace: "pre-line" }}>{c.address}</p></>}
+              {c.address && <><div className="cap" style={{ fontSize: 10, color: "var(--mut)" }}>Office</div><p style={{ margin: "4px 0 22px", whiteSpace: "pre-line" }}>{addressLines(c.address)}</p></>}
               {c.hours && <><div className="cap" style={{ fontSize: 10, color: "var(--mut)" }}>Hours</div><p style={{ margin: "4px 0 0" }}>{c.hours}</p></>}
             </aside>
           </div>

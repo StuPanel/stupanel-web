@@ -275,6 +275,43 @@ export function Heading({ script, title, light }: { script: string; title: strin
   );
 }
 
+/**
+ * The studio's address as tidy lines. Lines the studio typed itself stay as they are. One long line with commas
+ * becomes street lines (up to about 30 letters each) and a last line "City 3900, Country". Empty parts (", ,") go,
+ * and words typed all in small letters get a capital ("mizan road" → "Mizan Road").
+ */
+export function addressLines(a: string): string {
+  const raw = (a || "").trim();
+  if (!raw) return "";
+  if (raw.includes("\n")) return raw.split(/\n+/).map(l => l.trim()).filter(Boolean).join("\n");
+  const SMALL = new Set(["of", "and", "the", "to", "at", "in", "on", "no", "no."]);
+  const cap = (w: string) => (/^[a-z][a-z.'-]{2,}$/.test(w) && !SMALL.has(w) ? w[0].toUpperCase() + w.slice(1) : w);
+  const parts = raw.split(",").map(p => p.trim().replace(/\s+/g, " ")).filter(Boolean).map(p => p.split(" ").map(cap).join(" "));
+  if (parts.length < 3) return parts.join(", ");
+  // The end: city, country and postcode in any order → "Feni 3900, Bangladesh".
+  const code = parts.findIndex((p, i) => i >= parts.length - 3 && /^\d{3,7}$/.test(p));
+  let tail: string[];
+  let head: string[];
+  if (code >= 0) {
+    const rest = parts.filter((_, i) => i !== code);
+    const last2 = rest.slice(-2);
+    tail = last2.length === 2 ? [`${last2[0]} ${parts[code]}`, last2[1]] : [`${last2[0]} ${parts[code]}`];
+    head = rest.slice(0, -2);
+  } else {
+    tail = parts.slice(-2);
+    head = parts.slice(0, -2);
+  }
+  const lines: string[] = [];
+  let cur = "";
+  for (const p of head) {
+    if (cur && (cur.length + p.length + 2) > 30) { lines.push(`${cur},`); cur = p; }
+    else cur = cur ? `${cur}, ${p}` : p;
+  }
+  if (cur) lines.push(`${cur},`);
+  lines.push(tail.join(", "));
+  return lines.join("\n");
+}
+
 export function SiteView({ data, preview, base, page = "home", albumId, storyId }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
@@ -572,15 +609,16 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
             </div>
             {(c.address || c.hours) && (
               <div>
-                <div className="cap" style={{ fontSize: 10, color: "var(--ond2)", marginBottom: 16 }}>Studio</div>
-                <div style={{ opacity: 0.85, whiteSpace: "pre-line" }}>{[c.address, c.hours].filter(Boolean).join("\n")}</div>
+                <div className="cap" style={{ fontSize: 10, color: "var(--ond2)", marginBottom: 16 }}>Office</div>
+                {c.address && <address className="fadr">{addressLines(c.address)}</address>}
+                {c.hours && <p className="fhrs">{c.hours}</p>}
               </div>
             )}
             {(c.phone || c.email || wa) && (
-              <div>
+              <div className="fcon">
                 <div className="cap" style={{ fontSize: 10, color: "var(--ond2)", marginBottom: 16 }}>Contact</div>
                 {c.phone && <><a className="fl" href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a><br /></>}
-                {c.email && <><a className="fl" href={`mailto:${c.email}`} style={{ overflowWrap: "anywhere" }}>{c.email}</a><br /></>}
+                {c.email && <><a className="fl fem" href={`mailto:${c.email}`}>{c.email}</a><br /></>}
                 {wa && <a className="fl" href={wa} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a>}
               </div>
             )}

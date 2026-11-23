@@ -56,7 +56,7 @@ export function SongTags({ value, lists, onChange, busy }: {
               {mine.length === 0 && <span className="text-xs text-amber-300">None yet — add one below</span>}
               {mine.map(t => (
                 <button key={t.id} type="button" disabled={busy} onClick={() => onChange({ [s.key]: on.filter(x => x !== t.id) })}
-                  title="Take this tag off" className="h-7 pl-2.5 pr-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold inline-flex items-center gap-1 hover:bg-rose-600 disabled:opacity-60">
+                  title="Take this tag off" className="h-9 lg:h-7 pl-2.5 pr-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold inline-flex items-center gap-1 hover:bg-rose-600 disabled:opacity-60">
                   {label(t)}<X className="w-3.5 h-3.5" />
                 </button>
               ))}
@@ -65,12 +65,12 @@ export function SongTags({ value, lists, onChange, busy }: {
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {shown.map(t => (
                   <button key={t.id} type="button" disabled={busy} onClick={() => onChange({ [s.key]: [...on, t.id] })}
-                    title="Add this tag" className="h-7 px-2.5 rounded-full border border-slate-600 text-slate-300 text-xs inline-flex items-center gap-1 hover:border-indigo-400 hover:text-white disabled:opacity-60">
+                    title="Add this tag" className="h-9 lg:h-7 px-2.5 rounded-full border border-slate-600 text-slate-300 text-xs inline-flex items-center gap-1 hover:border-indigo-400 hover:text-white disabled:opacity-60">
                     <Plus className="w-3 h-3" />{label(t)}
                   </button>
                 ))}
                 {!open && rest.length > shown.length && (
-                  <button type="button" onClick={() => setMore(m => ({ ...m, [s.key]: true }))} className="h-7 px-2.5 rounded-full text-xs text-indigo-300 hover:text-white">
+                  <button type="button" onClick={() => setMore(m => ({ ...m, [s.key]: true }))} className="h-9 lg:h-7 px-2.5 rounded-full text-xs text-indigo-300 hover:text-white">
                     +{rest.length - shown.length} more
                   </button>
                 )}
@@ -87,7 +87,7 @@ export function SongTags({ value, lists, onChange, busy }: {
             const sel = value.language === t.id;
             return (
               <button key={t.id} type="button" disabled={busy} onClick={() => onChange({ language: sel ? null : t.id })} aria-pressed={sel}
-                className={cn("h-7 px-2.5 rounded-full text-xs font-semibold inline-flex items-center gap-1 disabled:opacity-60", sel ? "bg-indigo-600 text-white" : "border border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white")}>
+                className={cn("h-9 lg:h-7 px-3 lg:px-2.5 rounded-full text-sm lg:text-xs font-semibold inline-flex items-center gap-1 disabled:opacity-60", sel ? "bg-indigo-600 text-white" : "border border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white")}>
                 {sel && <Check className="w-3 h-3" />}{t.name}
               </button>
             );

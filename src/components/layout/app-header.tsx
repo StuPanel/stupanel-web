@@ -169,6 +169,13 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         <div className="lg:mt-3 lg:rounded-xl bg-[#C2304F] text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-2">
           <ShieldAlert className="w-4 h-4 flex-shrink-0" />
           <span>You are viewing this studio as a Super Admin. All actions are logged.</span>
+          {/* Leave: forget this view's sign-in here (the owner's own devices are not touched) and close the tab. */}
+          <button type="button" onClick={() => {
+            localStorage.removeItem("access_token"); localStorage.removeItem("user_role");
+            document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+            window.close();
+            setTimeout(() => { window.location.href = "https://admin.stupanel.com/admin/studios"; }, 300);
+          }} className="ml-2 h-6 px-2.5 rounded-full bg-white text-[#C2304F] text-[11.5px] font-bold">Exit</button>
         </div>
       )}
 

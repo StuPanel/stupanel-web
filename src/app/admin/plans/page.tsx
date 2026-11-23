@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import { askConfirm } from "@/components/feedback";
+import { askConfirm, notify } from "@/components/feedback";
 
 function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
@@ -110,10 +110,11 @@ export default function AdminPlansPage() {
   }
 
   async function deletePlan(id: string) {
-    if (!(await askConfirm({ message: "Delete this plan? Studios using it won't be affected.", danger: true }))) return;
+    if (!(await askConfirm({ message: "Delete this plan? A plan that studios are on can't be deleted — turn it off instead.", danger: true }))) return;
     setDeleteId(id);
-    await fetch(`${API}/admin/plans/${id}`, { method: "DELETE", headers: authH() });
+    const r = await fetch(`${API}/admin/plans/${id}`, { method: "DELETE", headers: authH() }).catch(() => null);
     setDeleteId(null);
+    if (!r?.ok) { const d = await r?.json().catch(() => ({})); notify(d?.message || "Could not delete the plan.", { error: true }); return; }
     load();
   }
 
@@ -185,6 +186,7 @@ export default function AdminPlansPage() {
                 <span>✉️ {plan.maxEmailsPerMonth ? `${plan.maxEmailsPerMonth.toLocaleString()} emails/mo` : "Unlimited emails"}</span>
                 <span>🎁 {plan.trialDays}d trial</span>
               </div>
+              <PlanSwitches planId={plan.id} />
             </div>
           ))}
         </div>
@@ -267,6 +269,46 @@ export default function AdminPlansPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+type Switch = { key: string; label: string; area: string; included: boolean };
+
+/** What this plan includes: each switch turns a feature on or off for every studio on the plan (at once). */
+function PlanSwitches({ planId }: { planId: string }) {
+  const [list, setList] = useState<Switch[] | null>(null);
+  const [busy, setBusy] = useState("");
+  useEffect(() => {
+    let on = true;
+    fetch(`${API}/admin/plans/${planId}/features`, { headers: authH() }).then(r => (r.ok ? r.json() : [])).then(d => { if (on) setList(Array.isArray(d) ? d : []); }).catch(() => { if (on) setList([]); });
+    return () => { on = false; };
+  }, [planId]);
+  async function flip(f: Switch) {
+    setBusy(f.key);
+    const r = await fetch(`${API}/admin/plans/${planId}/features`, { method: "PATCH", headers: authH(), body: JSON.stringify({ features: [{ key: f.key, included: !f.included }] }) }).catch(() => null);
+    setBusy("");
+    if (!r?.ok) return notify("Could not change it. Try again.", { error: true });
+    setList(await r.json());
+    notify(`${f.label.replace(/^Website: /, "")} ${f.included ? "taken out of" : "added to"} this plan`);
+  }
+  if (!list) return <div className="pt-2 border-t border-slate-700/60"><Loader2 className="w-4 h-4 animate-spin text-slate-500" /></div>;
+  if (!list.length) return null;
+  return (
+    <div className="pt-3 border-t border-slate-700/60">
+      <p className="text-xs font-semibold text-slate-300 mb-2">What&apos;s included</p>
+      <ul className="space-y-1.5">
+        {list.map(f => (
+          <li key={f.key} className="flex items-center gap-2">
+            <span className={cn("flex-1 text-xs", f.included ? "text-slate-200" : "text-slate-500 line-through")}>{f.label}</span>
+            <button type="button" role="switch" aria-checked={f.included} aria-label={f.label} disabled={busy === f.key} onClick={() => flip(f)}
+              className={cn("relative w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-50", f.included ? "bg-emerald-500" : "bg-slate-600")}>
+              <span className={cn("absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform", f.included && "translate-x-4")} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-slate-500 mt-2">Studios on this plan get the change at once. These lines also show on the plan card studios see.</p>
     </div>
   );
 }

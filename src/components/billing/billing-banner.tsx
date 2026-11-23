@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Clock, Lock, X } from "lucide-react";
-import { apiFetch, API_URL, READ_ONLY_EVENT } from "@/lib/api";
+import { apiFetch, API_URL, LOCKED_EVENT, READ_ONLY_EVENT, studioLocked } from "@/lib/api";
 import type { BillingStatus } from "@/lib/billing";
-import { TrialEnded } from "./trial-ended";
 
 export type BillingMode = "full" | "trial" | "grace" | "read_only";
 
@@ -39,11 +38,10 @@ export function BillingBanner() {
   const [pending, setPending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [blockedNotice, setBlockedNotice] = useState(false);
-  const [full, setFull] = useState<BillingStatus | null>(null);
 
   useEffect(() => {
     loadBillingStatus().then((d) => {
-      if (d) { setAccess(d.access); setPending(!!d.pendingRequest); setFull(d); }
+      if (d) { setAccess(d.access); setPending(!!d.pendingRequest); }
     });
   }, []);
 
@@ -60,7 +58,6 @@ export function BillingBanner() {
 
   return (
     <>
-      {full && !onBillingPage && <TrialEnded status={full} onExtended={() => window.location.reload()} />}
       {access && !onBillingPage && <Strip access={access} pending={pending} dismissed={dismissed} onDismiss={() => setDismissed(true)} />}
 
       {blockedNotice && !onBillingPage && (
@@ -72,7 +69,7 @@ export function BillingBanner() {
             </div>
             <h3 className="text-base font-semibold text-[#17151F]">Your plan has ended</h3>
             <p className="mt-1.5 text-sm text-[#4A4658]">
-              Your studio is in view-only mode. All your data is safe — renew your plan to add or change anything.
+              Your studio is locked. Nothing is deleted — renew your plan and everything opens again.
             </p>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setBlockedNotice(false)}
@@ -105,11 +102,13 @@ function Strip({ access, pending, dismissed, onDismiss }: {
   }
 
   if (access.mode === "read_only") {
+    // The locked page says it all (and Plan & billing has its own card); only Support shows this line.
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/support")) return null;
     return (
       <div className="bg-[#FDECEF] border-b border-[#F5C6D0] px-4 py-2.5 flex items-center gap-3 flex-wrap">
         <Lock className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
         <p className="text-sm text-[#8A1F37] flex-1">
-          Your plan has ended. Your studio is <span className="font-semibold">view-only</span> — your data is safe. Renew to keep working.
+          Your studio is locked until you renew — nothing is deleted.
         </p>
         <Link href="/billing" className="rounded-md bg-[#C2304F] px-3 py-1 text-sm font-semibold text-white hover:opacity-90">Renew now</Link>
       </div>
@@ -123,7 +122,7 @@ function Strip({ access, pending, dismissed, onDismiss }: {
       <div className="bg-[#FDECEF] border-b border-[#F5C6D0] px-4 py-2.5 flex items-center gap-3 flex-wrap">
         <Clock className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
         <p className="text-sm text-[#8A1F37] flex-1">
-          Your plan has ended. Pay before <span className="font-semibold">{fmtDate(access.graceEndsAt)}</span> or the studio becomes view-only.
+          Your plan has ended. Pay before <span className="font-semibold">{fmtDate(access.graceEndsAt)}</span> or the studio is locked.
         </p>
         <Link href="/billing" className="rounded-md bg-[#C2304F] px-3 py-1 text-sm font-semibold text-white hover:opacity-90">Pay now</Link>
         <button onClick={onDismiss} className="text-[#C2304F]/70 hover:text-[#C2304F]"><X className="w-4 h-4" /></button>
@@ -144,4 +143,20 @@ function Strip({ access, pending, dismissed, onDismiss }: {
       <button onClick={onDismiss} className="text-[#5B3FD0]/60 hover:text-[#5B3FD0]"><X className="w-4 h-4" /></button>
     </div>
   );
+}
+
+/**
+ * Is the studio locked (plan or trial ended, grace over)? The owner learns it from the billing status; everyone
+ * else from the first request the API refuses with SUBSCRIPTION_LOCKED.
+ */
+export function useStudioLock(isOwner: boolean) {
+  const [status, setStatus] = useState<BillingStatus | null>(null);
+  const [locked, setLocked] = useState(studioLocked());
+  useEffect(() => {
+    if (isOwner) loadBillingStatus().then(d => { if (d) { setStatus(d); if (d.access.mode === "read_only") setLocked(true); } });
+    const on = () => setLocked(true);
+    window.addEventListener(LOCKED_EVENT, on);
+    return () => window.removeEventListener(LOCKED_EVENT, on);
+  }, [isOwner]);
+  return { locked, status };
 }

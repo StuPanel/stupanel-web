@@ -7,11 +7,19 @@ const BASE = API_URL;
 
 /** Fired when the API refuses a change because the studio's plan has ended (view-only mode). */
 export const READ_ONLY_EVENT = "stupanel:read-only";
+/**
+ * Fired when the API refuses to show something because the studio is locked (its plan or trial ended and it did
+ * not renew: only the totals page, Plan & billing and Support work). The app then shows the locked page.
+ */
+export const LOCKED_EVENT = "stupanel:locked";
+let locked = false;
+export const studioLocked = () => locked;
 
 function notifyIfReadOnly(res: Response) {
   res.clone().json()
     .then((b) => {
       if (b?.message === "SUBSCRIPTION_READ_ONLY") window.dispatchEvent(new Event(READ_ONLY_EVENT));
+      if (b?.message === "SUBSCRIPTION_LOCKED" && !locked) { locked = true; window.dispatchEvent(new Event(LOCKED_EVENT)); }
       // The studio is being deleted: its owner can only use the page for that.
       if (b?.message === "STUDIO_BEING_DELETED" && !window.location.pathname.startsWith("/studio-closed")) window.location.href = "/studio-closed";
     })

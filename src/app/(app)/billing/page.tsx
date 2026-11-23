@@ -213,8 +213,8 @@ function CurrentPlan({ status }: { status: BillingStatus }) {
     : { t: "Ended", c: "bg-[#FDECEF] text-[#C2304F]" };
   const line = a.mode === "full" ? (a.periodEndsAt ? `Paid until ${fmtDate(a.periodEndsAt)}` : "No end date")
     : a.mode === "trial" ? (a.periodEndsAt ? `Free until ${fmtDate(a.periodEndsAt)}` : "")
-    : a.mode === "grace" ? `Ended ${fmtDate(a.periodEndsAt)}. Everything works until ${fmtDate(a.graceEndsAt)}, then the studio becomes view-only.`
-    : `Ended ${fmtDate(a.periodEndsAt)}. Your data is safe and you can look at everything; to add or change anything, choose a plan.`;
+    : a.mode === "grace" ? `Ended ${fmtDate(a.periodEndsAt)}. Everything works until ${fmtDate(a.graceEndsAt)}, then the studio is locked until you renew.`
+    : `Ended ${fmtDate(a.periodEndsAt)}. The studio is locked: nothing is deleted, and everything opens again when you renew.`;
   const u = status.usage;
   const bars: { label: string; u: Use }[] = u ? [
     { label: "Clients", u: u.clients }, { label: "Programs this month", u: u.programsThisMonth }, { label: "Team members", u: u.team },

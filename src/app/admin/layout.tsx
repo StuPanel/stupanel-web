@@ -54,13 +54,12 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     { label: "Emails",  href: "/admin/emails",  icon: MailCheck, perm: "reports.view", also: ["/admin/email-logs"] },
   ] },
   { label: "Security", items: [
-    { label: "Sign-ins & sessions", href: "/admin/security",   icon: ShieldAlert,   perm: "security.manage" },
+    { label: "Studio sign-ins", href: "/admin/security",   icon: ShieldAlert,   perm: "security.manage" },
     { label: "Logs",                href: "/admin/audit-logs", icon: ClipboardList, perm: "audit.view", also: ["/admin/activity"] },
   ] },
 ];
 
 /** Below the groups: Settings for whoever can change any part of it, and your own account. */
-const SETTINGS_PERMS = ["settings.manage", "team.manage", "content.manage"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -181,7 +180,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Settings, my account, log out */}
         <div className="p-3 border-t border-slate-800 space-y-0.5">
           {[
-            ...(SETTINGS_PERMS.some(p => can(staff, p)) ? [{ label: "Settings", href: "/admin/settings", icon: Settings }] : []),
+            // Everyone has Settings → Sign-in & security; the other parts follow the person's permissions.
+            { label: "Settings", href: "/admin/settings", icon: Settings },
             { label: "My account", href: "/admin/account", icon: UserCog },
           ].map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");

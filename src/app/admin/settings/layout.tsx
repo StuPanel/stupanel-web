@@ -7,12 +7,16 @@
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, ExternalLink, Flag, Music2, ScanFace, SlidersHorizontal, UsersRound } from "lucide-react";
+import { CreditCard, ExternalLink, Flag, Music2, ScanFace, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, getPlatformUser } from "@/lib/platform-api";
 
-type Part = { label: string; sub: string; href: string; icon: React.ElementType; perm: string; away?: boolean };
+type Part = { label: string; sub: string; href: string; icon: React.ElementType; /** "" = everyone on the admin team */ perm: string; away?: boolean };
 const PARTS: { group: string; items: Part[] }[] = [
+  { group: "Security", items: [
+    { label: "Sign-in & security", sub: "Stay signed in, app code, password, devices", href: "/admin/settings/security", icon: ShieldCheck, perm: "" },
+    { label: "Team & roles", sub: "Who can sign in here and what they can do", href: "/admin/settings/team", icon: UsersRound, perm: "team.manage" },
+  ] },
   { group: "Platform", items: [
     { label: "Payments", sub: "Numbers studios pay to", href: "/admin/settings/payments", icon: CreditCard, perm: "settings.manage" },
     { label: "Feature flags", sub: "Turn features on for some plans", href: "/admin/settings/features", icon: Flag, perm: "settings.manage" },
@@ -20,9 +24,6 @@ const PARTS: { group: string; items: Part[] }[] = [
   { group: "Products", items: [
     { label: "AI Face Search", sub: "On or off, welcome credits, limits", href: "/admin/face-search?tab=settings", icon: ScanFace, perm: "settings.manage", away: true },
     { label: "Music tags", sub: "Events, kinds of video, moods", href: "/admin/music?tab=tags", icon: Music2, perm: "content.manage", away: true },
-  ] },
-  { group: "Admin team", items: [
-    { label: "Team & roles", sub: "Who can sign in here and what they can do", href: "/admin/settings/team", icon: UsersRound, perm: "team.manage" },
   ] },
   { group: "Other", items: [
     { label: "Advanced", sub: "Every stored setting, as keys", href: "/admin/settings/advanced", icon: SlidersHorizontal, perm: "settings.manage" },
@@ -32,7 +33,7 @@ const PARTS: { group: string; items: Part[] }[] = [
 export default function AdminSettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const me = getPlatformUser();
-  const parts = PARTS.map(g => ({ ...g, items: g.items.filter(i => !me || can(me, i.perm)) })).filter(g => g.items.length);
+  const parts = PARTS.map(g => ({ ...g, items: g.items.filter(i => !me || !i.perm || can(me, i.perm)) })).filter(g => g.items.length);
   return (
     <div className="lg:flex lg:items-start">
       <nav aria-label="Settings" className="lg:w-64 lg:flex-shrink-0 px-6 md:px-8 lg:pr-0 pt-6 md:pt-8">

@@ -364,7 +364,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <div className="mbk" id="book">
           <h1 className="cz">Make a booking</h1>
           <p className="mbs">Fill in the form and we will prepare your quotation.</p>
-          <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
+          <BookForm slug={data.slug} preview={preview} packages={packages} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
         </div>
         <div className="mct">
           {c.phone && <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a>}
@@ -384,7 +384,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <section className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
           <div className="ctg">
             <div style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(30px,5vw,56px) clamp(22px,4vw,56px)", textAlign: "center", borderTop: "4px solid var(--ac)" }} id="book">
-              <BookForm slug={data.slug} preview={preview} packages={packages} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
+              <BookForm slug={data.slug} preview={preview} packages={packages} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
             </div>
             <aside>
               {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap ol" style={{ display: "block", textAlign: "center", marginBottom: 34 }}>Chat on WhatsApp</a>}

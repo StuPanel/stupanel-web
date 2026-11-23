@@ -125,7 +125,7 @@ export function ReviewPlayer({ songs, current, onPick, onClose, onKeep, onRemove
           <p className="hidden lg:block text-[11px] text-slate-500">Keys: K keep · R {removeLabel.toLowerCase()} · N next · P previous</p>
         </div>
         </div>
-        {side && <div className="flex-1 min-h-0 lg:flex-none lg:w-[46%] xl:w-[44%] lg:border-l border-t lg:border-t-0 border-slate-700 pt-3 lg:pt-0 lg:pl-3 overflow-y-auto overscroll-contain lg:max-h-[300px]">{side}</div>}
+        {side && <div className="flex-1 min-h-0 lg:flex-none lg:w-[52%] xl:w-[50%] lg:border-l border-t lg:border-t-0 border-slate-700 pt-3 lg:pt-0 lg:pl-4 overflow-y-auto overscroll-contain lg:min-h-[260px] lg:max-h-[min(68vh,640px)]">{side}</div>}
       </div>
     </div>
   );

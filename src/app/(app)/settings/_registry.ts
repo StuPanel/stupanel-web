@@ -217,6 +217,7 @@ export const ENTRIES: Entry[] = [
   // Security
   { id: "resetEmail", pane: "security", section: "Sign-in", label: "Password reset email", keywords: "forgot password" },
   { id: "sessionTimeoutMinutes", pane: "security", section: "Sign-in", label: "Sign out after inactivity", keywords: "session timeout sign off" },
+  { id: "ownership", pane: "security", section: "Studio owner", label: "Give the studio to someone else", keywords: "owner ownership transfer sell new owner change owner" },
   { id: "loginActivity", pane: "security", section: "Who is signed in", label: "Who is signed in", keywords: "login history device session sign out log out phone lost" },
 
   // Integrations

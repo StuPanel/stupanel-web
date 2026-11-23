@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { AlertTriangle, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Smartphone, Trash2, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
+import { DomainGuide } from "./domain-guide";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -495,40 +496,9 @@ export default function WebsitePage() {
                 {dom.state === "live" && <a href={`https://${dom.domain}`} target="_blank" rel="noopener noreferrer" className="ml-auto h-9 px-3 rounded-[10px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-4 h-4" />Open</a>}
               </div>
               {dom.state === "live"
-                ? <p className="text-[13px] text-[#4A4658] mt-1.5">Your website opens at <b>{dom.domain}</b>{dom.twin ? <> (and <b>{dom.twin}</b>)</> : null}. {site.slug}.stupanel.com sends visitors there.</p>
-                : (
-                  <>
-                    <ol className="mt-3 space-y-1.5 text-[13px] text-[#4A4658] list-decimal pl-5">
-                      <li>Open the website of the company you bought <b>{dom.domain}</b> from, and find <b>DNS</b> (or &quot;Manage DNS&quot;, &quot;DNS records&quot;).</li>
-                      <li>Add the records below. If a record with the same name and type is already there, edit it instead.</li>
-                      <li>Come back and press <b>Check now</b>. It can take from a few minutes to a few hours; we also check by ourselves.</li>
-                    </ol>
-                    {dom.error && <p className="mt-2 text-[13px] text-[#B45309]">{dom.error}</p>}
-                  </>
-                )}
-              {(dom.state !== "live" || dom.records.length > 0) && (
-                <details className="mt-3 group" open={dom.state !== "live"}>
-                  <summary className="text-[13px] font-semibold text-[#5B3FD0] cursor-pointer select-none">{dom.state === "live" ? "The records" : "Records to add"}</summary>
-                  <div className="mt-2 overflow-x-auto rounded-[12px] border border-[#EEEBF4]">
-                    <table className="w-full min-w-[480px] text-[13px]">
-                      <thead><tr className="bg-[#F7F5FB] text-left text-[#6B6680]"><th className="px-3 py-2 font-semibold">Type</th><th className="px-3 py-2 font-semibold">Name / Host</th><th className="px-3 py-2 font-semibold">Value / Points to</th><th className="px-3 py-2 font-semibold sr-only">Copy</th></tr></thead>
-                      <tbody>
-                        {dom.records.map((r, k) => (
-                          <tr key={k} className="border-t border-[#EEEBF4] align-top">
-                            <td className="px-3 py-2.5 font-semibold">{r.type}</td>
-                            <td className="px-3 py-2.5 font-mono break-all">{r.name}</td>
-                            <td className="px-3 py-2.5"><span className="font-mono break-all">{r.value}</span><span className="block text-[11px] text-[#8A8499] mt-0.5">{r.why}</span></td>
-                            <td className="px-2 py-2"><button type="button" onClick={() => { navigator.clipboard.writeText(r.value); notify("Copied"); }} aria-label={`Copy ${r.type} value`} className="h-8 w-8 rounded-[8px] hover:bg-[#F1EEF8] inline-flex items-center justify-center text-[#5B3FD0]"><Copy className="w-4 h-4" /></button></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-[11px] text-[#8A8499] mt-1.5">&quot;@&quot; means the domain itself; some companies want the name left empty or the full domain instead.</p>
-                </details>
-              )}
+                ? <p className="text-[13px] text-[#4A4658] mt-1.5">Your website opens at <b>{dom.domain}</b>{dom.twin ? <> (and <b>{dom.twin}</b>)</> : null}. {site.slug}.stupanel.com sends visitors there. Keep the records at your domain company as they are.</p>
+                : <DomainGuide dom={{ ...dom, domain: dom.domain }} studioName={site.studio.name} busy={domBusy === "check"} onCheck={checkDomain} />}
               <div className="mt-3 flex gap-2 flex-wrap">
-                {dom.state !== "live" && <button type="button" disabled={!!domBusy} onClick={checkDomain} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-white text-[13px] font-semibold inline-flex items-center gap-2">{domBusy === "check" && <Loader2 className="w-4 h-4 animate-spin" />}Check now</button>}
                 <button type="button" disabled={!!domBusy} onClick={() => { setDomCode(""); setDomStep("warn"); }} className="h-10 px-4 rounded-full border border-[#F3C9D2] text-[13px] font-semibold text-[#C2304F] hover:bg-[#FFF1F4] disabled:opacity-50">Disconnect domain</button>
               </div>
             </div>

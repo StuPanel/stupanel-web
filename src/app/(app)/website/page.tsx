@@ -83,6 +83,13 @@ export default function WebsitePage() {
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [slug, setSlug] = useState("");
   const [slugNote, setSlugNote] = useState<{ ok: boolean; message: string } | null>(null);
+  /** The address can only be typed in after "Change address" (no change by a slip). */
+  const [editSlug, setEditSlug] = useState(false);
+  /** Changing the address of a website that was ever published: warning, then a code from the owner's email. */
+  const [addrStep, setAddrStep] = useState<null | "warn" | "code">(null);
+  const [addrCode, setAddrCode] = useState("");
+  const [addrTo, setAddrTo] = useState("");
+  const [addrOk, setAddrOk] = useState(false);
   const [pick, setPick] = useState<{ title: string; multi: boolean; max: number; value: string[]; done: (ids: string[]) => void; first?: string[] } | null>(null);
   const [tab, setTab] = useState<Tab>("home");
   /** Phone preview on the right (computers); the choice is remembered on this browser. */
@@ -197,13 +204,27 @@ export default function WebsitePage() {
     }, 400);
     return () => clearTimeout(t);
   }, [slug, site]);
-  const saveSlug = async () => {
+  const saveSlug = async (code?: string) => {
     setBusy(true);
     try {
-      const res = await apiFetch(`${API}/site`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
+      const res = await apiFetch(`${API}/site`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, code }) });
       const d = await res.json();
       if (!res.ok) return notify(Array.isArray(d.message) ? d.message[0] : d.message || "Could not change the address", { error: true });
-      setSite(s => (s ? { ...s, slug: d.slug } : d)); setSlug(d.slug); notify("Address changed");
+      setSite(s => (s ? { ...s, slug: d.slug } : d)); setSlug(d.slug); setEditSlug(false); setAddrStep(null); setAddrCode(""); notify("Address changed");
+    } finally { setBusy(false); }
+  };
+  /** Ever published → warning and email code first; never published → change at once. */
+  const startSlugChange = () => {
+    if (!site?.publishedAt) return void saveSlug();
+    setAddrOk(false); setAddrCode(""); setAddrStep("warn");
+  };
+  const sendAddrCode = async () => {
+    setBusy(true);
+    try {
+      const res = await apiFetch(`${API}/site/address-code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
+      const d = await res.json();
+      if (!res.ok) return notify(Array.isArray(d.message) ? d.message[0] : d.message || "Could not send the code", { error: true });
+      setAddrTo(d.to); setAddrStep("code"); notify("Code sent");
     } finally { setBusy(false); }
   };
 
@@ -379,19 +400,23 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "address"}>
-      <FormGroup title="Address" note={site.isPublished ? `If you change it, your old link keeps sending visitors to the new one for ${site.renameHoldDays ?? 30} days.` : "The link works after you publish."}>
-        <Field label="Your website link" hint={slugNote && slug !== site.slug ? <span className={slugNote.ok ? "text-[#1F8A4C]" : "text-[#C2304F]"}>{slugNote.message}</span> : "Small letters, numbers and dashes."}>
+      <FormGroup title="Address" note={site.publishedAt ? "Changing it needs a code from the studio owner's email." : "The link works after you publish."}>
+        <Field label="Your website link" hint={slugNote && slug !== site.slug ? <span className={slugNote.ok ? "text-[#1F8A4C]" : "text-[#C2304F]"}>{slugNote.message}</span> : editSlug ? "Small letters, numbers and dashes." : undefined}>
           {id => (
             <div className="flex gap-2 items-center flex-wrap">
               <div className="flex items-center flex-1 min-w-[220px]">
                 {!SITE_SUBDOMAINS && <span className="text-[13px] text-[#6B6680] mr-1.5 hidden sm:inline">{origin.replace(/^https?:\/\//, "")}/site/</span>}
-                <input id={id} className={inputCls} value={slug} maxLength={40} autoCapitalize="none" spellCheck={false}
-                  onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+                <input id={id} className={cn(inputCls, !editSlug && "bg-[#F7F5FB] text-[#4A4658]")} value={slug} maxLength={40} autoCapitalize="none" spellCheck={false}
+                  readOnly={!editSlug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
                 {SITE_SUBDOMAINS && <span className="text-[13px] text-[#6B6680] ml-1.5 hidden sm:inline">.stupanel.com</span>}
               </div>
-              {slug !== site.slug
-                ? <button type="button" disabled={busy || !slugNote?.ok} onClick={saveSlug} className="h-11 px-4 rounded-[12px] bg-[#17151F] disabled:opacity-40 text-white text-sm font-semibold">Use this address</button>
+              {editSlug
+                ? <>
+                  <button type="button" disabled={busy || slug === site.slug || !slugNote?.ok} onClick={startSlugChange} className="h-11 px-4 rounded-[12px] bg-[#17151F] disabled:opacity-40 text-white text-sm font-semibold">Use this address</button>
+                  <button type="button" onClick={() => { setSlug(site.slug); setSlugNote(null); setEditSlug(false); }} className="h-11 px-3.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Cancel</button>
+                </>
                 : <>
+                  <button type="button" onClick={() => setEditSlug(true)} className="h-11 px-3.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Change address</button>
                   <button type="button" onClick={() => { navigator.clipboard.writeText(url); notify("Link copied"); }} className="h-11 px-3.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold inline-flex items-center gap-1.5"><Copy className="w-4 h-4" />Copy</button>
                   {site.isPublished && <a href={url} target="_blank" rel="noopener noreferrer" className="h-11 px-3.5 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-4 h-4" />Open</a>}
                 </>}
@@ -732,6 +757,49 @@ export default function WebsitePage() {
             {site.isPublished && site.hasChanges && <button type="button" disabled={busy} onClick={() => publish(true)} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-sm font-semibold">Publish changes</button>}
           </div>
         </div>
+      )}
+      {addrStep && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-[#17151F]/45" onClick={() => !busy && setAddrStep(null)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-labelledby="addr-title" className="fixed z-[70] inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-[480px] sm:h-fit max-h-[94dvh] overflow-y-auto bg-white rounded-t-[24px] sm:rounded-[24px] shadow-2xl p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="w-10 h-10 rounded-full bg-[#FFF4E5] text-[#B45309] flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5" aria-hidden="true" /></span>
+              <div className="min-w-0">
+                <h2 id="addr-title" className="text-[17px] font-bold text-[#17151F]">{addrStep === "warn" ? "Change your website address?" : "Type the code from the email"}</h2>
+                <p className="text-sm text-[#4A4658] mt-1 break-all"><b>{site.slug}.stupanel.com</b> → <b>{slug}.stupanel.com</b></p>
+              </div>
+            </div>
+            {addrStep === "warn" ? (
+              <>
+                <ul className="mt-4 space-y-2.5 text-[13.5px] leading-snug text-[#4A4658]">
+                  <li className="flex gap-2"><span aria-hidden="true">•</span><span>Your old address sends visitors to the new one for <b>{site.renameHoldDays ?? 30} days</b>. After that it stops working, and <b>another studio can take it</b>.</span></li>
+                  <li className="flex gap-2"><span aria-hidden="true">•</span><span>Links you already shared — Facebook posts, visiting cards, QR codes, WhatsApp — will need the new address.</span></li>
+                  <li className="flex gap-2"><span aria-hidden="true">•</span><span>Google needs some days to show the new address.</span></li>
+                </ul>
+                <label className="mt-4 flex items-start gap-2.5 text-[13.5px] text-[#17151F] cursor-pointer">
+                  <input type="checkbox" checked={addrOk} onChange={e => setAddrOk(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[#7D5CEF]" />
+                  <span>I understand. Send a code to the studio owner&apos;s email to confirm.</span>
+                </label>
+                <div className="mt-5 flex gap-2 justify-end">
+                  <button type="button" disabled={busy} onClick={() => setAddrStep(null)} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Keep my address</button>
+                  <button type="button" disabled={busy || !addrOk} onClick={sendAddrCode} className="h-11 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-40 text-white text-sm font-semibold inline-flex items-center gap-2">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Send code</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-4 text-[13.5px] text-[#4A4658]">We sent a 6-digit code to <b>{addrTo}</b>. It works for 15 minutes.</p>
+                <label htmlFor="addr-code" className="sr-only">6-digit code</label>
+                <input id="addr-code" value={addrCode} onChange={e => setAddrCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456"
+                  className="mt-3 h-12 w-full rounded-[12px] border border-[#E1DCEC] px-4 text-center text-xl font-semibold tracking-[.4em] tabular-nums outline-none focus:border-[#7D5CEF]" autoFocus />
+                <div className="mt-5 flex gap-2 justify-end flex-wrap">
+                  <button type="button" disabled={busy} onClick={sendAddrCode} className="h-11 px-4 rounded-full text-sm font-semibold text-[#5B3FD0] hover:bg-[#F1EEF8] mr-auto">Send again</button>
+                  <button type="button" disabled={busy} onClick={() => setAddrStep(null)} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Cancel</button>
+                  <button type="button" disabled={busy || addrCode.length !== 6} onClick={() => saveSlug(addrCode)} className="h-11 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-40 text-white text-sm font-semibold inline-flex items-center gap-2">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Change address</button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
       )}
       {pick && <PhotoPicker photos={site.photos} {...pick} onUpload={upload} uploading={uploading} onClose={() => setPick(null)} />}
       {frame && <FrameModal {...frame} value={crops[frame.key]} onClose={() => setFrame(null)}

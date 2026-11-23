@@ -61,11 +61,12 @@ type Mine = {
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
+  /** New websites start with this one (Faisal 23-NOV-2026). */
+  { id: "gold", name: "Classic Gold", note: "Emerald and gold · the default", colors: ["#FAF6EE", "#B8964A", "#0F3D36"] },
   { id: "signature", name: "Signature", note: "Peach and gold, decorative", colors: ["#FEF1E4", "#D4A843", "#2A211B"] },
   { id: "editorial", name: "Editorial White", note: "Clean black and white", colors: ["#FFFFFF", "#151515", "#F4F2EE"] },
   { id: "cream", name: "Soft Cream", note: "Sage green, round arches", colors: ["#FBF7F1", "#5E6F5A", "#F4E7DF"] },
   { id: "dark", name: "Cinematic Dark", note: "Navy and champagne", colors: ["#0B1320", "#E6C58F", "#111C2E"] },
-  { id: "gold", name: "Classic Gold", note: "Emerald and gold", colors: ["#FAF6EE", "#B8964A", "#0F3D36"] },
   { id: "mono", name: "Gallery White", note: "Full-screen photo, plain type", colors: ["#FFFFFF", "#1A1A1A", "#ECECEA"] },
 ];
 const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");

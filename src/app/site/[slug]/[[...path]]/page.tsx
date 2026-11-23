@@ -60,7 +60,7 @@ async function movedTo(slug: string, to: string, path?: string[]) {
 
 /** On the studio's own domain an old address (renamed lately) is shown directly, not redirected. */
 async function loadHere(slug: string): Promise<Loaded | null> {
-  const d = await loadHere(slug);
+  const d = await load(slug);
   if (d && "redirect" in d && (await headers()).get("x-site-domain")) return load(d.redirect);
   return d;
 }
@@ -71,7 +71,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const [{ slug, path }, q] = await Promise.all([params, searchParams]);
   if (q.preview) return { title: "Website preview", robots: { index: false } };
   const r = route(path);
-  const d = await load(slug);
+  const d = await loadHere(slug);
   // Here too (not only in the page): search engines get a real 308 for an old address, since metadata is
   // ready before the page streams.
   if (d && "redirect" in d) permanentRedirect(await movedTo(slug, d.redirect, path));

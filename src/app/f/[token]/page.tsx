@@ -1,4 +1,5 @@
 "use client";
+import { coverPos, coverZoom, type CoverFocus } from "@/lib/cover-focus";
 
 /**
  * AI Face Search — the guest page behind the QR. Landing → (code) → selfie scan → searching → your photos.
@@ -20,7 +21,7 @@ type Rules = { name: Ask; phone: Ask; email: Ask; oneOf: boolean };
 type DownloadSize = "original" | "medium" | "small";
 type BookWhen = "end" | "results" | "downloaded" | "afterFollow";
 type FollowWhen = "off" | "before" | "results" | "open" | "download" | "downloaded";
-type Open = { /** When the Book us card shows, and whether it is asked again / kept at the end */ bookWhen?: BookWhen; bookAgain?: boolean; bookKeepCard?: boolean; /** "Book us" card after the photos, and the review link */ bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string; /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
+type Open = { /** When the Book us card shows, and whether it is asked again / kept at the end */ bookWhen?: BookWhen; bookAgain?: boolean; bookKeepCard?: boolean; /** "Book us" card after the photos, and the review link */ bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string; /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; /** How the cover sits in its frame (the studio's "Adjust") */ coverFocus?: CoverFocus | null; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
 type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
@@ -56,8 +57,9 @@ async function shrink(src: CanvasImageSource, w: number, h: number, max = 1280) 
 type SentTo = { email?: string; phone?: string };
 
 export default function GuestFacePage({ params }: { params: Promise<{ token: string }> }) {
-  // ?preview=1: the studio's Settings shows this page in a phone frame and sends what to show.
-  const [preview] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview") && window.parent !== window);
+  // ?preview=host: the studio's Settings shows this page in a phone frame and sends what to show.
+  // (?preview=1 is the real guest page as a guest sees it, with nothing counted — the "Guest preview" button.)
+  const [preview] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "host" && window.parent !== window);
   return preview ? <PreviewHost /> : <GuestLive params={params} />;
 }
 
@@ -439,7 +441,8 @@ function counted(base: string, key: string, n: number) {
 
 function Landing({ g, base, note, onStart, onCode }: { g: Open; base: string; note: string; onStart: () => void; onCode: () => void }) {
   // A gallery with a watermark: the cover comes from StuPanel with the watermark on it.
-  const cover = g.cover ? (g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : facePhotoUrl(g.cover, 1200)) : "";
+  // A cover the studio uploaded (its own picture) is used as it is.
+  const cover = g.cover ? (g.cover.url ? g.cover.url : g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : facePhotoUrl(g.cover, 1200)) : "";
   const live = g.status === "published" && g.ready;
   // Before the photos are out: a guest can leave a selfie and a number, and is told when they are ready.
   const early = g.status === "draft" && g.ready && !!g.register && g.register !== "off";
@@ -453,8 +456,10 @@ function Landing({ g, base, note, onStart, onCode }: { g: Open; base: string; no
     <div className="gf-step">
       <div style={{ position: "relative", flex: "1 1 54%", minHeight: 300, overflow: "hidden", borderRadius: "0 0 40px 40px", background: "#2A2140" }}>
         {g.cover && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="gf-kb" src={cover} alt="" referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectPosition: "50% 25%" }} />
+          <div style={{ position: "absolute", inset: 0, ...coverZoom(g.coverFocus) }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="gf-kb" src={cover} alt="" referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", ...coverPos(g.coverFocus, "50% 25%") }} />
+          </div>
         )}
         <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(23,21,31,.28) 0%, rgba(23,21,31,0) 30%, rgba(23,21,31,.86) 100%)" }} />
         <div className="gf-drop gf-glass" style={{ position: "absolute", top: 18, left: 18, display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 7px", borderRadius: 18, animationDelay: ".15s" }}>

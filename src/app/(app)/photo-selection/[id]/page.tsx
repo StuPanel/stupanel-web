@@ -29,7 +29,7 @@ import { uploadStore } from "@/lib/upload-store";
 import { GallerySettings } from "../_components/gallery-settings";
 import { HandoffPanel } from "../_components/handoff";
 import { ClientPreview } from "@/components/client-preview";
-import { CoverPicker } from "@/components/cover-picker";
+import { CoverPicker, sendCover } from "@/components/cover-picker";
 
 type Filter = "all" | "picked" | "important" | "rejected" | "none" | "notes" | "highlight" | "problems";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -288,7 +288,9 @@ export default function GalleryPage() {
   // The cover the client sees first: the chosen one, else the first highlight, else the first photo.
   const readyPhotos = g.photos.filter(p => p.t);
   const coverPhoto = readyPhotos.find(p => p.id === g.coverPhotoId) ?? readyPhotos.find(p => p.hl) ?? readyPhotos[0];
-  const coverThumb = coverPhoto ? thumbOf(coverPhoto) : "";
+  // The cover as the client sees it now: uploaded from the studio's device, chosen, else the first highlight, else the first photo.
+  const coverThumb = g.coverImage?.sm ?? (coverPhoto ? thumbOf(coverPhoto) : "");
+  const coverNow = g.coverImage?.url ?? (coverPhoto ? viewOf(coverPhoto) : "");
   const tick = (pid: string) => setSel(s => { const n = new Set(s); if (n.has(pid)) n.delete(pid); else n.add(pid); return n; });
 
   const primary = g.status === "preparing" || g.status === "closed"
@@ -643,7 +645,22 @@ export default function GalleryPage() {
       {previewing && <ClientPreview src={`/s/preview/${g.id}`} title={`Client preview — what ${g.client.firstName} sees`} onClose={() => setPreviewing(false)}
         note={g.status === "preparing" ? "Not sent yet: this is how it opens once you send it. Nothing you tap is saved." : "Nothing you tap here is saved, and it is not counted as their visit."} />}
       {choosingCover && <CoverPicker items={readyPhotos.map(p => ({ id: p.id, src: thumbOf(p), name: p.n }))} current={g.coverPhotoId ?? null} who={g.client.firstName}
-        auto="the first Highlight (or the first photo)" onPick={setCover} onClose={() => setChoosingCover(false)} />}
+        auto="the first Highlight (or the first photo)" onPick={setCover} onClose={() => setChoosingCover(false)}
+        cover={coverNow} focus={g.coverFocus ?? null} uploaded={!!g.coverImage}
+        onUpload={async file => {
+          const r = await sendCover(`${API}/photo-selection/${id}/cover`, file, apiFetch);
+          if (!r.ok) { notify(r.error, { error: true }); return false; }
+          setG(r.data as typeof g);
+          notify("Cover uploaded — now adjust how it sits");
+          return true;
+        }}
+        onFocus={async focus => {
+          const r = await apiFetch(`${API}/photo-selection/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coverFocus: focus }) }).catch(() => null);
+          if (!r?.ok) { notify("Couldn't save", { error: true }); return false; }
+          setG(await r.json());
+          notify("Cover saved");
+          return true;
+        }} />}
       {adding && <AddPhotos galleryId={g.id} programId={g.program.id} programName={g.program.name} albums={g.albums} onClose={() => setAdding(false)} onAdded={load} />}
       {settings && <GallerySettings g={g} onClose={() => setSettings(false)} onSaved={load} />}
       {sharing && (

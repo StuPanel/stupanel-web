@@ -26,7 +26,7 @@ const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
   ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
   ["design", "Look", Palette], ["photos", "All photos", LayoutGrid],
-  ["address", "Address & status", Link2],
+  ["address", "Address ["address", "Address & status", Link2] domain", Link2],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
@@ -44,6 +44,8 @@ type Mine = {
   offline?: "admin" | "closed" | "unpaid" | null; offlineNote?: string | null;
   /** Days an old address keeps sending visitors to the new one after a change. */
   renameHoldDays?: number;
+  /** The studio's own domain (pending until its DNS records work, then live). */
+  customDomain?: string | null; customDomainState?: "pending" | "live" | null;
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
@@ -72,6 +74,14 @@ async function shrink(file: File): Promise<Blob> {
     return file;
   }
 }
+
+/** Website → Settings → Your own domain. */
+type DomainInfo = {
+  allowed: boolean; ready: boolean; domain: string | null; main?: string; twin?: string | null; state: "pending" | "live" | null;
+  error?: string | null; checkedAt?: string | null;
+  records: { type: "A" | "CNAME" | "TXT"; name: string; value: string; why: string }[];
+  parts?: { name: string; ok: boolean }[];
+};
 
 export default function WebsitePage() {
   const [site, setSite] = useState<Mine | null>(null);
@@ -218,6 +228,44 @@ export default function WebsitePage() {
     if (!site?.publishedAt) return void saveSlug();
     setAddrOk(false); setAddrCode(""); setAddrStep("warn");
   };
+  // ── Own domain ──
+  const [dom, setDom] = useState<DomainInfo | null>(null);
+  const [domInput, setDomInput] = useState("");
+  const [domBusy, setDomBusy] = useState<"" | "connect" | "check" | "code" | "remove">("");
+  const [domStep, setDomStep] = useState<null | "warn" | "code">(null);
+  const [domCode, setDomCode] = useState("");
+  const [domTo, setDomTo] = useState("");
+  const domCall = useCallback(async (path: string, body?: unknown, kind: typeof domBusy = "check") => {
+    setDomBusy(kind);
+    try {
+      const res = await apiFetch(`${API}/site/domain${path}`, body === undefined && !path ? undefined : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { notify(Array.isArray(d.message) ? d.message[0] : d.message || "Something went wrong", { error: true }); return null; }
+      return d;
+    } finally { setDomBusy(""); }
+  }, []);
+  useEffect(() => {
+    if (tab !== "address" || dom) return;
+    const id = setTimeout(async () => { const d = await domCall(""); if (d) setDom(d); }, 0);
+    return () => clearTimeout(id);
+  }, [tab, dom, domCall]);
+  const connectDomain = async () => {
+    const d = await domCall("", { domain: domInput }, "connect");
+    if (d) { setDom(d); setDomInput(""); setSite(s => (s ? { ...s, customDomain: d.domain, customDomainState: d.state } : s)); notify("Domain added — now add the records below"); }
+  };
+  const checkDomain = async () => {
+    const d = await domCall("/check", {}, "check");
+    if (d) { setDom(d); setSite(s => (s ? { ...s, customDomainState: d.state } : s)); notify(d.state === "live" ? "Your domain works" : "Not ready yet"); }
+  };
+  const sendDomainCode = async () => {
+    const d = await domCall("/code", {}, "code");
+    if (d) { setDomTo(d.to); setDomStep("code"); notify("Code sent"); }
+  };
+  const removeDomain = async () => {
+    const d = await domCall("/remove", { code: domCode }, "remove");
+    if (d) { setDom(d); setDomStep(null); setDomCode(""); setSite(s => (s ? { ...s, customDomain: null, customDomainState: null } : s)); notify("Domain disconnected"); }
+  };
+
   const sendAddrCode = async () => {
     setBusy(true);
     try {
@@ -317,7 +365,7 @@ export default function WebsitePage() {
   const c = site.content;
   const byId = new Map(site.photos.map(p => [p.id, p]));
   const origin = typeof window !== "undefined" ? window.location.origin : "https://app.stupanel.com";
-  const url = siteUrl(site.slug, "", origin);
+  const url = site.customDomain && site.customDomainState === "live" ? `https://${site.customDomain}` : siteUrl(site.slug, "", origin);
   const choose = (title: string, value: string[], done: (ids: string[]) => void, multi = false, max = 1, first?: string[]) => setPick({ title, multi, max, value, done, first });
   const setAlbum = (i: number, patch: Partial<SiteAlbum>) => set("albums", c.albums.map((a, k) => (k === i ? { ...a, ...patch } : a)));
   const status = !site.isPublished ? "Not published yet" : site.hasChanges ? "Published, with changes not yet published" : "Published";
@@ -423,6 +471,68 @@ export default function WebsitePage() {
             </div>
           )}
         </Field>
+      </FormGroup>
+      <FormGroup title="Your own domain" note={dom?.state === "live" ? undefined : "Have a domain like pickphoto.com? Connect it and your website opens there. Your stupanel.com address keeps working and sends visitors to it."}>
+        {!dom ? <div className="px-4 py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#9A94AE]" /></div>
+          : !dom.allowed ? <p className="px-4 py-3.5 text-[13px] text-[#6B6680]">Your plan doesn&apos;t include your own domain.</p>
+          : !dom.domain ? (
+            <Field label="Your domain" hint="Buy it from a domain company (Namecheap, GoDaddy, a .com.bd seller…) first. Type it without https://">
+              {id => (
+                <div className="flex gap-2 flex-wrap">
+                  <input id={id} className={cn(inputCls, "flex-1 min-w-[220px]")} value={domInput} placeholder="pickphoto.com" autoCapitalize="none" spellCheck={false} inputMode="url"
+                    onChange={e => setDomInput(e.target.value.trim().toLowerCase())} onKeyDown={e => { if (e.key === "Enter" && domInput) void connectDomain(); }} />
+                  <button type="button" disabled={!domInput || !!domBusy} onClick={connectDomain} className="h-11 px-4 rounded-[12px] bg-[#17151F] disabled:opacity-40 text-white text-sm font-semibold inline-flex items-center gap-2">{domBusy === "connect" && <Loader2 className="w-4 h-4 animate-spin" />}Connect</button>
+                </div>
+              )}
+            </Field>
+          ) : (
+            <div className="px-4 py-3.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-[15px] text-[#17151F] break-all">{dom.domain}</span>
+                {dom.state === "live"
+                  ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#E7F6EC] text-[#1F8A4C]"><Check className="w-3.5 h-3.5" />Working</span>
+                  : <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FFF4E5] text-[#B45309]"><Loader2 className="w-3.5 h-3.5" />Waiting for the records</span>}
+                {dom.state === "live" && <a href={`https://${dom.domain}`} target="_blank" rel="noopener noreferrer" className="ml-auto h-9 px-3 rounded-[10px] bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[13px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-4 h-4" />Open</a>}
+              </div>
+              {dom.state === "live"
+                ? <p className="text-[13px] text-[#4A4658] mt-1.5">Your website opens at <b>{dom.domain}</b>{dom.twin ? <> (and <b>{dom.twin}</b>)</> : null}. {site.slug}.stupanel.com sends visitors there.</p>
+                : (
+                  <>
+                    <ol className="mt-3 space-y-1.5 text-[13px] text-[#4A4658] list-decimal pl-5">
+                      <li>Open the website of the company you bought <b>{dom.domain}</b> from, and find <b>DNS</b> (or &quot;Manage DNS&quot;, &quot;DNS records&quot;).</li>
+                      <li>Add the records below. If a record with the same name and type is already there, edit it instead.</li>
+                      <li>Come back and press <b>Check now</b>. It can take from a few minutes to a few hours; we also check by ourselves.</li>
+                    </ol>
+                    {dom.error && <p className="mt-2 text-[13px] text-[#B45309]">{dom.error}</p>}
+                  </>
+                )}
+              {(dom.state !== "live" || dom.records.length > 0) && (
+                <details className="mt-3 group" open={dom.state !== "live"}>
+                  <summary className="text-[13px] font-semibold text-[#5B3FD0] cursor-pointer select-none">{dom.state === "live" ? "The records" : "Records to add"}</summary>
+                  <div className="mt-2 overflow-x-auto rounded-[12px] border border-[#EEEBF4]">
+                    <table className="w-full min-w-[480px] text-[13px]">
+                      <thead><tr className="bg-[#F7F5FB] text-left text-[#6B6680]"><th className="px-3 py-2 font-semibold">Type</th><th className="px-3 py-2 font-semibold">Name / Host</th><th className="px-3 py-2 font-semibold">Value / Points to</th><th className="px-3 py-2 font-semibold sr-only">Copy</th></tr></thead>
+                      <tbody>
+                        {dom.records.map((r, k) => (
+                          <tr key={k} className="border-t border-[#EEEBF4] align-top">
+                            <td className="px-3 py-2.5 font-semibold">{r.type}</td>
+                            <td className="px-3 py-2.5 font-mono break-all">{r.name}</td>
+                            <td className="px-3 py-2.5"><span className="font-mono break-all">{r.value}</span><span className="block text-[11px] text-[#8A8499] mt-0.5">{r.why}</span></td>
+                            <td className="px-2 py-2"><button type="button" onClick={() => { navigator.clipboard.writeText(r.value); notify("Copied"); }} aria-label={`Copy ${r.type} value`} className="h-8 w-8 rounded-[8px] hover:bg-[#F1EEF8] inline-flex items-center justify-center text-[#5B3FD0]"><Copy className="w-4 h-4" /></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[11px] text-[#8A8499] mt-1.5">&quot;@&quot; means the domain itself; some companies want the name left empty or the full domain instead.</p>
+                </details>
+              )}
+              <div className="mt-3 flex gap-2 flex-wrap">
+                {dom.state !== "live" && <button type="button" disabled={!!domBusy} onClick={checkDomain} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-white text-[13px] font-semibold inline-flex items-center gap-2">{domBusy === "check" && <Loader2 className="w-4 h-4 animate-spin" />}Check now</button>}
+                <button type="button" disabled={!!domBusy} onClick={() => { setDomCode(""); setDomStep("warn"); }} className="h-10 px-4 rounded-full border border-[#F3C9D2] text-[13px] font-semibold text-[#C2304F] hover:bg-[#FFF1F4] disabled:opacity-50">Disconnect domain</button>
+              </div>
+            </div>
+          )}
       </FormGroup>
       <FormGroup title="Status">
         <div className="px-4 py-3.5 flex flex-wrap items-center gap-3">
@@ -757,6 +867,44 @@ export default function WebsitePage() {
             {site.isPublished && site.hasChanges && <button type="button" disabled={busy} onClick={() => publish(true)} className="h-10 px-4 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] disabled:opacity-50 text-sm font-semibold">Publish changes</button>}
           </div>
         </div>
+      )}
+      {domStep && dom?.domain && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-[#17151F]/45" onClick={() => !domBusy && setDomStep(null)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-labelledby="dom-title" className="fixed z-[70] inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-[480px] sm:h-fit max-h-[94dvh] overflow-y-auto bg-white rounded-t-[24px] sm:rounded-[24px] shadow-2xl p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="w-10 h-10 rounded-full bg-[#FFF1F4] text-[#C2304F] flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5" aria-hidden="true" /></span>
+              <div className="min-w-0">
+                <h2 id="dom-title" className="text-[17px] font-bold text-[#17151F]">{domStep === "warn" ? `Disconnect ${dom.domain}?` : "Type the code from the email"}</h2>
+                <p className="text-sm text-[#4A4658] mt-1">Your website stays at <b>{site.slug}.stupanel.com</b>.</p>
+              </div>
+            </div>
+            {domStep === "warn" ? (
+              <>
+                <ul className="mt-4 space-y-2.5 text-[13.5px] leading-snug text-[#4A4658]">
+                  <li className="flex gap-2"><span aria-hidden="true">•</span><span>People who open <b>{dom.domain}</b> won&apos;t see your website any more.</span></li>
+                  <li className="flex gap-2"><span aria-hidden="true">•</span><span>Links, cards and QR codes with this domain stop working, and Google drops it after some days.</span></li>
+                </ul>
+                <div className="mt-5 flex gap-2 justify-end">
+                  <button type="button" disabled={!!domBusy} onClick={() => setDomStep(null)} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Keep it</button>
+                  <button type="button" disabled={!!domBusy} onClick={sendDomainCode} className="h-11 px-4 rounded-full bg-[#C2304F] hover:bg-[#A82843] disabled:opacity-40 text-white text-sm font-semibold inline-flex items-center gap-2">{domBusy === "code" && <Loader2 className="w-4 h-4 animate-spin" />}Send code to the owner</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-4 text-[13.5px] text-[#4A4658]">We sent a 6-digit code to <b>{domTo}</b>. It works for 15 minutes.</p>
+                <label htmlFor="dom-code" className="sr-only">6-digit code</label>
+                <input id="dom-code" value={domCode} onChange={e => setDomCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" autoFocus
+                  className="mt-3 h-12 w-full rounded-[12px] border border-[#E1DCEC] px-4 text-center text-xl font-semibold tracking-[.4em] tabular-nums outline-none focus:border-[#7D5CEF]" />
+                <div className="mt-5 flex gap-2 justify-end flex-wrap">
+                  <button type="button" disabled={!!domBusy} onClick={sendDomainCode} className="h-11 px-4 rounded-full text-sm font-semibold text-[#5B3FD0] hover:bg-[#F1EEF8] mr-auto">Send again</button>
+                  <button type="button" disabled={!!domBusy} onClick={() => setDomStep(null)} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold">Cancel</button>
+                  <button type="button" disabled={!!domBusy || domCode.length !== 6} onClick={removeDomain} className="h-11 px-4 rounded-full bg-[#C2304F] hover:bg-[#A82843] disabled:opacity-40 text-white text-sm font-semibold inline-flex items-center gap-2">{domBusy === "remove" && <Loader2 className="w-4 h-4 animate-spin" />}Disconnect</button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
       )}
       {addrStep && (
         <>

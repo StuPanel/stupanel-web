@@ -45,10 +45,24 @@ async function load(slug: string): Promise<Loaded | null> {
 async function onSubdomain(slug: string) {
   return (await headers()).get("x-site-host") === slug;
 }
+/** A live own domain: visitors on <address>.stupanel.com go there (not on the domain itself, not the preview). */
+async function toOwnDomain(slug: string, domain: string | null | undefined, path?: string[]) {
+  if (!domain) return;
+  const h = await headers();
+  if (h.get("x-site-host") !== slug || h.get("x-site-domain") === domain) return;
+  permanentRedirect(`https://${domain}${path?.length ? `/${path.join("/")}` : "/"}`);
+}
 /** Where an old address (after a rename) sends visitors. */
 async function movedTo(slug: string, to: string, path?: string[]) {
   const rest = path?.length ? `/${path.join("/")}` : "";
   return (await onSubdomain(slug)) ? `https://${to}.${SITE_ROOT}${rest || "/"}` : `/site/${to}${rest}`;
+}
+
+/** On the studio's own domain an old address (renamed lately) is shown directly, not redirected. */
+async function loadHere(slug: string): Promise<Loaded | null> {
+  const d = await loadHere(slug);
+  if (d && "redirect" in d && (await headers()).get("x-site-domain")) return load(d.redirect);
+  return d;
 }
 
 type Props = { params: Promise<{ slug: string; path?: string[] }>; searchParams: Promise<{ preview?: string }> };
@@ -62,6 +76,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // ready before the page streams.
   if (d && "redirect" in d) permanentRedirect(await movedTo(slug, d.redirect, path));
   if (d && "offline" in d) return { title: "Website not available", robots: { index: false } };
+  if (isSite(d)) await toOwnDomain(slug, d.domain, path);
   if (!isSite(d) || r.page === "notfound") return { title: "Page not found", robots: { index: false } };
   if (r.page === "thank-you") return { title: { absolute: `Thank you | ${d.studio.name}` }, robots: { index: false } };
   const album = r.albumId ? d.content.albums.find(a => a.id === r.albumId) : undefined;
@@ -77,10 +92,11 @@ export default async function StudioSitePage({ params, searchParams }: Props) {
   const [{ slug, path }, q] = await Promise.all([params, searchParams]);
   const r = route(path);
   if (q.preview) return <SitePreview page={r.page} albumId={r.albumId} storyId={r.storyId} />;
-  const data = await load(slug);
+  const data = await loadHere(slug);
   if (data && "redirect" in data) permanentRedirect(await movedTo(slug, data.redirect, path));
   if (data && "offline" in data) return <SiteOffline />;
   if (!isSite(data)) notFound();
+  await toOwnDomain(slug, data.domain, path);
   const missing = (r.albumId && !data.content.albums.some(a => a.id === r.albumId)) || (r.storyId && !(data.content.stories ?? []).some(x => x.id === r.storyId));
   const page = missing ? "notfound" : r.page;
   const base = (await onSubdomain(slug)) ? "" : undefined;

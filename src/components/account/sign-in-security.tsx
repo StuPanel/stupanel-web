@@ -1,6 +1,6 @@
 "use client";
 /**
- * My Profile → Sign-in & security: the email you sign in with (change it), a recovery email, and 2-step sign-in
+ * Settings → Security (and My Account for team members): the email you sign in with (change it), a recovery email, and 2-step sign-in
  * (authenticator app or a code by email, with backup codes). Every change asks for your password; codes go by email.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -16,8 +16,9 @@ type Overview = {
   email: string; hasPassword: boolean; canChange: boolean;
   recovery: { email: string; verified: boolean } | null;
   twoFactor: { on: boolean; app: boolean; email: boolean; backupLeft: number };
+  appSaved?: boolean;
 };
-type Open = null | "email" | "recovery" | "app" | "mailcode" | "off" | "backup" | "recoveryRemove";
+type Open = null | "email" | "recovery" | "app" | "appOn" | "mailcode" | "offApp" | "offEmail" | "backup" | "recoveryRemove";
 
 const card = cn("bg-white rounded-[20px]", CARD_SHADOW);
 const lbl = "block text-[13px] font-semibold text-[#4A4658] mb-1.5";
@@ -45,6 +46,24 @@ function CodeInput({ value, onChange, id, label = "6-digit code" }: { value: str
       <input id={id} value={value} onChange={e => onChange(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456"
         className={cn(inputCls, "tracking-[.3em] text-lg font-bold max-w-[200px]")} />
     </label>
+  );
+}
+
+function Toggle({ on, label, disabled, onChange }: { on: boolean; label: string; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
+      className={cn("relative w-[51px] h-[31px] rounded-full transition-colors flex-shrink-0 disabled:opacity-40", on ? "bg-[#1F8A5B]" : "bg-[#E4E0EC]")}>
+      <span className={cn("absolute top-[2px] left-[2px] w-[27px] h-[27px] rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,.18)] transition-transform", on && "translate-x-[20px]")} />
+    </button>
+  );
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2.5">
+      <span className="w-6 h-6 rounded-full bg-[#7D5CEF] text-white text-[12px] font-bold inline-flex items-center justify-center flex-shrink-0">{n}</span>
+      <span className="pt-0.5">{children}</span>
+    </li>
   );
 }
 
@@ -96,6 +115,18 @@ export function SignInSecurity() {
 
   const errBox = err && <p role="alert" className="text-[13px] font-semibold text-[#C2304F] bg-[#FDECEF] px-3.5 py-2.5 rounded-[12px]">{err}</p>;
   const panel = "px-4 sm:px-5 pb-4 pt-1 space-y-3";
+  const lastOne = (what: "app" | "email") => (what === "app" ? !tf.email : !tf.app);
+  const offPanel = (what: "app" | "email", done: string) => (
+    <div className="px-3.5 pb-4 space-y-3">
+      <p className="text-[13px] text-[#6B6680]">{lastOne(what) ? "This turns 2-step sign-in off: your password alone will open your account." : "The other way stays on."}</p>
+      <Pw value={pw} onChange={setPw} id={`pw-off-${what}`} />
+      {errBox}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={() => void run("2fa/off", { password: pw, what }, d => { setO(d as Overview); notify(lastOne(what) ? "2-step sign-in is off" : done); start(null); })} className={cn(btn, "bg-[#C2304F] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn off</button>
+        <button type="button" onClick={() => start(null)} className={cn(btn, "text-[#4A4658]")}>Keep it on</button>
+      </div>
+    </div>
+  );
 
   return (
     <section>
@@ -170,62 +201,99 @@ export function SignInSecurity() {
           <div className="px-4 sm:px-5 py-3.5 flex items-center gap-3">
             <ShieldCheck className={cn("w-5 h-5 flex-shrink-0", tf.on ? "text-[#1F8A5B]" : "text-[#5B3FD0]")} />
             <div className="min-w-0 flex-1">
-              <p className="text-[14.5px] font-semibold text-[#17151F] flex items-center gap-2">2-step sign-in {tf.on && <span className="h-5 px-2 rounded-full bg-[#E9F5EF] text-[#1F6B47] text-[11.5px] font-bold inline-flex items-center">On</span>}</p>
-              <p className="text-[13px] text-[#6B6680]">{tf.on ? `After your password: ${[tf.app && "authenticator app", tf.email && "code by email"].filter(Boolean).join(" or ")} · ${tf.backupLeft} backup codes left` : "After your password, StuPanel also asks for a code — a stolen password alone can't get in"}</p>
+              <p className="text-[14.5px] font-semibold text-[#17151F] flex items-center gap-2">2-step sign-in <span className={cn("h-5 px-2 rounded-full text-[11.5px] font-bold inline-flex items-center", tf.on ? "bg-[#E9F5EF] text-[#1F6B47]" : "bg-[#F1EFF5] text-[#6B6680]")}>{tf.on ? "On" : "Off"}</span></p>
+              <p className="text-[13px] text-[#6B6680]">After your password, StuPanel also asks for a code — a stolen password alone can&apos;t get in.</p>
             </div>
           </div>
           {codes && <div className="px-4 sm:px-5 pb-4"><BackupCodes codes={codes} onClose={() => setCodes(null)} /></div>}
-          <div className="px-4 sm:px-5 pb-4 flex flex-wrap gap-2">
-            {!tf.app && <button type="button" disabled={needPw} onClick={() => start("app")} className={cn(btn, "border border-[#E3DFEC] text-[#4A4658] bg-white")}><Smartphone className="w-4 h-4" />Use an authenticator app</button>}
-            {!tf.email && <button type="button" disabled={needPw} onClick={() => start("mailcode")} className={cn(btn, "border border-[#E3DFEC] text-[#4A4658] bg-white")}><Mail className="w-4 h-4" />Use a code by email</button>}
-            {tf.on && <button type="button" disabled={needPw} onClick={() => start("backup")} className={cn(btn, "border border-[#E3DFEC] text-[#4A4658] bg-white")}><KeyRound className="w-4 h-4" />New backup codes</button>}
-            {tf.on && <button type="button" disabled={needPw} onClick={() => start("off")} className={cn(btn, "text-[#C2304F]")}>Turn off</button>}
-          </div>
-          {open === "app" && (
-            <div className={panel}>
-              {!qr ? (<>
-                <p className="text-[13px] text-[#6B6680]">Install Google Authenticator (or any authenticator app) on your phone first. The app makes a new 6-digit code every 30 seconds, even without internet.</p>
-                <Pw value={pw} onChange={setPw} id="pw-app" />
-                {errBox}
-                <button type="button" disabled={busy} onClick={() => void run<{ secret: string; uri: string }>("2fa/app", { password: pw }, async d => setQr({ img: await QRCode.toDataURL(d.uri, { margin: 1, width: 220 }), secret: d.secret }))} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Show the QR code</button>
-              </>) : (<>
-                <p className="text-[13.5px] text-[#17151F]">1. In the app, tap <b>+</b> and scan this code.</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qr.img} alt="QR code for the authenticator app" width={180} height={180} className="rounded-xl border border-[#EEEBF4]" />
-                <p className="text-[12.5px] text-[#6B6680]">Can&apos;t scan? Type this key in the app: <span className="font-mono font-semibold text-[#17151F] break-all">{qr.secret}</span></p>
-                <p className="text-[13.5px] text-[#17151F]">2. Type the 6-digit code the app shows.</p>
-                <CodeInput value={code} onChange={setCode} id="code-app" />
-                {errBox}
-                <button type="button" disabled={busy || code.length < 6} onClick={() => void run<Overview & { backupCodes: string[] | null }>("2fa/app/confirm", { code }, d => { setO(d); if (d.backupCodes) setCodes(d.backupCodes); notify("2-step sign-in is on"); start(null); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn on</button>
-              </>)}
-            </div>
-          )}
-          {open === "mailcode" && (
-            <div className={panel}>
-              <p className="text-[13px] text-[#6B6680]">Each time you sign in, StuPanel emails a 6-digit code to <b>{o.email}</b>. Simple, but only as safe as your email.</p>
-              <Pw value={pw} onChange={setPw} id="pw-mail" />
-              {errBox}
-              <button type="button" disabled={busy} onClick={() => void run<Overview & { backupCodes: string[] | null }>("2fa/email", { password: pw }, d => { setO(d); if (d.backupCodes) setCodes(d.backupCodes); notify("2-step sign-in is on"); start(null); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn on</button>
-            </div>
-          )}
-          {open === "backup" && (
-            <div className={panel}>
-              <p className="text-[13px] text-[#6B6680]">10 new codes; the old ones stop working.</p>
-              <Pw value={pw} onChange={setPw} id="pw-backup" />
-              {errBox}
-              <button type="button" disabled={busy} onClick={() => void run<{ backupCodes: string[] }>("2fa/backup-codes", { password: pw }, d => { setCodes(d.backupCodes); start(null); load(); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Make new codes</button>
-            </div>
-          )}
-          {open === "off" && (
-            <div className={panel}>
-              <p className="text-[13px] text-[#6B6680]">Without it, your password alone opens your account.</p>
-              <Pw value={pw} onChange={setPw} id="pw-off" />
-              {errBox}
-              <div className="flex flex-wrap gap-2">
-                {tf.app && tf.email && <button type="button" disabled={busy} onClick={() => void run("2fa/off", { password: pw, what: "app" }, d => { setO(d as Overview); notify("Authenticator app turned off"); start(null); })} className={cn(btn, "border border-[#E3DFEC] text-[#4A4658]")}>Turn off the app only</button>}
-                {tf.app && tf.email && <button type="button" disabled={busy} onClick={() => void run("2fa/off", { password: pw, what: "email" }, d => { setO(d as Overview); notify("Email code turned off"); start(null); })} className={cn(btn, "border border-[#E3DFEC] text-[#4A4658]")}>Turn off the email code only</button>}
-                <button type="button" disabled={busy} onClick={() => void run("2fa/off", { password: pw, what: "all" }, d => { setO(d as Overview); notify("2-step sign-in is off"); start(null); })} className={cn(btn, "bg-[#C2304F] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn off 2-step sign-in</button>
+
+          {/* Way 1: authenticator app (recommended) */}
+          <div className="mx-4 sm:mx-5 mb-3 rounded-[16px] border-2 border-[#E5DEFB] bg-[#FAF8FF]">
+            <div className="px-3.5 py-3 flex items-center gap-3">
+              <Smartphone className="w-5 h-5 text-[#5B3FD0] flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-[#17151F] flex flex-wrap items-center gap-x-2 gap-y-1">Google Authenticator app <span className="h-5 px-2 rounded-full bg-[#7D5CEF] text-white text-[11px] font-bold inline-flex items-center">Recommended</span></p>
+                <p className="text-[12.5px] text-[#6B6680] mt-0.5">A new code on your phone every 30 seconds. Works without internet, no emails to wait for.</p>
               </div>
+              <Toggle on={tf.app} label="Authenticator app" disabled={needPw} onChange={v => start(v ? (o.appSaved ? "appOn" : "app") : "offApp")} />
+            </div>
+            {(tf.app || o.appSaved) && open !== "app" && (
+              <button type="button" disabled={needPw} onClick={() => start("app")} className="px-3.5 pb-3 -mt-1 text-[12.5px] font-semibold text-[#7D5CEF] disabled:opacity-40">New phone? Scan again</button>
+            )}
+            {open === "app" && (
+              <div className="px-3.5 pb-4 space-y-3">
+                <ol className="space-y-2.5 text-[13.5px] text-[#17151F]">
+                  <Step n={1}>Install <b>Google Authenticator</b> on your phone:{" "}
+                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#7D5CEF] underline">Android (Play Store)</a>{" · "}
+                    <a href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#7D5CEF] underline">iPhone (App Store)</a>
+                  </Step>
+                  <Step n={2}>Open the app, tap <b>+</b> (bottom right), then <b>Scan a QR code</b>.</Step>
+                  <Step n={3}>Point the camera at the QR code below. &ldquo;StuPanel&rdquo; appears in the app with a 6-digit code.</Step>
+                  <Step n={4}>Type that code here and tap <b>Turn on</b>.</Step>
+                </ol>
+                {!qr ? (<>
+                  <Pw value={pw} onChange={setPw} id="pw-app" />
+                  {errBox}
+                  <button type="button" disabled={busy} onClick={() => void run<{ secret: string; uri: string }>("2fa/app", { password: pw }, async d => setQr({ img: await QRCode.toDataURL(d.uri, { margin: 1, width: 220 }), secret: d.secret }))} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Show the QR code</button>
+                </>) : (<>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qr.img} alt="QR code for the authenticator app" width={180} height={180} className="rounded-xl border border-[#EEEBF4] bg-white" />
+                  <p className="text-[12.5px] text-[#6B6680]">On this same phone, or can&apos;t scan? In the app choose <b>Enter a setup key</b> and type: <span className="font-mono font-semibold text-[#17151F] break-all">{qr.secret}</span></p>
+                  <CodeInput value={code} onChange={setCode} id="code-app" />
+                  {errBox}
+                  <button type="button" disabled={busy || code.length < 6} onClick={() => void run<Overview & { backupCodes: string[] | null }>("2fa/app/confirm", { code }, d => { setO(d); if (d.backupCodes) setCodes(d.backupCodes); notify("2-step sign-in is on"); start(null); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn on</button>
+                </>)}
+                <button type="button" onClick={() => start(null)} className="block text-[13px] font-semibold text-[#6B6680]">Close</button>
+              </div>
+            )}
+            {open === "appOn" && (
+              <div className="px-3.5 pb-4 space-y-3">
+                <p className="text-[13px] text-[#6B6680]">StuPanel is still in your authenticator app, so you don&apos;t need to scan again. (Deleted it from the app? Use &ldquo;Scan again&rdquo;.)</p>
+                <Pw value={pw} onChange={setPw} id="pw-appon" />
+                {errBox}
+                <button type="button" disabled={busy} onClick={() => void run<Overview & { backupCodes: string[] | null }>("2fa/app/on", { password: pw }, d => { setO(d); if (d.backupCodes) setCodes(d.backupCodes); notify("2-step sign-in is on"); start(null); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn on</button>
+              </div>
+            )}
+            {open === "offApp" && offPanel("app", "Authenticator app turned off")}
+          </div>
+
+          {/* Way 2: a code by email */}
+          <div className="mx-4 sm:mx-5 mb-3 rounded-[16px] border border-[#ECE9F2]">
+            <div className="px-3.5 py-3 flex items-center gap-3">
+              <Mail className="w-5 h-5 text-[#6B6680] flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-[#17151F]">Code by email</p>
+                <p className="text-[12.5px] text-[#6B6680] mt-0.5">An email with a code at every sign-in — slower, and your inbox fills up. Use it if you can&apos;t use the app.</p>
+              </div>
+              <Toggle on={tf.email} label="Code by email" disabled={needPw} onChange={v => start(v ? "mailcode" : "offEmail")} />
+            </div>
+            {open === "mailcode" && (
+              <div className="px-3.5 pb-4 space-y-3">
+                <p className="text-[13px] text-[#6B6680]">Each time you sign in, StuPanel emails a 6-digit code to <b>{o.email}</b>.</p>
+                <Pw value={pw} onChange={setPw} id="pw-mail" />
+                {errBox}
+                <button type="button" disabled={busy} onClick={() => void run<Overview & { backupCodes: string[] | null }>("2fa/email", { password: pw }, d => { setO(d); if (d.backupCodes) setCodes(d.backupCodes); notify("2-step sign-in is on"); start(null); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Turn on</button>
+              </div>
+            )}
+            {open === "offEmail" && offPanel("email", "Email code turned off")}
+          </div>
+
+          {/* Backup codes */}
+          {tf.on && (
+            <div className="px-4 sm:px-5 pb-4">
+              <div className="flex items-center gap-3">
+                <KeyRound className="w-5 h-5 text-[#6B6680] flex-shrink-0" />
+                <p className="flex-1 text-[13.5px] text-[#4A4658]">Backup codes: <b>{tf.backupLeft}</b> left — for a lost phone</p>
+                <button type="button" disabled={needPw} onClick={() => start("backup")} className="text-[13.5px] font-semibold text-[#7D5CEF] disabled:opacity-40">{open === "backup" ? "Close" : "New codes"}</button>
+              </div>
+              {open === "backup" && (
+                <div className="pt-3 space-y-3">
+                  <p className="text-[13px] text-[#6B6680]">10 new codes; the old ones stop working.</p>
+                  <Pw value={pw} onChange={setPw} id="pw-backup" />
+                  {errBox}
+                  <button type="button" disabled={busy} onClick={() => void run<{ backupCodes: string[] }>("2fa/backup-codes", { password: pw }, d => { setCodes(d.backupCodes); start(null); load(); })} className={cn(btn, "bg-[#7D5CEF] text-white")}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Make new codes</button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -218,8 +218,9 @@ export function MyProfile({ embedded = false }: { embedded?: boolean }) {
         </form>
       </section>
 
-      <SignInSecurity />
-      <SignedInDevices />
+      {/* The owner (Settings → My Profile) finds these in Settings → Security */}
+      {!embedded && <SignInSecurity />}
+      {!embedded && <SignedInDevices />}
     </div>
   );
 }

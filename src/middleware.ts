@@ -107,7 +107,7 @@ export async function middleware(request: NextRequest) {
   // <address>.stupanel.com is a studio's website: served by /site/<address>/… without changing the address bar.
   const site = siteFromHost(host);
   if (site) {
-    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || pathname === "/robots.txt") return NextResponse.next();
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico") return NextResponse.next();
     // A link written the old way (/site/<address>/…) on the subdomain: back to the short form.
     const old = pathname.match(/^\/site\/[a-z0-9-]+(\/.*)?$/);
     if (old) return NextResponse.redirect(new URL(`${old[1] || "/"}${search}`, request.url), 308);
@@ -120,7 +120,7 @@ export async function middleware(request: NextRequest) {
   // The studio's own domain: the same website, under the domain.
   const bare = host.toLowerCase().split(":")[0];
   if (bare && !isOwnHost(bare)) {
-    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || pathname === "/robots.txt") return NextResponse.next();
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico") return NextResponse.next();
     const slug = await siteForDomain(bare);
     if (!slug) return new NextResponse("This website is not set up yet.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     const old = pathname.match(/^\/site\/[a-z0-9-]+(\/.*)?$/);

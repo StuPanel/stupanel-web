@@ -13,6 +13,8 @@ import { CARD_SHADOW } from "@/components/ui/apple";
 export type Device = {
   id: string; device: string; type: "phone" | "tablet" | "computer" | "app"; ip: string | null; country: string | null;
   lastUsedAt: string; signedInAt: string; current: boolean; studio?: string;
+  /** Signed in before StuPanel recorded devices (23 Nov 2026): name and last use not known. */
+  older?: boolean;
 };
 type Person = { userId: string; name: string; email: string; isOwner: boolean; isMe: boolean; avatarUrl: string | null; devices: Device[] };
 
@@ -38,10 +40,10 @@ function DeviceRow({ d, showStudio, onSignOut, busy }: { d: Device; showStudio?:
       <span className={cn("w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0", d.current ? "bg-[#E9F5EF] text-[#1F8A5B]" : "bg-[#F5F3FA] text-[#5B3FD0]")}><Icon className="w-5 h-5" /></span>
       <div className="min-w-0 flex-1">
         <p className="text-[14.5px] font-semibold text-[#17151F] flex items-center gap-2 flex-wrap">
-          {d.device}{d.current && <span className="h-5 px-2 rounded-full bg-[#E9F5EF] text-[#1F6B47] text-[11.5px] font-bold inline-flex items-center">This device</span>}
+          {d.older && !d.current ? "Earlier sign-in" : d.device}{d.current && <span className="h-5 px-2 rounded-full bg-[#E9F5EF] text-[#1F6B47] text-[11.5px] font-bold inline-flex items-center">This device</span>}
         </p>
         <p className="text-[12.5px] text-[#6B6680] truncate">
-          {d.current ? "You are using it now" : when(d.lastUsedAt)} · signed in {since(d.signedInAt)}{d.country ? ` · ${d.country}` : ""}{showStudio && d.studio ? ` · ${d.studio}` : ""}
+          {d.current ? "You are using it now" : d.older ? "Device not recorded" : when(d.lastUsedAt)} · signed in {since(d.signedInAt)}{d.country ? ` · ${d.country}` : ""}{showStudio && d.studio ? ` · ${d.studio}` : ""}
         </p>
       </div>
       {onSignOut && !d.current && (

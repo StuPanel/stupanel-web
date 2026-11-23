@@ -292,7 +292,10 @@
 .sg .th-gold .ofpr{color:var(--sc)}
 .sg .th-gold .ofg.three>.ofc:nth-child(2){scale:1.04;z-index:1;border-color:var(--ac)}
 .sg .th-gold .ofg.one .ofc{text-align:left;align-items:stretch}
-.sg .th-gold .ofg.one .oft{align-items:flex-start}
+.sg .th-gold .ofg.one .oft{align-items:flex-start;text-align:left;justify-content:center}
+.sg .th-gold .ofg.one .off{justify-content:flex-start}
+.sg .th-gold .ofg.one .ofrow{align-items:flex-start;margin-top:18px}
+.sg .th-gold .ofg.one .ofrow::before{left:0;margin-left:0}
 .sg .ofpage.th-gold .oftop,.sg .ofpage.th-gold .ofh{text-align:center}
 .sg .ofpage.th-gold .ofh2{margin:0 auto;color:var(--mut)}
 .sg .ofpage.th-gold .ofh::after{content:"";display:block;width:120px;height:1px;margin:22px auto 0;background:linear-gradient(90deg,transparent,var(--ac),transparent)}

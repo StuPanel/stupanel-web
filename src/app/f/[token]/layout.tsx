@@ -9,8 +9,7 @@ const APP = (process.env.NEXT_PUBLIC_APP_URL || "https://app.stupanel.com").repl
 
 type Open = {
   title: string; studio: { name: string; logoUrl: string | null };
-  cover: { id?: string; driveFileId: string; width: number | null; height: number | null } | null;
-  watermark?: string | null;
+  cover: { driveFileId: string } | null;
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
@@ -26,10 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   const studio = g.studio?.name || "Your studio";
   const title = `${g.title} — ${studio}`;
   const description = `Your photos from ${g.title}, by ${studio}. Take one selfie and see every photo you are in.`;
-  const image = g.cover
-    ? g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : `https://lh3.googleusercontent.com/d/${g.cover.driveFileId}=w1200`
-    : g.studio?.logoUrl || undefined;
   const url = `${APP}/f/${encodeURIComponent(token)}`;
+  // Served from StuPanel's own address (cover.jpg): link readers can't open Google Drive's photo links.
+  const image = g.cover || g.studio?.logoUrl ? `${url}/cover.jpg` : undefined;
 
   return {
     title, description,

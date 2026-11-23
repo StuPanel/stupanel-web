@@ -65,7 +65,9 @@ export const ALWAYS = ["dashboard"];
 export const DEFAULT_PHONE = ["programs", "calendar", "payments"];
 
 export type MenuChoice = { groups: { id: string; items: string[] }[]; hidden: string[]; phone: string[] };
-export type Features = { photoSelection?: boolean; musicSelection?: boolean };
+export type Features = { photoSelection?: boolean; musicSelection?: boolean; /** Plan switches the studio's plan leaves out */ planOff?: string[] };
+/** Menu pages and the plan switch each needs (Super Admin → Plans → What's included). */
+const PLAN_KEY: Record<string, string> = { "/photo-selection": "photo_selection", "/face-search": "face_search", "/music": "music_library", "/website": "website" };
 export const EMPTY_CHOICE: MenuChoice = { groups: [], hidden: [], phone: [] };
 
 /**
@@ -95,7 +97,8 @@ export function phoneItems(choice: MenuChoice | null | undefined): MenuItem[] {
 
 /** Pages a studio switched off in their own settings leave the menu by themselves. */
 export function switchedOff(href: string, f: Features | null | undefined) {
-  return (href === "/photo-selection" && f?.photoSelection === false) || (href === "/music" && f?.musicSelection === false);
+  return (href === "/photo-selection" && f?.photoSelection === false) || (href === "/music" && f?.musicSelection === false)
+    || (!!PLAN_KEY[href] && !!f?.planOff?.includes(PLAN_KEY[href]));
 }
 
 // ── Loaded once per session, updated at once when Settings saves ──────────────
@@ -106,7 +109,9 @@ export const MENU_EVENT = "sp:menu";
 
 /** Settings calls this after saving features or the menu, so the sidebar and phone bar change at once. */
 export function announceMenu(next: Partial<Loaded>) {
+  const keep = cache?.features?.planOff;
   cache = { features: cache?.features ?? null, menu: cache?.menu ?? null, ...next };
+  if (next.features && !next.features.planOff && keep) cache.features = { ...next.features, planOff: keep };
   window.dispatchEvent(new CustomEvent(MENU_EVENT));
 }
 
@@ -117,7 +122,7 @@ export function useStudioMenu(): Loaded {
     const sync = () => { if (alive && cache) setState(cache); };
     if (!cache && !loading && typeof window !== "undefined" && localStorage.getItem("access_token")) {
       loading = apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null))
-        .then(d => { if (d) cache = { features: d.features ?? null, menu: d.menu ?? null }; })
+        .then(d => { if (d) cache = { features: { ...(d.features ?? {}), planOff: Array.isArray(d.planOff) ? d.planOff : [] }, menu: d.menu ?? null }; })
         .catch(() => {}).finally(() => { loading = null; window.dispatchEvent(new CustomEvent(MENU_EVENT)); });
     }
     window.addEventListener(MENU_EVENT, sync);

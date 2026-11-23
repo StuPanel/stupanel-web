@@ -13,6 +13,7 @@ import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
 import type { SiteSeo } from "@/lib/site-seo";
+import { siteTrack, type SiteTrackingIds } from "./site-tracking";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
@@ -41,6 +42,8 @@ export type SiteContent = {
   facebook: string; instagram: string; youtube: string; footerLine: string;
   /** Google and sharing (older drafts may not have it) */
   seo?: SiteSeo;
+  /** Facebook Pixel / Google Analytics / Tag Manager ids */
+  tracking?: SiteTrackingIds;
 };
 export type SiteData = {
   /** The studio's own domain when it works (visitors on the stupanel.com address are sent there). */
@@ -685,7 +688,7 @@ export function BookForm({ slug, preview, packages, ask, setAsk, wa, bare, onDon
     setBusy(true);
     try {
       const res = await fetch(`${API}/public/site/${slug}/enquiry`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) finish();
+      if (res.ok) { siteTrack("lead", { content_name: body.packageName || undefined }); finish(); }
       else if (res.status === 429) setErr("Too many tries. Please wait a minute and send again.");
       else setErr("That did not go through. Please check the phone number and send again.");
     } catch {

@@ -5,7 +5,7 @@
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertTriangle, BarChart3, BookOpen, Check, Link2, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, Check, Link2, MessageSquareQuote, Settings2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
@@ -13,6 +13,7 @@ import { SeoTab } from "./seo-tab";
 import { TrackingTab } from "./tracking-tab";
 import { VisitorsTab } from "./visitors-tab";
 import { StylePanel } from "./style-panel";
+import { PackagesTab } from "./packages-tab";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -29,13 +30,13 @@ const small = (p: Photo) => p.thumbUrl || p.url;
  */
 const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
-  ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
+  ["stories", "Stories", BookOpen], ["packages", "Packages", Package], ["more", "Reviews & FAQ", MessageSquareQuote], ["contact", "Contact", Phone],
   ["design", "Look", Palette], ["photos", "All photos", LayoutGrid], ["visitors", "Visitors", TrendingUp],
   ["address", "Address & domain", Link2], ["seo", "Google & sharing", Search], ["tracking", "Ads & analytics", BarChart3],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
-  { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "more", "contact"] },
+  { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "packages", "more", "contact"] },
   { id: "look", name: "Look & photos", icon: Palette, tabs: ["design", "photos"] },
   { id: "visitors", name: "Visitors", icon: TrendingUp, tabs: ["visitors"] },
   { id: "settings", name: "Settings", icon: Settings2, tabs: ["address", "seo", "tracking"] },
@@ -764,8 +765,10 @@ export default function WebsitePage() {
       </FormGroup>
       </div>
 
-      <div hidden={tab !== "more"}>
-      <FormGroup title="Packages" note="Shows your active packages from the Packages page, grouped by category, with their prices.">
+      <div hidden={tab !== "packages"}>
+      <PackagesTab c={c} setMany={setMany} photo={ph} choose={choose} adjust={adjust} theme={site.theme} published={site.isPublished}
+        link={path => `${url}${path}`} />
+      <FormGroup title="Your price list" note={(c.offers ?? []).some(o => !o.hidden) ? "Not shown while there are website packages above. It is still used for the add-on prices." : "Shows your active packages from the Packages page, grouped by category, with their prices."}>
         <SwitchRow label="Show packages and prices" on={c.showPackages} onChange={v => set("showPackages", v)} />
       </FormGroup>
       </div>

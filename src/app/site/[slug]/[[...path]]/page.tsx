@@ -12,20 +12,23 @@ import { API_URL } from "@/lib/api";
 import { SiteView, type SiteData, type SitePageName } from "@/components/site/site-view";
 import { SitePreview } from "./preview";
 import { SiteBeacon, SiteTracking } from "@/components/site/site-tracking";
-import { ldJson, pageSeo, shareImage, siteHome, structuredData } from "@/lib/site-seo";
+import { ldJson, offerSummary, pageSeo, shareImage, siteHome, structuredData } from "@/lib/site-seo";
+import { liveOffers } from "@/lib/site-offer-kit";
 
 const PAGES: Record<string, string> = {
   portfolio: "Portfolio", films: "Films", packages: "Packages", about: "About", reviews: "Reviews",
   faq: "Questions", contact: "Book your date", privacy: "Privacy", terms: "Terms", stories: "Stories", "thank-you": "Thank you",
 };
 
-/** /portfolio/<album> opens that album; /stories/<story> is one story. Anything unknown shows the site's own "not here" page. */
-function route(path: string[] | undefined): { page: SitePageName; albumId?: string; storyId?: string } {
+/** /portfolio/<album> opens that album; /stories/<story> is one story; /packages/<package> is one website package.
+ *  Anything unknown shows the site's own "not here" page. */
+function route(path: string[] | undefined): { page: SitePageName; albumId?: string; storyId?: string; offerId?: string } {
   if (!path?.length) return { page: "home" };
   const [first, second, ...rest] = path;
   if (rest.length || !(first in PAGES)) return { page: "notfound" };
   if (second && first === "portfolio") return { page: "portfolio", albumId: second };
   if (second && first === "stories") return { page: "stories", storyId: second };
+  if (second && first === "packages") return { page: "packages", offerId: decodeURIComponent(second).toLowerCase() };
   return second ? { page: "notfound" } : { page: first as SitePageName };
 }
 
@@ -83,12 +86,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (r.page === "thank-you") return { title: { absolute: `Thank you | ${d.studio.name}` }, robots: { index: false } };
   const album = r.albumId ? d.content.albums.find(a => a.id === r.albumId) : undefined;
   const story = r.storyId ? (d.content.stories ?? []).find(x => x.id === r.storyId) : undefined;
+  const offer = r.offerId ? liveOffers(d).find(x => x.id === r.offerId) : undefined;
   const own = pageSeo(d, r.page);
-  const title = story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}` : own.title;
-  const description = story ? story.text.replace(/\s+/g, " ").slice(0, 155) : album ? `${album.title} — ${album.photos.length} photos by ${d.studio.name}.` : own.description;
-  const img = shareImage(d, album?.cover ?? story?.cover ?? undefined);
+  const title = offer ? `${offer.name} | ${d.studio.name}` : story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}` : own.title;
+  const description = offer ? offerSummary(offer, d) : story ? story.text.replace(/\s+/g, " ").slice(0, 155) : album ? `${album.title} — ${album.photos.length} photos by ${d.studio.name}.` : own.description;
+  const img = shareImage(d, offer?.cover ?? album?.cover ?? story?.cover ?? undefined);
   const home = siteHome(d);
-  const here = r.page === "home" ? "/" : `/${r.page}${r.albumId ? `/${r.albumId}` : r.storyId ? `/${r.storyId}` : ""}`;
+  const here = r.page === "home" ? "/" : `/${r.page}${r.albumId ? `/${r.albumId}` : r.storyId ? `/${r.storyId}` : r.offerId ? `/${r.offerId}` : ""}`;
   const seo = d.content.seo;
   return {
     title: { absolute: title }, description,
@@ -104,21 +108,22 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function StudioSitePage({ params, searchParams }: Props) {
   const [{ slug, path }, q] = await Promise.all([params, searchParams]);
   const r = route(path);
-  if (q.preview) return <SitePreview page={r.page} albumId={r.albumId} storyId={r.storyId} />;
+  if (q.preview) return <SitePreview page={r.page} albumId={r.albumId} storyId={r.storyId} offerId={r.offerId} />;
   const data = await loadHere(slug);
   if (data && "redirect" in data) permanentRedirect(await movedTo(slug, data.redirect, path));
   if (data && "offline" in data) return <SiteOffline />;
   if (!isSite(data)) notFound();
   await toOwnDomain(slug, data.domain, path);
-  const missing = (r.albumId && !data.content.albums.some(a => a.id === r.albumId)) || (r.storyId && !(data.content.stories ?? []).some(x => x.id === r.storyId));
+  const missing = (r.albumId && !data.content.albums.some(a => a.id === r.albumId)) || (r.storyId && !(data.content.stories ?? []).some(x => x.id === r.storyId))
+    || (r.offerId && !liveOffers(data).some(x => x.id === r.offerId));
   const page = missing ? "notfound" : r.page;
   const base = (await onSubdomain(slug)) ? "" : undefined;
-  const ld = structuredData(data, page);
+  const ld = structuredData(data, page, missing ? undefined : r.offerId);
   return <>
     {data.content.tracking && <SiteTracking ids={data.content.tracking} />}
     <SiteBeacon slug={data.slug} />
     {ld.map((o, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(o) }} />)}
-    <SiteView key={`${page}-${r.storyId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} />
+    <SiteView key={`${page}-${r.storyId ?? ""}-${r.offerId ?? ""}`} data={data} base={base} page={page} albumId={missing ? undefined : r.albumId} storyId={missing ? undefined : r.storyId} offerId={missing ? undefined : r.offerId} />
   </>;
 }
 

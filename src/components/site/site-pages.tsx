@@ -9,9 +9,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
+import { OfferCards, OfferPage, bookChoices, liveOffers } from "./site-offers";
 import { AlbumCard, BookForm, addressLines, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
-type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string };
+type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string; offerId?: string };
 
 const TITLES: Record<Exclude<SitePageName, "home">, [string, string]> = {
   portfolio: ["our", "Portfolio"], films: ["wedding", "Films"], packages: ["our", "Packages"], about: ["about", "The studio"],
@@ -146,7 +147,7 @@ function TeamRow({ count, render }: { count: number; render: (copy: boolean) => 
 
 const longDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
 
-export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId }: Props) {
+export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId, offerId }: Props) {
   // Films page: ten at a time.
   const [filmCount, setFilmCount] = useState(10);
   const { content: c, photos, packages, studio } = data;
@@ -223,6 +224,32 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
     );
   }
 
+  if (page === "packages" && offerId) {
+    const o = (c.offers ?? []).find(x => x.id === offerId && (!x.hidden || preview));
+    if (o) return <OfferPage key={o.id} o={o} data={data} L={L} preview={preview} wa={wa} />;
+  }
+  if (page === "packages" && liveOffers(data).length) {
+    return (
+      <>
+        <PageHead script={script} title={title} sub="Open a package to see every day, what you get and the price. Add the extras you like and ask for your date." />
+        <section className="wrap" style={{ paddingTop: 30, paddingBottom: "clamp(60px,8vw,110px)", textAlign: "center" }}>
+          <OfferCards data={data} L={L} />
+        </section>
+        <section className="ofaskw">
+          <div className="ofask rv">
+            <div>
+              <p className="pf">Something in between?</p>
+              <p>Tell us your days and the people, and we will shape a package for you.</p>
+            </div>
+            <div className="ofaskb">
+              <Link href={L("/contact")} className="cap ol">Build my own</Link>
+              {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap gold shine btn">Ask on WhatsApp</a>}
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
   if (page === "packages") {
     return (
       <>
@@ -364,7 +391,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <div className="mbk" id="book">
           <h1 className="cz">Make a booking</h1>
           <p className="mbs">Fill in the form and we will prepare your quotation.</p>
-          <BookForm slug={data.slug} preview={preview} packages={packages} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
+          <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
         </div>
         <div className="mct">
           {c.phone && <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{c.phone}</a>}
@@ -384,7 +411,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <section className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
           <div className="ctg">
             <div style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(30px,5vw,56px) clamp(22px,4vw,56px)", textAlign: "center", borderTop: "4px solid var(--ac)" }} id="book">
-              <BookForm slug={data.slug} preview={preview} packages={packages} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
+              <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare onDone={thanks} />
             </div>
             <aside>
               {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="cap ol" style={{ display: "block", textAlign: "center", marginBottom: 34 }}>Chat on WhatsApp</a>}

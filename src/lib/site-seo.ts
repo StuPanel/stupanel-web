@@ -3,6 +3,7 @@
  * structured data (schema.org) and the sitemap. Plain functions, used by the page, sitemap.xml and the editor.
  */
 import type { SiteData, SitePageName } from "@/components/site/site-view";
+import { priceNow, type SiteOffer } from "@/lib/site-offer-kit";
 import { SITE_ROOT } from "@/lib/site-url";
 
 export type SiteSeo = {
@@ -74,7 +75,9 @@ export function sitemapPaths(d: SiteData): { path: string; date?: string }[] {
   const out: { path: string; date?: string }[] = [{ path: "/" }, { path: "/portfolio" }];
   for (const a of c.albums) out.push({ path: `/portfolio/${a.id}` });
   if (c.filmUrl || (c.films ?? []).length) out.push({ path: "/films" });
-  if (c.showPackages && d.packages.length) out.push({ path: "/packages" });
+  const offers = (c.offers ?? []).filter(o => !o.hidden && o.name);
+  if ((c.showPackages && d.packages.length) || offers.length) out.push({ path: "/packages" });
+  for (const o of offers) out.push({ path: `/packages/${o.id}` });
   out.push({ path: "/about" });
   if (c.reviews.length) out.push({ path: "/reviews" });
   if ((c.faqs ?? []).length) out.push({ path: "/faq" });
@@ -87,8 +90,18 @@ export function sitemapPaths(d: SiteData): { path: string; date?: string }[] {
 }
 
 /** schema.org data for Google: the studio as a local business on Home, questions and answers on the FAQ page. */
-export function structuredData(d: SiteData, page: SitePageName): object[] {
+export function structuredData(d: SiteData, page: SitePageName, offerId?: string): object[] {
   const c = d.content, home = siteHome(d);
+  const offer = page === "packages" && offerId ? (c.offers ?? []).find(o => o.id === offerId && !o.hidden) : undefined;
+  if (offer) {
+    // A package as a product (Google and Facebook read the name, picture and price).
+    const img = shareImage(d, offer.cover);
+    return [{
+      "@context": "https://schema.org", "@type": "Product", name: offer.name, description: offerSummary(offer, d),
+      ...(img ? { image: img.url } : {}), brand: { "@type": "Brand", name: d.studio.name },
+      ...(priceNow(offer).price !== null ? { offers: { "@type": "Offer", price: priceNow(offer).price, priceCurrency: d.currency ?? "BDT", availability: "https://schema.org/InStock", url: `${home}/packages/${offer.id}` } } : {}),
+    }];
+  }
   if (page === "home") {
     const img = shareImage(d);
     const sameAs = [c.facebook, c.instagram, c.youtube].filter(Boolean);
@@ -116,6 +129,15 @@ export function structuredData(d: SiteData, page: SitePageName): object[] {
     }];
   }
   return [];
+}
+
+/** A line about a website package for Google and shared links: its tagline, else its facts and price. */
+export function offerSummary(o: SiteOffer, d: SiteData): string {
+  const facts = o.facts.map(f => [f.v, f.l].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+  const now = priceNow(o).price;
+  const price = now !== null ? `${o.from ? "From " : ""}${d.currency === "BDT" || !d.currency ? "৳" : `${d.currency} `}${now.toLocaleString("en-IN")}` : "";
+  const line = [o.tagline, facts, price].filter(Boolean).join(" · ");
+  return (line || `${o.name} by ${d.studio.name}.`).slice(0, 155);
 }
 
 /** JSON for a <script type="application/ld+json">: "<" escaped so text can never close the tag. */

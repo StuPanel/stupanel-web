@@ -472,7 +472,7 @@ export default function WebsitePage() {
           )}
         </Field>
       </FormGroup>
-      <FormGroup title="Your own domain" note={dom?.state === "live" ? undefined : "Have a domain like pickphoto.com? Connect it and your website opens there. Your stupanel.com address keeps working and sends visitors to it."}>
+      <FormGroup title="Your own domain" note={dom?.domain ? undefined : "Have a domain like pickphoto.com? Connect it and your website opens there. Your stupanel.com address keeps working and sends visitors to it."}>
         {!dom ? <div className="px-4 py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-[#9A94AE]" /></div>
           : !dom.allowed ? <p className="px-4 py-3.5 text-[13px] text-[#6B6680]">Your plan doesn&apos;t include your own domain.</p>
           : !dom.domain ? (

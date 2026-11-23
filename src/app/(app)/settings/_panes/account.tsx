@@ -6,6 +6,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { askConfirm, notify } from "@/components/feedback";
 import { cn } from "@/lib/utils";
 import { Group, Row, Select, SoonRow, TextField, useSettings } from "../_ui";
+import { StudioSessions } from "@/components/account/signed-in-devices";
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 const SESSION = [
@@ -29,8 +30,10 @@ export function SecurityPane() {
             onChange={v => patch({ sessionTimeoutMinutes: v })} />
         </Row>
       </Group>
+      <Group title="Who is signed in" note="Everyone in your studio and the devices they are signed in on. Sign out a lost phone, or someone who left, at once. Your own devices are in My Profile.">
+        <div id="set-loginActivity"><StudioSessions /></div>
+      </Group>
       <Group title="Coming soon">
-        <SoonRow id="loginActivity" label="Sign-in activity" hint="See who signed in, when and from which device" />
         <SoonRow id="twoFactor" label="Two-step sign-in (2FA)" hint="A code on sign-in for extra safety" />
       </Group>
     </>

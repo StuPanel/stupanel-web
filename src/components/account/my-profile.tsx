@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
 import { API_URL as API } from "@/lib/api";
+import { SignedInDevices } from "./signed-in-devices";
 
 
 interface Profile {
@@ -215,6 +216,8 @@ export function MyProfile({ embedded = false }: { embedded?: boolean }) {
           </div>
         </form>
       </section>
+
+      <SignedInDevices />
     </div>
   );
 }

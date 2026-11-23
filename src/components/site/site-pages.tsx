@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
 import { OfferCards, OfferPage, bookChoices, liveOffers } from "./site-offers";
-import { AlbumCard, BookForm, addressLines, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
+import { AlbumCard, BookForm, addressLines, cropStyle, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
 
 type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string; offerId?: string };
 
@@ -35,10 +35,10 @@ function PageHead({ script, title, sub }: { script: string; title: string; sub?:
   );
 }
 
-function Film({ id, title, poster }: { id: string; title: string; poster?: string }) {
+function Film({ id, title, poster, posterStyle }: { id: string; title: string; poster?: string; posterStyle?: React.CSSProperties }) {
   return (
     <figure className="rv" style={{ margin: 0 }}>
-      <FilmTheater id={id} title={title} poster={poster} />
+      <FilmTheater id={id} title={title} poster={poster} posterStyle={posterStyle} />
       {title && <figcaption className="pf" style={{ marginTop: 16, fontSize: 19, fontStyle: "italic", textAlign: "center" }}>{title}</figcaption>}
     </figure>
   );
@@ -202,8 +202,10 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   }
 
   if (page === "films") {
-    const films = [...(c.filmId ? [{ id: c.filmId, title: c.filmTitle, poster: c.filmPhoto ? photos[c.filmPhoto]?.url : undefined }] : []),
-      ...(c.films ?? []).filter(f => f.id !== c.filmId).map(f => ({ id: f.id, title: f.title, poster: undefined as string | undefined }))];
+    /** A film's own cover: the phone-size copy is plenty for the smaller cards. */
+    const cov = (id: string | null | undefined, big: boolean) => { const p = id ? photos[id] : undefined; return p ? (big ? p.url : p.sm ?? p.url) : undefined; };
+    const films = [...(c.filmId ? [{ id: c.filmId, title: c.filmTitle, poster: cov(c.filmPhoto, true), posterStyle: c.filmPhoto ? cropStyle(c.crop?.film) : undefined }] : []),
+      ...(c.films ?? []).filter(f => f.id !== c.filmId).map(f => ({ id: f.id, title: f.title, poster: cov(f.cover, false), posterStyle: f.cover ? cropStyle(c.crop?.[`filmc:${f.id}`]) : undefined }))];
     return (
       <>
         <PageHead script={script} title={title} sub="Cut to the sound of the day itself. Press play and turn the volume up." />

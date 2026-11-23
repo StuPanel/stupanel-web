@@ -73,6 +73,8 @@ const THEMES: { id: string; name: string; note: string; colors: [string, string,
 ];
 const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");
 const newId = () => Math.random().toString(36).slice(2, 10);
+/** The video id of a YouTube link (watch, share, shorts or embed address). */
+const ytId = (v: string) => /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/.exec(v || "")?.[1] ?? null;
 
 /** Big camera files are made smaller in the browser first, so they upload fast on mobile data. */
 async function shrink(file: File): Promise<Blob> {
@@ -775,16 +777,38 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "films"}>
-      <Sec icon={Clapperboard} tone="blue" where="Films page" title="More films" help="These show on the Films page, under the film above, ten at a time with Load more. Up to 60.">
-        {(c.films ?? []).map((f, i) => (
-          <div key={i} className="px-4 py-3.5 flex gap-2 items-start">
-            <div className="flex-1 grid sm:grid-cols-2 gap-2">
-              <input aria-label="YouTube link" className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={f.url} maxLength={200} onChange={e => set("films", (c.films ?? []).map((x, k) => (k === i ? { ...x, url: e.target.value } : x)))} />
-              <input aria-label="Film name" className={inputCls} placeholder="Film name" value={f.title} maxLength={80} onChange={e => set("films", (c.films ?? []).map((x, k) => (k === i ? { ...x, title: e.target.value } : x)))} />
+      <Sec icon={Clapperboard} tone="blue" where="Films page" title="More films" help="These show on the Films page, under the film above, ten at a time with Load more. Tap the picture to give a film your own cover; without one, YouTube's picture is used. Up to 60.">
+        {(c.films ?? []).map((f, i) => {
+          const putFilm = (patch: Partial<NonNullable<SiteContent["films"]>[number]>) => set("films", (c.films ?? []).map((x, k) => (k === i ? { ...x, ...patch } : x)));
+          const vid = ytId(f.url);
+          const cover = ph(f.cover);
+          const name = f.title || `film ${i + 1}`;
+          return (
+            <div key={i} className="px-4 py-3.5 flex gap-3 items-start">
+              <div className="w-[112px] flex-shrink-0">
+                <button type="button" onClick={() => choose(`Cover of ${name} (wide)`, f.cover ? [f.cover] : [], ids => putFilm({ cover: ids[0] ?? null }))} aria-label={cover ? `Change the cover of ${name}` : `Choose a cover for ${name}`}
+                  className="relative block w-[112px] h-[63px] rounded-[10px] overflow-hidden bg-[#F5F3FA] border border-dashed border-[#C9C3DA] hover:border-[#7D5CEF] text-[#6B6680]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(vid ? crops[`filmc:${vid}`] : undefined)} />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    : vid ? <img src={`https://i.ytimg.com/vi/${vid}/mqdefault.jpg`} alt="" className="w-full h-full object-cover opacity-70" /> : <ImagePlus className="w-5 h-5 mx-auto" />}
+                  {!cover && <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white text-[10px] font-semibold py-0.5 text-center">Add cover</span>}
+                </button>
+                {cover && (
+                  <div className="flex gap-1 mt-1">
+                    {vid && <button type="button" onClick={() => adjust(`filmc:${vid}`, f.cover, `Cover of ${name}`, RATIO.film)} className="flex-1 h-7 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[11px] font-semibold text-[#4A4658] inline-flex items-center justify-center gap-1"><Crop className="w-3 h-3" />Adjust</button>}
+                    <button type="button" onClick={() => putFilm({ cover: null })} aria-label={`Use YouTube's picture for ${name}`} className="w-7 h-7 rounded-full bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center"><X className="w-3 h-3" /></button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 grid gap-2 min-w-0">
+                <input aria-label="YouTube link" className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={f.url} maxLength={200} onChange={e => putFilm({ url: e.target.value })} />
+                <input aria-label="Film name" className={inputCls} placeholder="Film name" value={f.title} maxLength={80} onChange={e => putFilm({ title: e.target.value })} />
+              </div>
+              <button type="button" aria-label="Remove this film" onClick={() => set("films", (c.films ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
             </div>
-            <button type="button" aria-label="Remove this film" onClick={() => set("films", (c.films ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
+          );
+        })}
         {(c.films ?? []).length < 60 && (
           <button type="button" onClick={() => set("films", [...(c.films ?? []), { url: "", title: "", id: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a film</button>
         )}

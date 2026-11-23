@@ -211,7 +211,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
         <PageHead script={script} title={title} sub="Cut to the sound of the day itself. Press play and turn the volume up." />
         <section className="wrap" style={{ paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
           {films[0] && <div style={{ maxWidth: 1080, margin: "0 auto 60px" }}><Film {...films[0]} /></div>}
-          <div className="g2" style={{ gap: 40, alignItems: "start" }}>{films.slice(1, filmCount).map(f => <Film key={f.id} {...f} />)}</div>
+          <div className="g2 flg" style={{ gap: 40, alignItems: "start" }}>{films.slice(1, filmCount).map(f => <Film key={f.id} {...f} />)}</div>
           {films.length > filmCount && (
             <div style={{ textAlign: "center", marginTop: 56 }}>
               <button type="button" className="cap ol" style={{ background: "transparent", color: "var(--ink)", fontFamily: "inherit", cursor: "pointer" }} onClick={() => setFilmCount(n => n + 10)}>

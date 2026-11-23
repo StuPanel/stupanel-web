@@ -4,14 +4,14 @@
  */
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 
-type Open = { studio?: { logoUrl: string | null }; cover: { id?: string; driveFileId: string } | null; watermark?: string | null };
+type Open = { studio?: { logoUrl: string | null }; cover: { id?: string; driveFileId: string; url?: string } | null; watermark?: string | null };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const base = `${API}/public/face/${encodeURIComponent(token)}`;
   const g = await fetch(base, { next: { revalidate: 300 } }).then(r => (r.ok ? (r.json() as Promise<Open>) : null)).catch(() => null);
   const src = g?.cover
-    ? g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : `https://lh3.googleusercontent.com/d/${g.cover.driveFileId}=w1200`
+    ? g.cover.url ? g.cover.url : g.watermark && g.cover.id ? `${base}/photo/${g.cover.id}/1600.jpg?v=${g.watermark}` : `https://lh3.googleusercontent.com/d/${g.cover.driveFileId}=w1200`
     : g?.studio?.logoUrl;
   if (!src) return new Response("Not found", { status: 404 });
   const img = await fetch(src, { next: { revalidate: 3600 } }).catch(() => null);

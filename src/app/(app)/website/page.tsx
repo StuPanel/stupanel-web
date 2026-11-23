@@ -4,6 +4,7 @@
  * Website: the studio builds its own public site here. Pick a look, add photos and text, publish.
  * Every change is saved as a draft straight away; visitors see it only after Publish.
  */
+import { shrink } from "@/lib/shrink-photo";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
@@ -75,22 +76,6 @@ const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");
 const newId = () => Math.random().toString(36).slice(2, 10);
 /** The video id of a YouTube link (watch, share, shorts or embed address). */
 const ytId = (v: string) => /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/.exec(v || "")?.[1] ?? null;
-
-/** Big camera files are made smaller in the browser first, so they upload fast on mobile data. */
-async function shrink(file: File): Promise<Blob> {
-  try {
-    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const s = Math.min(1, 3200 / Math.max(bmp.width, bmp.height));
-    if (s === 1 && file.size < 8_000_000) return file;
-    const c = document.createElement("canvas");
-    c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
-    c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
-    const out = await new Promise<Blob | null>(r => c.toBlob(r, "image/jpeg", 0.93));
-    return out ?? file;
-  } catch {
-    return file;
-  }
-}
 
 /** Website → Settings → Your own domain. */
 type DomainInfo = {

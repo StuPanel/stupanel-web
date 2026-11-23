@@ -1,6 +1,7 @@
 /**
  * AI Face Search: shared types and helpers for the studio pages and the guest page.
  */
+import type { CoverFocus } from "@/lib/cover-focus";
 import { drivePhoto } from "@/lib/photos";
 
 export type FaceStatus = "draft" | "published" | "closed";
@@ -63,7 +64,7 @@ export type LivePanel = { review: boolean; max: number | null; totals: { sent: n
 export const LIVE_APP_PAGE = "/live-app";
 export type FaceCounts = { photos: number; ready: number; waiting: number; failed: number; noFace: number; faces: number; hidden: number; guests: number; found: number };
 export type Credits = { plan: number; purchased: number; total: number; planResetAt: string | null };
-export type Cover = { /** Set for guests when the cover carries the watermark */ id?: string; driveFileId: string; width: number | null; height: number | null } | null;
+export type Cover = { /** Set for guests when the cover carries the watermark */ id?: string; driveFileId: string; width: number | null; height: number | null; /** A cover the studio uploaded from its computer or phone */ url?: string; sm?: string } | null;
 
 export type FaceGallery = {
   id: string; title: string; status: FaceStatus; bookingId: string; link: string; settings: FaceSettings;
@@ -74,6 +75,8 @@ export type FaceGallery = {
   counts: FaceCounts; cover: Cover;
   /** The cover the studio chose (null = StuPanel picks the first highlight, else the first photo). */
   coverPhotoId?: string | null;
+  /** A cover uploaded from the studio's computer or phone, and how the cover sits in its frame. */
+  coverImage?: { url: string; sm: string; w: number; h: number } | null; coverFocus?: CoverFocus | null;
 };
 export type FaceDetail = FaceGallery & { ready: boolean; /** Set while StuPanel has Face Search switched off (for everyone or this studio): the sentence to show. */ off?: string | null; folders: { name: string; photos: number }[]; creditsUsed: number; credits: Credits };
 
@@ -108,8 +111,8 @@ export const FACE_STATUS: Record<FaceStatus, { label: string; badge: string; dot
 };
 
 export const num = (n: number) => n.toLocaleString("en");
-export const facePhotoUrl = (p: { driveFileId: string; wm?: string }, width = 480) =>
-  p.wm ? p.wm.replace("{size}", String(width <= 480 ? 480 : width <= 1600 ? 1600 : 2560)) : drivePhoto(p.driveFileId, width);
+export const facePhotoUrl = (p: { driveFileId: string; wm?: string; url?: string; sm?: string }, width = 480) =>
+  p.url ? (width <= 900 && p.sm ? p.sm : p.url) : p.wm ? p.wm.replace("{size}", String(width <= 480 ? 480 : width <= 1600 ? 1600 : 2560)) : drivePhoto(p.driveFileId, width);
 /** The file a guest saves: the original from Drive, or the watermarked copy when the gallery has a watermark. */
 export const faceSaveUrl = (p: { driveFileId: string; wm?: string; file?: string }) => (p.file ? `${p.file}&dl=1` : p.wm ? `${p.wm.replace("{size}", "2560")}&dl=1` : faceDownloadUrl(p.driveFileId));
 /**

@@ -24,7 +24,7 @@ import { GuestsTab } from "./guests-tab";
 import { LiveTab } from "./live-tab";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { ClientPreview } from "@/components/client-preview";
-import { CoverPicker, type CoverItem } from "@/components/cover-picker";
+import { CoverPicker, sendCover, type CoverItem } from "@/components/cover-picker";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { byFolder, canUpload, isRawName } from "@/lib/photos";
 import {
@@ -678,6 +678,21 @@ function FaceCover({ g, onClose, onSaved }: { g: FaceDetail; onClose: () => void
   const items: CoverItem[] = (list?.photos ?? []).filter(p => !p.hidden).map(p => ({ id: p.id, src: facePhotoUrl(p, 320), name: p.fileName }));
   return (
     <CoverPicker items={items} current={g.coverPhotoId ?? null} loading={list === null} who="a guest" auto="the first Highlight (or the first photo)"
+      cover={g.cover ? facePhotoUrl(g.cover, 1200) : ""} focus={g.coverFocus ?? null} uploaded={!!g.coverImage}
+      onUpload={async file => {
+        const r = await sendCover(`${API}/face-search/${g.id}/cover`, file, apiFetch);
+        if (!r.ok) { notify(r.error, { error: true }); return false; }
+        onSaved(r.data as FaceDetail);
+        notify("Cover uploaded — now adjust how it sits");
+        return true;
+      }}
+      onFocus={async focus => {
+        const r = await apiFetch(`${API}/face-search/${g.id}`, json({ coverFocus: focus }, "PATCH")).catch(() => null);
+        if (!r?.ok) { notify("Could not save. Please try again.", { error: true }); return false; }
+        onSaved(await r.json());
+        notify("Cover saved");
+        return true;
+      }}
       more={list ? { left: list.total - list.photos.length, busy: more, load: async () => { setMore(true); const d = await ask(list.photos.length); setMore(false); if (d) setList({ total: d.total, photos: [...list.photos, ...d.photos] }); } } : undefined}
       onClose={onClose}
       onPick={async id => {

@@ -1,3 +1,4 @@
+import type { CoverFocus } from "@/lib/cover-focus";
 /**
  * Photo selection (albums): shared types and helpers for the studio pages and the client portal.
  */
@@ -49,6 +50,8 @@ export type GalleryDetail = {
   activity?: { opens: number; lastOpenAt: string | null; lastPickAt: string | null };
   /** The photo on the client's welcome screen (null = chosen by itself) */
   coverPhotoId?: string | null;
+  /** A cover uploaded from the studio's computer or phone, and how the cover sits in its frame. */
+  coverImage?: { url: string; sm: string; w: number; h: number } | null; coverFocus?: CoverFocus | null;
   /** Ready photos the client hasn't been told about yet */
   newPhotos?: number; newPhotosToldAt?: string | null;
 };
@@ -66,7 +69,9 @@ export type ClientGallery = {
   /** For the welcome screen */
   studioLogo?: string | null; clientName?: string;
   /** Drive file of the cover photo the studio chose (null = the first highlight, else the first photo) */
-  cover?: string | null; program?: { name: string | null; date: string | null };
+  cover?: string | null;
+  /** A cover the studio uploaded (its own picture), and how the cover sits in its frame */
+  coverUrl?: string | null; coverFocus?: CoverFocus | null; program?: { name: string | null; date: string | null };
   albums: Album[]; photos: GPhoto[];
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The guest page in a phone frame, next to the gallery's Settings. It is the real page (/f/<token>?preview=1)
+ * The guest page in a phone frame, next to the gallery's Settings. It is the real page (/f/<token>?preview=host)
  * fed with these settings and sample answers, so what the studio sees is what guests get. Nothing is saved or sent.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -63,7 +63,7 @@ function Frame({ g, s, screen, before, scale }: { g: FaceDetail; s: FaceSettings
   return (
     <div className="relative mx-auto rounded-[34px] bg-[#17151F] p-[7px] shadow-[0_24px_50px_-24px_rgba(23,21,31,.55)]" style={{ width: W * scale + 14, height: H * scale + 14 }}>
       <div className="relative overflow-hidden rounded-[28px] bg-[#FAF4EB]" style={{ width: W * scale, height: H * scale }}>
-        <iframe ref={frame} src={`/f/${encodeURIComponent(token)}?preview=1`} title="Guest page preview" tabIndex={-1}
+        <iframe ref={frame} src={`/f/${encodeURIComponent(token)}?preview=host`} title="Guest page preview" tabIndex={-1}
           style={{ width: W, height: H, border: 0, transform: `scale(${scale})`, transformOrigin: "0 0", display: "block" }} />
       </div>
     </div>

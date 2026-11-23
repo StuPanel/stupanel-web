@@ -7,6 +7,7 @@
  * Before sending: the whole list per album, with a gentle warning if the number is off.
  * After sending you can still change until the studio starts the album.
  */
+import { coverPos, coverZoom } from "@/lib/cover-focus";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -748,8 +749,12 @@ export function Chooser({ api, brand, onClose, onLoaded, onFailed, failText, aft
         const go = () => { setIntro("leaving"); setTimeout(() => setIntro("gone"), 380); };
         return (
           <div className={cn("absolute inset-0 z-[70] bg-[#0E0C14] text-white overflow-hidden transition-opacity duration-300", intro === "leaving" && "opacity-0 pointer-events-none")}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {cover && <img src={viewOf(cover)} alt="" referrerPolicy="no-referrer" draggable={false} onContextMenu={e => e.preventDefault()} className="sp-cover absolute inset-0 w-full h-full object-cover" />}
+            {(g.coverUrl || cover) && (
+              <div className="absolute inset-0" style={coverZoom(g.coverFocus)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.coverUrl || viewOf(cover!)} alt="" referrerPolicy="no-referrer" draggable={false} onContextMenu={e => e.preventDefault()} className="sp-cover absolute inset-0 w-full h-full object-cover" style={coverPos(g.coverFocus)} />
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/10 to-black/85" />
             <div className="relative h-full max-w-xl mx-auto px-6 flex flex-col pt-[max(20px,env(safe-area-inset-top))] pb-[max(24px,env(safe-area-inset-bottom))]">
               <div className="flex items-center gap-2.5 sp-rise">

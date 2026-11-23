@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Building2, Users, CreditCard, Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, MessageCircle, Megaphone,
   HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe, Hourglass, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
   can, getPlatformUser, installAdminFetchShim, isPlatformMode, loginPath, platformLogout, refreshPlatform,
@@ -17,7 +18,8 @@ function getAdminToken() {
   return typeof window !== "undefined" ? sessionStorage.getItem("admin_token") ?? "" : "";
 }
 
-interface NavItem { label: string; href: string; icon: React.ComponentType<{ className?: string }>; perm?: string; also?: string[] }
+interface NavItem { label: string; href: string; icon: React.ComponentType<{ className?: string }>; perm?: string; also?: string[]; /** Which "waiting" count shows next to it */ wait?: "payments" | "creditOrders" | "recovery" | "support" }
+type Waiting = { payments: number; creditOrders: number; recovery: number; support: number };
 
 /**
  * The admin menu. Pages that belong together share one item and switch with tabs on the page
@@ -27,23 +29,23 @@ interface NavItem { label: string; href: string; icon: React.ComponentType<{ cla
 const navGroups: { label: string; items: NavItem[] }[] = [
   { label: "", items: [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, perm: "dashboard.view" },
-    { label: "Support",   href: "/admin/support",   icon: MessageCircle,   perm: "support.view" },
+    { label: "Support",   href: "/admin/support",   icon: MessageCircle,   perm: "support.view", wait: "support" },
   ] },
   { label: "Studios", items: [
     { label: "Studios",   href: "/admin/studios",   icon: Building2, perm: "studios.view" },
     { label: "Users",     href: "/admin/users",     icon: Users,     perm: "users.view" },
     { label: "Websites",  href: "/admin/websites",  icon: Globe,     perm: "studios.view" },
-    { label: "Account recovery", href: "/admin/recovery", icon: LifeBuoy, perm: "studios.view" },
+    { label: "Account recovery", href: "/admin/recovery", icon: LifeBuoy, perm: "studios.view", wait: "recovery" },
     { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
   ] },
   { label: "Money", items: [
-    { label: "Payments",        href: "/admin/billing", icon: Wallet,     perm: "billing.view", also: ["/admin/revenue"] },
+    { label: "Payments",        href: "/admin/billing", icon: Wallet,     perm: "billing.view", also: ["/admin/revenue"], wait: "payments" },
     { label: "Plans & coupons", href: "/admin/plans",   icon: CreditCard, perm: "billing.view", also: ["/admin/coupons"] },
     { label: "Trials",          href: "/admin/trials",  icon: Hourglass,  perm: "studios.view" },
     { label: "Growth",          href: "/admin/growth",  icon: TrendingUp, perm: "reports.view" },
   ] },
   { label: "Products", items: [
-    { label: "AI Face Search", href: "/admin/face-search", icon: ScanFace, perm: "settings.manage" },
+    { label: "AI Face Search", href: "/admin/face-search", icon: ScanFace, perm: "settings.manage", wait: "creditOrders" },
     { label: "Music",          href: "/admin/music",       icon: Music2,   perm: "content.manage" },
   ] },
   { label: "System", items: [
@@ -67,6 +69,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [staff, setStaff] = useState<PlatformUser | null>(null);
+  /** What waits for the team: counts next to the menu items, checked every minute and on each page change. */
+  const [waiting, setWaiting] = useState<Waiting | null>(null);
   const isLogin = pathname === "/admin/login";
 
   useEffect(() => {
@@ -84,6 +88,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     })();
     return () => { alive = false; };
   }, [router, pathname, isLogin]);
+
+  useEffect(() => {
+    if (!staff || !can(staff, "dashboard.view")) return;
+    let alive = true;
+    const get = () => fetch(`${API_URL}/admin/waiting`, { headers: { Authorization: `Bearer ${getAdminToken()}` } })
+      .then(r => (r.ok ? r.json() : null)).then(d => { if (alive && d) setWaiting(d); }).catch(() => {});
+    void get();
+    const t = setInterval(get, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [staff, pathname]);
 
   // Keep the 15-minute token fresh while the panel is open
   useEffect(() => {
@@ -152,6 +166,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       )}>
                       <item.icon className={cn("w-4 h-4 flex-shrink-0", active ? "text-indigo-400" : "text-slate-500")} />
                       <span className="flex-1">{item.label}</span>
+                      {item.wait && (waiting?.[item.wait] ?? 0) > 0 && (
+                        <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-slate-950 text-[11px] font-bold inline-flex items-center justify-center tabular-nums" title="Waiting for you">{waiting![item.wait]}</span>
+                      )}
                       {active && <ChevronRight className="w-3 h-3 text-indigo-500" />}
                     </Link>
                   );

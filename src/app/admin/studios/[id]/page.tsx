@@ -17,7 +17,7 @@ interface Overview {
     id: string; name: string; slug: string; email: string; phone?: string | null; city?: string | null; logoUrl?: string | null;
     createdAt: string; deletedAt?: string | null; isActive: boolean; subscriptionStatus: string;
     trialEndsAt?: string | null; subscriptionEndsAt?: string | null; storageUsedMb: number; r2Enabled: boolean; r2StorageLimitMb: number;
-    plan?: { name: string; priceMonthly: string | number } | null;
+    plan?: { id?: string; name: string; priceMonthly: string | number } | null; planId?: string | null;
     access: { state: string; daysLeft: number | null; endsAt: string | null };
   };
   counts: { programs: number; clients: number; users: number; programsLast30: number; clientPayments: number; logins30: number };
@@ -70,6 +70,13 @@ export default function Studio360Page() {
   const [loginAs, setLoginAs] = useState(false);
   const [reason, setReason] = useState("");
   const [trialDays, setTrialDays] = useState("7");
+  /** Change the plan / set Paid until (a cash or bank payment, a gift month). */
+  const [plans, setPlans] = useState<{ id: string; name: string; isActive: boolean }[]>([]);
+  const [planPick, setPlanPick] = useState("");
+  const [paidUntil, setPaidUntil] = useState("");
+  useEffect(() => {
+    fetch(`${API}/admin/plans`, { headers: H() }).then(r => (r.ok ? r.json() : [])).then(d => setPlans(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     const r = await fetch(`${API}/admin/studios/${id}/overview`, { headers: H() });
@@ -224,6 +231,21 @@ export default function Studio360Page() {
                     const until = new Date(base + Number(trialDays) * 864e5).toISOString();
                     act("trial", () => fetch(`${API}/admin/studios/${id}`, { method: "PATCH", headers: H(), body: JSON.stringify({ trialEndsAt: until, subscriptionStatus: s.subscriptionStatus === "active" ? undefined : "trialing" }) }), `Trial extended to ${fmtWhen(until)}.`);
                   }}>Extend trial</Btn>
+                </div>
+                <p className="text-xs text-slate-400 mt-4 mb-2">Plan and Paid until (e.g. paid in cash or by bank, or a free month). Studios get it at once.</p>
+                <div className="flex flex-wrap gap-2">
+                  <select value={planPick || s.planId || s.plan?.id || ""} onChange={e => setPlanPick(e.target.value)} className={cn(inp, "w-40")} aria-label="Plan">
+                    <option value="" disabled>Plan…</option>
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.name}{p.isActive ? "" : " (off)"}</option>)}
+                  </select>
+                  <input type="date" value={paidUntil || (s.subscriptionEndsAt ? s.subscriptionEndsAt.slice(0, 10) : "")} onChange={e => setPaidUntil(e.target.value)} className={cn(inp, "w-40")} aria-label="Paid until" />
+                  <Btn variant="ghost" loading={busy === "plan"} onClick={() => {
+                    const body: Record<string, string> = {};
+                    if (planPick && planPick !== (s.planId || s.plan?.id)) body.planId = planPick;
+                    if (paidUntil) body.subscriptionEndsAt = new Date(`${paidUntil}T23:59:00+06:00`).toISOString();
+                    if (!Object.keys(body).length) return;
+                    act("plan", () => fetch(`${API}/admin/studios/${id}`, { method: "PATCH", headers: H(), body: JSON.stringify(body) }), "Plan saved.");
+                  }}>Save plan</Btn>
                 </div>
               </div>
             )}

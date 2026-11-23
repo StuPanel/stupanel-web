@@ -42,7 +42,8 @@ export function LockedStudio({ status }: { status: BillingStatus }) {
   const wasTrial = !status.plan;
   const end = status.access.periodEndsAt;
   const linksClose = end ? new Date(new Date(end).getTime() + LINK_DAYS * 864e5) : null;
-  const linksOpen = !!linksClose && linksClose.getTime() > Date.now();
+  const [now] = useState(() => Date.now());
+  const linksOpen = !!linksClose && linksClose.getTime() > now;
   const renew = status.plan?.slug ? checkoutHref(status.plan.slug, status.interval ?? "monthly") : "/billing#plans";
   const pending = status.pendingRequest;
 

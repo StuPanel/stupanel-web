@@ -53,6 +53,7 @@ const CATEGORIES = [
   { value: "technical", label: "Technical Issue" },
   { value: "feature",   label: "Feature Request" },
   { value: "bug",       label: "Bug Report" },
+  { value: "website",   label: "Website / Domain" },
 ];
 
 export default function SupportPage() {
@@ -100,6 +101,14 @@ export default function SupportPage() {
   }, [statusFilter]);
 
   useEffect(() => { loadTickets(); }, []);
+  // /support?ticket=<id> (e.g. from Website → Your own domain) opens that ticket straight away.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("ticket");
+    if (!id) return;
+    const t = setTimeout(() => { void openTicket({ id }); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function openTicket(ticket: any) {
     setSelected(ticket);

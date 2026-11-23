@@ -1,10 +1,16 @@
 name: CI
 
+# Checks run on pull requests only: main gets the same code by a squash merge after the checks passed,
+# so running them again on main used the free GitHub minutes twice (Faisal 24-NOV-2026).
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same pull request stops the older run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   typecheck:

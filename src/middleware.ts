@@ -75,6 +75,7 @@ const PUBLIC_PREFIXES = [
   "/track",
   "/former-studio/",
   "/trial-feedback",
+  "/undo-email-change",
 ];
 
 /**

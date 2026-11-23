@@ -13,6 +13,7 @@ import { DaysOffSection, PayoutSection } from "../_components/prefs";
 import type { MemberPrefs } from "@/lib/member-prefs";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { SignedInDevices } from "@/components/account/signed-in-devices";
+import { SignInSecurity } from "@/components/account/sign-in-security";
 
 interface Profile {
   id: string;
@@ -232,7 +233,7 @@ export default function MemberProfilePage() {
           {pwOk ? "Password changed" : "Change password"}
         </button>
       </form>
-      <div className="mt-8"><SignedInDevices /></div>
+      <div className="mt-8 space-y-6"><SignInSecurity /><SignedInDevices /></div>
     </div>
   );
 }

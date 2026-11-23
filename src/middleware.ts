@@ -77,6 +77,7 @@ const PUBLIC_PREFIXES = [
   "/trial-feedback",
   "/undo-email-change",
   "/ownership",
+  "/lost-email",
 ];
 
 /**

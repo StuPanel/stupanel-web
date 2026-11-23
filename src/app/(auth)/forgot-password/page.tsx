@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
+  // The "Your studio is back" email links here with ?email=… filled in.
+  const [email, setEmail] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("email") ?? ""));
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -67,7 +68,7 @@ export default function ForgotPasswordPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#17151F]">Forgot password?</h2>
         <p className="text-[#6B6680] mt-1 text-sm">
-          Enter your email and we&apos;ll send you a reset link.
+          Enter your email and we&apos;ll send you a reset link. If you added a recovery email, the link goes there too.
         </p>
       </div>
 
@@ -95,8 +96,10 @@ export default function ForgotPasswordPage() {
         </Button>
       </form>
 
+      <p className="mt-5 text-center text-sm text-[#6B6680]">Can&apos;t open that email any more? <Link href="/lost-email" className="font-semibold text-[#7D5CEF] hover:text-[#5B3FD0]">I lost my email</Link></p>
+
       <Link href="/login"
-        className="mt-6 flex items-center justify-center gap-2 text-sm text-[#6B6680] hover:text-[#33303F] transition-colors">
+        className="mt-4 flex items-center justify-center gap-2 text-sm text-[#6B6680] hover:text-[#33303F] transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to Sign In
       </Link>
     </div>

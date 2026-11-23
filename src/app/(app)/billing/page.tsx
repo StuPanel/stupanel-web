@@ -5,7 +5,7 @@ import { Crown as HeaderIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCircle2, Clock, Copy, Crown, Loader2, Lock, XCircle } from "lucide-react";
+import { CalendarPlus, Check, CheckCircle2, Clock, Copy, Crown, Gift, Loader2, Lock, XCircle } from "lucide-react";
 import { apiFetch, API_URL } from "@/lib/api";
 import { loadBillingStatus, type BillingAccess } from "@/components/billing/billing-banner";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,10 @@ interface PayRequest {
 interface Status {
   status: string; plan: { id: string; name: string } | null; interval: Interval | null;
   access: BillingAccess; pendingRequest: PayRequest | null; history: PayRequest[];
+  /** Win-back offer: percent off the first monthly payment, until a date. */
+  offer?: { percent: number; until: string } | null;
 }
+interface TrialState { canExtend: boolean; extendedAt: string | null; extendDays: number }
 
 const METHOD_LABEL: Record<Method, string> = { bkash: "bKash", nagad: "Nagad", rocket: "Rocket" };
 const METHOD_COLOR: Record<Method, string> = { bkash: "#E2136E", nagad: "#EC1C24", rocket: "#8C3494" };
@@ -55,13 +58,18 @@ export default function BillingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [trial, setTrial] = useState<TrialState | null>(null);
+  const [extending, setExtending] = useState(false);
+  const [extendMsg, setExtendMsg] = useState<{ ok?: string; error?: string }>({});
 
   async function load() {
-    const [s, p] = await Promise.all([
+    const [s, p, t] = await Promise.all([
       apiFetch(`${API_URL}/billing/status`).then((r) => (r.ok ? r.json() : null)),
       apiFetch(`${API_URL}/billing/plans`).then((r) => (r.ok ? r.json() : null)),
+      apiFetch(`${API_URL}/billing/trial`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
     if (s) setStatus(s);
+    setTrial(t);
     if (p) {
       setPlans(p.plans ?? []);
       setAccounts(p.accounts ?? []);
@@ -76,7 +84,21 @@ export default function BillingPage() {
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const plan = useMemo(() => plans.find((p) => p.id === planId) ?? null, [plans, planId]);
-  const amount = plan ? (interval === "yearly" ? plan.priceYearly : plan.priceMonthly) : 0;
+  const offer = status?.offer ?? null;
+  // The offer takes its percent off the first monthly payment (the server works it out the same way).
+  const priceOf = (p: Plan, iv: Interval) => (iv === "monthly" && offer ? Math.round(p.priceMonthly * (100 - offer.percent) / 100) : iv === "yearly" ? p.priceYearly : p.priceMonthly);
+  const amount = plan ? priceOf(plan, interval) : 0;
+
+  async function extend() {
+    setExtending(true); setExtendMsg({});
+    try {
+      const res = await apiFetch(`${API_URL}/billing/trial/extend`, { method: "POST" });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) setExtendMsg({ error: (Array.isArray(b.message) ? b.message[0] : b.message) || "Could not add the days. Please try again." });
+      else { setExtendMsg({ ok: `Done — your free trial now runs until ${fmtDate(b.trialEndsAt)}.` }); await loadBillingStatus(true); await load(); }
+    } catch { setExtendMsg({ error: "Network problem. Please try again." }); }
+    setExtending(false);
+  }
   const account = accounts.find((a) => a.method === method) ?? null;
 
   async function submit(e: React.FormEvent) {
@@ -128,6 +150,32 @@ export default function BillingPage() {
       {/* Current status */}
       {access && <StatusCard status={status!} />}
 
+      {offer && !pending && (
+        <div className="rounded-2xl border border-[#CDEBDB] bg-[#F1FAF5] p-5 flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-[#1F8A5B] flex items-center justify-center flex-shrink-0"><Gift className="w-5 h-5 text-white" /></div>
+          <div>
+            <p className="font-semibold text-[#17151F]">{offer.percent}% off your first month</p>
+            <p className="text-sm text-[#4A4658] mt-0.5">Pay monthly before {fmtDate(offer.until)} and the first month costs {offer.percent}% less. The price below already shows it.</p>
+          </div>
+        </div>
+      )}
+
+      {trial?.canExtend && !pending && (
+        <div className="rounded-2xl border border-[#E3DFEC] bg-white p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-[#EEE8FD] flex items-center justify-center flex-shrink-0"><CalendarPlus className="w-5 h-5 text-[#7D5CEF]" /></div>
+          <div className="flex-1">
+            <p className="font-semibold text-[#17151F]">Need more time to try it?</p>
+            <p className="text-sm text-[#4A4658] mt-0.5">Take {trial.extendDays} more days free. You can do this once.</p>
+            {extendMsg.error && <p className="text-sm text-[#C2304F] mt-1">{extendMsg.error}</p>}
+          </div>
+          <button type="button" onClick={() => void extend()} disabled={extending}
+            className="h-11 px-4 rounded-xl bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+            {extending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarPlus className="w-4 h-4" />}Take {trial.extendDays} more days
+          </button>
+        </div>
+      )}
+      {extendMsg.ok && <p role="status" className="rounded-xl bg-[#F1FAF5] border border-[#CDEBDB] px-4 py-3 text-sm text-[#1F6B47]">{extendMsg.ok}</p>}
+
       {pending ? (
         <div className="rounded-2xl border border-[#CFC2F8] bg-[#EEE8FD] p-5 flex gap-4">
           <Clock className="w-6 h-6 text-[#5B3FD0] flex-shrink-0 mt-0.5" />
@@ -160,7 +208,8 @@ export default function BillingPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {plans.map((p) => {
               const selected = p.id === planId;
-              const price = interval === "yearly" ? p.priceYearly : p.priceMonthly;
+              const price = priceOf(p, interval);
+              const full = interval === "yearly" ? p.priceYearly : p.priceMonthly;
               return (
                 <button key={p.id} type="button" onClick={() => setPlanId(p.id)}
                   className={cn("relative text-left rounded-2xl border bg-white p-5 transition-all",
@@ -177,9 +226,11 @@ export default function BillingPage() {
                   </div>
                   {p.tagline && <p className="text-xs text-[#6B6680] mt-0.5">{p.tagline}</p>}
                   <p className="mt-3">
+                    {price < full && <span className="text-sm text-[#9C97AC] line-through mr-1.5">{money(full, p.currency)}</span>}
                     <span className="text-2xl font-bold text-[#17151F]">{money(price, p.currency)}</span>
                     <span className="text-sm text-[#6B6680]"> / {interval === "yearly" ? "year" : "month"}</span>
                   </p>
+                  {price < full && <p className="text-xs font-medium text-[#1F8A5B] mt-0.5">First month, then {money(full, p.currency)} / month</p>}
                   {interval === "yearly" && yearlySaving(p) > 0 && (
                     <p className="text-xs font-medium text-[#1F8A5B] mt-0.5">Save {money(yearlySaving(p), p.currency)} a year</p>
                   )}

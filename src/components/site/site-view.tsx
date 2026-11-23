@@ -13,6 +13,7 @@ import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
 import type { SiteSeo } from "@/lib/site-seo";
+import { styleOf, type SiteStyle } from "@/lib/site-style";
 import { siteTrack, type SiteTrackingIds } from "./site-tracking";
 import "./site.css";
 
@@ -44,6 +45,8 @@ export type SiteContent = {
   seo?: SiteSeo;
   /** Facebook Pixel / Google Analytics / Tag Manager ids */
   tracking?: SiteTrackingIds;
+  /** The studio's own fonts, colour, corners, buttons, headings, logo (empty = as the look) */
+  style?: SiteStyle;
 };
 export type SiteData = {
   /** The studio's own domain when it works (visitors on the stupanel.com address are sent there). */
@@ -384,10 +387,13 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
     { transform: "translateY(44px) rotate(-3deg) scale(.92)", opacity: 0.6, zIndex: 1 },
   ];
   const nRev = c.reviews.length;
+  /** The studio's own fonts, colour, corners, buttons, headings and logo place (Look → Make it yours). */
+  const own = styleOf(c.style);
 
   return (
-    <div ref={root} id="top" className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}${mono && (home || (page === "about" && !!c.aboutPhoto && !!photos[c.aboutPhoto])) ? " ovr" : ""}`}>
+    <div ref={root} id="top" style={own.style} className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}${mono && (home || (page === "about" && !!c.aboutPhoto && !!photos[c.aboutPhoto])) ? " ovr" : ""}${own.cls}`}>
       <link rel="stylesheet" href={fontHref(data.theme)} precedence="default" />
+      {own.fontQuery && <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?${own.fontQuery}&display=swap`} precedence="default" />}
       <div className="prog" aria-hidden="true" />
 
       {home && <div className="cur" aria-hidden="true">

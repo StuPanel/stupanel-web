@@ -12,6 +12,7 @@ import { DomainGuide } from "./domain-guide";
 import { SeoTab } from "./seo-tab";
 import { TrackingTab } from "./tracking-tab";
 import { VisitorsTab } from "./visitors-tab";
+import { StylePanel } from "./style-panel";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -53,6 +54,8 @@ type Mine = {
   seoAllowed?: boolean;
   /** Facebook Pixel / Google Analytics are part of the plan (switch "website_tracking") */
   trackingAllowed?: boolean;
+  /** Own fonts / colours / buttons are part of the plan (switch "website_style") */
+  styleAllowed?: boolean;
   /** The studio's own domain (pending until its DNS records work, then live). */
   customDomain?: string | null; customDomainState?: "pending" | "live" | null;
 };
@@ -558,6 +561,7 @@ export default function WebsitePage() {
           })}
         </div>
       </FormGroup>
+      <StylePanel value={c.style} allowed={site.styleAllowed !== false} onChange={v => set("style", v)} />
       </div>
 
       <div hidden={tab !== "photos"}>

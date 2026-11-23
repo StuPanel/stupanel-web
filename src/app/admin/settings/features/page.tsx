@@ -1,4 +1,5 @@
 "use client";
+import { notify } from "@/components/feedback";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,10 +21,12 @@ interface FFlag {
   description?: string;
   isEnabled: boolean;
   allowedPlans: string[];
+  companyOverrides?: { companyId: string; enabled: boolean; label?: string }[];
   updatedAt: string;
 }
 
-const emptyForm = { key: "", name: "", description: "", isEnabled: false, allowedPlansText: "" };
+const emptyForm = { key: "", name: "", description: "", isEnabled: false, allowedPlansText: "", onForText: "", offForText: "" };
+const emails = (t: string) => t.split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 
 export default function AdminFeatureFlagsPage() {
   const router = useRouter();
@@ -71,6 +74,8 @@ export default function AdminFeatureFlagsPage() {
       description: flag.description ?? "",
       isEnabled: flag.isEnabled,
       allowedPlansText: flag.allowedPlans.join(", "),
+      onForText: (flag.companyOverrides ?? []).filter(o => o.enabled).map(o => o.label ?? o.companyId).join(", "),
+      offForText: (flag.companyOverrides ?? []).filter(o => !o.enabled).map(o => o.label ?? o.companyId).join(", "),
     });
     setShowForm(true);
   }
@@ -83,13 +88,14 @@ export default function AdminFeatureFlagsPage() {
       description: form.description.trim() || undefined,
       isEnabled: form.isEnabled,
       allowedPlans: form.allowedPlansText.split(",").map(s => s.trim()).filter(Boolean),
+      onFor: emails(form.onForText),
+      offFor: emails(form.offForText),
     };
-    if (editId) {
-      await fetch(`${API}/admin/feature-flags/${editId}`, { method: "PATCH", headers: authH(), body: JSON.stringify(body) });
-    } else {
-      await fetch(`${API}/admin/feature-flags`, { method: "POST", headers: authH(), body: JSON.stringify(body) });
-    }
+    const r = editId
+      ? await fetch(`${API}/admin/feature-flags/${editId}`, { method: "PATCH", headers: authH(), body: JSON.stringify(body) }).catch(() => null)
+      : await fetch(`${API}/admin/feature-flags`, { method: "POST", headers: authH(), body: JSON.stringify(body) }).catch(() => null);
     setSaving(false);
+    if (!r?.ok) { const d = await r?.json().catch(() => ({})); notify(d?.message || "Could not save the flag.", { error: true }); return; }
     setShowForm(false);
     load();
   }
@@ -113,7 +119,7 @@ export default function AdminFeatureFlagsPage() {
         </Button>
       </div>
 
-      <p role="note" className="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">Not connected yet: the studio app does not read these flags, so turning one on or off changes nothing for studios today.</p>
+      <p role="note" className="text-sm text-slate-300 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">A flag lets a new part of StuPanel show only where you want: everyone, some plans, or some studios (by the owner&apos;s email). The app asks for the flag&apos;s key; a change reaches studios within a minute. For a whole feature in or out of a plan, use Plans → What&apos;s included.</p>
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
@@ -218,6 +224,16 @@ export default function AdminFeatureFlagsPage() {
                 <label className="text-xs text-slate-400">Allowed Plans (comma-separated slug, blank = all)</label>
                 <Input value={form.allowedPlansText} onChange={e => setForm(p => ({ ...p, allowedPlansText: e.target.value }))}
                   placeholder="pro, enterprise" className="bg-slate-800 border-slate-700 text-white h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Always ON for these studios (owner sign-in emails, comma-separated)</label>
+                <Input value={form.onForText} onChange={e => setForm(p => ({ ...p, onForText: e.target.value }))}
+                  placeholder="owner@studio.com" className="bg-slate-800 border-slate-700 text-white h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Always OFF for these studios</label>
+                <Input value={form.offForText} onChange={e => setForm(p => ({ ...p, offForText: e.target.value }))}
+                  className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="flagEnabled" checked={form.isEnabled}

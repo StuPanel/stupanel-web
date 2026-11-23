@@ -87,7 +87,27 @@ export default function BillingPage() {
   const offer = status?.offer ?? null;
   // The offer takes its percent off the first monthly payment (the server works it out the same way).
   const priceOf = (p: Plan, iv: Interval) => (iv === "monthly" && offer ? Math.round(p.priceMonthly * (100 - offer.percent) / 100) : iv === "yearly" ? p.priceYearly : p.priceMonthly);
-  const amount = plan ? priceOf(plan, interval) : 0;
+  /** "Have a coupon?": the code and its price for this plan and length (cleared when either changes). */
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponText, setCouponText] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; label: string; price: number; for: string } | null>(null);
+  const [couponErr, setCouponErr] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const couponFor = plan ? `${plan.id}:${interval}` : "";
+  const couponNow = coupon && coupon.for === couponFor ? coupon : null;
+  const basePrice = plan ? priceOf(plan, interval) : 0;
+  // One discount per payment: the coupon or the trial offer, whichever is bigger (the server decides the same way).
+  const useCoupon = !!couponNow && couponNow.price < basePrice;
+  const amount = useCoupon ? couponNow!.price : basePrice;
+  async function applyCoupon() {
+    if (!plan || !couponText.trim()) return;
+    setCouponBusy(true); setCouponErr("");
+    const r = await apiFetch(`${API_URL}/billing/coupon`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: couponText, planId: plan.id, interval }) }).catch(() => null);
+    const b = r ? await r.json().catch(() => ({})) : {};
+    setCouponBusy(false);
+    if (!r?.ok) { setCoupon(null); setCouponErr((Array.isArray(b.message) ? b.message[0] : b.message) || "Could not check the code. Try again."); return; }
+    setCoupon({ code: b.code, label: b.label, price: Number(b.price), for: `${plan.id}:${interval}` });
+  }
 
   async function extend() {
     setExtending(true); setExtendMsg({});
@@ -110,7 +130,7 @@ export default function BillingPage() {
       const res = await apiFetch(`${API_URL}/billing/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, interval, method, senderNumber, trxId }),
+        body: JSON.stringify({ planId: plan.id, interval, method, senderNumber, trxId, ...(useCoupon ? { couponCode: couponNow!.code } : {}) }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -255,6 +275,26 @@ export default function BillingPage() {
                 <h2 className="text-lg font-semibold text-[#17151F]">Pay {money(amount, plan.currency)}</h2>
                 <p className="text-sm text-[#6B6680]">{plan.name} · {interval === "yearly" ? "1 year" : "1 month"}</p>
               </div>
+              {/* Coupon */}
+              {couponNow ? (
+                <p className="text-sm text-[#1F6B47] bg-[#E9F5EF] rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold">{couponNow.label}</span>
+                  {useCoupon ? <span>— you pay {money(couponNow.price, plan.currency)}</span> : <span className="text-[#4A4658]">— your offer is already bigger, so it is used instead</span>}
+                  <button type="button" onClick={() => { setCoupon(null); setCouponText(""); }} className="ml-auto text-[#4A4658] underline text-xs">Remove</button>
+                </p>
+              ) : !couponOpen ? (
+                <button type="button" onClick={() => setCouponOpen(true)} className="text-sm font-semibold text-[#5B3FD0]">Have a coupon?</button>
+              ) : (
+                <div>
+                  <div className="flex gap-2">
+                    <input value={couponText} onChange={e => setCouponText(e.target.value.toUpperCase())} maxLength={50} placeholder="Coupon code" aria-label="Coupon code"
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void applyCoupon(); } }}
+                      className="h-10 flex-1 min-w-0 rounded-lg border border-[#E3DFEC] px-3 text-sm uppercase tracking-wide" />
+                    <button type="button" disabled={couponBusy || !couponText.trim()} onClick={() => void applyCoupon()} className="h-10 px-4 rounded-lg bg-[#17151F] text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">{couponBusy && <Loader2 className="w-4 h-4 animate-spin" />}Apply</button>
+                  </div>
+                  {couponErr && <p role="alert" className="text-xs text-[#C2304F] mt-1.5">{couponErr}</p>}
+                </div>
+              )}
 
               {accounts.length === 0 ? (
                 <p className="rounded-lg bg-[#F5F3FA] p-4 text-sm text-[#4A4658]">

@@ -47,7 +47,7 @@ type Mine = {
   slug: string; theme: string; content: SiteContent; isPublished: boolean; publishedAt: string | null; hasChanges: boolean;
   photos: Photo[]; photoLimit: number; /** Unused photos are removed for good after this many days */ unusedDays?: number; studio: { name: string; logoUrl: string | null };
   /** Visitors can't see the website now: StuPanel took it offline, the studio is closed, or the plan is unpaid. */
-  offline?: "admin" | "closed" | "unpaid" | null; offlineNote?: string | null;
+  offline?: "admin" | "closed" | "unpaid" | "plan" | null; offlineNote?: string | null;
   /** Days an old address keeps sending visitors to the new one after a change. */
   renameHoldDays?: number;
   /** Own Google titles, share picture and codes are part of the plan (switch "website_seo") */
@@ -428,6 +428,7 @@ export default function WebsitePage() {
             <b className="block text-sm">Visitors can&apos;t see your website right now</b>
             {site.offline === "admin" ? <>StuPanel has taken it offline.{site.offlineNote ? ` Note: ${site.offlineNote}` : ""} Please contact StuPanel support.</>
               : site.offline === "unpaid" ? <>Your StuPanel plan has ended. It comes back as soon as the plan is paid.</>
+              : site.offline === "plan" ? <>A studio website is not part of your plan. <a href="/billing" className="font-semibold underline">See Plan &amp; billing</a> to change the plan.</>
               : <>Your studio is closed. It comes back if the studio is opened again.</>}
           </div>
         </div>

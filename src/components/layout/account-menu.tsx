@@ -41,8 +41,8 @@ function planInfo(access: BillingAccess | null, planName: string | null, interva
       pct: days !== null && period ? Math.max(4, Math.min(100, (days / period) * 100)) : null,
       ends: access?.periodEndsAt ? `Renews ${fmtDay(access.periodEndsAt)}` : "", cta: "Manage plan" };
   }
-  if (mode === "grace") return { mode, short: "Plan ended", badge: "Ended", line: "Pay now to keep working", tone: "red" as const, pct: null, ends: access?.graceEndsAt ? `Locked from ${fmtDay(access.graceEndsAt)}` : "", cta: "Renew plan" };
-  return { mode, short: "Locked", badge: "Locked", line: "Renew to open everything", tone: "red" as const, pct: null, ends: "", cta: "Renew plan" };
+  if (mode === "grace") return { mode, short: "Plan ended", badge: "Ended", line: "Pay now to keep working", tone: "red" as const, pct: null, ends: access?.graceEndsAt ? `Renew by ${fmtDay(access.graceEndsAt)}` : "", cta: "Renew plan" };
+  return { mode, short: "Plan ended", badge: "Ended", line: "Renew now to keep working", tone: "red" as const, pct: null, ends: "", cta: "Renew plan" };
 }
 
 export function AccountMenu({ variant, side = "right", onNavigate }: {

@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, CalendarDays, CalendarPlus, Clock, Images, Link2Off, Link2, Loader2, LockKeyhole, LifeBuoy, Users, UsersRound, Wallet,
+  ArrowRight, CalendarDays, CalendarPlus, Clock, Crown, Images, Link2Off, Link2, Loader2, LifeBuoy, Users, UsersRound, Wallet,
 } from "lucide-react";
 import { apiFetch, API_URL } from "@/lib/api";
 import { checkoutHref, fmtDate, money, type BillingStatus, type TrialState } from "@/lib/billing";
@@ -64,20 +64,20 @@ export function LockedStudio({ status }: { status: BillingStatus }) {
     <div className="max-w-[920px] mx-auto py-2 sm:py-6">
       <section className="rounded-[28px] bg-white border border-[#E3DFEC] overflow-hidden shadow-[0_24px_60px_-36px_rgba(40,28,96,.45)]">
         <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-7 bg-[linear-gradient(160deg,#F6F2FF_0%,#FFFFFF_65%)]">
-          <div className="w-14 h-14 rounded-2xl bg-[#17151F] text-white flex items-center justify-center"><LockKeyhole className="w-6 h-6" /></div>
+          <div className="w-14 h-14 rounded-2xl bg-[#EEE8FD] text-[#7D5CEF] flex items-center justify-center"><Crown className="w-6 h-6" /></div>
           <h1 className="mt-5 text-[28px] sm:text-[34px] leading-[1.1] font-extrabold tracking-[-0.025em] text-[#17151F]">
-            {wasTrial ? "Your free trial has ended" : "Your studio is locked"}
+            {wasTrial ? "Your free trial has ended" : "Your subscription has ended"}
           </h1>
           <p className="mt-3 max-w-[620px] text-[15.5px] leading-relaxed text-[#4A4658]">
-            {wasTrial ? "Choose a plan to keep using StuPanel." : `Your ${status.plan?.name ?? ""} plan ended${end ? ` on ${fmtDate(end)}` : ""}.`}{" "}
-            Everything you made is kept safe and nothing is deleted. Renew and it all opens again, exactly as you left it.
+            {wasTrial ? "Choose a plan to keep using StuPanel." : `Your ${status.plan?.name ?? ""} plan ended${end ? ` on ${fmtDate(end)}` : ""}. Renew now to keep working.`}{" "}
+            All your work is saved — when you renew, everything is back just as you left it.
           </p>
           {pending ? (
             <p className="mt-6 rounded-2xl bg-[#EEE8FD] px-4 py-3 text-[14px] text-[#5B3FD0] flex gap-2.5"><Clock className="w-5 h-5 flex-shrink-0" />Your payment of {money(pending.amount, pending.currency)} is being checked. Everything opens as soon as it is accepted.</p>
           ) : (
             <div className="mt-6 flex flex-col sm:flex-row gap-2.5">
               <Link href={renew} className="h-[52px] px-7 rounded-full bg-[#7D5CEF] hover:bg-[#6B4BDD] text-white text-[16px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_12px_26px_-12px_rgba(125,92,239,.8)]">
-                {wasTrial ? "Choose a plan" : `Renew ${status.plan?.name ?? "plan"}`}<ArrowRight className="w-5 h-5" />
+                {wasTrial ? "Choose a plan" : "Renew now"}<ArrowRight className="w-5 h-5" />
               </Link>
               {!wasTrial && <Link href="/billing#plans" className="h-[52px] px-6 rounded-full bg-[#F5F3FA] hover:bg-[#ECE8F5] text-[#17151F] text-[15px] font-semibold inline-flex items-center justify-center">See all plans</Link>}
               {trial?.canExtend && (
@@ -106,7 +106,7 @@ export function LockedStudio({ status }: { status: BillingStatus }) {
         {/* Totals only */}
         <div className="px-6 sm:px-10 pt-7 pb-8">
           <p className="text-[15px] font-bold text-[#17151F]">Your studio in numbers</p>
-          <p className="text-[13px] text-[#6B6680]">Renew to open every client, program, payment and team member again.</p>
+          <p className="text-[13px] text-[#6B6680]">The full details — every client, program, payment and team member — are back when you renew.</p>
           {!sum ? (
             <div className="py-10 flex justify-center text-[#A29DB3]"><Loader2 className="w-6 h-6 animate-spin" /></div>
           ) : (
@@ -143,9 +143,9 @@ export function LockedStudio({ status }: { status: BillingStatus }) {
 export function LockedForTeam() {
   return (
     <div className="max-w-[560px] mx-auto py-10 text-center">
-      <div className="mx-auto w-14 h-14 rounded-2xl bg-[#17151F] text-white flex items-center justify-center"><LockKeyhole className="w-6 h-6" /></div>
-      <h1 className="mt-5 text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F]">The studio&apos;s plan has ended</h1>
-      <p className="mt-2 text-[15px] text-[#4A4658]">StuPanel is locked for this studio until the owner renews the plan. Nothing is deleted — everything opens again as soon as it is renewed.</p>
+      <div className="mx-auto w-14 h-14 rounded-2xl bg-[#EEE8FD] text-[#7D5CEF] flex items-center justify-center"><Crown className="w-6 h-6" /></div>
+      <h1 className="mt-5 text-[26px] font-extrabold tracking-[-0.02em] text-[#17151F]">The studio&apos;s subscription has ended</h1>
+      <p className="mt-2 text-[15px] text-[#4A4658]">StuPanel opens again as soon as the studio owner renews. All your work is saved.</p>
       <p className="mt-4 text-[14px] text-[#6B6680]">Please ask the studio owner to open Plan &amp; billing.</p>
     </div>
   );

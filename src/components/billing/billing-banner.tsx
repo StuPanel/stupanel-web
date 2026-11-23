@@ -69,7 +69,7 @@ export function BillingBanner() {
             </div>
             <h3 className="text-base font-semibold text-[#17151F]">Your plan has ended</h3>
             <p className="mt-1.5 text-sm text-[#4A4658]">
-              Your studio is locked. Nothing is deleted — renew your plan and everything opens again.
+              Your subscription has ended. Renew now to keep working — all your work is saved.
             </p>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setBlockedNotice(false)}
@@ -108,7 +108,7 @@ function Strip({ access, pending, dismissed, onDismiss }: {
       <div className="bg-[#FDECEF] border-b border-[#F5C6D0] px-4 py-2.5 flex items-center gap-3 flex-wrap">
         <Lock className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
         <p className="text-sm text-[#8A1F37] flex-1">
-          Your studio is locked until you renew — nothing is deleted.
+          Your subscription has ended. Renew now to keep working — all your work is saved.
         </p>
         <Link href="/billing" className="rounded-md bg-[#C2304F] px-3 py-1 text-sm font-semibold text-white hover:opacity-90">Renew now</Link>
       </div>
@@ -122,7 +122,7 @@ function Strip({ access, pending, dismissed, onDismiss }: {
       <div className="bg-[#FDECEF] border-b border-[#F5C6D0] px-4 py-2.5 flex items-center gap-3 flex-wrap">
         <Clock className="w-4 h-4 text-[#C2304F] flex-shrink-0" />
         <p className="text-sm text-[#8A1F37] flex-1">
-          Your plan has ended. Pay before <span className="font-semibold">{fmtDate(access.graceEndsAt)}</span> or the studio is locked.
+          Your plan has ended. Pay before <span className="font-semibold">{fmtDate(access.graceEndsAt)}</span> to keep working without a break.
         </p>
         <Link href="/billing" className="rounded-md bg-[#C2304F] px-3 py-1 text-sm font-semibold text-white hover:opacity-90">Pay now</Link>
         <button onClick={onDismiss} className="text-[#C2304F]/70 hover:text-[#C2304F]"><X className="w-4 h-4" /></button>

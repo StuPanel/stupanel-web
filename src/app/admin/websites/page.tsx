@@ -23,6 +23,7 @@ const msg = (d: { message?: string | string[] }) => (Array.isArray(d.message) ? 
 type Site = {
   companyId: string; studioName: string; slug: string; theme: string; isPublished: boolean; publishedAt: string | null; updatedAt: string;
   adminOffline: boolean; adminOfflineReason: string | null; photos: number; state: string;
+  /** <address>.stupanel.com on Vercel: added | add (waiting) | failed | null */ domain: string | null; domainError: string | null;
 };
 type Hold = { slug: string; reason: "deleted" | "renamed" | "blocked"; redirectTo: string | null; releaseAt: string | null; note: string | null; studioName: string | null; createdAt: string; daysLeft: number | null };
 type Rules = { holdDeletedDays: number; holdRenamedDays: number; unpaidGraceDays: number };
@@ -203,6 +204,7 @@ export default function AdminWebsitesPage() {
                         </div>
                         <div className="text-sm text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
                           <a href={siteUrl(s.slug)} target="_blank" rel="noreferrer" className="text-indigo-300 hover:text-white inline-flex items-center gap-1">{s.slug}<ExternalLink className="w-3.5 h-3.5" /></a>
+                          {s.domain && s.domain !== "added" && <span className={s.domain === "failed" ? "text-rose-300" : "text-amber-300"} title={s.domainError ?? undefined}>{s.domain === "failed" ? "Address couldn't be set up" : "Address being set up (about a minute)"}</span>}
                           <span>{s.photos} photos</span>
                           <span>Published {date(s.publishedAt)}</span>
                           <span>Changed {date(s.updatedAt)}</span>

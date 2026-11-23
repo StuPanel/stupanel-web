@@ -28,6 +28,9 @@ interface Plan {
   trialDays: number;
   isActive: boolean;
   isPopular: boolean;
+  tagline?: string | null;
+  description?: string | null;
+  sortOrder?: number;
   features?: any[];
 }
 
@@ -37,6 +40,7 @@ const emptyForm = {
   maxClients: "50", maxTeamMembers: "3",
   maxBookingsPerMonth: "20", maxEmailsPerMonth: "0", trialDays: "14",
   isActive: true, isPopular: false,
+  tagline: "", description: "", sortOrder: "0",
 };
 
 export default function AdminPlansPage() {
@@ -79,6 +83,9 @@ export default function AdminPlansPage() {
       trialDays: String(plan.trialDays),
       isActive: plan.isActive,
       isPopular: plan.isPopular,
+      tagline: plan.tagline ?? "",
+      description: plan.description ?? "",
+      sortOrder: String(plan.sortOrder ?? 0),
     });
     setShowForm(true);
   }
@@ -97,6 +104,9 @@ export default function AdminPlansPage() {
       trialDays: parseInt(form.trialDays) || 14,
       isActive: form.isActive,
       isPopular: form.isPopular,
+      tagline: form.tagline.trim(),
+      description: form.description.trim(),
+      sortOrder: parseInt(form.sortOrder) || 0,
     };
 
     if (editId) {
@@ -156,6 +166,7 @@ export default function AdminPlansPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 font-mono mt-0.5">/{plan.slug}</p>
+                  {plan.tagline && <p className="text-xs text-slate-400 mt-1">{plan.tagline}</p>}
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => openEdit(plan)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
@@ -213,6 +224,21 @@ export default function AdminPlansPage() {
                 <label className="text-xs text-slate-400">Slug *</label>
                 <Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))}
                   placeholder="pro" className="bg-slate-800 border-slate-700 text-white h-9 font-mono" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-xs text-slate-400">Short line on the plan card</label>
+                <Input value={form.tagline} maxLength={255} onChange={e => setForm(p => ({ ...p, tagline: e.target.value }))}
+                  placeholder="Perfect for small studios" className="bg-slate-800 border-slate-700 text-white h-9" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-xs text-slate-400">Description (optional)</label>
+                <textarea value={form.description} maxLength={2000} rows={2} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                  className="w-full rounded-md bg-slate-800 border border-slate-700 text-white text-sm px-3 py-2" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Order (1 = first)</label>
+                <Input type="number" value={form.sortOrder} onChange={e => setForm(p => ({ ...p, sortOrder: e.target.value }))}
+                  className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-slate-400">Monthly Price</label>

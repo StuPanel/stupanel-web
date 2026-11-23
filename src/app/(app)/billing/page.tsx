@@ -225,6 +225,7 @@ export default function BillingPage() {
                     </span>
                   </div>
                   {p.tagline && <p className="text-xs text-[#6B6680] mt-0.5">{p.tagline}</p>}
+                  {p.description && <p className="text-xs text-[#6B6680] mt-1 leading-snug">{p.description}</p>}
                   <p className="mt-3">
                     {price < full && <span className="text-sm text-[#9C97AC] line-through mr-1.5">{money(full, p.currency)}</span>}
                     <span className="text-2xl font-bold text-[#17151F]">{money(price, p.currency)}</span>

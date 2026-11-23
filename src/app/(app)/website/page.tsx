@@ -406,7 +406,7 @@ export default function WebsitePage() {
 
   return (
     <div className="xl:flex xl:gap-6 xl:items-start">
-    <div className={cn("site-ed flex-1 min-w-0", showPhone ? "max-w-none" : "max-w-[1240px]")}>
+    <div className="site-ed flex-1 min-w-0">
       <PageHeader icon={Globe} color="violet" title="Website" sub={<>{status}{saving === "saving" ? " · Saving" : saving === "saved" ? " · Draft saved" : ""}</>}>
         <a href={`/site/${site.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
           className="h-10 px-4 rounded-full bg-white border border-[#E4E0EC] hover:bg-[#F5F3FA] text-sm font-semibold text-[#17151F] inline-flex items-center gap-1.5 flex-1 sm:flex-none justify-center">

@@ -102,7 +102,7 @@ export function DomainGuide({ dom, studioName, busy, onCheck }: { dom: Info & { 
                     ? <span className="ml-auto inline-flex items-center gap-1 text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-[#E7F6EC] text-[#1F8A4C]"><Check className="w-3.5 h-3.5" />Working</span>
                     : <span className="ml-auto inline-flex items-center gap-1 text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF4E5] text-[#B45309]">Not seen yet</span>)}
                 </div>
-                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-[110px_1fr_2fr]">
+                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-[150px_1fr_2fr]">
                   <CopyField label="Type" value={r.type} />
                   <CopyField label={P?.host ?? "Name / Host"} value={r.name} hint={r.name === "@" ? "@ means the domain itself. If the box won't take @, leave it empty." : undefined} />
                   <CopyField label={P?.value ?? "Value"} value={r.value} />

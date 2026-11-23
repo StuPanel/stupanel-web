@@ -116,6 +116,8 @@ export default function SupportPage() {
     setView("detail");
     const res = await apiFetch(`${API}/support/tickets/${ticket.id}`, { headers: { "Content-Type": "application/json" } });
     const d = await res.json();
+    // Opened from a link (only the id known): take the ticket's own details from the answer too.
+    if (res.ok && d?.id) { const { messages: _m, ...info } = d; void _m; setSelected((cur: any) => ({ ...info, ...cur, ...info })); }
     setMessages(d.messages ?? []);
     setDetailLoading(false);
   }

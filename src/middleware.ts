@@ -76,7 +76,31 @@ const PUBLIC_PREFIXES = [
   "/former-studio/",
 ];
 
-export function middleware(request: NextRequest) {
+/**
+ * A studio's own domain (pickphoto.com) → its website address. Asked from the API and kept here for 5 minutes
+ * (1 minute when no website uses the domain), so a visit doesn't wait on the API each time.
+ */
+const hostCache = new Map<string, { slug: string | null; until: number }>();
+async function siteForDomain(host: string): Promise<string | null> {
+  const hit = hostCache.get(host);
+  if (hit && hit.until > Date.now()) return hit.slug;
+  let slug: string | null = null;
+  try {
+    const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+    const res = await fetch(`${api}/public/site/-/host/${encodeURIComponent(host)}`, { signal: AbortSignal.timeout(4000) });
+    if (res.ok) slug = ((await res.json()) as { slug?: string }).slug ?? null;
+    else if (res.status !== 404) return hit?.slug ?? null; // API trouble: keep the last answer, don't cache
+  } catch {
+    return hit?.slug ?? null;
+  }
+  if (hostCache.size > 5000) hostCache.clear();
+  hostCache.set(host, { slug, until: Date.now() + (slug ? 300_000 : 60_000) });
+  return slug;
+}
+/** Hosts that are StuPanel itself or a preview, never a studio's own domain. */
+const isOwnHost = (h: string) => h === SITE_ROOT || h.endsWith(`.${SITE_ROOT}`) || h.endsWith(".vercel.app") || h === "localhost" || h.startsWith("localhost:") || /^[\d.:]+$/.test(h) || h.startsWith("127.0.0.1");
+
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const host = request.headers.get("host") || "";
 
@@ -88,8 +112,23 @@ export function middleware(request: NextRequest) {
     const old = pathname.match(/^\/site\/[a-z0-9-]+(\/.*)?$/);
     if (old) return NextResponse.redirect(new URL(`${old[1] || "/"}${search}`, request.url), 308);
     const headers = new Headers(request.headers);
+    headers.delete("x-site-domain");
     headers.set("x-site-host", site);
     return NextResponse.rewrite(new URL(`/site/${site}${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
+  }
+
+  // The studio's own domain: the same website, under the domain.
+  const bare = host.toLowerCase().split(":")[0];
+  if (bare && !isOwnHost(bare)) {
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || pathname === "/robots.txt") return NextResponse.next();
+    const slug = await siteForDomain(bare);
+    if (!slug) return new NextResponse("This website is not set up yet.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    const old = pathname.match(/^\/site\/[a-z0-9-]+(\/.*)?$/);
+    if (old) return NextResponse.redirect(new URL(`${old[1] || "/"}${search}`, request.url), 308);
+    const headers = new Headers(request.headers);
+    headers.set("x-site-host", slug);
+    headers.set("x-site-domain", bare);
+    return NextResponse.rewrite(new URL(`/site/${slug}${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
   }
 
   // app.stupanel.com/site/<address>/… → <address>.stupanel.com/… (the studio's own preview stays on the app).

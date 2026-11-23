@@ -40,6 +40,8 @@ export type SiteContent = {
   facebook: string; instagram: string; youtube: string; footerLine: string;
 };
 export type SiteData = {
+  /** The studio's own domain when it works (visitors on the stupanel.com address are sent there). */
+  domain?: string | null;
   slug: string; theme: string; studio: { name: string; logoUrl: string | null };
   content: SiteContent; photos: Record<string, SitePhoto>; packages: SitePackage[]; addons?: SiteAddon[];
 };

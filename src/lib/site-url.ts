@@ -4,7 +4,7 @@
  */
 export const SITE_ROOT = "stupanel.com";
 /** Turned on once <address>.stupanel.com was checked live. */
-export const SITE_SUBDOMAINS = false;
+export const SITE_SUBDOMAINS = true;
 /** Hosts of StuPanel itself — never a studio website. */
 export const NOT_SITE_HOSTS = new Set(["app", "admin", "www", "api", "tagstockai", "send", "mail", "status", "docs", "help", "blog"]);
 

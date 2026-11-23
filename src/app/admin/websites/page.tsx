@@ -16,6 +16,7 @@ import { API_URL as API } from "@/lib/api";
 import { askConfirm, askText, notify } from "@/components/feedback";
 import { can, getPlatformUser } from "@/lib/platform-api";
 import { siteUrl } from "@/lib/site-url";
+import { DomainPanel } from "./domain-panel";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 const msg = (d: { message?: string | string[] }) => (Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save";
@@ -24,6 +25,7 @@ type Site = {
   companyId: string; studioName: string; slug: string; theme: string; isPublished: boolean; publishedAt: string | null; updatedAt: string;
   adminOffline: boolean; adminOfflineReason: string | null; photos: number; state: string;
   /** <address>.stupanel.com on Vercel: added | add (waiting) | failed | null */ domain: string | null; domainError: string | null;
+  /** The studio's own domain */ customDomain: string | null; customDomainState: "pending" | "live" | null;
 };
 type Hold = { slug: string; reason: "deleted" | "renamed" | "blocked"; redirectTo: string | null; releaseAt: string | null; note: string | null; studioName: string | null; createdAt: string; daysLeft: number | null };
 type Rules = { holdDeletedDays: number; holdRenamedDays: number; unpaidGraceDays: number };
@@ -56,6 +58,14 @@ export default function AdminWebsitesPage() {
   const mayChange = !me || can(me, "studios.suspend");
   const mayRules = !me || can(me, "settings.manage");
   const [tab, setTab] = useState<"sites" | "names" | "rules">("sites");
+  /** A studio's own domain open in the side panel (also /admin/websites?company=<id>, e.g. from a support ticket). */
+  const [domainOf, setDomainOf] = useState<string | null>(null);
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("company");
+    if (!c) return;
+    const id = setTimeout(() => setDomainOf(c), 0);
+    return () => clearTimeout(id);
+  }, []);
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
     if (t !== "sites" && t !== "names" && t !== "rules") return;
@@ -205,6 +215,12 @@ export default function AdminWebsitesPage() {
                         <div className="text-sm text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
                           <a href={siteUrl(s.slug)} target="_blank" rel="noreferrer" className="text-indigo-300 hover:text-white inline-flex items-center gap-1">{s.slug}<ExternalLink className="w-3.5 h-3.5" /></a>
                           {s.domain && s.domain !== "added" && <span className={s.domain === "failed" ? "text-rose-300" : "text-amber-300"} title={s.domainError ?? undefined}>{s.domain === "failed" ? "Address couldn't be set up" : "Address being set up (about a minute)"}</span>}
+                          {s.customDomain && (
+                            <button type="button" onClick={() => setDomainOf(s.companyId)} className="inline-flex items-center gap-1.5 text-slate-200 hover:text-white">
+                              <span className={cn("w-2 h-2 rounded-full", s.customDomainState === "live" ? "bg-emerald-400" : "bg-amber-400")} aria-hidden="true" />
+                              {s.customDomain}<span className="text-slate-500">{s.customDomainState === "live" ? "working" : "waiting"}</span>
+                            </button>
+                          )}
                           <span>{s.photos} photos</span>
                           <span>Published {date(s.publishedAt)}</span>
                           <span>Changed {date(s.updatedAt)}</span>
@@ -220,6 +236,7 @@ export default function AdminWebsitesPage() {
               </div>
             )}
           {sites && <Pager page={page} total={sites.total} size={sites.pageSize} go={setPage} />}
+          {domainOf && <DomainPanel companyId={domainOf} onClose={() => { setDomainOf(null); if (window.location.search.includes("company=")) window.history.replaceState(null, "", "/admin/websites"); }} />}
         </section>
       )}
 

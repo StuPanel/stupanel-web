@@ -4,6 +4,7 @@
  * A client's page for one agreement: read it, sign it (draw or type), keep a copy.
  * Opened from the link the studio sends — no login.
  */
+import { LinkFailed } from "@/components/public/link-failed";
 import { use, useEffect, useState } from "react";
 import { CheckCircle2, FileSignature, Loader2, Printer, ShieldCheck } from "lucide-react";
 import { API_URL as API } from "@/lib/api";
@@ -55,7 +56,7 @@ export default function ContractSignPage({ params }: { params: Promise<{ token: 
     finally { setBusy(false); }
   }
 
-  if (error) return <PublicMessage icon={FileSignature} title="Agreement not found" text={error} />;
+  if (error) return <LinkFailed kind="contract" token={token}><PublicMessage icon={FileSignature} title="Agreement not found" text={error} /></LinkFailed>;
   if (!c) return <PublicLoading />;
 
   const signed = c.status === "signed";

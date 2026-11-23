@@ -1,5 +1,6 @@
 "use client";
 
+import { LinkFailed } from "@/components/public/link-failed";
 import { sideLabel } from "@/lib/coverage-side";
 import { use, useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
@@ -47,7 +48,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ token:
       .catch(() => setError(true));
   }, [token]);
 
-  if (error) return <PublicMessage icon={Receipt} title="Invoice not found" text="This invoice link isn't working. Please ask the studio for a new link." />;
+  if (error) return <LinkFailed kind="invoice" token={token}><PublicMessage icon={Receipt} title="Invoice not found" text="This invoice link isn't working. Please ask the studio for a new link." /></LinkFailed>;
   if (!raw) return <PublicLoading />;
 
   const data = toDoc(raw);

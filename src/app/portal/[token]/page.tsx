@@ -9,6 +9,7 @@
  *  • Chat — messages with the studio
  * The view lives in the address (?v=…, ?p=<program>) so the phone's back button works.
  */
+import { LinkFailed } from "@/components/public/link-failed";
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MessageCircle, Phone, XCircle } from "lucide-react";
@@ -119,7 +120,7 @@ function Portal({ token }: { token: string }) {
 
   if (loading) return <PublicLoading />;
   if (gate) return <PortalLock token={token} kind={gate.kind} meta={gate.meta} onUnlocked={() => { setLoading(true); setGate(null); loadPortal(); }} />;
-  if (error || !data) return <PublicMessage icon={XCircle} tone="red" title="This link isn't working" text={error || "Please ask your studio for a new link."} />;
+  if (error || !data) return <LinkFailed kind="portal" token={token}><PublicMessage icon={XCircle} tone="red" title="This link isn't working" text={error || "Please ask your studio for a new link."} /></LinkFailed>;
 
   const brand = BRAND;
   const studio = studioOf(data);

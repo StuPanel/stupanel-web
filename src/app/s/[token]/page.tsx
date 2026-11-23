@@ -5,6 +5,7 @@
  * portal, so whatever is chosen or sent here shows in the portal too (and the other way round).
  * The link opens only this one selection.
  */
+import { LinkFailed } from "@/components/public/link-failed";
 import { use, useCallback, useMemo, useState } from "react";
 import { LayoutGrid, Link2Off } from "lucide-react";
 import { BRAND } from "@/lib/brand";
@@ -21,7 +22,7 @@ export default function PhotoLinkPage({ params }: { params: Promise<{ token: str
   const loaded = useCallback((g: ClientGallery) => setBrand((g as ClientGallery & { brand?: LinkBrand }).brand ?? null), []);
   const [failed, setFailed] = useState(false);
   const fail = useCallback(() => setFailed(true), []);
-  if (failed) return <PublicMessage icon={Link2Off} tone="red" title="This link is not working" text="Please ask the studio for a new one." />;
+  if (failed) return <LinkFailed kind="selection" token={token}><PublicMessage icon={Link2Off} tone="red" title="This link is not working" text="Please ask the studio for a new one." /></LinkFailed>;
   return (
     <Chooser api={api} brand={BRAND} onLoaded={loaded} onFailed={fail}
       failText="This link is not working. Please ask the studio for a new one."

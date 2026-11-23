@@ -12,6 +12,7 @@ import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
+import { PhotoViewer } from "./site-viewer";
 import type { SiteSeo } from "@/lib/site-seo";
 import { styleOf, type SiteStyle } from "@/lib/site-style";
 import { siteTrack, type SiteTrackingIds } from "./site-tracking";
@@ -386,14 +387,13 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
   useEffect(() => {
     if (!album && !menu) return;
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (menu) setMenu(false); else if (shot !== null) setShot(null); else closeAlbum(); }
-      if (shot !== null && e.key === "ArrowRight") step(1);
-      if (shot !== null && e.key === "ArrowLeft") step(-1);
+      // The photo viewer handles its own keys.
+      if (e.key === "Escape" && shot === null) { if (menu) setMenu(false); else closeAlbum(); }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [album, menu, shot, step, closeAlbum]);
-  const touch = useRef(0);
+  const closeShot = useCallback(() => setShot(null), []);
 
   const words = c.headline.split(/\s+/).filter(Boolean);
   const [aboutScript, ...aboutRest] = c.aboutTitle.split(/\s+/).filter(Boolean);
@@ -665,20 +665,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
           </div>
         </div>
       )}
-      {album && shot !== null && shots[shot] && (
-        <div className="vw" role="dialog" aria-modal="true" aria-label="Photo" onClick={() => setShot(null)}
-          onTouchStart={e => { touch.current = e.touches[0].clientX; }}
-          onTouchEnd={e => { const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 50) { e.preventDefault(); step(dx < 0 ? 1 : -1); } }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img key={shots[shot].url} src={shots[shot].url} alt={`${album.title}, photo ${shot + 1}`} onClick={e => e.stopPropagation()} />
-          <button type="button" className="vx" aria-label="Close the photo" onClick={() => setShot(null)}><Ic d={ICON.x} size={20} /></button>
-          {shots.length > 1 && <>
-            <button type="button" className="vp" aria-label="Previous photo" onClick={e => { e.stopPropagation(); step(-1); }}><Ic d={ICON.prev} size={20} /></button>
-            <button type="button" className="vn" aria-label="Next photo" onClick={e => { e.stopPropagation(); step(1); }}><Ic d={ICON.next} size={20} /></button>
-          </>}
-          <div className="vc" aria-hidden="true">{shot + 1} / {shots.length}</div>
-        </div>
-      )}
+      {album && shot !== null && shots[shot] && <PhotoViewer shots={shots} at={shot} title={album.title} onStep={step} onClose={closeShot} />}
       <div className={`stk${stuck ? " on" : ""}`} aria-hidden={!stuck}>
         <button type="button" className="mbtn2" aria-label="Open the menu" onClick={() => setMenu(true)} tabIndex={stuck ? 0 : -1}><Ic d={ICON.menu} size={24} /></button>
         <Link href={L("")} className="cz" tabIndex={stuck ? 0 : -1} style={{ fontSize: 17, letterSpacing: ".14em" }}>{studio.name}</Link>

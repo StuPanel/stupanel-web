@@ -5,7 +5,7 @@
  * A song is tagged with what it fits — the event (Holud, Wedding…) and the kind of video (Trailer, Full video…) —
  * from one list every studio shares, so "Holud · Trailer" means the same everywhere. A song without tags fits any part.
  * A video is in the library once: adding it again adds the new tags to the song that is already there.
- * Tabs: My songs, StuPanel picks, Popular in studios (own country or worldwide; no studio is named) and From my clients —
+ * Tabs: StuPanel picks (first, and open when the page opens — Faisal 23-NOV), My songs, Popular in studios (own country or worldwide; no studio is named) and From my clients —
  * each can be turned off in Settings → Music. A song from outside is added to My songs with one press.
  * Search finds a song by its name, artist, any tag or other name of a tag (haldi → Holud), or a pasted YouTube link.
  */
@@ -72,6 +72,11 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   /** Songs from outside the studio's library (StuPanel picks, other studios, its clients). */
   const [out, setOut] = useState<OutsideMusic | null>(null);
   const [tab, setTab] = useState<"mine" | "favs" | "picks" | "community" | "clients" | "hidden">("mine");
+  /** Opens on StuPanel picks once they have loaded, unless the person already picked a tab (or picks are off). */
+  const [tabTouched, setTabTouched] = useState(false);
+  const picksOn = !!out && out.settings.picks !== "off" && out.picks.length > 0;
+  const [openedOnPicks, setOpenedOnPicks] = useState(false);
+  if (picksOn && !tabTouched && !openedOnPicks) { setOpenedOnPicks(true); setTab("picks"); }
   /** The song just hidden, for Undo (a few seconds). */
   const [justHid, setJustHid] = useState<OutsideSong | null>(null);
   /** The studio's favourite songs (starred from any list), newest first. */
@@ -134,9 +139,9 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
   const vidCount = (id: string) => found.filter(s => s.videos.includes(id) && (!event || s.events.includes(event)) && (!ritual || s.events.includes(ritual))).length;
   const pasted = youtubeIdOf(q);
   const tabs = [
+    { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: !!out && out.settings.picks !== "off" },
     { id: "mine" as const, label: "My songs", icon: Music2, on: true },
     { id: "favs" as const, label: "Favourites", icon: Heart, on: true },
-    { id: "picks" as const, label: "StuPanel picks", icon: Sparkles, on: !!out && out.settings.picks !== "off" },
     { id: "community" as const, label: "Popular in studios", icon: Building2, on: !!out && out.settings.community !== "off" },
     { id: "clients" as const, label: "From my clients", icon: Users, on: !!out && out.settings.fromClients !== "off" },
     // Only when something is hidden; quieter than the other tabs.
@@ -262,7 +267,7 @@ export function MusicLibrary({ member = false }: { member?: boolean }) {
       {tabs.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-3 [scrollbar-width:none]" role="tablist" aria-label="Songs from">
           {tabs.map(t => { const on = tab === t.id; const n = (q ? foundIn : lists)[t.id].length; return (
-            <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => { setTab(t.id); setEvent(""); setVideo(""); setSound(""); setPlaying(null); }}
+            <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => { setTabTouched(true); setTab(t.id); setEvent(""); setVideo(""); setSound(""); setPlaying(null); }}
               className={cn("h-11 pl-3.5 pr-4 rounded-full text-[13.5px] font-bold whitespace-nowrap inline-flex items-center gap-2 transition-all flex-shrink-0",
                 on ? "bg-[#7D5CEF] text-white shadow-[0_10px_22px_-12px_rgba(125,92,239,.9)]"
                   : t.id === "hidden" ? "bg-transparent border border-dashed border-[#CFC8DD] text-[#6B6680] hover:bg-white/60"

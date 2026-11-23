@@ -74,6 +74,7 @@ const PUBLIC_PREFIXES = [
   "/site/",
   "/track",
   "/former-studio/",
+  "/trial-feedback",
 ];
 
 /**

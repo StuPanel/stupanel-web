@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, MessageCircle, Megaphone,
-  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe } from "lucide-react";
+  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/app-sidebar";
 import {
@@ -38,6 +38,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   { label: "Money", items: [
     { label: "Payments",        href: "/admin/billing", icon: Wallet,     perm: "billing.view", also: ["/admin/revenue"] },
     { label: "Plans & coupons", href: "/admin/plans",   icon: CreditCard, perm: "billing.view", also: ["/admin/coupons"] },
+    { label: "Trials",          href: "/admin/trials",  icon: Hourglass,  perm: "studios.view" },
     { label: "Growth",          href: "/admin/growth",  icon: TrendingUp, perm: "reports.view" },
   ] },
   { label: "Products", items: [

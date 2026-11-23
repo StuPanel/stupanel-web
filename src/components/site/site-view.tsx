@@ -277,7 +277,7 @@ export function Heading({ script, title, light }: { script: string; title: strin
 
 /**
  * The studio's address as tidy lines. Lines the studio typed itself stay as they are. One long line with commas
- * becomes street lines (up to about 30 letters each) and a last line "City 3900, Country". Empty parts (", ,") go,
+ * becomes street lines (up to about 26 letters each) and a last line "City 3900, Country". Empty parts (", ,") go,
  * and words typed all in small letters get a capital ("mizan road" → "Mizan Road").
  */
 export function addressLines(a: string): string {
@@ -304,7 +304,7 @@ export function addressLines(a: string): string {
   const lines: string[] = [];
   let cur = "";
   for (const p of head) {
-    if (cur && (cur.length + p.length + 2) > 30) { lines.push(`${cur},`); cur = p; }
+    if (cur && (cur.length + p.length + 2) > 26) { lines.push(`${cur},`); cur = p; }
     else cur = cur ? `${cur}, ${p}` : p;
   }
   if (cur) lines.push(`${cur},`);

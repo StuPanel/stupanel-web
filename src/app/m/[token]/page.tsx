@@ -5,6 +5,7 @@
  * the client portal, so whatever is picked or sent here shows in the portal too (and the
  * other way round). The link opens only this one program's music.
  */
+import { LinkFailed } from "@/components/public/link-failed";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutGrid, Link2Off } from "lucide-react";
 import { BRAND } from "@/lib/brand";
@@ -31,7 +32,7 @@ export default function MusicLinkPage({ params }: { params: Promise<{ token: str
   }, [api]);
   useEffect(() => { load(); }, [load]);
 
-  if (failed) return <PublicMessage icon={Link2Off} tone="red" title="This link is not working" text="Please ask the studio for a new one." />;
+  if (failed) return <LinkFailed kind="music" token={token}><PublicMessage icon={Link2Off} tone="red" title="This link is not working" text="Please ask the studio for a new one." /></LinkFailed>;
   if (!data) return <PublicLoading />;
   const { music, brand } = data;
   return (

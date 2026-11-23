@@ -1,5 +1,6 @@
 "use client";
 
+import { LinkFailed } from "@/components/public/link-failed";
 import { askConfirm } from "@/components/feedback";
 import { sideLabel } from "@/lib/coverage-side";
 import { StudioLinks, type StudioLinkFields } from "@/components/public/studio-links";
@@ -78,7 +79,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
   }
 
   if (loading) return <PublicLoading />;
-  if (notFound || !quote) return <PublicMessage icon={AlertTriangle} title="Quote not found" text="This quote link isn't working or was removed. Please ask the studio for a new link." />;
+  if (notFound || !quote) return <LinkFailed kind="quote" token={token}><PublicMessage icon={AlertTriangle} title="Quote not found" text="This quote link isn't working or was removed. Please ask the studio for a new link." /></LinkFailed>;
 
   const sym = currencySymbol(quote.currency);
   const money = (n: number | string) => `${sym}${Number(n).toLocaleString(quote.currency === "BDT" || quote.currency === "INR" ? "en-IN" : "en-US")}`;

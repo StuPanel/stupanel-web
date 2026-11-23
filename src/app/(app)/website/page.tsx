@@ -26,7 +26,7 @@ const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
   ["stories", "Stories", BookOpen], ["more", "Packages, reviews, FAQ", Package], ["contact", "Contact", Phone],
   ["design", "Look", Palette], ["photos", "All photos", LayoutGrid],
-  ["address", "Address ["address", "Address & status", Link2] domain", Link2],
+  ["address", "Address & domain", Link2],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [

@@ -10,13 +10,14 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ChevronLeft, ChevronRight, ExternalLink, Globe, Loader2, Lock, Power, Search, Settings2, ShieldBan, Unlock } from "lucide-react";
+import { BarChart3, Ban, ChevronLeft, ChevronRight, ExternalLink, Globe, Loader2, Lock, Power, Search, Settings2, ShieldBan, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
 import { askConfirm, askText, notify } from "@/components/feedback";
 import { can, getPlatformUser } from "@/lib/platform-api";
 import { siteUrl } from "@/lib/site-url";
 import { DomainPanel } from "./domain-panel";
+import { StatsTab } from "./stats-tab";
 
 const authH = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
 const msg = (d: { message?: string | string[] }) => (Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save";
@@ -57,7 +58,7 @@ export default function AdminWebsitesPage() {
   const me = getPlatformUser();
   const mayChange = !me || can(me, "studios.suspend");
   const mayRules = !me || can(me, "settings.manage");
-  const [tab, setTab] = useState<"sites" | "names" | "rules">("sites");
+  const [tab, setTab] = useState<"sites" | "stats" | "names" | "rules">("sites");
   /** A studio's own domain open in the side panel (also /admin/websites?company=<id>, e.g. from a support ticket). */
   const [domainOf, setDomainOf] = useState<string | null>(null);
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function AdminWebsitesPage() {
   }, []);
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t !== "sites" && t !== "names" && t !== "rules") return;
+    if (t !== "sites" && t !== "stats" && t !== "names" && t !== "rules") return;
     const id = setTimeout(() => setTab(t), 0);
     return () => clearTimeout(id);
   }, []);
@@ -161,6 +162,7 @@ export default function AdminWebsitesPage() {
 
   const tabs = [
     ["sites", "Websites", Globe],
+    ["stats", "Visits & bookings", BarChart3],
     ["names", `Held addresses${names ? ` (${Object.values(names.counts).reduce((a, b) => a + b, 0)})` : ""}`, Lock],
     ["rules", "Rules", Settings2],
   ] as const;
@@ -239,6 +241,8 @@ export default function AdminWebsitesPage() {
           {domainOf && <DomainPanel companyId={domainOf} onClose={() => { setDomainOf(null); if (window.location.search.includes("company=")) window.history.replaceState(null, "", "/admin/websites"); }} />}
         </section>
       )}
+
+      {tab === "stats" && <StatsTab />}
 
       {tab === "names" && (
         <section className="space-y-3">

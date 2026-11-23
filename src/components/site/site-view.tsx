@@ -13,6 +13,8 @@ import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
 import { PackageBrowser } from "./site-packages";
 import { PhotoViewer } from "./site-viewer";
+import { OfferCards, bookChoices } from "./site-offers";
+import { liveOffers, type SiteOffer } from "@/lib/site-offer-kit";
 import type { SiteSeo } from "@/lib/site-seo";
 import { styleOf, type SiteStyle } from "@/lib/site-style";
 import { siteTrack, type SiteTrackingIds } from "./site-tracking";
@@ -48,13 +50,15 @@ export type SiteContent = {
   tracking?: SiteTrackingIds;
   /** The studio's own fonts, colour, corners, buttons, headings, logo (empty = as the look) */
   style?: SiteStyle;
+  /** Website packages, each with its own page (empty = the studio's price list) */
+  offers?: SiteOffer[];
 };
 export type SiteData = {
   /** The studio's own domain when it works (visitors on the stupanel.com address are sent there). */
   domain?: string | null;
   /** When the published copy was made (sitemap date). */
   publishedAt?: string | null;
-  slug: string; theme: string; studio: { name: string; logoUrl: string | null };
+  slug: string; theme: string; studio: { name: string; logoUrl: string | null }; /** The studio's money */ currency?: string;
   content: SiteContent; photos: Record<string, SitePhoto>; packages: SitePackage[]; addons?: SiteAddon[];
 };
 
@@ -313,7 +317,7 @@ export function addressLines(a: string): string {
   return lines.join("\n");
 }
 
-export function SiteView({ data, preview, base, page = "home", albumId, storyId }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string }) {
+export function SiteView({ data, preview, base, page = "home", albumId, storyId, offerId }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string; /** One website package's own page */ offerId?: string }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
   const hero = useRef<HTMLElement>(null);
@@ -407,7 +411,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
   const thanks = useCallback(() => router.push(L("/thank-you")), [router, L]);
   const nav = [
     c.albums.length ? [L("/portfolio"), "Portfolio"] : null, films.length || c.filmId ? [L("/films"), "Films"] : null, [L("/about"), "About"],
-    packages.length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null,
+    packages.length || liveOffers(data).length ? [L("/packages"), "Packages"] : null, (c.stories ?? []).length ? [L("/stories"), "Stories"] : null,
   ].filter(Boolean) as [string, string][];
   const bookHref = home && !mono ? "#book" : L("/contact");
   // Reviews and FAQ sit in the footer and the phone menu, not the top bar (Faisal, 22-NOV).
@@ -465,7 +469,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
       </div>
 
       <main>
-        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} /> : mono ? <MonoHome data={data} L={L} openAlbum={openAlbum} /> : <>
+        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} offerId={offerId} /> : mono ? <MonoHome data={data} L={L} openAlbum={openAlbum} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>
@@ -546,7 +550,13 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
 
         {(c.stories ?? []).length > 0 && !hide.includes("stories") && <HomeStories stories={(c.stories ?? []).slice(0, 4)} photos={photos} crops={c.crop} L={L} />}
 
-        {packages.length > 0 && !hide.includes("packages") && (
+        {liveOffers(data).length > 0 && !hide.includes("packages") ? (
+          <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
+            <Heading script="our" title="Packages" />
+            <OfferCards data={data} L={L} limit={6} />
+            {liveOffers(data).length > 6 && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">All packages</Link></div>}
+          </section>
+        ) : packages.length > 0 && !hide.includes("packages") && (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
             <Heading script="our" title="Packages" />
             <PackageBrowser packages={packages} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
@@ -574,7 +584,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId 
 
         <section id="book" className="wrap sec">
           <div className="rv" style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(44px,6vw,70px) clamp(22px, 6vw, 90px)", textAlign: "center", borderTop: "4px solid var(--ac)" }}>
-            <BookForm slug={data.slug} preview={preview} packages={packages} kinds={c.events} ask={ask} setAsk={setAsk} wa={wa} onDone={thanks} />
+            <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={c.events} ask={ask} setAsk={setAsk} wa={wa} onDone={thanks} />
           </div>
         </section>
         </>}
@@ -692,10 +702,11 @@ export function readBuild(slug: string): { pkg: string; addons: string[] } {
   } catch { return { pkg: "", addons: [] }; }
 }
 
-export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa, bare, onDone }: {
+export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa, bare, onDone, chosen }: {
   slug: string; preview?: boolean; packages: SitePackage[]; /** The studio's own events (Website → Home); empty = the usual ones */ kinds?: string[];
   ask: string; setAsk: (v: string) => void; wa: string;
   /** The page already has the heading */ bare?: boolean; /** After a sent enquiry (goes to the Thank-you page) */ onDone?: () => void;
+  /** Extras picked on a package's own page (shown and sent instead of the remembered ones) */ chosen?: string[];
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -704,7 +715,8 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
   const [events, setEvents] = useState<Ev[]>([NEW_EV]);
   const kinds = [...new Set((own ?? []).map(k => k.trim()).filter(k => k && k.length <= 60))];
   const kindList = kinds.length ? kinds : DEFAULT_KINDS;
-  const [addons, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
+  const [kept, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
+  const addons = chosen ?? kept;
   const setEv = (i: number, patch: Partial<Ev>) => setEvents(list => list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
 
   const send = async (e: React.FormEvent<HTMLFormElement>) => {

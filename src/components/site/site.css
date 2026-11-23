@@ -277,7 +277,8 @@
 @media (prefers-reduced-motion:reduce){.sg .ab,.sg .abg button,.sg .vw img{animation:none!important;opacity:1}.sg .mnu a{opacity:1;transform:none}}
 
 /* ── inner pages ── */
-.sg.inner main{animation:sgpg .9s cubic-bezier(.2,.7,.2,1) both}
+/* "backwards": once it has played, main keeps no transform (a transform would trap fixed bars and the photo viewer inside it). */
+.sg.inner main{animation:sgpg .9s cubic-bezier(.2,.7,.2,1) backwards}
 @keyframes sgpg{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 .sg .navl[aria-current=page]:after{transform:scaleX(1)}
 .sg .pgh{text-align:center;padding-top:clamp(40px,6vw,80px)}

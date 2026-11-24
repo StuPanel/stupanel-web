@@ -68,6 +68,8 @@ export default function Studio360Page() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  /** Which action the message is about: website photo messages show inside their own panel (the top one is out of view there). */
+  const [msgAt, setMsgAt] = useState("");
   const [busy, setBusy] = useState("");
   const [loginAs, setLoginAs] = useState(false);
   const [reason, setReason] = useState("");
@@ -90,7 +92,7 @@ export default function Studio360Page() {
   useEffect(() => { load().catch(() => setError("Couldn't load this studio.")); }, [load]);
 
   async function act(key: string, fn: () => Promise<Response>, ok: string) {
-    setBusy(key); setMsg({});
+    setBusy(key); setMsg({}); setMsgAt(key);
     try {
       const r = await fn();
       if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b.message || "Something went wrong."); }
@@ -100,7 +102,7 @@ export default function Studio360Page() {
 
   async function doLoginAs() {
     const tabWin = window.open("", "_blank");
-    setBusy("login"); setMsg({});
+    setBusy("login"); setMsg({}); setMsgAt("login");
     try {
       const r = await fetch(`${API}/admin/studios/${id}/impersonate`, { method: "POST", headers: { ...H(), "x-reason": reason.trim() } });
       const b = await r.json();
@@ -162,7 +164,7 @@ export default function Studio360Page() {
         </div>
       </div>
 
-      <Msg {...msg} />
+      {!msgAt.startsWith("photos") && <Msg {...msg} />}
 
       {loginAs && (
         <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={() => setLoginAs(false)}>
@@ -271,11 +273,12 @@ export default function Studio360Page() {
                       <input type="number" min={0} max={sp.hardMax} step={1} inputMode="numeric" placeholder={sp.own === null ? "Plan's" : String(sp.own)} value={photoLimit} onChange={e => setPhotoLimit(e.target.value)} className={cn(inp, "w-32")} aria-label="Website photos for this studio" />
                       <Btn variant="ghost" loading={busy === "photos"} onClick={() => {
                         const n = Number(photoLimit);
-                        if (photoLimit.trim() === "" || !Number.isInteger(n) || n < 0 || n > sp.hardMax) { setMsg({ error: `Website photos: a whole number from 0 (no limit) to ${sp.hardMax.toLocaleString()}.` }); return; }
+                        if (photoLimit.trim() === "" || !Number.isInteger(n) || n < 0 || n > sp.hardMax) { setMsgAt("photos"); setMsg({ error: `Website photos: a whole number from 0 (no limit) to ${sp.hardMax.toLocaleString()}.` }); return; }
                         save(n); setPhotoLimit("");
                       }}>Save limit</Btn>
                       {sp.own !== null && <Btn variant="ghost" loading={busy === "photos-plan"} onClick={() => save(null)}>Use the plan&apos;s</Btn>}
                     </div>
+                    {msgAt.startsWith("photos") && <div className="mt-3"><Msg {...msg} /></div>}
                   </div>
                 )}
               </Panel>

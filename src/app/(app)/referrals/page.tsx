@@ -33,7 +33,7 @@ interface ReferralGroup {
   owed: number;
   waiting: number;
   clients: { id: string; name: string; createdAt: string }[];
-  programs: { id: string; number: string; name: string; date?: string | null; status: string; total: number }[];
+  programs: { id: string; number: string; name: string; date?: string | null; status: string; total: number; earned?: number; owed?: number; waiting?: number; paid?: number; clientDue?: number; rate?: { type: "percent" | "fixed"; value: number } }[];
 }
 
 type Filter = "all" | ReferrerKind;
@@ -126,11 +126,16 @@ export default function ReferralsPage() {
                     </span>
                   </span>
                   <span className="text-right flex-shrink-0">
-                    <span className="block text-sm font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(g.revenue)}</span>
-                    {payOn && (g.owed > 0 || g.waiting > 0) && (
-                      <span className={cn("block text-[11.5px] font-semibold tabular-nums", g.owed > 0 ? "text-[#823072]" : "text-[#9A5B00]")}>
-                        {g.owed > 0 ? `${formatCurrency(g.owed)} to pay` : `${formatCurrency(g.waiting)} waiting`}
-                      </span>
+                    {payOn ? (
+                      // Referral pay on: the person's referral pay is the main number; the programs' price is under it
+                      <>
+                        <span className="block text-sm font-bold text-[#823072] tabular-nums">{g.earned > 0 ? `${formatCurrency(g.earned)} referral pay` : "No referral pay"}</span>
+                        <span className={cn("block text-[11.5px] font-semibold tabular-nums", g.owed > 0 ? "text-[#1F8A5B]" : g.waiting > 0 ? "text-[#9A5B00]" : "text-[#8A859A]")}>
+                          {g.owed > 0 ? `${formatCurrency(g.owed)} to pay now` : g.waiting > 0 ? `${formatCurrency(g.waiting)} waiting` : `Programs ${formatCurrency(g.revenue)}`}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="block text-sm font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(g.revenue)}</span>
                     )}
                   </span>
                   {isOpen ? <ChevronUp className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
@@ -150,7 +155,14 @@ export default function ReferralsPage() {
                                   <span className={cn("block text-sm truncate", off ? "text-[#9A95AC] line-through" : "text-[#17151F]")}>{p.name}</span>
                                   <span className="block text-xs text-[#6B6680] truncate">{p.number}{p.date ? ` · ${fmtDate(p.date)}` : ""}{st ? ` · ${st.label}` : ""}</span>
                                 </span>
-                                <span className={cn("text-sm font-semibold tabular-nums flex-shrink-0", off ? "text-[#9A95AC]" : "text-[#17151F]")}>{formatCurrency(p.total)}</span>
+                                <span className="text-right flex-shrink-0">
+                                  <span className={cn("block text-sm font-semibold tabular-nums", off ? "text-[#9A95AC]" : "text-[#17151F]")}>{formatCurrency(p.total)}</span>
+                                  {payOn && !off && (
+                                    <span className={cn("block text-[11.5px] font-semibold tabular-nums", (p.owed ?? 0) > 0 ? "text-[#1F8A5B]" : (p.waiting ?? 0) > 0 ? "text-[#9A5B00]" : "text-[#8A859A]")}>
+                                      {!(p.earned ?? 0) ? "No referral pay" : (p.owed ?? 0) > 0 ? `Referral ${formatCurrency(p.owed!)} to pay` : (p.waiting ?? 0) > 0 ? `Referral ${formatCurrency(p.waiting!)} · ${(p.clientDue ?? 0) > 0 ? `client owes ${formatCurrency(p.clientDue!)}` : "not Completed yet"}` : `Referral ${formatCurrency(p.earned!)} paid`}
+                                    </span>
+                                  )}
+                                </span>
                               </Link>
                             );
                           })}

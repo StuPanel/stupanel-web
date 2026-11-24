@@ -17,7 +17,7 @@ import { jumpToField } from "@/lib/jump-to-field";
 
 type RateType = "percent" | "fixed";
 type Rate = { type: RateType; value: number; from: "program" | "person" | "studio" };
-type Program = { id: string; number: string; name: string; date: string | null; status: string; total: number; rate: Rate; earned: number; paid: number; owed: number; waiting: number; ready: boolean };
+type Program = { id: string; number: string; name: string; date: string | null; status: string; total: number; rate: Rate; earned: number; paid: number; owed: number; waiting: number; ready: boolean; clientDue?: number };
 type Payout = { id: string; date: string; amount: number; account: string | null; method: string; note: string | null; parts: { bookingId: string; bookingNumber: string; eventName: string | null; amount: number }[] };
 type Detail = {
   id: string; kind: ReferrerKind; name: string; phone?: string | null; rateType: RateType | null; rateValue: number | null;
@@ -128,7 +128,7 @@ export function ReferralPayDrawer({ referrerId, onClose, onChanged }: { referrer
               { k: "Earned", v: d.earned, tone: "text-[#17151F]" },
               { k: "Paid", v: d.paid, tone: "text-[#17151F]" },
               { k: "Can pay now", v: d.owed, tone: "text-[#1F8A5B]" },
-              { k: "Waiting", v: d.waiting, tone: "text-[#9A5B00]", hint: "Program not Completed or not fully paid yet" },
+              { k: "Waiting", v: d.waiting, tone: "text-[#9A5B00]", hint: (() => { const due = d.programs.filter(p => p.waiting > 0).reduce((t, p) => t + (p.clientDue ?? 0), 0); return due > 0 ? `Paid when the programs are Completed and the client pays the ${formatCurrency(due)} still due` : "Paid when the programs are Completed and fully paid"; })() },
             ].map(x => (
               <div key={x.k} className="rounded-[16px] bg-white px-3.5 py-3">
                 <p className="text-[12px] font-semibold text-[#6B6680]">{x.k}</p>
@@ -198,7 +198,7 @@ export function ReferralPayDrawer({ referrerId, onClose, onChanged }: { referrer
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold tabular-nums text-[#17151F]">{formatCurrency(p.earned)}</p>
                     <p className={cn("text-[11.5px] font-semibold", p.owed > 0 ? "text-[#1F8A5B]" : p.waiting > 0 ? "text-[#9A5B00]" : "text-[#8A859A]")}>
-                      {off ? "Cancelled" : p.owed > 0 ? `${formatCurrency(p.owed)} to pay` : p.waiting > 0 ? <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />Waiting</span> : p.earned > 0 ? "Paid" : "—"}
+                      {off ? "Cancelled" : p.owed > 0 ? `${formatCurrency(p.owed)} to pay` : p.waiting > 0 ? <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{(p.clientDue ?? 0) > 0 ? `Waiting · client owes ${formatCurrency(p.clientDue!)}` : "Waiting · not Completed yet"}</span> : p.earned > 0 ? "Paid" : "—"}
                     </p>
                   </div>
                 </div>

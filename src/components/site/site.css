@@ -620,7 +620,9 @@
 /* the player is taller than what we show: its title strip (top) and logo (bottom) fall outside */
 .fth-v{position:absolute;inset:0;overflow:hidden}
 /* The player at 1920 × 1080, scaled to the card: YouTube then serves HD. Its title strip and logo stay outside the frame. */
-.fth-hd{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(var(--k,.6));transform-origin:0 0}
+/* zoom, not transform: a scaled iframe gets a separate GPU layer, and Chrome then drew a thin line across the middle
+   while YouTube's own pause sign showed (Faisal 24-NOV). With zoom YouTube sees the real on-screen size (HD on Retina). */
+.fth-hd{position:absolute;left:0;top:0;width:1920px;height:1080px;zoom:var(--k,.6)}
 .fth-v iframe{position:absolute;left:0;width:100%;top:-13.6%;height:127.2%;border:0;pointer-events:none}
 /* Loaded before the tap, paused and out of sight. */
 .fth.idle{visibility:hidden;pointer-events:none}

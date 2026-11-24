@@ -53,12 +53,16 @@ export function FilmTheater({ id, title, poster, posterStyle, className, big, fr
   const [lowRes, setLowRes] = useState(false);
   const src = poster || ytPicture(id, frame ?? 0, !lowRes);
   const ring = big ? 92 : 70;
-  // The Home film: load the player when it comes near the screen (after the page itself has loaded).
+  // The Home film (Faisal 24-NOV): once the page itself has loaded, the player loads hidden and fills its first seconds,
+  // so Play starts at once and in the same HD. Not for visitors who asked their phone to save data.
   useEffect(() => {
-    if (!big || warm || !btn.current || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setWarm(true); io.disconnect(); } }, { rootMargin: "600px 0px" });
-    io.observe(btn.current);
-    return () => io.disconnect();
+    if (!big || warm) return;
+    const save = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+    if (save) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const go = () => { t = setTimeout(() => setWarm(true), 1200); };
+    if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
+    return () => { window.removeEventListener("load", go); if (t) clearTimeout(t); };
   }, [big, warm]);
   const heat = () => setWarm(true);
   return (
@@ -72,12 +76,12 @@ export function FilmTheater({ id, title, poster, posterStyle, className, big, fr
           ? <span className="play pcine"><span className="pring"><Svg d={P.play} size={24} /></span><span className="pf plbl">Play film</span></span>
           : <span className="play"><span className="gold" style={{ width: ring, height: ring }}><Svg d={P.play} size={22} /></span></span>}
       </button>
-      {(warm || open) && <Theater id={id} title={title} poster={src} from={open} back={() => btn.current?.getBoundingClientRect() ?? open ?? new DOMRect()} anchor={() => btn.current} onClosed={() => setOpen(null)} />}
+      {(warm || open) && <Theater id={id} title={title} poster={src} from={open} preload={!!big} back={() => btn.current?.getBoundingClientRect() ?? open ?? new DOMRect()} anchor={() => btn.current} onClosed={() => setOpen(null)} />}
     </>
   );
 }
 
-function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: string; title: string; poster: string; /** Where it opens from; null = loaded but hidden */ from: DOMRect | null; back: () => DOMRect; /** The poster button (the theatre opens in the same page copy) */ anchor: () => HTMLElement | null; onClosed: () => void }) {
+function Theater({ id, title, poster, from, back, anchor, onClosed, preload }: { id: string; title: string; poster: string; /** Fill the first seconds while hidden (Home film) */ preload?: boolean; /** Where it opens from; null = loaded but hidden */ from: DOMRect | null; back: () => DOMRect; /** The poster button (the theatre opens in the same page copy) */ anchor: () => HTMLElement | null; onClosed: () => void }) {
   // Mount inside the site's root so the theme's colours and fonts apply (only rendered after a tap, so `document` exists).
   const [host] = useState<HTMLElement | null>(() => (typeof document === "undefined" ? null : ((anchor()?.closest(".sg") as HTMLElement | null) ?? document.body)));
   const shell = useRef<HTMLDivElement>(null);
@@ -96,6 +100,8 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
   const closing = useRef(false);
   /** The player has told us it is ready (it may be, long before the tap). */
   const ready = useRef(false);
+  /** Home film filling ahead: 0 not yet, 1 playing silently, 2 done */
+  const fill = useRef(0);
   const isOpen = !!from;
   /** Opened straight away (not loaded ahead): start by itself. Kept fixed so the player's address never changes. */
   const [auto] = useState(() => (from ? 1 : 0));
@@ -168,8 +174,20 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
       if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
       let m: { event?: string; info?: unknown };
       try { m = JSON.parse(e.data); } catch { return; }
-      if (m.event === "onReady") { ready.current = true; if (openRef.current) cmd("playVideo"); return; }
+      if (m.event === "onReady") {
+        ready.current = true;
+        if (openRef.current) cmd("playVideo");
+        // Hidden and not opened yet: play it silently for a moment so YouTube fills its first seconds, then wind back.
+        else if (preload && fill.current === 0) { fill.current = 1; cmd("mute"); cmd("playVideo"); }
+        return;
+      }
       const apply = (s: number) => {
+        if (fill.current === 1) {
+          if (s !== 1) return; // still loading
+          fill.current = 2; cmd("pauseVideo"); cmd("seekTo", [0, true]); cmd("unMute");
+          if (!openRef.current) { setState(2); return; } // stays hidden, ready to go
+          cmd("playVideo"); // opened while it was filling: just carry on
+        }
         setState(prev => {
           if (prev !== s) {
             if (s === 1) poke(false); // starts or resumes: controls out of the way
@@ -190,7 +208,7 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
-  }, [cmd, poke]);
+  }, [cmd, poke, preload]);
 
   // Ask the player to talk to us (repeat until it answers; the first message can arrive before it is ready).
   const listen = () => {

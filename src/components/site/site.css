@@ -615,14 +615,15 @@
 .fth{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center}
 .fth-bg{position:absolute;inset:0;background:rgba(6,5,4,.82);-webkit-backdrop-filter:blur(16px) saturate(.8);backdrop-filter:blur(16px) saturate(.8);opacity:0;transition:opacity .5s ease}
 .fth.on .fth-bg{opacity:1}
-.fth-stage{position:relative;width:min(94vw,1180px,calc((100dvh - 150px) * 16 / 9));display:flex;flex-direction:column;align-items:center;gap:18px;pointer-events:none}
+/* Card width a multiple of 32 px: the scaled player's middle (where YouTube draws its pause sign) then falls on a whole
+   pixel. Between pixels, Chrome drew a thin line across the film while the sign showed (Faisal 24-NOV). */
+.fth-stage{position:relative;width:min(94vw,1180px,calc((100dvh - 150px) * 16 / 9));width:round(down,min(94vw,1180px,calc((100dvh - 150px) * 16 / 9)),32px);display:flex;flex-direction:column;align-items:center;gap:18px;pointer-events:none}
 .fth-card{position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;overflow:hidden;background:#000;box-shadow:0 40px 90px rgba(0,0,0,.6);transform-origin:0 0;transition:transform .55s cubic-bezier(.2,.75,.2,1);pointer-events:auto}
 /* the player is taller than what we show: its title strip (top) and logo (bottom) fall outside */
 .fth-v{position:absolute;inset:0;overflow:hidden}
 /* The player at 1920 × 1080, scaled to the card: YouTube then serves HD. Its title strip and logo stay outside the frame. */
-/* zoom, not transform: a scaled iframe gets a separate GPU layer, and Chrome then drew a thin line across the middle
-   while YouTube's own pause sign showed (Faisal 24-NOV). With zoom YouTube sees the real on-screen size (HD on Retina). */
-.fth-hd{position:absolute;left:0;top:0;width:1920px;height:1080px;zoom:var(--k,.6)}
+/* The player is laid out at 1920 × 1080 and scaled down, so YouTube serves full HD. */
+.fth-hd{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(var(--k,.6));transform-origin:0 0}
 .fth-v iframe{position:absolute;left:0;width:100%;top:-13.6%;height:127.2%;border:0;pointer-events:none}
 /* Loaded before the tap, paused and out of sight. */
 .fth.idle{visibility:hidden;pointer-events:none}
@@ -655,11 +656,11 @@
 .fth.on .fth-x{opacity:1}
 .fth-x:hover{background:rgba(255,255,255,.15)}
 .fth.full{background:#000}
-.fth.full .fth-stage{width:min(100vw,calc(100dvh * 16 / 9))}
+.fth.full .fth-stage{width:min(100vw,calc(100dvh * 16 / 9));width:round(down,min(100vw,calc(100dvh * 16 / 9)),32px)}
 .fth.full .fth-card{border-radius:0;box-shadow:none}
 .fth.full .fth-title{display:none}
 @media (max-width:640px){
-.fth-stage{width:100vw}
+.fth-stage{width:100vw;width:round(down,100vw,32px)}
 .fth-card{border-radius:0}
 .fth-v iframe{top:-27.4%;height:154.8%}
 .fth-bar{gap:2px;padding:22px 6px 4px}

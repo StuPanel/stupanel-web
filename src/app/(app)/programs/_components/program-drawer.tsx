@@ -1065,7 +1065,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             value={refValue} onChange={e => { setRefValue(e.target.value); setRefRateTouched(true); }} className={cn(inputCls, "w-28 h-9 tabular-nums")} />
                         </>)}
                       </div>
-                      <p className="mt-1.5 text-[12px] text-[#6B6680]">{refNone ? `${shownReferrer.name} is saved as the one who brought this program, but gets no referral pay for it.` : <>{refOwn ? "Only for this program." : `The person's own rate if they have one, else the studio's (${refRules.rateType === "percent" ? `${refRules.rateValue}% of profit` : `${refRules.rateValue} per program`}).`} Paid once the program is Completed and fully paid.</>}</p>
+                      <p className="mt-1.5 text-[12px] text-[#6B6680]">{refNone ? `${shownReferrer.name} is saved as the one who brought this program, but gets no referral pay for it.` : <>{refOwn ? "Only for this program." : `The person's own rate if they have one, else the studio's (${refRules.rateType === "percent" ? `${refRules.rateValue}% of profit` : `${refRules.rateValue} per program`}).`} Can be paid once the client has paid in full.</>}</p>
                     </div>
                   )}
                 </div>

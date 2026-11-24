@@ -159,7 +159,7 @@ export default function ReferralsPage() {
                                   <span className={cn("block text-sm font-semibold tabular-nums", off ? "text-[#9A95AC]" : "text-[#17151F]")}>{formatCurrency(p.total)}</span>
                                   {payOn && !off && (
                                     <span className={cn("block text-[11.5px] font-semibold tabular-nums", (p.owed ?? 0) > 0 ? "text-[#1F8A5B]" : (p.waiting ?? 0) > 0 ? "text-[#9A5B00]" : "text-[#8A859A]")}>
-                                      {!(p.earned ?? 0) ? "No referral pay" : (p.owed ?? 0) > 0 ? `Referral ${formatCurrency(p.owed!)} to pay` : (p.waiting ?? 0) > 0 ? `Referral ${formatCurrency(p.waiting!)} · ${(p.clientDue ?? 0) > 0 ? `client owes ${formatCurrency(p.clientDue!)}` : "not Completed yet"}` : `Referral ${formatCurrency(p.earned!)} paid`}
+                                      {!(p.earned ?? 0) ? "No referral pay" : (p.owed ?? 0) > 0 ? `Referral ${formatCurrency(p.owed!)} to pay` : (p.waiting ?? 0) > 0 ? `Referral ${formatCurrency(p.waiting!)} · ${(p.clientDue ?? 0) > 0 ? `client owes ${formatCurrency(p.clientDue!)}` : "waiting"}` : `Referral ${formatCurrency(p.earned!)} paid`}
                                     </span>
                                   )}
                                 </span>

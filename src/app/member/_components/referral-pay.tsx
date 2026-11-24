@@ -24,7 +24,7 @@ export function MyReferralPay() {
   if (!d?.on || (!d.programs.length && !d.payouts.length)) return null;
   const toGet = Math.round((d.owed + d.waiting) * 100) / 100;
   return (
-    <Group title="Referral pay" note="For programs you brought to the studio. It is paid once the program is Completed and the client has paid in full."
+    <Group title="Referral pay" note="For programs you brought to the studio. It can be paid as soon as the client has paid the program in full."
       action={<span className="text-[12.5px] text-[#6B6680] tabular-nums">Earned {formatCurrency(d.earned)} · Got {formatCurrency(d.paid)}</span>}>
       <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 bg-[#EEE8FD]/50">
         <span className="w-9 h-9 rounded-full bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Handshake className="w-4 h-4" /></span>

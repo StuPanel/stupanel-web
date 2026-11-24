@@ -76,7 +76,7 @@ const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");
 const newId = () => Math.random().toString(36).slice(2, 10);
 /** The video id of a YouTube link (watch, share, shorts or embed address). */
 /** No own cover: pick YouTube's cover or one of three moments from the film (about ¼, ½, ¾ in). */
-function FramePick({ vid, value, onPick, name }: { vid: string; value: number; onPick: (n: number) => void; name: string }) {
+function FramePick({ vid, value, onPick, name, onAdjust, crop }: { vid: string; value: number; onPick: (n: number) => void; name: string; onAdjust: () => void; crop?: SiteCrop }) {
   const opts = [{ n: 0, label: "Cover" }, { n: 1, label: "Moment 1" }, { n: 2, label: "Moment 2" }, { n: 3, label: "Moment 3" }];
   return (
     <div role="group" aria-label={`Picture from ${name}`}>
@@ -88,15 +88,19 @@ function FramePick({ vid, value, onPick, name }: { vid: string; value: number; o
             <button key={o.n} type="button" aria-pressed={on} onClick={() => onPick(o.n)} aria-label={`${o.label} of ${name}`}
               className={`relative rounded-[9px] overflow-hidden border-2 transition-colors ${on ? "border-[#7D5CEF]" : "border-transparent hover:border-[#C9C3DA]"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://i.ytimg.com/vi/${vid}/${o.n ? `mq${o.n}` : "mqdefault"}.jpg`} alt="" className="block w-full aspect-video object-cover" loading="lazy" />
+              <img src={`https://i.ytimg.com/vi/${vid}/${o.n ? `mq${o.n}` : "mqdefault"}.jpg`} alt="" className="block w-full aspect-video object-cover" loading="lazy" style={on ? cropStyle(crop) : undefined} />
               <span className={`absolute inset-x-0 bottom-0 text-[10.5px] font-semibold py-0.5 text-center ${on ? "bg-[#7D5CEF] text-white" : "bg-black/55 text-white"}`}>{o.label}</span>
             </button>
           );
         })}
       </div>
+      <button type="button" onClick={onAdjust} className="mt-1.5 h-8 px-3 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[12px] font-semibold text-[#4A4658] inline-flex items-center gap-1.5"><Crop className="w-3.5 h-3.5" />Adjust this picture</button>
     </div>
   );
 }
+
+/** A picture from a YouTube film, as a Photo the Adjust window can open (1280 × 720). */
+const ytPhoto = (vid: string, n: number): Photo => ({ id: `yt-${vid}-${n}`, url: `https://i.ytimg.com/vi/${vid}/maxres${n || "default"}.jpg`, width: 1280, height: 720, blur: "" });
 
 const ytId = (v: string) => /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/.exec(v || "")?.[1] ?? null;
 
@@ -436,6 +440,9 @@ export default function WebsitePage() {
   const phoneSlides = (c.mobileSlides ?? []).filter(id => byId.has(id));
   /** Open the framing window for the photo in one place (hero0, about, album:<id>…). */
   const adjust = (key: string, id: string | null | undefined, title: string, ratio: number, round?: boolean) => { const photo = ph(id); if (photo) setFrame({ key, photo, title, ratio, round }); };
+  /** Adjust a picture from a film (no own cover); a new choice of picture starts without the old adjustment. */
+  const adjustYt = (key: string, vid: string, n: number, title: string) => setFrame({ key, photo: ytPhoto(vid, n), title, ratio: RATIO.film });
+  const dropCrop = (key: string) => { if (!crops[key]) return; const next = { ...crops }; delete next[key]; set("crop", next); };
   const shownPhotos = allPhotos ? site.photos : site.photos.slice(0, 11);
 
   return (
@@ -781,7 +788,7 @@ export default function WebsitePage() {
         <Field label="YouTube link">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={c.filmUrl} maxLength={200} onChange={e => set("filmUrl", e.target.value)} />}</Field>
         <Field label="Film name">{id => <input id={id} className={inputCls} placeholder="Tanvir and Nusrat, the wedding film" value={c.filmTitle} maxLength={80} onChange={e => set("filmTitle", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} crop={crops.film} onAdjust={() => adjust("film", c.filmPhoto, "Film cover", RATIO.film)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
-        {!c.filmPhoto && ytId(c.filmUrl) && <div className="px-4 pb-3.5"><FramePick vid={ytId(c.filmUrl)!} value={c.filmFrame ?? 0} onPick={n => set("filmFrame", n)} name={c.filmTitle || "the film"} /></div>}
+        {!c.filmPhoto && ytId(c.filmUrl) && <div className="px-4 pb-3.5"><FramePick vid={ytId(c.filmUrl)!} value={c.filmFrame ?? 0} onPick={n => { set("filmFrame", n); dropCrop("filmf"); }} name={c.filmTitle || "the film"} crop={crops.filmf} onAdjust={() => adjustYt("filmf", ytId(c.filmUrl)!, c.filmFrame ?? 0, `Picture of ${c.filmTitle || "the film"}`)} /></div>}
       </Sec>
       </div>
 
@@ -800,7 +807,7 @@ export default function WebsitePage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(vid ? crops[`filmc:${vid}`] : undefined)} />
                     // eslint-disable-next-line @next/next/no-img-element
-                    : vid ? <img src={`https://i.ytimg.com/vi/${vid}/${f.frame ? `mq${f.frame}` : "mqdefault"}.jpg`} alt="" className="w-full h-full object-cover opacity-70" /> : <ImagePlus className="w-5 h-5 mx-auto" />}
+                    : vid ? <img src={`https://i.ytimg.com/vi/${vid}/${f.frame ? `mq${f.frame}` : "mqdefault"}.jpg`} alt="" className="w-full h-full object-cover opacity-70" style={cropStyle(crops[`filmf:${vid}`])} /> : <ImagePlus className="w-5 h-5 mx-auto" />}
                   {!cover && <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white text-[10px] font-semibold py-0.5 text-center">Add cover</span>}
                 </button>
                 {cover && (
@@ -813,7 +820,7 @@ export default function WebsitePage() {
               <div className="flex-1 grid gap-2 min-w-0">
                 <input aria-label="YouTube link" className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={f.url} maxLength={200} onChange={e => putFilm({ url: e.target.value })} />
                 <input aria-label="Film name" className={inputCls} placeholder="Film name" value={f.title} maxLength={80} onChange={e => putFilm({ title: e.target.value })} />
-                {!cover && vid && <FramePick vid={vid} value={f.frame ?? 0} onPick={n => putFilm({ frame: n })} name={name} />}
+                {!cover && vid && <FramePick vid={vid} value={f.frame ?? 0} onPick={n => { putFilm({ frame: n }); dropCrop(`filmf:${vid}`); }} name={name} crop={crops[`filmf:${vid}`]} onAdjust={() => adjustYt(`filmf:${vid}`, vid, f.frame ?? 0, `Picture of ${name}`)} />}
               </div>
               <button type="button" aria-label="Remove this film" onClick={() => set("films", (c.films ?? []).filter((_, k) => k !== i))} className="w-11 h-11 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
             </div>

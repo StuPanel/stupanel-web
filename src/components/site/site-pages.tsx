@@ -226,8 +226,8 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   if (page === "films") {
     /** A film's own cover: the phone-size copy is plenty for the smaller cards. */
     const cov = (id: string | null | undefined, big: boolean) => { const p = id ? photos[id] : undefined; return p ? (big ? p.url : p.sm ?? p.url) : undefined; };
-    const films = [...(c.filmId ? [{ id: c.filmId, title: c.filmTitle, poster: cov(c.filmPhoto, true), posterStyle: c.filmPhoto ? cropStyle(c.crop?.film) : undefined, frame: c.filmFrame }] : []),
-      ...(c.films ?? []).filter(f => f.id !== c.filmId).map(f => ({ id: f.id, title: f.title, poster: cov(f.cover, false), posterStyle: f.cover ? cropStyle(c.crop?.[`filmc:${f.id}`]) : undefined, frame: f.frame }))];
+    const films = [...(c.filmId ? [{ id: c.filmId, title: c.filmTitle, poster: cov(c.filmPhoto, true), posterStyle: cropStyle(c.filmPhoto ? c.crop?.film : c.crop?.filmf), frame: c.filmFrame }] : []),
+      ...(c.films ?? []).filter(f => f.id !== c.filmId).map(f => ({ id: f.id, title: f.title, poster: cov(f.cover, false), posterStyle: cropStyle(f.cover ? c.crop?.[`filmc:${f.id}`] : c.crop?.[`filmf:${f.id}`]), frame: f.frame }))];
     return (
       <>
         <PageHead script={script} title={title} sub="Cut to the sound of the day itself. Press play and turn the volume up." />

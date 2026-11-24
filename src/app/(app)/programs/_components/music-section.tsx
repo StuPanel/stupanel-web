@@ -210,7 +210,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
             {(ideas.kinds?.length ?? 0) > 0 && (ideas.detected || ideas.days.some(d => d.event && WEDDING_DAYS.includes(d.event))) && (
               <div className="rounded-[14px] bg-white p-3">
                 <p className="text-[13px] font-bold text-[#17151F]">Kind of wedding</p>
-                <p className="text-[12px] text-[#6B6680] mb-2">Songs are suggested for this kind only{ideas.detected ? " — read from the program" : ""}. Then tick the parts of each day below.</p>
+                <p className="text-[12px] text-[#6B6680] mb-2">Songs are suggested for this kind only{ideas.detected && ideas.kind === ideas.detected ? " — read from the program" : ""}. Then tick the parts of each day below.</p>
                 <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Kind of wedding">
                   {[...(ideas.kinds ?? []), { id: "any", name: "Any wedding" }].map(k => {
                     const on = (ideas.kind ?? "any") === k.id;

@@ -1,4 +1,5 @@
-export default function Loading() {
+/** StuPanel's own loading screen (app, admin, member, client links) — not used on studio websites. */
+export default function AppLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB]">
       <div className="flex flex-col items-center gap-3">

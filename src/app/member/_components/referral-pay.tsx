@@ -30,7 +30,7 @@ export function MyReferralPay() {
         <span className="w-9 h-9 rounded-full bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Handshake className="w-4 h-4" /></span>
         <span className="flex-1 min-w-0">
           <span className="block text-[15px] font-semibold text-[#17151F]">Still to get</span>
-          <span className="block text-xs text-[#6B6680]">{d.owed > 0 ? `${formatCurrency(d.owed)} ready` : "Nothing ready yet"}{d.waiting > 0 ? ` · ${formatCurrency(d.waiting)} waiting for programs to finish` : ""}</span>
+          <span className="block text-xs text-[#6B6680]">{d.owed > 0 ? `${formatCurrency(d.owed)} ready` : "Nothing ready yet"}{d.waiting > 0 ? ` · ${formatCurrency(d.waiting)} waiting for the client to pay` : ""}</span>
         </span>
         <span className="text-[15px] font-bold text-[#5B3FD0] tabular-nums">{formatCurrency(toGet)}</span>
       </div>

@@ -110,8 +110,8 @@ function rateLine(m: Member, customRoles: string[]) {
   return parts.length ? parts.join(" · ") : null;
 }
 
-function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete }: {
-  m: Member; customRoles: string[];
+function MemberRow({ m, customRoles, owed, onView, onEdit, onReset, onToggle, onDelete }: {
+  m: Member; customRoles: string[]; owed: number;
   onView: () => void; onEdit: () => void; onReset: () => void; onToggle: () => void; onDelete: () => void;
 }) {
   const main = roleConfig(m.memberRoles[0] ?? "assistant", customRoles);
@@ -137,6 +137,12 @@ function MemberRow({ m, customRoles, onView, onEdit, onReset, onToggle, onDelete
         </p>
         {rates && <p className="text-xs font-semibold text-[#1F8A5B] truncate mt-0.5">{rates}</p>}
       </div>
+      {owed > 0 && (
+        <span className="text-right flex-shrink-0 leading-tight">
+          <span className="block text-[13px] font-bold text-[#C2304F] tabular-nums">{formatCurrency(owed)}</span>
+          <span className="block text-[11px] text-[#8A8599]">to pay</span>
+        </span>
+      )}
       {m.phone && <span className="hidden lg:block text-xs text-[#6B6680] tabular-nums flex-shrink-0">{m.phone}</span>}
       {wa && (
         <a href={wa} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} aria-label={`WhatsApp ${m.firstName}`}
@@ -164,6 +170,7 @@ export default function TeamPage() {
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [owed, setOwed] = useState<Record<string, number>>({});
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -174,6 +181,8 @@ export default function TeamPage() {
       ]);
       if (mRes.ok) setMembers(await mRes.json());
       if (crRes.ok) setCustomRoles(await crRes.json());
+      // What the studio still owes each member for programs (same rule as their profile).
+      apiFetch(`${API}/team/owed`).then(r => (r.ok ? r.json() : {})).then((d: Record<string, number>) => setOwed(d && typeof d === "object" ? d : {})).catch(() => {});
     } finally { setLoading(false); }
   }, []);
 
@@ -211,9 +220,11 @@ export default function TeamPage() {
     return matchSearch && matchRole;
   });
 
+  const totalOwed = Math.round(Object.values(owed).reduce((s, n) => s + n, 0) * 100) / 100;
+
   return (
     <div>
-      <PageHeader icon={HeaderIcon} color="blue" title="Team" sub={<>{members.filter(m => m.isActive).length} active · {members.length} total</>}>
+      <PageHeader icon={HeaderIcon} color="blue" title="Team" sub={<>{members.filter(m => m.isActive).length} active · {members.length} total{totalOwed > 0 && <> · <span className="font-semibold text-[#C2304F]">{formatCurrency(totalOwed)} to pay</span></>}</>}>
         {members.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search name, username, phone" />}
         <MainButton icon={Plus} onClick={openAdd}>Add member</MainButton>
       </PageHeader>
@@ -236,7 +247,7 @@ export default function TeamPage() {
       ) : (
         <Group>
           {filteredMembers.map(m => (
-            <MemberRow key={m.id} m={m} customRoles={customRoles}
+            <MemberRow key={m.id} m={m} customRoles={customRoles} owed={owed[m.id] ?? 0}
               onView={() => router.push(`/team/${m.id}`)}
               onEdit={() => openEdit(m)}
               onReset={() => setResetTarget(m)}

@@ -20,6 +20,28 @@ const TITLES: Record<Exclude<SitePageName, "home">, [string, string]> = {
   stories: ["wedding", "Stories"], "thank-you": ["thank", "You"], notfound: ["lost", "Page"],
 };
 
+/** FAQ: one answer open at a time; it slides open and closes again smoothly (height + fade), the + turns into a −. */
+function FaqList({ faqs }: { faqs: { q: string; a: string }[] }) {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <>
+      {faqs.map((f, i) => {
+        const on = open === i;
+        return (
+          <div key={i} className={`fq rv${on ? " on" : ""}`}>
+            <button type="button" className="fqq" aria-expanded={on} aria-controls={`fqa-${i}`} onClick={() => setOpen(on ? null : i)}>
+              <span className="pf">{f.q}</span><span className="fqi" aria-hidden="true" />
+            </button>
+            <div id={`fqa-${i}`} className="fqa" role="region" aria-hidden={!on}>
+              <div><p style={{ whiteSpace: "pre-line" }}>{f.a}</p></div>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function PageHead({ script, title, sub }: { script: string; title: string; sub?: string }) {
   // A long title (a story's name) is set smaller so it stays two or three lines on a phone.
   const long = title.length > 24;
@@ -374,12 +396,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
       <>
         <PageHead script={script} title={title} sub="The questions couples ask us most." />
         <section className="wrap" style={{ maxWidth: 860, paddingTop: 50, paddingBottom: "clamp(60px,8vw,100px)" }}>
-          {(c.faqs ?? []).map((f, i) => (
-            <details key={i} className="fq rv" name="sg-faq">
-              <summary><span className="pf">{f.q}</span><span className="fqi" aria-hidden="true" /></summary>
-              <p style={{ whiteSpace: "pre-line" }}>{f.a}</p>
-            </details>
-          ))}
+          <FaqList faqs={c.faqs ?? []} />
           {(c.faqs ?? []).length === 0 && <p style={{ textAlign: "center" }}>Ask us anything on the Contact page.</p>}
         </section>
         {cta}

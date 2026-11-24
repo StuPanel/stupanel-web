@@ -38,9 +38,9 @@ export type SitePackage = {
 export type SiteContent = {
   script: string; headline: string; kicker: string; intro: string; heroPhotos: string[]; /** Slideshow photos of the Gallery White look */ slides?: string[]; /** Main Home photo on phones */ mobileSlides?: string[]; events: string[];
   aboutTitle: string; aboutText: string; aboutPhoto: string | null; albums: SiteAlbum[];
-  filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; showPackages: boolean; showLogo?: boolean;
+  filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment from the film */ filmFrame?: number; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
-  films?: { url: string; title: string; id: string; /** Own cover photo */ cover?: string | null }[]; faqs?: { q: string; a: string }[];
+  films?: { url: string; title: string; id: string; /** Own cover photo */ cover?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment */ frame?: number }[]; faqs?: { q: string; a: string }[];
   stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
@@ -417,7 +417,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
 
   const words = c.headline.split(/\s+/).filter(Boolean);
   const [aboutScript, ...aboutRest] = c.aboutTitle.split(/\s+/).filter(Boolean);
-  const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : c.filmId ? `https://i.ytimg.com/vi/${c.filmId}/maxresdefault.jpg` : "";
+  const filmPoster = c.filmPhoto && photos[c.filmPhoto] ? photos[c.filmPhoto].url : "";
   const wa = waLink(c.whatsapp || c.phone);
   const films = c.films ?? [];
   /** The gallery look: full-screen photo, plain type, a mosaic of albums. */
@@ -557,7 +557,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
             <div className="wrap" style={{ textAlign: "center" }}>
               <Heading script="wedding" title="Films" light />
               <div style={{ height: 40 }} />
-              <FilmTheater id={c.filmId} title={c.filmTitle} big className="cine rv" poster={filmPoster || undefined} posterStyle={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />
+              <FilmTheater id={c.filmId} title={c.filmTitle} big className="cine rv" poster={filmPoster || undefined} frame={c.filmFrame} posterStyle={c.filmPhoto ? cropStyle(c.crop?.film) : undefined} />
               {c.filmTitle && <p className="pf" style={{ margin: "34px 0 0", fontSize: 22, fontStyle: "italic" }}>{c.filmTitle}</p>}
               {films.some(f => f.id !== c.filmId) && <Link href={L("/films")} className="cap ol fmore">More films</Link>}
             </div>

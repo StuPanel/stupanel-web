@@ -74,6 +74,7 @@ export function ReferrerPicker({ value, onChange, label = "Who referred?", hint 
     finally { setBusy(null); }
   }
 
+  const addPerson = () => { void choose("p", { kind: "person", name: person.name, phone: person.phone, email: person.email }); };
   const s = q.trim().toLowerCase();
   const team = (opts?.team ?? []).filter(t => !s || t.name.toLowerCase().includes(s) || (t.phone ?? "").includes(s));
   const row = "w-full flex items-center gap-3 px-3 py-2 rounded-[12px] text-left hover:bg-[#F5F3FA] disabled:opacity-60";
@@ -100,7 +101,8 @@ export function ReferrerPicker({ value, onChange, label = "Who referred?", hint 
       {hint && <p className="mt-1 text-[12.5px] text-[#8A8599]">{hint}</p>}
 
       {open && (
-        <div className="absolute left-0 right-0 z-30 mt-2 rounded-[18px] bg-white border border-[#E4E0EC] shadow-[0_24px_60px_-20px_rgba(40,28,96,.35)] overflow-hidden" role="dialog" aria-label="Who referred">
+        // Opens in place (pushes what is below down), so no card around it can cover it
+        <div className="mt-2 rounded-[18px] bg-white border border-[#E4E0EC] shadow-[0_12px_32px_-16px_rgba(40,28,96,.30)] overflow-hidden" role="dialog" aria-label="Who referred">
           <div className="p-2.5 border-b border-[#EEEBF4]">
             <label className="relative block">
               <span className="sr-only">Search</span>
@@ -143,7 +145,8 @@ export function ReferrerPicker({ value, onChange, label = "Who referred?", hint 
             {!adding ? (
               <button type="button" onClick={() => { setAdding(true); setPerson(p => ({ ...p, name: p.name || q })); }} className="w-full h-11 rounded-[12px] text-[14.5px] font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA] inline-flex items-center gap-2 px-3"><UserPlus className="w-4 h-4" />Someone else</button>
             ) : (
-              <form className="grid gap-2" onSubmit={e => { e.preventDefault(); void choose("p", { kind: "person", name: person.name, phone: person.phone, email: person.email }); }}>
+              // Not a <form>: the picker sits inside the client / program form, and a form inside a form would send the outer one.
+              <div className="grid gap-2" onKeyDown={e => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); e.stopPropagation(); addPerson(); } }}>
                 <p className="text-[13px] font-semibold text-[#4A4658]">Someone else <span className="font-normal text-[#8A8599]">· name and a phone or an email</span></p>
                 <input aria-label="Name" className={inputCls} placeholder="Name" value={person.name} maxLength={150} onChange={e => setPerson({ ...person, name: e.target.value })} />
                 <div className="grid sm:grid-cols-2 gap-2">
@@ -152,9 +155,9 @@ export function ReferrerPicker({ value, onChange, label = "Who referred?", hint 
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setAdding(false)} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[14px] font-semibold text-[#4A4658]">Back</button>
-                  <button type="submit" disabled={busy === "p"} className="flex-1 h-10 rounded-full bg-[#7D5CEF] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">{busy === "p" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Add</button>
+                  <button type="button" onClick={addPerson} disabled={busy === "p"} className="flex-1 h-10 rounded-full bg-[#7D5CEF] text-white text-[14px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">{busy === "p" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Add</button>
                 </div>
-              </form>
+              </div>
             )}
             {err && <p role="alert" className="mt-2 text-[13px] text-[#C2304F]">{err}</p>}
           </div>

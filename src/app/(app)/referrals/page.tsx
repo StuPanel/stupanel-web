@@ -85,7 +85,7 @@ export default function ReferralsPage() {
           <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
           <StatCard icon={CalendarCheck} color="blue" label="Programs referred" value={String(totals.programs)} sub="Booked, not cancelled" />
           <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue)} sub="Booked programs" />
-          {payOn && <StatCard icon={HandCoins} color="orchid" label="Referral pay to give" value={formatCurrency(owedAll)} sub={waitingAll > 0 ? `${formatCurrency(waitingAll)} waiting for programs to finish` : "Nothing waiting"} />}
+          {payOn && <StatCard icon={HandCoins} color="orchid" label="Referral pay to give" value={formatCurrency(owedAll)} sub={waitingAll > 0 ? `${formatCurrency(waitingAll)} waiting for client payments` : "Nothing waiting"} />}
         </div>
       )}
 

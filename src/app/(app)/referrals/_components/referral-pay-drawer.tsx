@@ -128,7 +128,7 @@ export function ReferralPayDrawer({ referrerId, onClose, onChanged }: { referrer
               { k: "Earned", v: d.earned, tone: "text-[#17151F]" },
               { k: "Paid", v: d.paid, tone: "text-[#17151F]" },
               { k: "Can pay now", v: d.owed, tone: "text-[#1F8A5B]" },
-              { k: "Waiting", v: d.waiting, tone: "text-[#9A5B00]", hint: (() => { const due = d.programs.filter(p => p.waiting > 0).reduce((t, p) => t + (p.clientDue ?? 0), 0); return due > 0 ? `Can be paid once the client pays the ${formatCurrency(due)} still due` : "Can be paid once the client has paid in full"; })() },
+              { k: "Waiting", v: d.waiting, tone: "text-[#9A5B00]", hint: d.waiting <= 0 ? undefined : (() => { const due = d.programs.filter(p => p.waiting > 0).reduce((t, p) => t + (p.clientDue ?? 0), 0); return due > 0 ? `Can be paid once the client pays the ${formatCurrency(due)} still due` : "Can be paid once the client has paid in full"; })() },
             ].map(x => (
               <div key={x.k} className="rounded-[16px] bg-white px-3.5 py-3">
                 <p className="text-[12px] font-semibold text-[#6B6680]">{x.k}</p>
@@ -157,7 +157,7 @@ export function ReferralPayDrawer({ referrerId, onClose, onChanged }: { referrer
                     className={cn("h-9 px-3 rounded-full text-[12px] font-semibold", method === o.v ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658]")}>{o.l}</button>)}
                 </div>
               )}</Field>
-              <div className="px-4 py-3"><AccountPicker label="Paid from" value={walletId} method={method} payOut={amt} onChange={setWalletId} /></div>
+              <div className="px-4 py-3"><AccountPicker key={d.payouts.length} label="Paid from" value={walletId} method={method} payOut={amt} onChange={setWalletId} /></div>
               <Field label="Date">{id => <input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />}</Field>
               <Field label="Note">{id => <input id={id} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. transaction ID" className={inputCls} />}</Field>
             </FormGroup>

@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Check, ChevronDown, Copy, ExternalLink, Library, Link2, Loader2, Lock, LockOpen, Music2, Plus, Settings2, X,
+  Check, ChevronDown, Copy, ExternalLink, Library, Link2, Loader2, Lock, LockOpen, Music2, Plus, Search, Settings2, X,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,8 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
   const [shareLink, setShareLink] = useState<{ url: string } | null | undefined>(undefined);
   /** The studio's own music tags (e.g. Outdoor trailer) — offered as parts too. */
   const [ownTags, setOwnTags] = useState<string[]>([]);
+  /** Ideas for the parts builder from the server (older servers: none, then the plain video list is shown). */
+  const [ideas, setIdeas] = useState<PartIdeas | null>(null);
   useEffect(() => {
     apiFetch(`${API}/music/tags`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) { setVideoKinds(d.videos ?? []); setOwnTags(Array.isArray(d.own) ? d.own : []); } }).catch(() => {});
   }, []);
@@ -59,7 +61,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
   const load = useCallback(async () => {
     try {
       const r = await apiFetch(`${API}/music/booking/${booking.id}`);
-      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); setDays(d.days ?? []); setShareLink(d.link ?? null); }
+      if (r.ok) { const d = await r.json(); setSel(d.selection); setDefaults(d.defaultParts ?? []); setDays(d.days ?? []); setIdeas(d.ideas ?? null); setShareLink(d.link ?? null); }
     } finally { setLoading(false); }
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
@@ -172,9 +174,17 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
       <div className="rounded-[16px] bg-[#F5F3FA] p-4 space-y-3">
         <div>
           <p className="text-[14px] font-bold text-[#17151F] flex items-center gap-2"><Music2 className="w-4 h-4 text-[#9E3A8C]" />Which videos need music?</p>
-          <p className="text-[12.5px] text-[#6B6680] mt-0.5">Tick the videos you will make. The client only has to open each one and choose songs for it.</p>
+          <p className="text-[12.5px] text-[#6B6680] mt-0.5">Tick the videos and moments you will make. The client opens each one and gets songs suggested for it.</p>
         </div>
-        {/* One row per day, then the whole program: tick the kinds of video */}
+        {/* One row per day, then the whole program. With ideas: the best few parts for each, the rest under More. */}
+        {ideas ? (
+          <div className="space-y-2">
+            {[...ideas.days.map(d => ({ name: d.name as string | null, list: d.ideas })), { name: null, list: ideas.whole }].map(row => (
+              <IdeaRow key={row.name ?? "*"} day={row.name} list={row.list} others={row.name ? ideas.others : []}
+                title={row.name ?? (ideas.days.length ? "For the whole program" : "Videos")} parts={parts} setParts={setParts} />
+            ))}
+          </div>
+        ) : (
         <div className="space-y-2">
           {[...days.map(d => ({ day: d as { name: string; event?: string } | null })), { day: null }].map(({ day }) => {
             const key = (video: string | null) => `p-${day ? partSlug(day.name) : "all"}-${video ?? "any"}`;
@@ -204,6 +214,7 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
             );
           })}
         </div>
+        )}
         {/* Parts made by hand (and older ones) */}
         {(parts.some(p => !p.key.startsWith("p-")) || ownTags.length > 0) && (
           <div className="flex flex-wrap gap-1.5">
@@ -379,6 +390,77 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
           onPortal={member ? undefined : () => { setSharing(false); setPortal(true); }} onClose={() => setSharing(false)} />
       )}
       {portal && client && <PortalAccessModal client={client} onClose={() => setPortal(false)} />}
+    </div>
+  );
+}
+
+// ─── Parts builder ideas (Faisal 24-NOV): the best few for each day, the rest under More ───
+type Idea = { key: string; label: string; kind: "day" | "video" | "custom"; event?: string; video?: string; count: number; group: string };
+type PartIdeas = { kind: string | null; kindName: string | null; days: { name: string; event?: string; ideas: Idea[] }[]; whole: Idea[]; others: { event: string; name: string; count: number }[] };
+const SHOWN = 4;
+
+function IdeaRow({ day, title, list, others, parts, setParts }: {
+  day: string | null; title: string; list: Idea[]; others: PartIdeas["others"]; parts: MusicPart[]; setParts: (p: MusicPart[]) => void;
+}) {
+  const [more, setMore] = useState(false);
+  const [q, setQ] = useState("");
+  const prefix = `p-${day ? partSlug(day) : "all"}-`;
+  const short = (label: string) => (day && label.startsWith(`${day} · `) ? label.slice(day.length + 3) : day && label === day ? "Any video" : label);
+  const has = (key: string) => parts.some(p => p.key === key);
+  const toggle = (i: { key: string; label: string; kind: Idea["kind"]; event?: string; video?: string }) =>
+    setParts(has(i.key) ? parts.filter(p => p.key !== i.key)
+      : [...parts, { key: i.key, label: i.label, kind: i.kind, ...(i.event ? { event: i.event } : {}), ...(i.video ? { video: i.video } : {}) }]);
+  // Other events (an engagement filmed on this day…) as ideas too
+  const extra: Idea[] = others.map(o => ({ key: `${prefix}e-${o.event}`.slice(0, 60), label: `${day} · ${o.name}`.slice(0, 60), kind: "custom", event: o.event, count: o.count, group: "Other events" }));
+  const all = [...list, ...extra];
+  const top = list.slice(0, SHOWN);
+  // Chosen parts of this row that are not among the first few (or are older parts) stay in view
+  const chosenElse = parts.filter(p => p.key.startsWith(prefix) && !top.some(i => i.key === p.key));
+  const rest = all.filter(i => !top.some(t => t.key === i.key) && !chosenElse.some(c => c.key === i.key));
+  const n = parts.filter(p => p.key.startsWith(prefix)).length;
+  const query = q.trim().toLowerCase();
+  const found = rest.filter(i => !query || short(i.label).toLowerCase().includes(query));
+  const groups = [...new Set(found.map(i => i.group))];
+  const ideaChip = (i: Idea | MusicPart, count?: number) => (
+    <button key={i.key} type="button" aria-pressed={has(i.key)} onClick={() => toggle(i)}
+      className={cn(chip, has(i.key) ? "bg-[#7D5CEF] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>
+      {has(i.key) && <Check className="w-3 h-3" strokeWidth={3} />}{short(i.label)}
+      {count !== undefined && <span className={cn("text-[11px] font-semibold", has(i.key) ? "text-white/75" : "text-[#9893A8]")} title={`${count} song${count === 1 ? "" : "s"} to suggest`}>{count}</span>}
+    </button>
+  );
+  return (
+    <div className="rounded-[14px] bg-white p-3">
+      <p className="text-[13px] font-bold text-[#17151F] mb-2 flex items-center gap-2">{title}
+        {n > 0 && <span className="h-5 px-1.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11px] font-bold inline-flex items-center">{n}</span>}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {top.map(i => ideaChip(i, i.count))}
+        {chosenElse.map(p => ideaChip(p, all.find(i => i.key === p.key)?.count))}
+        {rest.length > 0 && (
+          <button type="button" aria-expanded={more} onClick={() => setMore(m => !m)}
+            className={cn(chip, "border border-dashed border-[#CFC8DD] text-[#5B3FD0] bg-white hover:bg-[#F7F5FB]")}>
+            {more ? <ChevronDown className="w-3 h-3 rotate-180" /> : <Plus className="w-3 h-3" />}{more ? "Less" : `More (${rest.length})`}
+          </button>
+        )}
+        {top.length === 0 && chosenElse.length === 0 && rest.length === 0 && <span className="text-[12.5px] text-[#9893A8]">No songs for this yet — add your own part below.</span>}
+      </div>
+      {more && (
+        <div className="mt-3 pt-3 border-t border-[#EEEBF4] space-y-2.5">
+          {rest.length > 8 && (
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#9893A8]" />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Find a video or a moment" aria-label={`Find a part for ${title}`}
+                className={cn(inputCls, "h-9 pl-8 text-[13px]")} />
+            </div>
+          )}
+          {groups.map(g => (
+            <div key={g}>
+              <p className="text-[11.5px] font-semibold text-[#6B6680] mb-1.5">{g}</p>
+              <div className="flex flex-wrap gap-1.5">{found.filter(i => i.group === g).map(i => ideaChip(i, i.count))}</div>
+            </div>
+          ))}
+          {found.length === 0 && <p className="text-[12.5px] text-[#9893A8]">Nothing matches.</p>}
+        </div>
+      )}
     </div>
   );
 }

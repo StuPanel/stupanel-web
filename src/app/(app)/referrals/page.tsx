@@ -1,11 +1,12 @@
 "use client";
 /**
- * Referrals — who brings the studio business: team members, clients and anyone else.
+ * Referrals — who brought programs to the studio: team members, clients and anyone else.
+ * Only program referrals are listed here (Faisal 24-NOV); who referred a client shows on the client's profile.
  * Data: GET /referrers/report. Money counts booked programs only (cancelled/refunded are left out).
  */
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, ChevronDown, ChevronUp, HandCoins, Handshake, Users, Wallet } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronUp, HandCoins, Handshake, Wallet } from "lucide-react";
 import { ReferralPayDrawer, rateLabel } from "./_components/referral-pay-drawer";
 import { EmptyState, Group, Initial, PageHeader, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 import { KindChip, KIND_LABEL, type ReferrerKind } from "@/components/ui/referrer-picker";
@@ -51,7 +52,8 @@ export default function ReferralsPage() {
     try {
       const [res, st] = await Promise.all([apiFetch(`${API}/referrers/report`), apiFetch(`${API}/companies/settings`).catch(() => null)]);
       const data = res.ok ? await res.json() : [];
-      setGroups(Array.isArray(data) ? data : []);
+      // Only people who brought at least one program; a client's own referrer stays on the client profile.
+      setGroups((Array.isArray(data) ? data : []).filter((g: ReferralGroup) => g.programs?.length > 0));
       const s = st?.ok ? await st.json() : null;
       setRules(s?.referrals ?? null);
     } finally {
@@ -64,8 +66,8 @@ export default function ReferralsPage() {
   const q = search.trim().toLowerCase();
   const filtered = groups.filter(g => (filter === "all" || g.kind === filter) && (!q || g.name.toLowerCase().includes(q) || (g.phone ?? "").includes(q)));
   const totals = groups.reduce(
-    (acc, g) => ({ clients: acc.clients + g.clientCount, programs: acc.programs + g.programCount, revenue: acc.revenue + g.revenue }),
-    { clients: 0, programs: 0, revenue: 0 },
+    (acc, g) => ({ programs: acc.programs + g.programCount, revenue: acc.revenue + g.revenue }),
+    { programs: 0, revenue: 0 },
   );
   const payOn = !!rules?.pay;
   const owedAll = groups.reduce((s, g) => s + (g.owed || 0), 0);
@@ -74,14 +76,14 @@ export default function ReferralsPage() {
 
   return (
     <div>
-      <PageHeader icon={Handshake} color="teal" title="Referrals" sub={<>Who brings you business — your team, clients and others</>}>
+      <PageHeader icon={Handshake} color="teal" title="Referrals" sub={<>Who brought programs to you — your team, clients and others</>}>
         {groups.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={search} onChange={setSearch} placeholder="Search referrer" />}
       </PageHeader>
 
       {!loading && groups.length > 0 && (
         <div className={cn("grid grid-cols-1 gap-3 sm:gap-4 mb-5", payOn ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
           <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
-          <StatCard icon={Users} color="blue" label="Clients referred" value={String(totals.clients)} sub={`${totals.programs} program${totals.programs === 1 ? "" : "s"}`} />
+          <StatCard icon={CalendarCheck} color="blue" label="Programs referred" value={String(totals.programs)} sub="Booked, not cancelled" />
           <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue)} sub="Booked programs" />
           {payOn && <StatCard icon={HandCoins} color="orchid" label="Referral pay to give" value={formatCurrency(owedAll)} sub={waitingAll > 0 ? `${formatCurrency(waitingAll)} waiting for programs to finish` : "Nothing waiting"} />}
         </div>
@@ -103,7 +105,7 @@ export default function ReferralsPage() {
         <RowsSkeleton n={4} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={Handshake} title={groups.length === 0 ? "No referrals yet" : "No one matches"}
-          text={groups.length === 0 ? "When you add a client or a program, choose who referred them." : "Try another name or filter."} />
+          text={groups.length === 0 ? "When you add or edit a program, choose who brought it." : "Try another name or filter."} />
       ) : (
         <Group>
           {filtered.map(g => {
@@ -120,7 +122,7 @@ export default function ReferralsPage() {
                       <KindChip kind={g.kind} />
                     </span>
                     <span className="block text-xs text-[#6B6680] truncate mt-0.5">
-                      {g.clientCount} client{g.clientCount === 1 ? "" : "s"} · {g.programCount} program{g.programCount === 1 ? "" : "s"}{g.phone ? ` · ${g.phone}` : g.email ? ` · ${g.email}` : ""}
+                      {g.programCount} program{g.programCount === 1 ? "" : "s"}{g.phone ? ` · ${g.phone}` : g.email ? ` · ${g.email}` : ""}
                     </span>
                   </span>
                   <span className="text-right flex-shrink-0">
@@ -135,19 +137,6 @@ export default function ReferralsPage() {
                 </button>
                 {isOpen && (
                   <div className="bg-[#FBFAFE] border-t border-[#EEEBF4]">
-                    {g.clients.length > 0 && (
-                      <>
-                        <p className="pl-[4.25rem] pr-5 pt-3 pb-1 text-[12px] font-semibold text-[#6B6680]">Clients</p>
-                        <div className="divide-y divide-[#EEEBF4]">
-                          {g.clients.map(c => (
-                            <Link key={c.id} href={`/clients/${c.id}`} className="flex items-center justify-between gap-3 pl-[4.25rem] pr-5 py-2.5 hover:bg-[#F5F3FA]">
-                              <span className="text-sm text-[#17151F] truncate">{c.name}</span>
-                              <span className="text-xs text-[#6B6680] flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" />Added {fmtDate(c.createdAt)}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      </>
-                    )}
                     {g.programs.length > 0 && (
                       <>
                         <p className="pl-[4.25rem] pr-5 pt-3 pb-1 text-[12px] font-semibold text-[#6B6680]">Programs</p>

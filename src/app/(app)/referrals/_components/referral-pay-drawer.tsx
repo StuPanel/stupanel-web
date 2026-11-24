@@ -27,7 +27,7 @@ type Detail = {
 
 const METHODS = [{ v: "cash", l: "Cash" }, { v: "mobile_banking", l: "Mobile wallet" }, { v: "bank_transfer", l: "Bank" }, { v: "other", l: "Other" }];
 const METHOD_LABEL: Record<string, string> = Object.fromEntries(METHODS.map(m => [m.v, m.l]));
-export const rateLabel = (t: RateType, v: number) => (t === "percent" ? `${v}% of profit` : `${formatCurrency(v)} per program`);
+export const rateLabel = (t: RateType, v: number) => (Number(v) === 0 ? "No referral pay" : t === "percent" ? `${v}% of profit` : `${formatCurrency(v)} per program`);
 const errText = (d: { message?: string | string[] }) => (Array.isArray(d.message) ? d.message[0] : d.message) || "Couldn't save. Please try again.";
 
 export function ReferralPayDrawer({ referrerId, onClose, onChanged }: { referrerId: string; onClose: () => void; onChanged: () => void }) {

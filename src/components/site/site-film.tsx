@@ -37,14 +37,21 @@ const P = {
 };
 
 /** Poster + theatre. `className` goes on the poster button (e.g. "cine rv" on Home). */
-export function FilmTheater({ id, title, poster, posterStyle, className, big }: {
+/** YouTube's picture of a film: 0 = its cover, 1–3 = a moment about ¼, ½, ¾ in. `hd` = the 1280 px one (not every film has it). */
+export const ytPicture = (id: string, frame = 0, hd = true) =>
+  `https://i.ytimg.com/vi/${id}/${hd ? "maxres" : "hq"}${frame ? frame : "default"}.jpg`;
+
+export function FilmTheater({ id, title, poster, posterStyle, className, big, frame }: {
   id: string; title: string; poster?: string; posterStyle?: React.CSSProperties; className?: string; /** Home: the larger play button */ big?: boolean;
+  /** No own poster: which picture from the film (0 = YouTube's cover, 1–3 = a moment) */ frame?: number;
 }) {
   const btn = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState<DOMRect | null>(null);
   /** The player is loaded (hidden) before the tap. */
   const [warm, setWarm] = useState(false);
-  const src = poster || `https://i.ytimg.com/vi/${id}/${big ? "maxresdefault" : "hqdefault"}.jpg`;
+  // Big picture first; films without one get YouTube's grey 120 px stand-in, so fall back to the 480 px picture.
+  const [lowRes, setLowRes] = useState(false);
+  const src = poster || ytPicture(id, frame ?? 0, !lowRes);
   const ring = big ? 92 : 70;
   // The Home film: load the player when it comes near the screen (after the page itself has loaded).
   useEffect(() => {
@@ -59,7 +66,8 @@ export function FilmTheater({ id, title, poster, posterStyle, className, big }: 
       <button ref={btn} type="button" className={`film${className ? ` ${className}` : ""}`} onPointerEnter={heat} onTouchStart={heat} onFocus={heat}
         onClick={() => { setWarm(true); if (btn.current) setOpen(btn.current.getBoundingClientRect()); }} aria-label={`Play ${title || "the wedding film"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" loading="lazy" decoding="async" style={posterStyle} />
+        <img src={src} alt="" loading="lazy" decoding="async" style={posterStyle}
+          onLoad={e => { if (!poster && !lowRes && e.currentTarget.naturalWidth <= 120) setLowRes(true); }} onError={() => { if (!poster && !lowRes) setLowRes(true); }} />
         {big
           ? <span className="play pcine"><span className="pring"><Svg d={P.play} size={24} /></span><span className="pf plbl">Play film</span></span>
           : <span className="play"><span className="gold" style={{ width: ring, height: ring }}><Svg d={P.play} size={22} /></span></span>}

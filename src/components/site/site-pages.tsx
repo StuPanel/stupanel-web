@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { FilmTheater } from "./site-film";
+import { parseLegal, standardLegal } from "./site-legal";
 import { PackageBrowser } from "./site-packages";
 import { OfferCards, OfferPage, bookChoices, liveOffers } from "./site-offers";
 import { AlbumCard, BookForm, addressLines, cropStyle, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
@@ -510,29 +511,17 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
     );
   }
 
-  // Privacy and Terms: plain words that are true for every studio site on StuPanel.
-  const legal: [string, string][] = page === "privacy" ? [
-    ["What this site collects", `When you send the booking form, ${studio.name} receives what you typed: your name, phone number, wedding date, the package you picked and your message. Nothing is collected if you only look around.`],
-    ["What it is used for", `Only to answer your enquiry and plan your booking. ${studio.name} does not sell or share your details with advertisers.`],
-    ["Where it is kept", `Enquiries are stored in StuPanel, the studio software ${studio.name} uses to manage its bookings.`],
-    ["Videos and fonts", "Films play from YouTube's privacy-enhanced player and only load when you press play. Fonts are loaded from Google Fonts."],
-    ["Your choices", `To see, correct or delete what you sent, contact ${studio.name} using the details on the Contact page.`],
-  ] : [
-    ["Photos and films", `Every photo and film on this site belongs to ${studio.name} and is shown with the families' permission. Please do not copy or reuse them.`],
-    ["Prices", "Prices shown are a guide. Your final price depends on your dates, places and the events you choose, and is confirmed in your quote."],
-    ["Bookings", `Sending the form is an enquiry, not a booking. Your date is held only after ${studio.name} confirms it with you.`],
-    ["Changes", `${studio.name} may update this site, its packages and these terms at any time.`],
-  ];
+  // Privacy and Terms: the studio's own words (Website → Terms & privacy), else plain words true for every studio site.
+  const own = (page === "privacy" ? c.privacyText : c.termsText)?.trim();
+  const blocks = parseLegal(own || standardLegal(page === "privacy" ? "privacy" : "terms", studio.name));
   return (
     <>
       <PageHead script={script} title={title} />
-      <section className="wrap" style={{ maxWidth: 760, paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
-        {legal.map(([h, t]) => (
-          <div key={h} className="rv" style={{ marginBottom: 34 }}>
-            <h2 className="pf" style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 400 }}>{h}</h2>
-            <p style={{ margin: 0 }}>{t}</p>
-          </div>
-        ))}
+      <section className="wrap lgl" style={{ maxWidth: 760, paddingTop: 50, paddingBottom: "clamp(70px,9vw,130px)" }}>
+        {blocks.map((b, i) =>
+          b.kind === "h" ? <h2 key={i} className="pf rv">{b.text}</h2>
+          : b.kind === "ul" ? <ul key={i} className="rv">{b.items.map((t, k) => <li key={k}>{t}</li>)}</ul>
+          : <p key={i} className="rv" style={{ whiteSpace: "pre-line" }}>{b.text}</p>)}
       </section>
     </>
   );

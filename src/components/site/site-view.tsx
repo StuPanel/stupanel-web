@@ -44,6 +44,8 @@ export type SiteContent = {
   stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
+  /** Own Terms / Privacy page text (empty = the standard words). See site-legal.ts for the writing rules. */
+  termsText?: string; privacyText?: string;
   /** Google and sharing (older drafts may not have it) */
   seo?: SiteSeo;
   /** Facebook Pixel / Google Analytics / Tag Manager ids */

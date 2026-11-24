@@ -6,7 +6,7 @@
  */
 import { shrink } from "@/lib/shrink-photo";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
+import { Scale, AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
@@ -21,6 +21,7 @@ import { Sec, TabIntro } from "./ed-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { LEGAL_MAX, standardLegal } from "@/components/site/site-legal";
 import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory, type SiteTeamMember } from "@/components/site/site-view";
 
 type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string; sizeBytes?: number; /** Nothing on the website (draft or published) uses it since then */ unusedSince?: string | null };
@@ -32,13 +33,13 @@ const small = (p: Photo) => p.thumbUrl || p.url;
  */
 const TABS = [
   ["home", "Home page", Home], ["about", "About", Users], ["albums", "Albums", Images], ["films", "Films", Clapperboard],
-  ["stories", "Stories", BookOpen], ["packages", "Packages", Package], ["more", "Reviews & FAQ", MessageSquareQuote], ["contact", "Contact", Phone],
+  ["stories", "Stories", BookOpen], ["packages", "Packages", Package], ["more", "Reviews & FAQ", MessageSquareQuote], ["contact", "Contact", Phone], ["legal", "Terms & privacy", Scale],
   ["design", "Look", Palette], ["photos", "All photos", LayoutGrid], ["visitors", "Visitors", TrendingUp],
   ["address", "Address & domain", Link2], ["seo", "Google & sharing", Search], ["tracking", "Ads & analytics", BarChart3],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 const GROUPS: { id: string; name: string; icon: typeof Home; tabs: Tab[] }[] = [
-  { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "packages", "more", "contact"] },
+  { id: "pages", name: "Pages", icon: LayoutGrid, tabs: ["home", "about", "albums", "films", "stories", "packages", "more", "contact", "legal"] },
   { id: "look", name: "Look & photos", icon: Palette, tabs: ["design", "photos"] },
   { id: "visitors", name: "Visitors", icon: TrendingUp, tabs: ["visitors"] },
   { id: "settings", name: "Settings", icon: Settings2, tabs: ["address", "seo", "tracking"] },
@@ -924,6 +925,31 @@ export default function WebsitePage() {
         <Field label="YouTube channel">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtube.com/…" value={c.youtube} maxLength={200} onChange={e => set("youtube", e.target.value)} />}</Field>
         <Field label="One line about the studio (footer)">{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
       </Sec>
+      </div>
+
+      <div hidden={tab !== "legal"}>
+      <TabIntro icon={Scale} title="Terms & privacy" text="Your own Terms and Privacy pages, linked in the footer. Leave a box empty to show StuPanel's standard words." />
+      {(["terms", "privacy"] as const).map(kind => {
+        const key = kind === "terms" ? "termsText" : "privacyText";
+        const val = c[key] ?? "";
+        const label = kind === "terms" ? "Terms" : "Privacy";
+        return (
+          <Sec key={kind} icon={Scale} tone={kind === "terms" ? "slate" : "green"} where={`${label} page`} title={kind === "terms" ? "Terms and conditions" : "Privacy policy"}
+            help="Write it like a letter. A line that starts with ## becomes a heading, a line that starts with - becomes a point, and an empty line starts a new paragraph. The site sets it in its own fonts and colours.">
+            <div className="px-4 py-3.5 grid gap-2.5">
+              <textarea aria-label={`${label} page text`} className={areaCls.replace("min-h-[96px]", "min-h-[320px]")} value={val} maxLength={LEGAL_MAX}
+                placeholder={`## Bookings\nYour date is held once the advance is paid.\n\n## Payments\n- Advance: 50% to book the date\n- The rest: on the wedding day`}
+                onChange={e => set(key, e.target.value)} />
+              <div className="flex flex-wrap items-center gap-2">
+                {!val.trim() && <button type="button" onClick={() => set(key, standardLegal(kind, site.studio.name))} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold">Start from the standard words</button>}
+                {!!val.trim() && <button type="button" onClick={() => set(key, "")} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#4A4658] text-[13px] font-semibold">Use the standard words again</button>}
+                <a href={`/site/${site.slug}/${kind}?preview=1`} target="_blank" rel="noopener noreferrer" className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#4A4658] text-[13px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" />See the page</a>
+                <span className="ml-auto text-[12px] text-[#8A8599] tabular-nums">{val.length.toLocaleString("en-US")} / {LEGAL_MAX.toLocaleString("en-US")}</span>
+              </div>
+            </div>
+          </Sec>
+        );
+      })}
       </div>
 
       {((site.isPublished && site.hasChanges) || undoable > 0) && (

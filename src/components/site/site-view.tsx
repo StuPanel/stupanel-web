@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
 import { InnerPage } from "./site-pages";
 import { FilmTheater } from "./site-film";
-import { PackageBrowser } from "./site-packages";
+import { PackageBrowser, familyOf } from "./site-packages";
 import { PhotoViewer } from "./site-viewer";
 import { OfferCards, bookChoices } from "./site-offers";
 import { liveOffers, type SiteOffer } from "@/lib/site-offer-kit";
@@ -73,6 +73,9 @@ export const SITE_FONTS: Record<string, string> = {
   mono: "family=Hanken+Grotesk:wght@300;400;500;600",
 };
 export const fontHref = (theme: string) => `https://fonts.googleapis.com/css2?${SITE_FONTS[theme] ?? SITE_FONTS.signature}&display=swap`;
+
+/** Website packages shown on the Home page (Faisal 24-NOV): the first two, then "See all packages". */
+export const HOME_PACKAGES = 2;
 
 export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms" | "stories" | "thank-you" | "notfound";
 
@@ -424,6 +427,8 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
   const films = c.films ?? [];
   /** The gallery look: full-screen photo, plain type, a mosaic of albums. */
   const mono = data.theme === "mono";
+  const homeFamilies = Array.from(new Set(packages.map(p => familyOf(p.name).toLowerCase())));
+  const homeList = packages.filter(p => homeFamilies.slice(0, HOME_PACKAGES).includes(familyOf(p.name).toLowerCase()));
   const hide = c.hide ?? [];
   const router = useRouter();
   const thanks = useCallback(() => router.push(L("/thank-you")), [router, L]);
@@ -571,13 +576,16 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
         {liveOffers(data).length > 0 && !hide.includes("packages") ? (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
             <Heading script="our" title="Packages" />
-            <OfferCards data={data} L={L} limit={6} />
-            {liveOffers(data).length > 6 && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">All packages</Link></div>}
+            {/* Home shows the first two (the studio orders them in Website → Packages); the rest are one tap away */}
+            <OfferCards data={data} L={L} limit={HOME_PACKAGES} />
+            {liveOffers(data).length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all {liveOffers(data).length} packages</Link></div>}
           </section>
         ) : packages.length > 0 && !hide.includes("packages") && (
           <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
             <Heading script="our" title="Packages" />
-            <PackageBrowser packages={packages} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
+            {/* The studio's price list: the first two packages (with their versions), then the Packages page */}
+            <PackageBrowser packages={homeList} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
+            {homeFamilies.length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all packages</Link></div>}
           </section>
         )}
 

@@ -8,6 +8,7 @@ import { fmtDate, formatCurrency, formatCurrencyCompact } from "@/lib/format";
 import { Chips, EmptyState, Group, PageHeader, StatCard } from "@/components/ui/apple";
 import { Spinner, StatusBadge } from "../_components/kit";
 import { MyCosts } from "../_components/costs";
+import { MyReferralPay } from "../_components/referral-pay";
 import Link from "next/link";
 
 const METHOD: Record<string, string> = { cash: "Cash", mobile_banking: "Mobile wallet", bank_transfer: "Bank", other: "Other" };
@@ -173,6 +174,8 @@ export default function EarningsPage() {
           )}
         </>
       )}
+
+      <MyReferralPay />
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { apiFetch, API_URL as API } from "@/lib/api";
 import { Tile, type TileColor } from "@/components/ui/apple";
 import { RateEditor, TEAM_ROLES, firstLine, linesToRates, ratesToLines, type RateLine, type RoleInfo } from "../../team/_components/rate-card";
 import { askConfirm } from "@/components/feedback";
-import { Group, Row, Segmented, Select, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
+import { Group, NumberField, Row, Segmented, Select, SoonRow, Switch, useSettings, useSynced, type WorkType } from "../_ui";
 import { fmtMoney } from "@/lib/format";
 import { DEFAULT_SHIFTS, type StudioShift } from "@/lib/shifts";
 
@@ -291,6 +291,35 @@ function DeliveryRules() {
           options={[1, 2, 3, 5].map(n => ({ value: n, label: `${n} time${n > 1 ? "s" : ""}` })).concat([{ value: 0, label: "No limit" }])} />
       </Row>
     </Group>
+    </>
+  );
+}
+
+// ─── Referrals: pay for people who bring programs (off by default) ─────────────
+export function ReferralsPane() {
+  return <NeedStudio><ReferralRules /></NeedStudio>;
+}
+function ReferralRules() {
+  const { studio, patchStudio } = useSettings();
+  const r = studio!.referrals ?? { pay: false, rateType: "percent" as const, rateValue: 10 };
+  const set = (p: Partial<typeof r>) => patchStudio("referrals", { ...r, ...p });
+  const pct = r.rateType === "percent";
+  return (
+    <>
+      <Group title="Referral pay" note="Who referred a client or a program is always saved. Turn this on to also pay them. A program's referral pay can be paid once the program is Completed and the client has paid in full.">
+        <Row id="ref-pay" label="Pay people who refer programs" hint="Adds referral pay to the Referrals page, the program form, Reports, and the team member's My money">
+          <Switch label="Pay people who refer programs" on={r.pay} onChange={v => set({ pay: v })} />
+        </Row>
+        <Row id="ref-rate" label="Usual referral pay" hint={pct ? "A share of each program's profit (program total − VAT − all costs). You can change it for one person (Referrals page) or one program (program form)." : "The same amount for every program. You can change it for one person (Referrals page) or one program (program form)."} disabled={!r.pay} stack>
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmented<"percent" | "fixed"> label="Kind of referral pay" value={r.rateType}
+              options={[{ value: "percent", label: "% of profit" }, { value: "fixed", label: "Fixed amount" }]}
+              onChange={v => set({ rateType: v, rateValue: v === "percent" ? Math.min(r.rateValue, 100) : r.rateValue })} />
+            <NumberField label={pct ? "Percent of profit" : "Amount per program"} value={r.rateValue} min={0} max={pct ? 100 : 100000000} step={pct ? 0.5 : 100}
+              suffix={pct ? "%" : undefined} onCommit={v => set({ rateValue: v })} />
+          </div>
+        </Row>
+      </Group>
     </>
   );
 }

@@ -533,6 +533,12 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   /** Who brought this program. Untouched on a new program: the client's referrer on their first program (the server does it too). */
   const [referrer, setReferrer] = useState<Referrer | null>(null);
   const [refTouched, setRefTouched] = useState(false);
+  /** Referral pay (Settings → Referrals) and this program's own rate; refOwn false = the person's or studio's usual rate. */
+  const [refRules, setRefRules] = useState<{ pay: boolean; rateType: "percent" | "fixed"; rateValue: number } | null>(null);
+  const [refOwn, setRefOwn] = useState(false);
+  const [refType, setRefType] = useState<"percent" | "fixed">("percent");
+  const [refValue, setRefValue] = useState("");
+  const [refRateTouched, setRefRateTouched] = useState(false);
   /** The picked client's own referrer and how many programs they have (read when a client is picked on a new program). */
   const [clientRef, setClientRef] = useState<{ clientId: string; referrer: Referrer | null; programs: number } | null>(null);
   const [offerNo, setOfferNo] = useState<string | null>(null);
@@ -654,6 +660,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
         shifts: Array.isArray(d.shifts) && d.shifts.length ? d.shifts : DEFAULT_SHIFTS,
       });
       setWarnClash(d.booking?.warnDoubleBooking !== false);
+      setRefRules(d.referrals ?? null);
     }).catch(() => {});
     // VAT the studio charges on programs (Settings → Invoice design) — the invoice adds the same.
     apiFetch(`${API}/companies/me`).then(r => r.ok ? r.json() : null).then(d => {
@@ -678,6 +685,8 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       setSide(cleanSide(b.coverageSide));
       setClient(b.client as Client); setEventName(b.eventName ?? ""); setNameTouched(true);
       setReferrer(((b as unknown as { referrer?: Referrer | null }).referrer) ?? null); setRefTouched(true);
+      { const rb = b as unknown as { referralType?: "percent" | "fixed" | null; referralValue?: number | string | null };
+        setRefOwn(!!rb.referralType); setRefType(rb.referralType ?? "percent"); setRefValue(rb.referralValue != null ? String(Number(rb.referralValue)) : ""); setRefRateTouched(false); }
       setProgramType(d[0]?.programType ?? ""); setPackageId(b.program?.id ?? ""); setDays(d);
       setKept((b.costEntries ?? []) as CostEntry[]);
       // Rent from rented gear is added again from the shifts, so only keep the rest as "extra"
@@ -693,6 +702,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
     } else {
       const dr = initialDraft;
       setReferrer(null); setRefTouched(false); setOfferNo(null);
+      setRefOwn(false); setRefType("percent"); setRefValue(""); setRefRateTouched(false);
       setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setSide(null); setPackageId("");
       setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
       setKept([]); setEditors([]); setNotes(dr?.notes ?? ""); setTeamNote("");
@@ -946,6 +956,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const body = {
         clientId, programId: packageId || undefined, eventName: eventName.trim(),
         ...(refTouched || shownReferrer ? { referrerId: shownReferrer?.id ?? null } : {}),
+        ...(refRateTouched ? (refOwn && shownReferrer && parseFloat(refValue) >= 0 ? { referralType: refType, referralValue: parseFloat(refValue) } : { referralType: null, referralValue: null }) : {}),
         eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: initialBooking?.currency || pkgs.find(x => x.id === packageId)?.currency || getStudioCurrency(),
         totalAmount: total, discountAmount: discount,
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
@@ -1031,6 +1042,26 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                   )}
                   <ReferrerPicker label="Who brought this program?" value={shownReferrer}
                     onChange={r => { setReferrer(r); setRefTouched(true); }} hint="Optional. A team member, a client or anyone else." />
+                  {refRules?.pay && shownReferrer && (
+                    <div className="mt-2.5 rounded-[14px] bg-[#F5F3FA] px-3.5 py-3">
+                      <p className="text-[13px] font-semibold text-[#4A4658] mb-2">Referral pay for {shownReferrer.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" aria-pressed={!refOwn} onClick={() => { setRefOwn(false); setRefRateTouched(true); }}
+                          className={cn("h-9 px-3.5 rounded-full text-[12.5px] font-semibold", !refOwn ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658]")}>Usual</button>
+                        <button type="button" aria-pressed={refOwn} onClick={() => { setRefOwn(true); setRefRateTouched(true); if (!refValue) { setRefType(refRules.rateType); setRefValue(String(refRules.rateValue)); } }}
+                          className={cn("h-9 px-3.5 rounded-full text-[12.5px] font-semibold", refOwn ? "bg-[#17151F] text-white" : "bg-white text-[#4A4658]")}>For this program</button>
+                        {refOwn && (<>
+                          <select aria-label="Kind of referral pay" value={refType} onChange={e => { setRefType(e.target.value as "percent" | "fixed"); setRefRateTouched(true); }} className={cn(inputCls, "w-auto h-9")}>
+                            <option value="percent">% of profit</option>
+                            <option value="fixed">Fixed amount</option>
+                          </select>
+                          <input aria-label={refType === "percent" ? "Percent of profit" : "Amount for this program"} type="number" min="0" max={refType === "percent" ? 100 : undefined}
+                            value={refValue} onChange={e => { setRefValue(e.target.value); setRefRateTouched(true); }} className={cn(inputCls, "w-28 h-9 tabular-nums")} />
+                        </>)}
+                      </div>
+                      <p className="mt-1.5 text-[12px] text-[#6B6680]">{refOwn ? "Only for this program." : `The person's own rate if they have one, else the studio's (${refRules.rateType === "percent" ? `${refRules.rateValue}% of profit` : `${refRules.rateValue} per program`}).`} Paid once the program is Completed and fully paid.</p>
+                    </div>
+                  )}
                 </div>
               </Section>
 

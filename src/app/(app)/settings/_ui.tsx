@@ -34,6 +34,8 @@ export type StudioSettings = {
   teamPay: { mode: "per_shift" | "per_program" };
   booking: { warnDoubleBooking: boolean; askBeforeConfirm: boolean; autoStatus?: boolean };
   delivery: { lockWhenDue: boolean; managerCanUnlock: boolean; clientCorrections?: boolean; correctionLimit?: number };
+  /** Referral pay: off by default; the studio's default rate (percent of profit or fixed amount). */
+  referrals?: { pay: boolean; rateType: "percent" | "fixed"; rateValue: number };
   paymentReminders: { enabled: boolean; daysBefore: number; afterEveryDays: number; maxAfter: number };
   eventReminders: { team: boolean; client: boolean };
   studioRates: { roleId: string; rateType: string; rate: number; withSetup?: number; workType?: string; label?: string }[];

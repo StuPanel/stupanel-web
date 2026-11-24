@@ -24,7 +24,7 @@ import { AppearancePane } from "./_panes/appearance";
 import { DataPane } from "./_panes/data";
 import { MyProfile } from "@/components/account/my-profile";
 import { WhatsAppTemplates } from "@/components/whatsapp/templates-manager";
-import { DeliveryRulesPane, FeaturesPane, MusicPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
+import { DeliveryRulesPane, FeaturesPane, MusicPane, ReferralsPane, TeamPayPane, WorkTypesPane } from "./_panes/studio-setup";
 import { MenuPane } from "./_panes/menu";
 import { BillingPane } from "./_panes/billing";
 import { announceMenu } from "@/lib/studio-menu";
@@ -32,7 +32,7 @@ import { announceMenu } from "@/lib/studio-menu";
 const PANE_VIEWS: Record<PaneId, () => React.ReactElement> = {
   general: GeneralPane, branding: BrandingPane, online: OnlinePane,
   payment: PaymentPane, quotes: QuotesPane, invoices: InvoicesPane, numbering: NumberingPane, tax: TaxPane, catalog: CatalogPane,
-  features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, delivery: DeliveryRulesPane, music: MusicPane,
+  features: FeaturesPane, worktypes: WorkTypesPane, team: TeamPayPane, referrals: ReferralsPane, delivery: DeliveryRulesPane, music: MusicPane,
   bookings: BookingsPane, portal: PortalPane, notifications: NotificationsPane,
   whatsapp: () => <WhatsAppTemplates embedded />,
   profile: () => <MyProfile embedded />, appearance: AppearancePane, security: SecurityPane, integrations: IntegrationsPane, data: DataPane,

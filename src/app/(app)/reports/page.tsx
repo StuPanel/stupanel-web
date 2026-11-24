@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp, TrendingDown, DollarSign, Camera, Users, BarChart2,
   Loader2, ChevronDown, ChevronUp, ArrowUpRight, ArrowDownRight,
-  Percent, Layers, CreditCard, Package, Truck, Image, Wrench,
+  Percent, Layers, CreditCard, Package, Truck, Image, Wrench, Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -40,6 +40,8 @@ interface Summary {
   collected: number; outstanding: number; totalDiscount: number;
   teamCost: number; transportCost: number; albumCost: number; equipCost: number;
   otherCost: number; totalCost: number; netProfit: number; margin: number;
+  /** Only when the studio pays referrals (Settings → Referrals); counted in totalCost and netProfit. */
+  referralPay?: { earned: number; paid: number; owed: number; waiting: number } | null;
 }
 interface MonthlyData { month: number; programs: number; revenue: number; costs: number; profit: number; }
 interface TopClient { client: { id: string; firstName: string; lastName?: string; phone?: string }; revenue: number; programs: number; }
@@ -158,6 +160,7 @@ export default function ReportsPage() {
                   { label: "Album & print", value: summary.albumCost, icon: Image, color: "orchid" },
                   { label: "Equipment", value: summary.equipCost, icon: Wrench, color: "ink" },
                   { label: "Other", value: summary.otherCost, icon: Package, color: "violet" },
+                  ...(summary.referralPay ? [{ label: "Referral pay", value: summary.referralPay.earned, icon: Handshake, color: "green" }] : []),
                 ].map(({ label, value, icon, color }) => (
                   <div key={label} className="flex items-center gap-3 px-4 sm:px-5 py-3">
                     <Tile icon={icon} color={color} size={32} />

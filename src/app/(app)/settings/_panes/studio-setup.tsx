@@ -306,7 +306,7 @@ function ReferralRules() {
   const pct = r.rateType === "percent";
   return (
     <>
-      <Group title="Referral pay" note="Who referred a client or a program is always saved. Turn this on to also pay them. A program's referral pay can be paid once the program is Completed and the client has paid in full.">
+      <Group title="Referral pay" note="Who referred a client or a program is always saved. Turn this on to also pay them. A program's referral pay can be paid as soon as the client has paid it in full.">
         <Row id="ref-pay" label="Pay people who refer programs" hint="Adds referral pay to the Referrals page, the program form, Reports, and the team member's My money">
           <Switch label="Pay people who refer programs" on={r.pay} onChange={v => set({ pay: v })} />
         </Row>

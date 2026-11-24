@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   Activity, ArrowLeft, Ban, CalendarClock, Camera, CheckCircle, CreditCard, ExternalLink, HardDrive,
-  HeartPulse, LifeBuoy, LogIn, Users, Wallet, X,
+  HeartPulse, Images, LifeBuoy, LogIn, Users, Wallet, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL as API } from "@/lib/api";
@@ -28,6 +28,8 @@ interface Overview {
   tickets: { id: string; ticketNumber: string; subject: string; status: string; priority: string; category: string; updatedAt: string }[];
   studioLog: { id: string; action: string; entityType?: string | null; description?: string | null; createdAt: string }[];
   teamLog: { id: string; actorEmail?: string | null; action: string; reason?: string | null; createdAt: string }[];
+  /** Website photos kept and the limit: the studio's own (own) or else its plan's (plan; 0 = no limit). */
+  sitePhotos?: { kept: number; limit: number; from: "studio" | "plan"; own: number | null; plan: number | null; hardMax: number };
 }
 
 const ACCESS: Record<string, { label: string; cls: string }> = {
@@ -74,6 +76,8 @@ export default function Studio360Page() {
   const [plans, setPlans] = useState<{ id: string; name: string; isActive: boolean }[]>([]);
   const [planPick, setPlanPick] = useState("");
   const [paidUntil, setPaidUntil] = useState("");
+  /** This studio's own website photo limit (empty = the plan's). */
+  const [photoLimit, setPhotoLimit] = useState("");
   useEffect(() => {
     fetch(`${API}/admin/plans`, { headers: H() }).then(r => (r.ok ? r.json() : [])).then(d => setPlans(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
@@ -250,6 +254,33 @@ export default function Studio360Page() {
               </div>
             )}
           </Panel>
+          {d.sitePhotos && (() => {
+            const sp = d.sitePhotos;
+            const planText = sp.plan === null ? `on trial: the Professional plan's, ${sp.limit.toLocaleString()}` : sp.plan === 0 ? "no limit" : sp.plan.toLocaleString();
+            const save = (v: number | null) => act(v === null ? "photos-plan" : "photos", () => fetch(`${API}/admin/studios/${id}`, { method: "PATCH", headers: H(), body: JSON.stringify({ sitePhotoLimit: v }) }), v === null ? "Website photos: back to the plan's limit." : `Website photos: ${v === 0 ? "no limit" : v.toLocaleString()} for this studio.`);
+            return (
+              <Panel title="Website photos">
+                <div className="divide-y divide-slate-700/60 -my-2">
+                  <Row k="Kept now" v={`${sp.kept.toLocaleString()} of ${sp.limit.toLocaleString()}`} />
+                  <Row k="Limit comes from" v={sp.from === "studio" ? `This studio (${sp.own === 0 ? "no limit" : sp.own?.toLocaleString()})` : `The plan (${planText})`} />
+                </div>
+                {can(me, "studios.edit") && !s.deletedAt && (
+                  <div className="mt-4 pt-4 border-t border-slate-700/60">
+                    <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5"><Images className="w-3.5 h-3.5" />A different limit for this studio only (0 = no limit, at most {sp.hardMax.toLocaleString()}). Photos already on the site stay.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <input type="number" min={0} max={sp.hardMax} step={1} inputMode="numeric" placeholder={sp.own === null ? "Plan's" : String(sp.own)} value={photoLimit} onChange={e => setPhotoLimit(e.target.value)} className={cn(inp, "w-32")} aria-label="Website photos for this studio" />
+                      <Btn variant="ghost" loading={busy === "photos"} onClick={() => {
+                        const n = Number(photoLimit);
+                        if (photoLimit.trim() === "" || !Number.isInteger(n) || n < 0 || n > sp.hardMax) { setMsg({ error: `Website photos: a whole number from 0 (no limit) to ${sp.hardMax.toLocaleString()}.` }); return; }
+                        save(n); setPhotoLimit("");
+                      }}>Save limit</Btn>
+                      {sp.own !== null && <Btn variant="ghost" loading={busy === "photos-plan"} onClick={() => save(null)}>Use the plan&apos;s</Btn>}
+                    </div>
+                  </div>
+                )}
+              </Panel>
+            );
+          })()}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 /** Add / edit a client (drawer) and the delete confirmation — used by the clients list and the client profile page. */
+import type { Referrer } from "@/components/ui/referrer-picker";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Camera, Check, Loader2, Plus, Trash2, Users } from "lucide-react";
@@ -29,6 +30,8 @@ export interface Client {
   source?: string;
   referredByClientId?: string;
   referredByName?: string;
+  referrerId?: string | null;
+  referrer?: Referrer | null;
   referredByClientName?: string;
   notes?: string;
   internalNotes?: string;
@@ -74,8 +77,8 @@ export function ClientDrawer({
           facebookProfile: (editing as any).facebookProfile ?? "",
           city: editing.city ?? "",
           source: editing.source ?? "",
-          referredByClientId: editing.referredByClientId ?? "",
-          referredByName: editing.referredByClientName ?? editing.referredByName ?? "",
+          // The profile sends the full referrer; a list row only has its id and the older name fields.
+          referrer: editing.referrer ?? (editing.referrerId ? { id: editing.referrerId, kind: editing.referredByClientId ? "client" : "person", name: editing.referredByClientName ?? editing.referredByName ?? "Referrer" } : null),
           address: (editing as any).address ?? "",
           occupation: editing.occupation ?? "",
           companyName: editing.companyName ?? "",
@@ -108,8 +111,8 @@ export function ClientDrawer({
       facebookProfile: form.facebookProfile.trim() || undefined,
       city: form.city.trim() || undefined,
       source: form.source || undefined,
-      referredByClientId: form.source === "referral" && form.referredByClientId ? form.referredByClientId : undefined,
-      referredByName: form.source === "referral" && !form.referredByClientId && form.referredByName.trim() ? form.referredByName.trim() : undefined,
+      // Not a referral (or nobody chosen): clear it.
+      referrerId: form.source === "referral" && form.referrer ? form.referrer.id : null,
       address: form.address.trim() || undefined,
       occupation: form.occupation.trim() || undefined,
       companyName: form.companyName.trim() || undefined,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, Camera, Globe, MessageCircle, Search, Share2, Store, UserPlus, Users } from "lucide-react";
-import { ReferrerInput } from "@/components/ui/referrer-input";
+import { ReferrerPicker, type Referrer } from "@/components/ui/referrer-picker";
 import { Field, FormGroup, MoreDetails, PillPicker, SwitchRow, inputCls, phoneKey } from "@/components/ui/form-kit";
 import { apiFetch, API_URL as API } from "@/lib/api";
 
@@ -15,8 +15,8 @@ export interface ClientFormData {
   facebookProfile: string;
   city: string;
   source: string;
-  referredByClientId: string;
-  referredByName: string;
+  /** Who referred this client (team member, client or anyone else) */
+  referrer: Referrer | null;
   address: string;
   occupation: string;
   companyName: string;
@@ -28,7 +28,7 @@ export interface ClientFormData {
 export const blankClientForm: ClientFormData = {
   firstName: "", lastName: "", email: "", phone: "",
   phoneSecondary: "", facebookProfile: "", city: "", source: "",
-  referredByClientId: "", referredByName: "",
+  referrer: null,
   address: "", occupation: "", companyName: "",
   vipStatus: false, notes: "", internalNotes: "",
 };
@@ -132,15 +132,10 @@ export function ClientFormFields({ value, onChange, autoFocus, excludeId, existi
             onChange={v => onChange({ source: value.source === v ? "" : v })} />
         </div>
         {value.source === "referral" && (
-          <Field label="Referred by" hint="Pick a client, or type any name.">
-            {() => (
-              <ReferrerInput
-                clientId={value.referredByClientId || undefined}
-                name={value.referredByName}
-                onChange={({ clientId, name }) => onChange({ referredByClientId: clientId ?? "", referredByName: name ?? "" })}
-              />
-            )}
-          </Field>
+          <div className="px-4 pb-3.5">
+            <ReferrerPicker value={value.referrer} onChange={r => onChange({ referrer: r })}
+              hint="A team member, a client, or anyone else. Their first program with you shows them too." />
+          </div>
         )}
       </FormGroup>
 

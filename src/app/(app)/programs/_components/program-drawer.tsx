@@ -23,6 +23,7 @@ import { AccountPicker } from "@/components/account-picker";
 import { CARD_SHADOW, TILE, Tile, type TileColor } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, inputCls, phoneKey } from "@/components/ui/form-kit";
 import { ClientFormFields, blankClientForm, type ClientFormData } from "@/components/client-form-fields";
+import { ReferrerPicker, type Referrer } from "@/components/ui/referrer-picker";
 import { TEAM_ROLES } from "../../team/_components/rate-card";
 import { EVENT_TYPES, fmtDate, uid } from "./constants";
 import { dayRange, offOn } from "@/lib/member-prefs";
@@ -167,8 +168,7 @@ export async function saveNewClient(nc: ClientFormData): Promise<{ id: string } 
   const r = await apiFetch(`${API}/clients`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       firstName: nc.firstName.trim(), lastName: nc.lastName.trim() || undefined, phone: nc.phone.trim(), email: nc.email.trim() || undefined,
       phoneSecondary: nc.phoneSecondary.trim() || undefined, facebookProfile: nc.facebookProfile.trim() || undefined, city: nc.city.trim() || undefined,
-      source: nc.source || undefined, referredByClientId: nc.source === "referral" && nc.referredByClientId ? nc.referredByClientId : undefined,
-      referredByName: nc.source === "referral" && !nc.referredByClientId && nc.referredByName.trim() ? nc.referredByName.trim() : undefined,
+      source: nc.source || undefined, referrerId: nc.source === "referral" && nc.referrer ? nc.referrer.id : undefined,
       address: nc.address.trim() || undefined, occupation: nc.occupation.trim() || undefined, companyName: nc.companyName.trim() || undefined,
       vipStatus: nc.vipStatus, notes: nc.notes.trim() || undefined, internalNotes: nc.internalNotes.trim() || undefined,
     }) });
@@ -530,6 +530,28 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [client, setClient] = useState<Client | null>(null);
   const [clientMode, setClientMode] = useState<"search" | "new">("search");
   const [newClient, setNewClient] = useState<ClientFormData>(blankClientForm);
+  /** Who brought this program. Untouched on a new program: the client's referrer on their first program (the server does it too). */
+  const [referrer, setReferrer] = useState<Referrer | null>(null);
+  const [refTouched, setRefTouched] = useState(false);
+  /** The picked client's own referrer and how many programs they have (read when a client is picked on a new program). */
+  const [clientRef, setClientRef] = useState<{ clientId: string; referrer: Referrer | null; programs: number } | null>(null);
+  const [offerNo, setOfferNo] = useState<string | null>(null);
+  useEffect(() => {
+    if (isEdit || !client?.id) return;
+    let on = true;
+    const id = client.id;
+    apiFetch(`${API}/clients/${id}`).then(r => (r.ok ? r.json() : null)).then((d: { referrer?: Referrer | null; stats?: { programs?: number } } | null) => {
+      if (on) setClientRef({ clientId: id, referrer: d?.referrer ?? null, programs: d?.stats?.programs ?? 0 });
+    }).catch(() => {});
+    return () => { on = false; };
+  }, [client?.id, isEdit]);
+  const known = !isEdit && clientMode === "search" && clientRef && clientRef.clientId === client?.id ? clientRef : null;
+  /** Untouched new program: the client's referrer on their first program (a new client's from the form), else nobody. */
+  const shownReferrer: Referrer | null = refTouched || isEdit ? referrer
+    : clientMode === "new" ? (newClient.source === "referral" ? newClient.referrer : null)
+    : known && !known.programs ? known.referrer : null;
+  /** Not their first program: the client's referrer is offered, not filled in (Faisal 24-NOV). */
+  const refOffer = !refTouched && known && known.programs > 0 && known.referrer && offerNo !== known.clientId ? known.referrer : null;
   const [programType, setProgramType] = useState("");
   /** Whose side is covered (bride / groom / both); null = not said. */
   const [side, setSide] = useState<Side | null>(null);
@@ -655,6 +677,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const d = normalizeDays(b.eventDays).map(x => (cleanSide(x.side) && cleanSide(x.side) !== cleanSide(b.coverageSide) ? x : { ...x, side: undefined }));
       setSide(cleanSide(b.coverageSide));
       setClient(b.client as Client); setEventName(b.eventName ?? ""); setNameTouched(true);
+      setReferrer(((b as unknown as { referrer?: Referrer | null }).referrer) ?? null); setRefTouched(true);
       setProgramType(d[0]?.programType ?? ""); setPackageId(b.program?.id ?? ""); setDays(d);
       setKept((b.costEntries ?? []) as CostEntry[]);
       // Rent from rented gear is added again from the shifts, so only keep the rest as "extra"
@@ -669,6 +692,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       apiFetch(`${API}/bookings/${b.id}/editors`).then(r => r.ok ? r.json() : []).then((rows: EditorDraft[]) => setEditors(rows.map(r => ({ userId: r.userId, role: r.role })))).catch(() => {});
     } else {
       const dr = initialDraft;
+      setReferrer(null); setRefTouched(false); setOfferNo(null);
       setClient(initialClient ?? null); setEventName(dr?.eventName ?? ""); setNameTouched(!!dr?.eventName); setProgramType(""); setSide(null); setPackageId("");
       setDays((dr?.dates ?? []).filter(Boolean).map(date => ({ ...makeDay(""), date, location: dr?.location ?? "" })));
       setKept([]); setEditors([]); setNotes(dr?.notes ?? ""); setTeamNote("");
@@ -921,6 +945,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
       const sorted = [...typedDays].sort((a, b) => a.date.localeCompare(b.date));
       const body = {
         clientId, programId: packageId || undefined, eventName: eventName.trim(),
+        ...(refTouched || shownReferrer ? { referrerId: shownReferrer?.id ?? null } : {}),
         eventDate: sorted[0]?.date || undefined, eventLocation: sorted[0]?.location || undefined, currency: initialBooking?.currency || pkgs.find(x => x.id === packageId)?.currency || getStudioCurrency(),
         totalAmount: total, discountAmount: discount,
         advanceAmount: isEdit ? undefined : advance, advanceMethod: isEdit || !(advance > 0) ? undefined : money.method,
@@ -996,6 +1021,17 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
 
               <Section n={1} title="Client" done={step1} name="client">
                 <ClientPicker client={client} onPick={c => setClient(c)} mode={clientMode} setMode={setClientMode} newClient={newClient} setNewClient={setNewClient} />
+                <div className="mt-3">
+                  {refOffer && (
+                    <div className="mb-2.5 flex flex-wrap items-center gap-2 rounded-[14px] bg-[#EEE8FD] px-3.5 py-2.5 text-[13.5px] text-[#4A3A9A]">
+                      <span className="flex-1 min-w-[200px]"><b>{refOffer.name}</b> referred this client. Did they bring this program too?</span>
+                      <button type="button" onClick={() => { setReferrer(refOffer); setRefTouched(true); }} className="h-8 px-3 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold">Yes, add</button>
+                      <button type="button" onClick={() => setOfferNo(known?.clientId ?? null)} className="h-8 px-3 rounded-full bg-white text-[#4A4658] text-[13px] font-semibold">No</button>
+                    </div>
+                  )}
+                  <ReferrerPicker label="Who brought this program?" value={shownReferrer}
+                    onChange={r => { setReferrer(r); setRefTouched(true); }} hint="Optional. A team member, a client or anyone else." />
+                </div>
               </Section>
 
               <Section n={2} title="Program" sub="The type picks the right prices and the usual days" done={step2}>

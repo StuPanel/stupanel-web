@@ -8,7 +8,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://api.stupanel.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://lh3.googleusercontent.com https://drive.google.com https://ssl.gstatic.com https://i.ytimg.com https://www.facebook.com https://*.google-analytics.com https://www.googletagmanager.com",
-  "connect-src 'self' https://api.stupanel.com https://lh3.googleusercontent.com wss://api.stupanel.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://accounts.google.com https://www.googleapis.com https://drive.google.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
+  "connect-src 'self' https://api.stupanel.com https://*.ingest.de.sentry.io https://lh3.googleusercontent.com wss://api.stupanel.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://accounts.google.com https://www.googleapis.com https://drive.google.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
   "frame-src 'self' https://accounts.google.com https://drive.google.com https://drive.usercontent.google.com https://docs.google.com https://www.youtube-nocookie.com https://www.googletagmanager.com",
   "media-src 'self' blob: https://*.r2.cloudflarestorage.com",
   "object-src 'none'",

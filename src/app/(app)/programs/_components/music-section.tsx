@@ -66,8 +66,27 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
   }, [booking.id]);
   useEffect(() => { load(); }, [load]);
 
+  /** Another kind of wedding: new ideas, and the parts already ticked keep to the new kind. */
+  async function chooseKind(kind: string) {
+    if (!ideas || (ideas.kind ?? "any") === kind) return;
+    setBusy("kind");
+    try {
+      const r = await apiFetch(`${API}/music/booking/${booking.id}/ideas?kind=${encodeURIComponent(kind)}`);
+      if (!r.ok) { notify(await err(r), { error: true }); return; }
+      const next: PartIdeas = await r.json();
+      setIdeas(next);
+      // Moments of the old kind (Mala Bodol on a Muslim wedding) go; the rest keep to the new kind
+      const known = new Set([...next.days.flatMap(d => d.ideas), ...next.whole].map(i => i.key));
+      setParts(parts.filter(p => !p.key.startsWith("p-") || !p.key.includes("-e-") || known.has(p.key))
+        .map(p => (p.key.startsWith("p-") ? { ...p, scope: next.kind ?? undefined } : p)));
+    } finally { setBusy(""); }
+  }
+
   function openSetup() {
-    setParts(sel ? sel.parts : defaults); setPerPart(sel?.perPart ?? 3); setNewPart(""); setSetup(true);
+    // Parts made before the kind of wedding was kept get the program's kind, so their songs keep to it too
+    const kind = ideas?.kind ?? undefined;
+    setParts((sel ? sel.parts : defaults).map(p => (kind && p.key.startsWith("p-") && !p.scope ? { ...p, scope: kind } : p)));
+    setPerPart(sel?.perPart ?? 3); setNewPart(""); setSetup(true);
   }
 
   async function put(body: object, okText?: string) {
@@ -179,6 +198,24 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
         {/* One row per day, then the whole program. With ideas: the best few parts for each, the rest under More. */}
         {ideas ? (
           <div className="space-y-2">
+            {(ideas.kinds?.length ?? 0) > 0 && (ideas.detected || ideas.days.some(d => d.event && WEDDING_DAYS.includes(d.event))) && (
+              <div className="rounded-[14px] bg-white p-3">
+                <p className="text-[13px] font-bold text-[#17151F]">Kind of wedding</p>
+                <p className="text-[12px] text-[#6B6680] mb-2">Songs are suggested for this kind only{ideas.detected ? " — read from the program" : ""}. Then tick the parts of each day below.</p>
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Kind of wedding">
+                  {[...(ideas.kinds ?? []), { id: "any", name: "Any wedding" }].map(k => {
+                    const on = (ideas.kind ?? "any") === k.id;
+                    return (
+                      <button key={k.id} type="button" role="radio" aria-checked={on} disabled={busy === "kind"} onClick={() => chooseKind(k.id)}
+                        className={cn("h-9 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5", on ? "bg-[#17151F] text-white" : "bg-[#F5F3FA] text-[#4A4658] hover:bg-[#EEEBF4]")}>
+                        {on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}{k.name}
+                      </button>
+                    );
+                  })}
+                  {busy === "kind" && <Loader2 className="w-4 h-4 animate-spin text-[#7D5CEF] self-center" />}
+                </div>
+              </div>
+            )}
             {[...ideas.days.map(d => ({ name: d.name as string | null, list: d.ideas })), { name: null, list: ideas.whole }].map(row => (
               <IdeaRow key={row.name ?? "*"} day={row.name} list={row.list} others={row.name ? ideas.others : []}
                 title={row.name ?? (ideas.days.length ? "For the whole program" : "Videos")} parts={parts} setParts={setParts} />
@@ -395,9 +432,11 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
 }
 
 // ─── Parts builder ideas (Faisal 24-NOV): the best few for each day, the rest under More ───
-type Idea = { key: string; label: string; kind: "day" | "video" | "custom"; event?: string; video?: string; count: number; group: string };
-type PartIdeas = { kind: string | null; kindName: string | null; days: { name: string; event?: string; ideas: Idea[] }[]; whole: Idea[]; others: { event: string; name: string; count: number }[] };
+type Idea = { key: string; label: string; kind: "day" | "video" | "custom"; event?: string; video?: string; scope?: string; count: number; group: string };
+type PartIdeas = { kind: string | null; kindName: string | null; detected?: string | null; kinds?: { id: string; name: string }[]; days: { name: string; event?: string; ideas: Idea[] }[]; whole: Idea[]; others: { event: string; name: string; count: number }[] };
 const SHOWN = 4;
+/** Days that belong to a wedding: show the kind of wedding choice. */
+const WEDDING_DAYS = ["wedding", "holud", "reception", "akdh", "mehendi", "sangeet"];
 
 function IdeaRow({ day, title, list, others, parts, setParts }: {
   day: string | null; title: string; list: Idea[]; others: PartIdeas["others"]; parts: MusicPart[]; setParts: (p: MusicPart[]) => void;
@@ -407,9 +446,9 @@ function IdeaRow({ day, title, list, others, parts, setParts }: {
   const prefix = `p-${day ? partSlug(day) : "all"}-`;
   const short = (label: string) => (day && label.startsWith(`${day} · `) ? label.slice(day.length + 3) : day && label === day ? "Any video" : label);
   const has = (key: string) => parts.some(p => p.key === key);
-  const toggle = (i: { key: string; label: string; kind: Idea["kind"]; event?: string; video?: string }) =>
+  const toggle = (i: { key: string; label: string; kind: Idea["kind"]; event?: string; video?: string; scope?: string }) =>
     setParts(has(i.key) ? parts.filter(p => p.key !== i.key)
-      : [...parts, { key: i.key, label: i.label, kind: i.kind, ...(i.event ? { event: i.event } : {}), ...(i.video ? { video: i.video } : {}) }]);
+      : [...parts, { key: i.key, label: i.label, kind: i.kind, ...(i.event ? { event: i.event } : {}), ...(i.video ? { video: i.video } : {}), ...(i.scope ? { scope: i.scope } : {}) }]);
   // Other events (an engagement filmed on this day…) as ideas too
   const extra: Idea[] = others.map(o => ({ key: `${prefix}e-${o.event}`.slice(0, 60), label: `${day} · ${o.name}`.slice(0, 60), kind: "custom", event: o.event, count: o.count, group: "Other events" }));
   const all = [...list, ...extra];

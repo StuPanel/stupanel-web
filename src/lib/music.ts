@@ -1,6 +1,6 @@
 /** Music selection — shapes shared by the studio, the client portal and the editor. */
 /** A part of a program that needs music: a day and/or a kind of video ("Holud · Trailer"). */
-export type MusicPart = { key: string; label: string; kind: "day" | "video" | "custom"; event?: string; video?: string };
+export type MusicPart = { key: string; label: string; kind: "day" | "video" | "custom"; event?: string; video?: string; /** Kind of wedding (sanatani, muslim): songs only for another kind are not suggested */ scope?: string };
 export type MusicSong = { youtubeId: string; title: string; channel?: string; thumb: string; url: string; /** Music only, no singing */ instrumental?: boolean };
 export type MusicPick = MusicSong & { note?: string; from: "studio" | "client" };
 export type MusicSuggestion = MusicSong & { parts: string[] };

@@ -12,6 +12,7 @@ export const AREAS = [
   { key: "packages", label: "Packages", hint: "Packages and service list" },
   { key: "equipment", label: "Equipment", hint: "Equipment list" },
   { key: "chat", label: "Chat & WhatsApp", hint: "Team chat, messages, WhatsApp templates" },
+  { key: "website", label: "Website", hint: "Studio website: pages, packages, photos, address, publish" },
 ] as const;
 export type AreaKey = (typeof AREAS)[number]["key"];
 
@@ -23,6 +24,7 @@ const ROUTE_AREA: Record<string, AreaKey | "any" | "owner"> = {
   "/team": "team", "/salary": "team", "/team-pay": "team",
   "/packages": "packages", "/equipment": "equipment",
   "/chat": "chat", "/whatsapp": "chat",
+  "/website": "website",
   "/notifications": "any", "/support": "any", "/account": "any",
   "/settings": "owner", "/billing": "owner",
 };
@@ -40,7 +42,7 @@ export function canOpen(user: Who, href: string): boolean {
 
 /** Where a manager lands: the first page they can open. */
 export function homeFor(user: Who): string {
-  for (const h of ["/dashboard", "/programs", "/clients", "/payments", "/team", "/calendar", "/packages", "/equipment", "/chat"]) {
+  for (const h of ["/dashboard", "/programs", "/clients", "/payments", "/team", "/calendar", "/packages", "/equipment", "/chat", "/website"]) {
     if (canOpen(user, h)) return h;
   }
   return "/account";

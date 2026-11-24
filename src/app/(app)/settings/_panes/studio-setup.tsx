@@ -301,12 +301,12 @@ export function ReferralsPane() {
 }
 function ReferralRules() {
   const { studio, patchStudio } = useSettings();
-  const r = studio!.referrals ?? { pay: false, rateType: "percent" as const, rateValue: 10 };
+  const r = { pay: false, rateType: "percent" as const, rateValue: 10, payAnytime: false, ...studio!.referrals };
   const set = (p: Partial<typeof r>) => patchStudio("referrals", { ...r, ...p });
   const pct = r.rateType === "percent";
   return (
     <>
-      <Group title="Referral pay" note="Who referred a client or a program is always saved. Turn this on to also pay them. A program's referral pay can be paid as soon as the client has paid it in full.">
+      <Group title="Referral pay" note="Who referred a client or a program is always saved. Turn this on to also pay them. A program's referral pay can be paid as soon as the client has paid it in full, or any time with Pay any time on.">
         <Row id="ref-pay" label="Pay people who refer programs" hint="Adds referral pay to the Referrals page, the program form, Reports, and the team member's My money">
           <Switch label="Pay people who refer programs" on={r.pay} onChange={v => set({ pay: v })} />
         </Row>
@@ -318,6 +318,9 @@ function ReferralRules() {
             <NumberField label={pct ? "Percent of profit" : "Amount per program"} value={r.rateValue} min={0} max={pct ? 100 : 100000000} step={pct ? 0.5 : 100}
               suffix={pct ? "%" : undefined} onCommit={v => set({ rateValue: v })} />
           </div>
+        </Row>
+        <Row id="ref-anytime" label="Pay any time" hint="Off: referral pay can be paid once the client has paid the program in full. On: you can pay it whenever you like, even while the client still owes money." disabled={!r.pay}>
+          <Switch label="Pay any time" on={!!r.payAnytime} disabled={!r.pay} onChange={v => set({ payAnytime: v })} />
         </Row>
       </Group>
     </>

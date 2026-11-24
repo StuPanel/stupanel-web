@@ -534,7 +534,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   const [referrer, setReferrer] = useState<Referrer | null>(null);
   const [refTouched, setRefTouched] = useState(false);
   /** Referral pay (Settings → Referrals) and this program's own rate; refOwn false = the person's or studio's usual rate. */
-  const [refRules, setRefRules] = useState<{ pay: boolean; rateType: "percent" | "fixed"; rateValue: number } | null>(null);
+  const [refRules, setRefRules] = useState<{ pay: boolean; rateType: "percent" | "fixed"; rateValue: number; payAnytime?: boolean } | null>(null);
   const [refOwn, setRefOwn] = useState(false);
   /** No referral pay on this program, even when the studio pays referrals (saved as a fixed 0). */
   const [refNone, setRefNone] = useState(false);
@@ -1065,7 +1065,7 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
                             value={refValue} onChange={e => { setRefValue(e.target.value); setRefRateTouched(true); }} className={cn(inputCls, "w-28 h-9 tabular-nums")} />
                         </>)}
                       </div>
-                      <p className="mt-1.5 text-[12px] text-[#6B6680]">{refNone ? `${shownReferrer.name} is saved as the one who brought this program, but gets no referral pay for it.` : <>{refOwn ? "Only for this program." : `The person's own rate if they have one, else the studio's (${refRules.rateType === "percent" ? `${refRules.rateValue}% of profit` : `${refRules.rateValue} per program`}).`} Can be paid once the client has paid in full.</>}</p>
+                      <p className="mt-1.5 text-[12px] text-[#6B6680]">{refNone ? `${shownReferrer.name} is saved as the one who brought this program, but gets no referral pay for it.` : <>{refOwn ? "Only for this program." : `The person's own rate if they have one, else the studio's (${refRules.rateType === "percent" ? `${refRules.rateValue}% of profit` : `${refRules.rateValue} per program`}).`} {refRules.payAnytime ? "Can be paid any time." : "Can be paid once the client has paid in full."}</>}</p>
                     </div>
                   )}
                 </div>

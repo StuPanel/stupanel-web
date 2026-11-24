@@ -120,6 +120,7 @@ export const ENTRIES: Entry[] = [
   // Referrals
   { id: "ref-pay", pane: "referrals", section: "Referral pay", label: "Pay people who refer programs", keywords: "commission referral pay on off" },
   { id: "ref-rate", pane: "referrals", section: "Referral pay", label: "Usual referral pay", keywords: "percent profit fixed amount rate commission" },
+  { id: "ref-anytime", pane: "referrals", section: "Referral pay", label: "Pay any time", keywords: "before full payment advance early due commission" },
 
   // Delivery
   { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid" },

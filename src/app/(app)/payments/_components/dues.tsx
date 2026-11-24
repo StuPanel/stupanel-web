@@ -86,7 +86,7 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
     <div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
         <StatCard icon={Wallet} color="red" label="Total due" value={m(t.due)} sub={`${t.programs} program${t.programs === 1 ? "" : "s"} or invoice${t.programs === 1 ? "" : "s"}`} />
-        <StatCard icon={AlertTriangle} color={t.overdue > 0 ? "red" : "green"} label="Overdue" value={m(t.overdue)} sub="Program done, not paid" />
+        <StatCard icon={AlertTriangle} color={t.overdue > 0 ? "red" : "green"} label="Shoot done, not paid" value={m(t.overdue)} sub="The program is over and money is still due" />
         <StatCard icon={CalendarClock} color="violet" label="Coming up" value={m(t.upcoming)} sub="Programs not done yet" />
         <StatCard icon={Users} color="blue" label="Clients" value={String(t.clients)} sub="With money due" />
       </div>
@@ -97,7 +97,7 @@ export function DuesView({ search, refreshKey, studioName, onRecord }: {
         <>
           <Chips<Filter> label="Show" value={filter} onChange={setFilter} options={[
             { value: "all", label: "All", count: t.clients },
-            { value: "overdue", label: "Overdue", count: d.clients.filter(c => c.overdue > 0).length },
+            { value: "overdue", label: "Shoot done, not paid", count: d.clients.filter(c => c.overdue > 0).length },
             { value: "upcoming", label: "Coming up", count: d.clients.filter(c => c.due > c.overdue).length },
           ]} />
           {list.length === 0 ? (
@@ -164,7 +164,7 @@ function ClientDue({ c, m, studioName, currency, payTo, template, open, onToggle
                       <p className="text-[12px] text-[#6B6680] tabular-nums">{p.number} · {p.date ? fmtDate(p.date) : "No date"}</p>
                     </div>
                     {p.overdue
-                      ? <span className="h-6 px-2.5 rounded-full bg-[#FFF3E0] text-[#9A5B00] text-[11.5px] font-bold inline-flex items-center flex-shrink-0">Overdue</span>
+                      ? <span className="h-6 px-2.5 rounded-full bg-[#FFF3E0] text-[#9A5B00] text-[11.5px] font-bold inline-flex items-center flex-shrink-0">Not paid</span>
                       : <span className="h-6 px-2.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[11.5px] font-bold inline-flex items-center flex-shrink-0">Coming up</span>}
                   </div>
                   <div className="mt-2.5 h-1.5 bg-[#F1EFF6] rounded-full overflow-hidden">

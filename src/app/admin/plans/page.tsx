@@ -25,6 +25,8 @@ interface Plan {
   maxTeamMembers: number;
   maxBookingsPerMonth: number;
   maxEmailsPerMonth?: number;
+  /** Photos a studio may keep on its website (0 = no limit) */
+  maxSitePhotos?: number;
   trialDays: number;
   isActive: boolean;
   isPopular: boolean;
@@ -38,7 +40,7 @@ const emptyForm = {
   name: "", slug: "",
   priceMonthly: "", priceYearly: "",
   maxClients: "50", maxTeamMembers: "3",
-  maxBookingsPerMonth: "20", maxEmailsPerMonth: "0", trialDays: "14",
+  maxBookingsPerMonth: "20", maxEmailsPerMonth: "0", maxSitePhotos: "300", trialDays: "14",
   isActive: true, isPopular: false,
   tagline: "", description: "", sortOrder: "0",
 };
@@ -80,6 +82,7 @@ export default function AdminPlansPage() {
       maxTeamMembers: String(plan.maxTeamMembers),
       maxBookingsPerMonth: String(plan.maxBookingsPerMonth),
       maxEmailsPerMonth: String(plan.maxEmailsPerMonth ?? 0),
+      maxSitePhotos: String(plan.maxSitePhotos ?? 300),
       trialDays: String(plan.trialDays),
       isActive: plan.isActive,
       isPopular: plan.isPopular,
@@ -101,6 +104,7 @@ export default function AdminPlansPage() {
       maxTeamMembers: parseInt(form.maxTeamMembers) || 3,
       maxBookingsPerMonth: parseInt(form.maxBookingsPerMonth) || 20,
       maxEmailsPerMonth: Math.max(0, parseInt(form.maxEmailsPerMonth) || 0),
+      maxSitePhotos: form.maxSitePhotos.trim() === "" ? 300 : Number(form.maxSitePhotos),
       trialDays: parseInt(form.trialDays) || 14,
       isActive: form.isActive,
       isPopular: form.isPopular,
@@ -109,12 +113,19 @@ export default function AdminPlansPage() {
       sortOrder: parseInt(form.sortOrder) || 0,
     };
 
-    if (editId) {
-      await fetch(`${API}/admin/plans/${editId}`, { method: "PATCH", headers: authH(), body: JSON.stringify(body) });
-    } else {
-      await fetch(`${API}/admin/plans`, { method: "POST", headers: authH(), body: JSON.stringify(body) });
+    if (!Number.isInteger(body.maxSitePhotos) || body.maxSitePhotos < 0 || body.maxSitePhotos > 5000) {
+      setSaving(false);
+      notify("Website photos: a whole number from 0 (no limit) to 5000.", { error: true });
+      return;
     }
+    const res = await fetch(editId ? `${API}/admin/plans/${editId}` : `${API}/admin/plans`, { method: editId ? "PATCH" : "POST", headers: authH(), body: JSON.stringify(body) }).catch(() => null);
     setSaving(false);
+    if (!res?.ok) {
+      const msg = await res?.json().then((j: { message?: string | string[] }) => (Array.isArray(j.message) ? j.message[0] : j.message)).catch(() => null);
+      notify(msg || "The plan was not saved. Try again.", { error: true });
+      return;
+    }
+    notify("Plan saved.");
     setShowForm(false);
     load();
   }
@@ -195,6 +206,7 @@ export default function AdminPlansPage() {
                 <span>🙍 {plan.maxClients} clients</span>
                 <span>📅 {plan.maxBookingsPerMonth} bookings/mo</span>
                 <span>✉️ {plan.maxEmailsPerMonth ? `${plan.maxEmailsPerMonth.toLocaleString()} emails/mo` : "Unlimited emails"}</span>
+                <span>🖼️ {plan.maxSitePhotos === 0 ? "No limit on website photos" : `${(plan.maxSitePhotos ?? 300).toLocaleString()} website photos`}</span>
                 <span>🎁 {plan.trialDays}d trial</span>
               </div>
               <PlanSwitches planId={plan.id} />
@@ -268,6 +280,11 @@ export default function AdminPlansPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-slate-400">Emails / Month (0 = no limit)</label>
                 <Input type="number" min={0} value={form.maxEmailsPerMonth} onChange={e => setForm(p => ({ ...p, maxEmailsPerMonth: e.target.value }))}
+                  className="bg-slate-800 border-slate-700 text-white h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Website photos (0 = no limit)</label>
+                <Input type="number" min={0} max={5000} step={1} value={form.maxSitePhotos} onChange={e => setForm(p => ({ ...p, maxSitePhotos: e.target.value }))}
                   className="bg-slate-800 border-slate-700 text-white h-9" />
               </div>
               <div className="space-y-1.5">

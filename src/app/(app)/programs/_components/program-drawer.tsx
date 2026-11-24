@@ -593,8 +593,9 @@ export function ProgramDrawer({ open, onClose, onSaved, packages, teamMembers, i
   // The form as text. `base` is the form at the person's first touch, so anything filled in by
   // the app before that (the program being edited, a draft, a lead) doesn't count as a change.
   const snapshot = useMemo(
-    () => JSON.stringify({ client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept }),
-    [client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept],
+    // Who referred and its pay count too (a referrer picked and then Cancel asks before throwing it away)
+    () => JSON.stringify({ client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept, ref: refTouched ? referrer?.id ?? null : undefined, refOwn, refNone, refType, refValue }),
+    [client, clientMode, newClient, programType, side, eventName, nameTouched, packageId, days, advanceWallet, money, notes, teamNote, editors, kept, refTouched, referrer, refOwn, refNone, refType, refValue],
   );
   const [base, setBase] = useState<string | null>(null);
   /** A draft brought its own name: the automatic "Rina's wedding" name must not replace it (it can run just after). */

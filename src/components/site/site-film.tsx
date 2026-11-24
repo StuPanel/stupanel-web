@@ -86,8 +86,6 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
   const [shown, setShown] = useState(false); // backdrop + card in place
   const [state, setState] = useState(-1); // YouTube: -1 not started, 0 ended, 1 playing, 2 paused, 3 buffering
   const [started, setStarted] = useState(false); // has played at least once (the cover can go)
-  const startT = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (startT.current) clearTimeout(startT.current); }, []);
   const [ui, setUi] = useState(true);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
@@ -179,9 +177,7 @@ function Theater({ id, title, poster, from, back, anchor, onClosed }: { id: stri
           }
           return s;
         });
-        // YouTube flashes its own pause sign for about a second when a film starts (Chrome draws a thin line through
-        // the middle of the picture while it shows), so the poster stays over it for that second.
-        if (s === 1) { setNeedTap(false); if (!startT.current) startT.current = setTimeout(() => setStarted(true), 1100); }
+        if (s === 1) { setStarted(true); setNeedTap(false); }
       };
       if (m.event === "onStateChange" && typeof m.info === "number") apply(m.info);
       if (m.event === "infoDelivery" && m.info && typeof m.info === "object") {

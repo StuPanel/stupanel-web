@@ -271,6 +271,22 @@ function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) =>
   );
 }
 
+/** Comes up from below tilted in 3D and settles flat, once, when it scrolls into view (CSS .ab3d). */
+function Rise3D({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!("IntersectionObserver" in window)) { el.classList.add("in"); return; }
+    const io = new IntersectionObserver(es => {
+      if (es.some(e => e.isIntersecting)) { el.classList.add("in"); io.disconnect(); }
+    }, { threshold: 0.18 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return <div ref={ref} className="ab3d" style={style}>{children}</div>;
+}
+
 export function Heading({ script, title, light }: { script: string; title: string; light?: boolean }) {
   return (
     <>
@@ -518,12 +534,12 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
             {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 460 }}>{t}</p>)}
             <a href="#book" className="cap ul" style={{ display: "inline-block", marginTop: 12 }}>Talk to the studio</a>
           </div>
-          <div className="ab3d" style={{ position: "relative", margin: "0 22px 22px 0" }}>
+          <Rise3D style={{ position: "relative", margin: "0 22px 22px 0" }}>
             <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
             <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
               <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
             </div>
-          </div>
+          </Rise3D>
         </section>
 
         {c.albums.length > 0 && !hide.includes("albums") && (

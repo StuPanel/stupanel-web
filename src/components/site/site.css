@@ -104,6 +104,11 @@
 @supports (animation-timeline: view()){
 .sg .rv{animation:sgrv linear both;animation-timeline:view();animation-range:entry 0% entry 45%}
 @keyframes sgrv{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+/* Home "About" photo: opens upward like a curtain as it comes in, the photo settling from a light zoom */
+.sg .abph{animation:sgabph linear both;animation-timeline:view();animation-range:entry 5% cover 42%}
+@keyframes sgabph{from{clip-path:inset(100% 0 0 0);transform:translateY(70px)}to{clip-path:inset(0 0 0 0);transform:none}}
+.sg .abph img.par{animation:sgpar linear both,sgabim linear both;animation-timeline:view(),view();animation-range:normal,entry 5% cover 55%}
+@keyframes sgabim{from{scale:1.25}to{scale:1}}
 .sg .slL{animation:sgsl linear both;animation-timeline:view()}
 @keyframes sgsl{from{transform:translateX(6%)}to{transform:translateX(-22%)}}
 .sg .slR{animation:sgsr linear both;animation-timeline:view()}

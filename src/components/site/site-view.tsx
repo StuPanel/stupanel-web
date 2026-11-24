@@ -520,7 +520,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
           </div>
           <div style={{ position: "relative", margin: "0 22px 22px 0" }}>
             <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
-            <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
+            <div className="ph abph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
               <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
             </div>
           </div>

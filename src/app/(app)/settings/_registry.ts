@@ -6,13 +6,13 @@
  */
 import {
   Building2, Palette, Globe, CreditCard, FileText, Receipt, Percent, BookOpen,
-  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Images, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2, Database, PanelLeft, Crown,
+  CalendarDays, Hash, Monitor, Bell, Shield, HardDrive, Images, Layers, UserCog, PackageCheck, CircleUserRound, MessageSquareText, SwatchBook, Music2, Database, PanelLeft, Crown, Handshake,
 } from "lucide-react";
 
 export type PaneId =
   | "general" | "branding" | "online"
   | "payment" | "quotes" | "invoices" | "numbering" | "tax" | "catalog"
-  | "features" | "worktypes" | "team" | "delivery" | "music"
+  | "features" | "worktypes" | "team" | "referrals" | "delivery" | "music"
   | "bookings" | "portal" | "notifications" | "whatsapp"
   | "profile" | "appearance" | "security" | "integrations" | "data"
   | "menu" | "billing";
@@ -54,6 +54,7 @@ export const GROUPS: { title: string; panes: Pane[] }[] = [
       { id: "worktypes", title: "Program Types", sub: "Kinds of programs and the parts (days) each one has", icon: Layers, color: C.orchid, keywords: "wedding corporate shift holud biye" },
       { id: "bookings", title: "Programs", sub: "Shifts, rules and cancellation policy for programs", icon: CalendarDays, color: C.deep, keywords: "booking event shift time" },
       { id: "team", title: "Team & Pay", sub: "How your team is paid", icon: UserCog, color: C.blue, keywords: "salary freelancer payment rate price studio prices" },
+      { id: "referrals", title: "Referrals", sub: "Pay the people who bring you programs", icon: Handshake, color: C.teal, keywords: "referral refer commission bring client reference রেফারেল কমিশন" },
       { id: "portal", title: "Client Portal", sub: "What clients see in their portal", icon: Monitor, color: C.blue, keywords: "client portal" },
     ],
   },
@@ -115,6 +116,10 @@ export const ENTRIES: Entry[] = [
   // Team
   { id: "teamPay", pane: "team", section: "Pay", label: "Pay team by", keywords: "per shift per program rate salary" },
   { id: "studio-rates", pane: "team", section: "Studio prices", label: "Studio prices for each kind of work", keywords: "rate price photographer cinematographer drone editor setup gear" },
+
+  // Referrals
+  { id: "ref-pay", pane: "referrals", section: "Referral pay", label: "Pay people who refer programs", keywords: "commission referral pay on off" },
+  { id: "ref-rate", pane: "referrals", section: "Referral pay", label: "Usual referral pay", keywords: "percent profit fixed amount rate commission" },
 
   // Delivery
   { id: "d-lockWhenDue", pane: "delivery", section: "Payment", label: "Lock delivery while money is due", keywords: "due lock unpaid" },

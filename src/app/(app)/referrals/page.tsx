@@ -5,7 +5,8 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, ChevronDown, ChevronUp, Handshake, Users, Wallet } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, HandCoins, Handshake, Users, Wallet } from "lucide-react";
+import { ReferralPayDrawer, rateLabel } from "./_components/referral-pay-drawer";
 import { EmptyState, Group, Initial, PageHeader, RowsSkeleton, SearchField, StatCard } from "@/components/ui/apple";
 import { KindChip, KIND_LABEL, type ReferrerKind } from "@/components/ui/referrer-picker";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -24,6 +25,12 @@ interface ReferralGroup {
   clientCount: number;
   programCount: number;
   revenue: number;
+  rateType?: "percent" | "fixed" | null;
+  rateValue?: number | null;
+  earned: number;
+  paid: number;
+  owed: number;
+  waiting: number;
   clients: { id: string; name: string; createdAt: string }[];
   programs: { id: string; number: string; name: string; date?: string | null; status: string; total: number }[];
 }
@@ -36,12 +43,17 @@ export default function ReferralsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  /** Referral pay on (Settings → Referrals) and the studio's usual rate. */
+  const [rules, setRules] = useState<{ pay: boolean; rateType: "percent" | "fixed"; rateValue: number } | null>(null);
+  const [paying, setPaying] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await apiFetch(`${API}/referrers/report`);
+      const [res, st] = await Promise.all([apiFetch(`${API}/referrers/report`), apiFetch(`${API}/companies/settings`).catch(() => null)]);
       const data = res.ok ? await res.json() : [];
       setGroups(Array.isArray(data) ? data : []);
+      const s = st?.ok ? await st.json() : null;
+      setRules(s?.referrals ?? null);
     } finally {
       setLoading(false);
     }
@@ -55,6 +67,9 @@ export default function ReferralsPage() {
     (acc, g) => ({ clients: acc.clients + g.clientCount, programs: acc.programs + g.programCount, revenue: acc.revenue + g.revenue }),
     { clients: 0, programs: 0, revenue: 0 },
   );
+  const payOn = !!rules?.pay;
+  const owedAll = groups.reduce((s, g) => s + (g.owed || 0), 0);
+  const waitingAll = groups.reduce((s, g) => s + (g.waiting || 0), 0);
   const kinds = (["member", "client", "person"] as ReferrerKind[]).filter(k => groups.some(g => g.kind === k));
 
   return (
@@ -64,10 +79,11 @@ export default function ReferralsPage() {
       </PageHeader>
 
       {!loading && groups.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
+        <div className={cn("grid grid-cols-1 gap-3 sm:gap-4 mb-5", payOn ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
           <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
           <StatCard icon={Users} color="blue" label="Clients referred" value={String(totals.clients)} sub={`${totals.programs} program${totals.programs === 1 ? "" : "s"}`} />
           <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue)} sub="Booked programs" />
+          {payOn && <StatCard icon={HandCoins} color="orchid" label="Referral pay to give" value={formatCurrency(owedAll)} sub={waitingAll > 0 ? `${formatCurrency(waitingAll)} waiting for programs to finish` : "Nothing waiting"} />}
         </div>
       )}
 
@@ -107,7 +123,14 @@ export default function ReferralsPage() {
                       {g.clientCount} client{g.clientCount === 1 ? "" : "s"} · {g.programCount} program{g.programCount === 1 ? "" : "s"}{g.phone ? ` · ${g.phone}` : g.email ? ` · ${g.email}` : ""}
                     </span>
                   </span>
-                  <span className="text-sm font-bold text-[#1F8A5B] tabular-nums flex-shrink-0">{formatCurrency(g.revenue)}</span>
+                  <span className="text-right flex-shrink-0">
+                    <span className="block text-sm font-bold text-[#1F8A5B] tabular-nums">{formatCurrency(g.revenue)}</span>
+                    {payOn && (g.owed > 0 || g.waiting > 0) && (
+                      <span className={cn("block text-[11.5px] font-semibold tabular-nums", g.owed > 0 ? "text-[#823072]" : "text-[#9A5B00]")}>
+                        {g.owed > 0 ? `${formatCurrency(g.owed)} to pay` : `${formatCurrency(g.waiting)} waiting`}
+                      </span>
+                    )}
+                  </span>
                   {isOpen ? <ChevronUp className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#B5B0C4] flex-shrink-0" />}
                 </button>
                 {isOpen && (
@@ -145,11 +168,16 @@ export default function ReferralsPage() {
                         </div>
                       </>
                     )}
-                    {profile && (
-                      <div className="pl-[4.25rem] pr-5 py-3">
-                        <Link href={profile} className="text-[13px] font-semibold text-[#5B3FD0] hover:underline">Open {g.kind === "member" ? "team member" : "client"} profile</Link>
-                      </div>
-                    )}
+                    <div className="pl-[4.25rem] pr-5 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                      {payOn && (
+                        <button type="button" onClick={() => setPaying(g.id)}
+                          className="h-9 px-4 rounded-full bg-[#1F8A5B] hover:bg-[#19744C] text-white text-[13px] font-semibold inline-flex items-center gap-1.5">
+                          <HandCoins className="w-4 h-4" />Referral pay
+                        </button>
+                      )}
+                      {payOn && <span className="text-[12.5px] text-[#6B6680]">{g.rateType && g.rateValue !== null && g.rateValue !== undefined ? `Own rate: ${rateLabel(g.rateType, g.rateValue)}` : rules ? `Studio's rate: ${rateLabel(rules.rateType, rules.rateValue)}` : ""}</span>}
+                      {profile && <Link href={profile} className="text-[13px] font-semibold text-[#5B3FD0] hover:underline">Open {g.kind === "member" ? "team member" : "client"} profile</Link>}
+                    </div>
                   </div>
                 )}
               </div>
@@ -157,6 +185,8 @@ export default function ReferralsPage() {
           })}
         </Group>
       )}
+
+      {paying && <ReferralPayDrawer referrerId={paying} onClose={() => setPaying(null)} onChanged={load} />}
     </div>
   );
 }

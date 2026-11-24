@@ -25,7 +25,7 @@ const TYPES = [
 const TYPE = Object.fromEntries(TYPES.map(t => [t.key, t])) as Record<string, (typeof TYPES)[number]>;
 
 const SOURCE: Record<string, string> = {
-  client_payment: "Client payment", other_income: "Other income", expense: "Expense", team_payment: "Team pay",
+  client_payment: "Client payment", other_income: "Other income", expense: "Expense", team_payment: "Team pay", referral_payment: "Referral pay",
   salary: "Salary", refund: "Refund", transfer_in: "Transfer in", transfer_out: "Transfer out",
 };
 const EXPENSE_CATS = ["transport", "food", "equipment", "rent", "utilities", "marketing", "printing", "album", "internet", "bank_charge", "misc"];

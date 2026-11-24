@@ -81,7 +81,7 @@ export default function ReferralsPage() {
       </PageHeader>
 
       {!loading && groups.length > 0 && (
-        <div className={cn("grid grid-cols-1 gap-3 sm:gap-4 mb-5", payOn ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
+        <div className={cn("grid grid-cols-2 gap-3 sm:gap-4 mb-5", payOn ? "lg:grid-cols-4" : "sm:grid-cols-3")}>
           <StatCard icon={Handshake} color="teal" label="People who referred" value={String(groups.length)} />
           <StatCard icon={CalendarCheck} color="blue" label="Programs referred" value={String(totals.programs)} sub="Booked, not cancelled" />
           <StatCard icon={Wallet} color="green" label="Money from referrals" value={formatCurrency(totals.revenue)} sub="Booked programs" />

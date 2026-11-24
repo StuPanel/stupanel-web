@@ -20,6 +20,7 @@ import { DateBox } from "@/components/ui/apple";
 import { Avatar, waLink } from "@/components/ui/profile-kit";
 import { Chip, CHIP, Empty, List, ProfileSkeleton, QuickAction, Row, Section, TabBar, card, linkBtn, softBtn, useDismiss, useTab } from "@/components/ui/profile-page";
 import { CLIENT_SOURCES } from "@/components/client-form-fields";
+import { KindChip } from "@/components/ui/referrer-picker";
 import { PortalAccessModal } from "@/components/portal-access-modal";
 import { STATUS_CFG } from "../../programs/_components/constants";
 import { PaymentModal } from "../../programs/_components/payment-modal";
@@ -103,7 +104,15 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
   const st = c.stats;
   const pct = st.total > 0 ? Math.min(100, Math.round((st.paid / st.total) * 100)) : 0;
   const src = CLIENT_SOURCES.find(s => s.value === c.source);
-  const referrer = c.referredByClientName || c.referredByName;
+  const ref = c.referrer;
+  const refHref = ref?.kind === "member" && ref.userId ? `/team/${ref.userId}` : ref?.kind === "client" && ref.clientId ? `/clients/${ref.clientId}` : null;
+  const referrer: React.ReactNode = ref
+    ? <span className="inline-flex items-center gap-1.5 justify-end flex-wrap">
+        {refHref ? <Link href={refHref} className="text-[#5B3FD0] hover:underline">{ref.name}</Link> : <span>{ref.name}</span>}
+        <KindChip kind={ref.kind} />
+        {ref.kind === "person" && (ref.phone || ref.email) && <span className="block w-full text-[12.5px] font-normal text-[#6B6680]">{ref.phone || ref.email}</span>}
+      </span>
+    : (c.referredByClientName || c.referredByName || null);
   const today = localDateStr();
   const upcoming = c.bookings.filter(b => b.eventDate && b.eventDate.slice(0, 10) >= today && !["cancelled", "refunded"].includes(b.status)).sort((a, b) => a.eventDate!.localeCompare(b.eventDate!));
   const focus = upcoming[0] ?? c.bookings[0];
@@ -395,7 +404,7 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
                       c.companyName && { k: "Company / organisation", v: c.companyName },
                       src && { k: "Came from", v: src.label },
                       referrer && { k: "Referred by", v: referrer },
-                    ].filter(Boolean).map(x => { const r = x as { k: string; v: string }; return (
+                    ].filter(Boolean).map(x => { const r = x as { k: string; v: React.ReactNode }; return (
                       <div key={r.k} className="px-4 py-3 flex items-baseline justify-between gap-4 text-[14px]">
                         <span className="text-[#6B6680] flex-shrink-0">{r.k}</span><span className="font-semibold text-[#17151F] text-right min-w-0 break-words">{r.v}</span>
                       </div>

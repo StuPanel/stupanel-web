@@ -9,7 +9,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowDownLeft, ArrowLeft, CalendarDays, Camera, ChevronRight, Edit3, HandCoins, KeyRound, Loader2, Mail, MapPin, MessageCircle,
+  ArrowDownLeft, ArrowLeft, Handshake, CalendarDays, Camera, ChevronRight, Edit3, HandCoins, KeyRound, Loader2, Mail, MapPin, MessageCircle,
   MoreHorizontal, Phone, Send, Trash2, UserCheck, UserX, Wallet, AtSign,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
@@ -54,6 +54,8 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  /** Clients and programs this member brought to the studio (referrals). */
+  const [brought, setBrought] = useState<{ clients: number; programs: number } | null>(null);
   const [notes, setNotes] = useState("");
   const [notesState, setNotesState] = useState<"" | "saving" | "saved">("");
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -74,12 +76,13 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
+    apiFetch(`${API}/referrers/member/${id}`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setBrought(d); }).catch(() => {});
     apiFetch(`${API}/team/custom-roles`).then(r => (r.ok ? r.json() : [])).then(d => { if (Array.isArray(d)) setCustomRoles(d); }).catch(() => {});
     apiFetch(`${API}/companies/settings`).then(r => (r.ok ? r.json() : null)).then(d => {
       if (Array.isArray(d?.workTypes)) setTypeNames(Object.fromEntries(d.workTypes.map((w: { id: string; name: string }) => [w.id, w.name])));
     }).catch(() => {});
     return () => clearTimeout(notesTimer.current);
-  }, [load]);
+  }, [load, id]);
 
   function onNotes(v: string) {
     setNotes(v); setNotesState("");
@@ -262,6 +265,16 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
                 <p role="status" className="mb-6 rounded-[14px] bg-[#FFF3E0] text-[#7A4800] text-[13.5px] px-4 py-3">
                   <b>{m.firstName} can&apos;t work</b> {offSoon.map(d => `${dayRange(d)}${d.note ? ` (${d.note})` : ""}`).join(", ")}.
                 </p>
+              )}
+              {brought && (brought.clients > 0 || brought.programs > 0) && (
+                <Link href="/referrals" className="mb-6 flex items-center gap-3 rounded-[18px] bg-[#EEE8FD] px-4 py-3.5 hover:bg-[#E6DEFC] transition-colors">
+                  <span className="w-10 h-10 rounded-[12px] bg-white/70 flex items-center justify-center text-[#5B3FD0]"><Handshake className="w-5 h-5" /></span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[15px] font-bold text-[#17151F]">Brought {brought.clients} client{brought.clients === 1 ? "" : "s"} · {brought.programs} program{brought.programs === 1 ? "" : "s"}</span>
+                    <span className="block text-[12.5px] text-[#5B4A9E]">Referrals by {m.firstName}</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-[#7D5CEF]" />
+                </Link>
               )}
               <Section title="Coming up" action={upcoming.length > 3 ? <button type="button" onClick={() => setTab("programs")} className={linkBtn}>All {upcoming.length}<ChevronRight className="w-3.5 h-3.5" /></button> : undefined}>
                 {upcoming.length ? <List>{upcoming.slice(0, 3).map(upcomingRow)}</List> : (

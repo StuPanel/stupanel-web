@@ -12,8 +12,8 @@ import { Sec } from "./ed-kit";
 import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { cropStyle, type SiteContent, type SiteCrop } from "@/components/site/site-view";
-import type { SiteOffer } from "@/lib/site-offer-kit";
+import { HOME_PACKAGES, cropStyle, type SiteContent, type SiteCrop } from "@/components/site/site-view";
+import { liveOffers, type SiteOffer } from "@/lib/site-offer-kit";
 
 type Photo = { id: string; url: string; thumbUrl?: string | null; blur: string };
 const small = (p: Photo) => p.thumbUrl || p.url;
@@ -156,6 +156,9 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
     const crop = { ...crops }; delete crop[`offer:${o.id}`];
     save(offers.filter(x => x !== o), crop);
   };
+  // The packages the Home page shows: the first ones that are live (not hidden), in this order
+  const homeIds = liveOffers({ content: c } as never).slice(0, HOME_PACKAGES).map(o => o.id);
+  const homeOn = !(c.hide ?? []).includes("packages");
   const move = (i: number, by: number) => { const list = [...offers]; const [x] = list.splice(i, 1); list.splice(i + by, 0, x); save(list); };
   const makeFrom = (p: Program) => {
     const o = fromProgram(p);
@@ -177,7 +180,7 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
   return (
     <>
       <Sec icon={Package} tone="violet" title="Your packages" where="Packages page and Home"
-        help="Tap a package to edit it. Each one has its own page and link for Facebook, WhatsApp or an ad. The cards arrange themselves for any number of packages; change the order with the arrows inside a package.">
+        help={`Tap a package to edit it. Each one has its own page and link for Facebook, WhatsApp or an ad. Use the arrows to change the order: the top ${HOME_PACKAGES} show on the Home page (when Packages is on in Home parts), all of them on the Packages page.`}>
         {offers.length === 0 && (
           <div className="px-4 py-6 text-center">
             <Package className="w-8 h-8 mx-auto text-[#A29DB3]" aria-hidden="true" />
@@ -191,6 +194,7 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
           const src = o.src ? byId.get(o.src) : undefined;
           const changed = !!src && !!o.srcAt && new Date(src.updatedAt).getTime() > new Date(o.srcAt).getTime() + 1000;
           const isOpen = open === o.id;
+          const onHome = homeIds.includes(o.id);
           return (
             <div key={o.id} className="px-4 py-3.5">
               <div className="flex gap-3 items-center">
@@ -200,12 +204,18 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
                     {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(crops[`offer:${o.id}`])} /> : <ImagePlus className="w-5 h-5" />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{o.name || "New package"}{o.hidden && <span className="ml-2 text-[11px] font-bold text-[#6B6680] bg-[#F1EEF8] rounded-full px-2 py-0.5 align-middle">Hidden</span>}</span>
+                    <span className="block text-[15px] font-semibold text-[#17151F] truncate">{o.name || "New package"}{o.hidden && <span className="ml-2 text-[11px] font-bold text-[#6B6680] bg-[#F1EEF8] rounded-full px-2 py-0.5 align-middle">Hidden</span>}{onHome && <span className={cn("ml-2 text-[11px] font-bold rounded-full px-2 py-0.5 align-middle", homeOn ? "text-[#5B3FD0] bg-[#EEE8FD]" : "text-[#6B6680] bg-[#F1EEF8]")} title={homeOn ? "Shown on the Home page" : "Would show on the Home page — Packages is off in Home parts"}>{homeOn ? "On Home page" : "Home (off)"}</span>}</span>
                     <span className="block text-[13px] text-[#6B6680] truncate">{[o.group, money(o.price)].filter(Boolean).join(" · ")}</span>
                     {need.length > 0 && <span className="block text-[12px] text-[#8A5A00] truncate">Add: {need.join(", ")}</span>}
                   </span>
                   {isOpen ? <ChevronUp className="w-5 h-5 text-[#6B6680] flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-[#6B6680] flex-shrink-0" />}
                 </button>
+                {offers.length > 1 && (
+                  <span className="flex flex-col gap-1 flex-shrink-0">
+                    <button type="button" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move ${o.name || "package"} up`} className="w-8 h-8 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 flex items-center justify-center text-[#4A4658]"><ArrowUp className="w-4 h-4" /></button>
+                    <button type="button" disabled={i === offers.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${o.name || "package"} down`} className="w-8 h-8 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 flex items-center justify-center text-[#4A4658]"><ArrowDown className="w-4 h-4" /></button>
+                  </span>
+                )}
               </div>
               {changed && src && (
                 <div className="mt-2.5 rounded-[12px] bg-[#EEF4FF] text-[#1E3A8A] px-3 py-2.5 text-[13px] flex items-center gap-2 flex-wrap">

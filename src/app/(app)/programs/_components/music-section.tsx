@@ -76,16 +76,25 @@ export function MusicSection({ booking, member = false }: { booking: Booking; /*
       const next: PartIdeas = await r.json();
       setIdeas(next);
       // Moments of the old kind (Mala Bodol on a Muslim wedding) go; the rest keep to the new kind
-      const known = new Set([...next.days.flatMap(d => d.ideas), ...next.whole].map(i => i.key));
-      setParts(parts.filter(p => !p.key.startsWith("p-") || !p.key.includes("-e-") || known.has(p.key))
+      // Only moments of the old kind (Mala Bodol on a Muslim wedding) go; other events (Engagement…) stay
+      const kindMoment = (k: string) => (ideas.days.flatMap(d => d.ideas).find(i => i.key === k)?.group ?? "").endsWith(" moments");
+      setParts(parts.filter(p => !kindMoment(p.key))
         .map(p => (p.key.startsWith("p-") ? { ...p, scope: next.kind ?? undefined } : p)));
     } finally { setBusy(""); }
   }
 
   function openSetup() {
+    const start = sel ? sel.parts : defaults;
+    // Saved parts keep the kind of wedding they were made for (the studio may have chosen another than the program's)
+    const saved = start.find(p => p.key.startsWith("p-") && p.scope)?.scope;
+    const savedAny = !!sel && start.some(p => p.key.startsWith("p-")) && !saved && !!ideas?.kind;
+    const want = saved ?? (savedAny ? "any" : null);
+    if (ideas && want && want !== (ideas.kind ?? "any")) {
+      apiFetch(`${API}/music/booking/${booking.id}/ideas?kind=${encodeURIComponent(want)}`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setIdeas(d); }).catch(() => {});
+    }
     // Parts made before the kind of wedding was kept get the program's kind, so their songs keep to it too
-    const kind = ideas?.kind ?? undefined;
-    setParts((sel ? sel.parts : defaults).map(p => (kind && p.key.startsWith("p-") && !p.scope ? { ...p, scope: kind } : p)));
+    const kind = saved ?? (sel ? undefined : ideas?.kind ?? undefined);
+    setParts(start.map(p => (kind && p.key.startsWith("p-") && !p.scope ? { ...p, scope: kind } : p)));
     setPerPart(sel?.perPart ?? 3); setNewPart(""); setSetup(true);
   }
 

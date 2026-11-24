@@ -167,7 +167,12 @@ export function PackagesTab({ c, setMany, photo, choose, adjust, theme, link, pu
   };
   const refresh = (o: SiteOffer, p: Program) => { put(o.id, fromProgram(p, o)); notify("Price and details updated from your package"); };
   const copy = async (path: string) => { try { await navigator.clipboard.writeText(link(path)); notify("Link copied"); } catch { notify("Could not copy. Select the link and copy it.", { error: true }); } };
-  const groups = Array.from(new Set([...offers.map(o => o.group).filter(Boolean), ...(c.events ?? [])]));
+  // Category suggestions: ones already used on website packages first, then the studio's own package categories, then its events.
+  const groups: string[] = [];
+  for (const g of [...offers.map(o => o.group), ...(programs ?? []).map(p => p.category ?? ""), ...(c.events ?? [])]) {
+    const t = (g ?? "").trim();
+    if (t && !groups.some(x => x.toLowerCase() === t.toLowerCase())) groups.push(t);
+  }
 
   return (
     <>
@@ -338,7 +343,20 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
           <input className={inputCls} value={o.name} maxLength={80} placeholder="Royal Wedding" onChange={e => put({ name: e.target.value })} onBlur={settle} /></label>
         <label className="block"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">Category (tab on the page)</span>
           <input className={inputCls} value={o.group} maxLength={40} placeholder="Wedding" list={listId} onChange={e => put({ group: e.target.value })} />
-          <datalist id={listId}>{groups.map(g => <option key={g} value={g} />)}</datalist></label>
+          <datalist id={listId}>{groups.map(g => <option key={g} value={g} />)}</datalist>
+          {groups.length > 0 && (
+            <span className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Choose a category">
+              {groups.slice(0, 14).map(g => {
+                const on = g.toLowerCase() === o.group.trim().toLowerCase();
+                return (
+                  <button key={g} type="button" aria-pressed={on} onClick={() => put({ group: on ? "" : g })}
+                    className={`h-8 px-3 rounded-full text-[12.5px] font-semibold border transition-colors ${on ? "bg-[#7D5CEF] border-[#7D5CEF] text-white" : "bg-white border-[#E3DFEC] text-[#4A4658] hover:border-[#7D5CEF] hover:text-[#5B3FD0]"}`}>
+                    {g}
+                  </button>
+                );
+              })}
+            </span>
+          )}</label>
       </div>
       <label className="block mt-2.5"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">One line about it</span>
         <input className={inputCls} value={o.tagline} maxLength={160} placeholder="Holud, wedding and reception — the whole story" onChange={e => put({ tagline: e.target.value })} /></label>

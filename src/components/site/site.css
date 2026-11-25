@@ -736,8 +736,9 @@
 /* ── team as one drifting row (23-NOV): the row loops slowly sideways; soft fade at both edges ── */
 .sg .trow{position:relative;margin-top:clamp(40px,5vw,70px);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .sg .trow .tgrid{margin:0;flex-wrap:nowrap;justify-content:center;gap:0;padding:6px 0 10px;width:100%}
-.sg .trow.moving{cursor:grab;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
-.sg .trow.moving:active{cursor:grabbing}
+.sg .trow.moving{-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.sg .trow.moving .tm{cursor:grab}
+.sg .trow.moving .tm:active{cursor:grabbing}
 .sg .trow.moving .tgrid{justify-content:flex-start;width:max-content;will-change:transform}
 .sg .trow .tm{flex:none;width:clamp(200px,19vw,270px);max-width:none;padding:0 clamp(14px,1.6vw,26px);box-sizing:content-box}
 .sg .trow .tm img{pointer-events:none;-webkit-user-drag:none}

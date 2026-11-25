@@ -16,6 +16,8 @@ type Report = {
   totals?: { views: number; visitors: number; contacts: number; leads: number };
   before?: { views: number; visitors: number; leads: number };
   series?: Day[]; top?: Record<string, Top[]>;
+  /** Each website package: looks at its page, booking forms sent from it */
+  packages?: { id: string; views: number; leads: number }[];
 };
 
 const RANGES = [7, 30, 90, 365] as const;
@@ -107,9 +109,49 @@ function List({ title, rows, name, empty }: { title: string; rows: Top[]; name: 
   );
 }
 
-export function VisitorsTab({ active, published, albums, stories }: {
+/** Website packages: how often each one's page was opened and how many booking forms came from it. */
+function Packages({ rows, name }: { rows: { id: string; views: number; leads: number }[]; name: (id: string) => string | null }) {
+  const max = Math.max(1, ...rows.map(r => r.views));
+  return (
+    <section className="rounded-[20px] bg-white p-4 shadow-[0_1px_2px_rgba(22,18,40,.05),0_8px_24px_rgba(22,18,40,.05)]">
+      <h3 className="text-[14px] font-bold text-[#17151F]">Packages</h3>
+      <p className="text-[12px] text-[#8A8597] mt-0.5 mb-2.5">How often each package&apos;s page was opened, and the booking forms sent from it.</p>
+      {!rows.length ? <p className="text-[13px] text-[#8A8597]">No one has opened a package yet in this time.</p> : (
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="text-left text-[12px] text-[#8A8597]">
+              <th scope="col" className="font-medium pb-1.5">Package</th>
+              <th scope="col" className="font-medium pb-1.5 text-right w-16">Opened</th>
+              <th scope="col" className="font-medium pb-1.5 text-right w-20">Bookings</th>
+              <th scope="col" className="font-medium pb-1.5 text-right w-14">Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 20).map(r => {
+              const n = name(r.id);
+              return (
+                <tr key={r.id} className="border-t border-[#F1EEF8]">
+                  <td className="py-2 pr-2">
+                    <span className={cn("block truncate max-w-[46vw] md:max-w-none", n ? "text-[#2D2A38]" : "text-[#8A8597]")}>{n ?? `${r.id} (not on the website now)`}</span>
+                    <span className="block h-1 mt-1 rounded-full bg-[#F1EEF8] overflow-hidden" aria-hidden="true"><span className="block h-full rounded-full bg-[#7D5CEF]" style={{ width: `${Math.max(3, (r.views / max) * 100)}%` }} /></span>
+                  </td>
+                  <td className="py-2 text-right tabular-nums font-semibold text-[#17151F] align-top">{fmt(r.views)}</td>
+                  <td className={cn("py-2 text-right tabular-nums font-semibold align-top", r.leads ? "text-[#1F8A4C]" : "text-[#8A8597]")}>{fmt(r.leads)}</td>
+                  <td className="py-2 text-right tabular-nums text-[#6B6680] align-top">{r.views ? `${Math.min(100, Math.round((r.leads / r.views) * 100))}%` : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+export function VisitorsTab({ active, published, albums, stories, offers }: {
   /** Load only when the tab is open */ active: boolean; published: boolean;
   albums: { id: string; title: string }[]; stories: { id: string; title: string }[];
+  /** Website packages (for their names) */ offers?: { id: string; name: string }[];
 }) {
   const [days, setDays] = useState<number>(30);
   const [r, setR] = useState<Report | null>(null);
@@ -132,6 +174,7 @@ export function VisitorsTab({ active, published, albums, stories }: {
     const [, kind, id] = k.split("/");
     if (kind === "portfolio") return `Album: ${albums.find(a => a.id === id)?.title ?? id}`;
     if (kind === "stories") return `Story: ${stories.find(s => s.id === id)?.title ?? id}`;
+    if (kind === "packages") return `Package: ${(offers ?? []).find(o => o.id === id)?.name ?? id}`;
     return k;
   };
 
@@ -167,6 +210,8 @@ export function VisitorsTab({ active, published, albums, stories }: {
         <h3 className="text-[14px] font-bold text-[#17151F] mb-3">Visits</h3>
         {r.series && r.series.length > 0 && <Bars series={r.series} />}
       </section>
+
+      {((offers ?? []).length > 0 || (r.packages ?? []).length > 0) && <Packages rows={r.packages ?? []} name={id => (offers ?? []).find(o => o.id === id)?.name ?? null} />}
 
       <div className="grid md:grid-cols-2 gap-3">
         <List title="Pages people open" rows={top.page ?? []} name={pageName} empty="No visits yet." />

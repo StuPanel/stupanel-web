@@ -67,11 +67,13 @@ export function pageSeo(d: SiteData, page: string) {
  * where the studio's Adjust put it (cropKey, e.g. "offer:<id>"), as a JPEG. Width and height are given so the
  * picture shows on the very first share.
  */
-export function shareImage(d: SiteData, photoId?: string | null, cropKey?: string) {
+export function shareImage(d: SiteData, photoId?: string | null, cropKey?: string, /** A website package: its name, price and offer label are written on the picture */ offer?: { id: string; price: number | null; was: number | null; ends: string; badge: string; name: string }) {
   const id = photoId ?? d.content.seo?.image ?? d.content.heroPhotos[0] ?? d.content.slides?.[0] ?? d.content.albums[0]?.cover;
   const p = id ? d.photos[id] : undefined;
   if (!p || !id) return undefined;
-  const q = new URLSearchParams({ p: id, ...(cropKey && d.content.crop?.[cropKey] ? { c: cropKey } : {}) });
+  // `v` changes with the words on the picture, so Facebook and WhatsApp fetch a new one after a price change.
+  const v = offer ? [offer.name.length, offer.price ?? "", offer.was ?? "", offer.ends, offer.badge.length, new Date().toISOString().slice(0, 10) > (offer.ends || "9999") ? "x" : ""].join("-") : "";
+  const q = new URLSearchParams({ p: id, ...(cropKey && d.content.crop?.[cropKey] ? { c: cropKey } : {}), ...(offer ? { o: offer.id, v } : {}) });
   return { url: `${API_URL}/public/site/${encodeURIComponent(d.slug)}/share.jpg?${q}`, width: 1200, height: 630, type: "image/jpeg" };
 }
 

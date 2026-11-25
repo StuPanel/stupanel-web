@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { SiteData, SiteMember } from "./site-view";
+import { cropStyle, type SiteData, type SiteMember } from "./site-view";
 
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("");
 /** "Checked 25 Nov 2026, 11:52 pm" in the visitor's own time (the server's clock is another time zone). */
@@ -43,8 +43,7 @@ export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData
 
   const facts = [
     m.years ? ["Experience", m.years] : null,
-    m.languages ? ["Speaks", m.languages] : null,
-    m.weddings ? ["Weddings", `${m.weddings}`] : null,
+    m.weddings ? ["Weddings", m.weddings] : null,
   ].filter(Boolean) as [string, string][];
   const skills = m.skills ?? [];
   const social = [m.instagram ? ["Instagram", m.instagram] : null, m.facebook ? ["Facebook", m.facebook] : null].filter(Boolean) as [string, string][];
@@ -63,7 +62,7 @@ export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData
           <div className="mbph">
             {m.photo
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={m.photo} alt={m.name ?? ""} />
+              ? <img src={m.photo} alt={m.name ?? ""} style={cropStyle(m.crop ?? undefined)} />
               : <span className="mbin cz" aria-hidden="true">{initials(m.name ?? "")}</span>}
           </div>
         </div>
@@ -73,11 +72,12 @@ export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData
           <h1 className="mbname pf">{m.name}</h1>
           <div className="mbrule" aria-hidden="true"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M6 0l6 6-6 6-6-6z" fill="currentColor" /></svg></div>
           <div className="mbseal">
-            <span className="mbvf">
+            {/* "Verified" only when opened from their ID card QR (Faisal 26-NOV) */}
+            {scan && <span className="mbvf">
               <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M16 2.5l3.2 2.3 3.9-.3 1.4 3.7 3.5 1.8-.6 3.9 2.1 3.3-2.6 3 .3 3.9-3.8 1.1-1.8 3.5-3.9-.9-3.3 2.1-3-2.6-3.9.4-1.1-3.8-3.5-1.8.9-3.9L2.5 16l2.6-3-.3-3.9 3.8-1.1 1.8-3.5 3.9.9z" /><path d="M11 16.3l3.4 3.4 6.6-7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
               Verified member of {studio}
-            </span>
-            <span className="mbmeta"><span>ID {m.memberId}</span>{m.since ? <span>Since {m.since}</span> : null}</span>
+            </span>}
+            <span className={scan ? "mbmeta" : "mbmeta solo"}><span>ID {m.memberId}</span>{m.since ? <span>Since {m.since}</span> : null}</span>
           </div>
           {m.about && <div className="mbabout">{m.about.split(/\n+/).filter(Boolean).map((t, i) => <p key={i}>{t}</p>)}</div>}
           {facts.length > 0 && (

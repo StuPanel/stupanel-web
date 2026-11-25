@@ -864,6 +864,7 @@
 .sg .mbmeta span{padding:0 14px;border-left:1px solid var(--line)}
 .sg .mbmeta span:first-child{border-left:0;padding-left:0}
 .sg .mbseal .mbmeta{border-left:1px solid var(--line);padding-left:14px}
+.sg .mbseal .mbmeta.solo{border-left:0;padding-left:0}
 .sg .mbabout p{margin:0 0 14px;font-size:16px;line-height:1.85;max-width:58ch;color:var(--mut)}
 .sg .mbabout p:last-child{margin:0}
 .sg .mbfacts{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -888,17 +889,16 @@
 .sg.t-editorial .mbmeet,.sg.t-mono .mbmeet,.sg.t-editorial .mbrule,.sg.t-mono .mbrule{display:none}
 .sg.t-editorial .mbname{font-style:normal;font-weight:300;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(38px,5vw,64px);line-height:1.1}
 .sg.t-editorial .mbsocial a{border-radius:0}
-.sg.t-cream .mbph{border-radius:999px 999px 0 0;aspect-ratio:4/5;box-shadow:0 30px 70px rgba(var(--sh),.14);margin:0}
-.sg.t-cream .mbpf:before{content:"";position:absolute;inset:-14px -14px 14px 14px;border:1px solid var(--ac);border-radius:999px 999px 0 0}
+.sg.t-cream .mbph{border-radius:999px 999px 0 0;aspect-ratio:4/5;box-shadow:0 24px 50px rgba(var(--sh),.12);margin:14px}
+.sg.t-cream .mbpf:before{content:"";position:absolute;inset:0;border:1px solid var(--ac);border-radius:999px 999px 0 0;pointer-events:none}
 .sg.t-cream .mbname{font-style:normal;font-weight:300}
 .sg.t-dark .mbpf:before{content:"";position:absolute;inset:-18%;background:radial-gradient(closest-side,rgba(230,197,143,.22),transparent 70%);pointer-events:none}
 .sg.t-dark .mbph{box-shadow:0 0 0 1px rgba(230,197,143,.9),0 0 0 14px var(--bg),0 0 0 15px rgba(230,197,143,.35),0 40px 90px rgba(0,0,0,.6);margin:15px}
 .sg.t-dark .mbname{font-style:normal}
 .sg.t-dark .mbabout p{color:#CFC8BA}
-.sg.t-gold .mbpf{z-index:0}
-.sg.t-gold .mbph{border-radius:0;aspect-ratio:4/5;box-shadow:0 30px 70px rgba(var(--sh),.2);margin:0}
-.sg.t-gold .mbpf:before{content:"";position:absolute;inset:18px -18px -18px 18px;border:1px solid var(--ac);z-index:-1}
-.sg.t-gold .mbpf:after{content:"";position:absolute;left:-6%;right:30%;top:22%;bottom:-8%;background:var(--dark);z-index:-2}
+/* Royal Gold: the photo in a thin gold frame, the same space all round (no offset blocks: Faisal 26-NOV) */
+.sg.t-gold .mbph{border-radius:0;aspect-ratio:4/5;box-shadow:0 24px 50px rgba(var(--sh),.16);margin:14px}
+.sg.t-gold .mbpf:before{content:"";position:absolute;inset:0;border:1px solid var(--ac);pointer-events:none}
 .sg.t-gold .mbsocial a{border-radius:0}
 .sg.t-mono .mbph{border-radius:6px;aspect-ratio:4/5;box-shadow:none;margin:0}
 .sg.t-mono .mbname{font-style:normal;font-weight:600;letter-spacing:-.02em}
@@ -909,7 +909,8 @@
 .sg.t-mono .mbskills li+li:before{display:none}
 @media (max-width:860px){
   .sg .mbp{grid-template-columns:minmax(0,1fr);gap:34px;text-align:center}
-  .sg .mbpf{max-width:250px}
+  .sg .mbpf{max-width:260px}
+  .sg .mbmeet{margin-top:6px}
   .sg .mbwho{align-items:center}
   .sg .mbrule,.sg .mbseal,.sg .mbsocial,.sg .mbskills{justify-content:center}
   .sg .mbseal{flex-direction:column;gap:10px}

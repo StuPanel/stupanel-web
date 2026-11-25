@@ -32,8 +32,8 @@ export type SiteTeamMember = {
 /** One team member's own page (/team/TM-016): who they are, never their work. Left the studio: only `left`. */
 export type SiteMember = {
   memberId: string; left?: boolean;
-  name?: string; role?: string; photo?: string | null; since?: number | null; about?: string | null;
-  years?: string | null; languages?: string | null; weddings?: number | null; skills?: string[];
+  name?: string; role?: string; photo?: string | null; crop?: SiteCrop | null; since?: number | null; about?: string | null;
+  years?: string | null; weddings?: string | null; skills?: string[];
   instagram?: string | null; facebook?: string | null;
 };
 export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };

@@ -20,6 +20,8 @@ import { qrPng, qrSvg, saveFile } from "@/lib/member-qr";
 export type MemberSite = {
   show: boolean; title: string; photoUrl: string | null;
   crop: { x: number; y: number; z: number } | null;
+  /** Its placing in the round team row (null: same as the page) */
+  rowCrop?: { x: number; y: number; z: number } | null;
   about: string; aboutOn: boolean; years: string; yearsOn: boolean;
   skills: string[]; skillsOn: boolean; weddings: string; weddingsOn: boolean; sinceYear: number | null; instagram: string; facebook: string;
 };
@@ -129,7 +131,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
       const r = await apiFetch(`${API}/site/members/${userId}/photo`, { method: "POST", body: fd });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { notify(j.message || "Couldn't add the photo", { error: true }); return; }
-      setD(j); put({ photoUrl: j.site.photoUrl, crop: null });
+      setD(j); put({ photoUrl: j.site.photoUrl, crop: null, rowCrop: null });
       savedCb.current?.(j.site);
       notify("Website photo set");
     } finally { setPhotoBusy(false); }
@@ -140,7 +142,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
       const r = await apiFetch(`${API}/site/members/${userId}/photo`, { method: "DELETE" });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { notify("Couldn't remove the photo", { error: true }); return; }
-      setD(j); put({ photoUrl: null, crop: null });
+      setD(j); put({ photoUrl: null, crop: null, rowCrop: null });
       savedCb.current?.(j.site);
       notify(j.defaults?.photo ? "Back to their own photo" : "Photo removed");
     } finally { setPhotoBusy(false); }
@@ -199,7 +201,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
           <div className="flex items-center gap-3">
             <span className="w-16 h-16 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {photo ? <img src={photo} alt="" className="w-full h-full object-cover" style={cropStyle(s.crop ?? undefined)} /> : initialsOf(d.name)}
+              {photo ? <img src={photo} alt="" className="w-full h-full object-cover" style={cropStyle(s.rowCrop ?? s.crop ?? undefined)} /> : initialsOf(d.name)}
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-medium text-[#17151F]">Photo</p>
@@ -309,8 +311,12 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
       </div>
 
       {adjust && photo && (
-        <FrameModal photo={{ url: photo }} title={d.name} ratio={round ? 1 : 4 / 5} round={round} value={s.crop ?? undefined}
-          onSave={v => { put({ crop: v }); setAdjust(false); }} onClose={() => setAdjust(false)} />
+        <FrameModal photo={{ url: photo }} title={d.name} onClose={() => setAdjust(false)}
+          views={[
+            { key: "row", label: "Team row", ratio: 1, round: true, value: s.rowCrop ?? s.crop ?? undefined },
+            { key: "page", label: "Their page", ratio: round ? 1 : 4 / 5, round, shape: d.theme === "cream" ? "999px 999px 0 0" : undefined, value: s.crop ?? undefined },
+          ]}
+          onSaveAll={v => { const c = v.page; put({ rowCrop: v.row, crop: c.x === 50 && c.y === 50 && c.z === 1 ? null : c }); setAdjust(false); }} />
       )}
     </div>
   );

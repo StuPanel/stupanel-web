@@ -149,7 +149,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
   ];
 
   const upcomingRow = (u: NonNullable<ProfileData["upcoming"]>[number], i: number) => (
-    <Row key={`${u.bookingId}-${u.date}-${i}`} href={`/programs?view=${u.bookingId}`} lead={<DateBox date={u.date} />}
+    <Row key={`${u.bookingId}-${u.date}-${i}`} href={`/programs/${u.bookingId}?tab=team`} lead={<DateBox date={u.date} />}
       title={u.eventName || u.bookingNumber}
       sub={<>{cap(u.work.join(", ")) || "Work"}{u.location ? <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {u.location}</> : null}</>}
       right={<span className="hidden sm:block text-[12.5px] text-[#6B6680] max-w-[160px] truncate">{u.clientName}</span>} />
@@ -158,7 +158,7 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
     const due = p.due ?? 0;
     const cfg = STATUS_CFG[p.status];
     return (
-      <Row key={p.id} href={`/programs?view=${p.id}`} lead={<DateBox date={p.eventDate} />}
+      <Row key={p.id} href={`/programs/${p.id}?tab=team`} lead={<DateBox date={p.eventDate} />}
         title={p.eventName || p.bookingNumber}
         sub={<span className="inline-flex items-center gap-1.5"><span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", cfg?.dot ?? "bg-[#B5B0C4]")} />{[p.role ? roleNames(p.role) : null, p.clientName].filter(Boolean).join(" · ") || p.bookingNumber}</span>}
         right={<>

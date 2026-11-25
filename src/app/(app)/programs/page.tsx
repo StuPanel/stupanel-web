@@ -102,7 +102,16 @@ export default function ProgramsPage() {
   // Old links (?view=id) go to the program's own page
   useEffect(() => {
     const viewId = searchParams.get("view");
-    if (viewId) router.replace(`/programs/${viewId}`);
+    const tab = searchParams.get("tab");
+    if (viewId) router.replace(`/programs/${viewId}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`);
+  }, [searchParams, router]);
+
+  // "Add your first program" in emails (/programs/new or ?new=1)
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    router.replace("/programs", { scroll: false });
+    // Not cleared: replacing the address runs this again before the timer fires.
+    setTimeout(() => setNewOpen(true), 0);
   }, [searchParams, router]);
 
   // "Create a program for them" from the Clients page (?newFor=clientId)

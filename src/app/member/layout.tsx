@@ -205,7 +205,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (!token) { router.replace("/login"); return; }
+    if (!token) { router.replace(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
     const role = localStorage.getItem("user_role");
     if (role !== "staff" && role !== "manager") { router.replace("/dashboard"); return; }
     if (role === "manager") rememberPanel("member");

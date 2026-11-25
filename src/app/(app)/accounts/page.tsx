@@ -158,7 +158,7 @@ function AccountsInner() {
               <p className="text-xs text-[#6B6680] truncate">
                 {fmtDate(l.date)} · {l.account.name} · {SOURCE[l.sourceType ?? ""] ?? "Entry"}{l.category ? ` · ${label(l.category)}` : ""}{l.createdBy ? ` · by ${l.createdBy}` : ""}
                 {l.edited && <span className="inline-flex items-center gap-0.5 ml-1 text-[#9E3A8C]"><History className="w-3 h-3" />edited</span>}
-                {l.bookingId && <> · <Link href={`/programs?view=${l.bookingId}`} className="text-[#5B3FD0] font-semibold">Program</Link></>}
+                {l.bookingId && <> · <Link href={`/programs/${l.bookingId}?tab=money`} className="text-[#5B3FD0] font-semibold">Program</Link></>}
               </p>
             </div>
             <div className="text-right flex-shrink-0">

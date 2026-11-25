@@ -61,6 +61,8 @@ function MoneyLine({ l, v, strong, tone }: { l: React.ReactNode; v: React.ReactN
 export default function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  // "/programs/new" (emails) is not a program: open a new one on the list.
+  useEffect(() => { if (id === "new") router.replace("/programs?new=1"); }, [id, router]);
   const sp = useSearchParams();
   const [tab, setTab] = useTab<Tab>(`/programs/${id}`, TABS, sp.get("tab"));
   /** Editing tab: the editors' list and the client's change requests read again when the other one changed. */

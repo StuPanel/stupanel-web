@@ -29,9 +29,10 @@ function CallbackHandler() {
     localStorage.setItem("user_role", role);
     setAccessTokenCookie(token);
 
-    // Came from an invite link → back there to accept it.
+    // Came from an invite link → back there to accept it. From an email link → that page (not for a brand-new studio).
     const after = takeAfterLogin();
-    if (after) { window.location.href = after; return; }
+    if (after && (after.startsWith("/invite/") || after === "/app-login")) { window.location.href = after; return; }
+    if (after && isNewUser !== "true" && onboarding !== "true" && (role !== "staff" || after.startsWith("/member/"))) { window.location.href = after; return; }
 
     if (role === "staff" || managerStartsInMember()) {
       window.location.href = "/member/dashboard";

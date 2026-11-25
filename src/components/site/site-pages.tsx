@@ -100,7 +100,8 @@ function Team({ team, photos, crops, mono }: { team: SiteTeamMember[]; photos: R
 
 /**
  * One row of the team that drifts slowly sideways and loops, so a big team takes the room of one row.
- * It stops while the mouse is over it or a finger holds it, can be dragged by hand, and stays still
+ * It stops only while the mouse is on a team member or a finger holds one (Faisal 25-NOV: a click anywhere
+ * else on the page no longer stops it), can be dragged by hand, and stays still
  * (centred) when everyone already fits.
  */
 function TeamRow({ count, render }: { count: number; render: (copy: boolean) => React.ReactNode }) {
@@ -142,19 +143,22 @@ function TeamRow({ count, render }: { count: number; render: (copy: boolean) => 
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    const enter = () => { hover = true; }, leave = () => { hover = false; };
-    const down = (e: PointerEvent) => { hold = true; drag = { at: e.clientX, x }; };
+    // Only a team member counts, not the empty space beside them.
+    const onMember = (e: Event) => !!(e.target as Element | null)?.closest?.(".tm");
+    const over = (e: MouseEvent) => { hover = onMember(e); }, leave = () => { hover = false; };
+    const down = (e: PointerEvent) => { if (!onMember(e)) return; hold = true; drag = { at: e.clientX, x }; };
     const move = (e: PointerEvent) => { if (drag) { x = drag.x + (e.clientX - drag.at); } };
-    const up = () => { hold = false; drag = null; restart = performance.now() + 1400; };
+    // Only when this row was held: a click somewhere else on the page must not pause it.
+    const up = () => { if (!hold && !drag) return; hold = false; drag = null; restart = performance.now() + 1400; };
     const mq = window.matchMedia("(hover: hover)");
-    if (mq.matches) { v.addEventListener("mouseenter", enter); v.addEventListener("mouseleave", leave); }
+    if (mq.matches) { v.addEventListener("mouseover", over); v.addEventListener("mouseleave", leave); }
     v.addEventListener("pointerdown", down);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
     return () => {
       cancelAnimationFrame(raf);
-      v.removeEventListener("mouseenter", enter); v.removeEventListener("mouseleave", leave);
+      v.removeEventListener("mouseover", over); v.removeEventListener("mouseleave", leave);
       v.removeEventListener("pointerdown", down);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);

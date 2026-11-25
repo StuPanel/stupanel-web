@@ -3,7 +3,9 @@
  * Website → Settings → Ads & analytics. The studio's own Facebook Pixel and Google Analytics (and Tag Manager
  * for those who use it). Paste the id or the whole code; only the id is kept. Goes live with Publish.
  */
-import { Check, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import { API_URL } from "@/lib/api";
 import { Field, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { cn } from "@/lib/utils";
 import type { SiteContent } from "@/components/site/site-view";
@@ -39,7 +41,50 @@ function Steps({ items }: { items: React.ReactNode[] }) {
 
 const ext = (href: string, label: string) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#5B3FD0] font-semibold inline-flex items-center gap-0.5">{label}<ExternalLink className="w-3.5 h-3.5" /></a>;
 
-export function TrackingTab({ content, allowed, onChange }: { content: SiteContent; allowed: boolean; onChange: (t: Tracking) => void }) {
+/**
+ * Facebook catalog: the website's packages as a product list Meta reads from one link (pasted once; Meta
+ * fetches it again by itself). Says how many packages are in it and why the others are left out.
+ */
+function Catalog({ content, slug, published }: { content: SiteContent; slug: string; published: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${API_URL}/public/site/${slug}/catalog.xml`;
+  const shown = (content.offers ?? []).filter(o => !o.hidden && o.name);
+  const noPrice = shown.filter(o => o.price === null || o.price <= 0);
+  const noPhoto = shown.filter(o => !(o.price === null || o.price <= 0) && !o.cover && !(o.photos ?? []).length);
+  const inFeed = shown.length - noPrice.length - noPhoto.length;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* the link can still be selected by hand */ }
+  };
+  const names = (l: { name: string }[]) => l.slice(0, 4).map(o => o.name).join(", ") + (l.length > 4 ? ` and ${l.length - 4} more` : "");
+  return (
+    <FormGroup title="Facebook catalog (optional)" note="For catalog ads: Facebook shows each person the package they looked at, with its photo and price. Prices and offers update by themselves after you publish. It works together with your Pixel above.">
+      <div className="px-4 py-3.5">
+        <p className="text-[14px] text-[#2D2A38]">
+          {!shown.length ? <>You have no packages on your website yet. Add them in <b>Pages → Packages</b> first.</>
+            : <><b>{inFeed}</b> of your {shown.length} website package{shown.length > 1 ? "s" : ""} {inFeed === 1 ? "is" : "are"} in the catalog.</>}
+        </p>
+        {noPrice.length > 0 && <p className="text-[13px] text-[#7A5410] mt-1.5">Left out, no price: {names(noPrice)}. Facebook needs a price.</p>}
+        {noPhoto.length > 0 && <p className="text-[13px] text-[#7A5410] mt-1.5">Left out, no photo: {names(noPhoto)}. Add a cover photo.</p>}
+        {!published && <p className="text-[13px] text-[#7A5410] mt-1.5">The link works after you publish your website.</p>}
+        <label htmlFor="catalog-link" className="block text-[13px] font-semibold text-[#4A4658] mt-3 mb-1.5">Your catalog link</label>
+        <div className="flex gap-2">
+          <input id="catalog-link" readOnly value={link} onFocus={e => e.currentTarget.select()} className={cn(inputCls, "font-mono text-[13px] flex-1 min-w-0")} />
+          <button type="button" onClick={copy} className="h-11 px-4 rounded-[12px] bg-[#EEE8FD] hover:bg-[#E4DBFB] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1.5 flex-shrink-0">
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}<span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
+          </button>
+        </div>
+      </div>
+      <Steps items={[
+        <>Open {ext("https://business.facebook.com/commerce", "Commerce Manager")} and choose <b>Add catalog</b> → <b>Online products</b> (or open your catalog).</>,
+        <>Go to <b>Data sources</b> → <b>Data feed</b> → <b>Scheduled feed</b>.</>,
+        <>Paste your catalog link, choose <b>Daily</b> (or Hourly), and save. The prices already carry your currency.</>,
+        <>In the catalog&apos;s <b>Events</b> tab, connect the same Pixel you added above.</>,
+      ]} />
+    </FormGroup>
+  );
+}
+
+export function TrackingTab({ content, allowed, onChange, slug, published }: { content: SiteContent; allowed: boolean; onChange: (t: Tracking) => void; slug: string; published: boolean }) {
   const t: Tracking = { ...EMPTY, ...(content.tracking ?? {}) };
   const ids = readIds(t);
   const put = (p: Partial<Tracking>) => onChange({ ...t, ...p });
@@ -85,6 +130,8 @@ export function TrackingTab({ content, allowed, onChange }: { content: SiteConte
             {id => <input id={id} className={inputCls} autoCapitalize="characters" spellCheck={false} value={t.gtm} maxLength={5000} placeholder="GTM-XXXXXXX" onChange={e => put({ gtm: e.target.value })} />}
           </Field>
         </FormGroup>
+
+        <Catalog content={content} slug={slug} published={published} />
       </fieldset>
 
       <p className="px-1 -mt-2 mb-5 text-[13px] text-[#6B6680]">Your own visits from this editor&apos;s preview are not counted.</p>

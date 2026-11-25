@@ -652,7 +652,7 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "tracking"}>
-        <TrackingTab content={c} allowed={site.trackingAllowed !== false} onChange={t => set("tracking", t)} />
+        <TrackingTab content={c} allowed={site.trackingAllowed !== false} onChange={t => set("tracking", t)} slug={site.slug} published={site.isPublished} />
       </div>
 
       <div hidden={tab !== "design"}>

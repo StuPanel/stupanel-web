@@ -5,7 +5,9 @@
  * Their page shows who they are only; a part that is off or empty is left out. See stupanel-api site/member-site.ts.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, Download, ExternalLink, ImagePlus, Loader2, Plus, Undo2, X } from "lucide-react";
+import { Copy, Crop, Download, ExternalLink, ImagePlus, Loader2, Plus, Undo2, X } from "lucide-react";
+import { FrameModal } from "@/components/site/frame-modal";
+import { cropStyle } from "@/components/site/site-view";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { notify } from "@/components/feedback";
 import { shrink } from "@/lib/shrink-photo";
@@ -15,8 +17,9 @@ import { qrPng, qrSvg, saveFile } from "@/lib/member-qr";
 
 export type MemberSite = {
   show: boolean; title: string; photoUrl: string | null;
-  about: string; aboutOn: boolean; years: string; yearsOn: boolean; languages: string; languagesOn: boolean;
-  skills: string[]; skillsOn: boolean; weddingsOn: boolean; sinceOn: boolean; instagram: string; facebook: string;
+  crop: { x: number; y: number; z: number } | null;
+  about: string; aboutOn: boolean; years: string; yearsOn: boolean;
+  skills: string[]; skillsOn: boolean; weddings: string; weddingsOn: boolean; sinceYear: number | null; instagram: string; facebook: string;
 };
 type Data = {
   memberId: string; name: string; site: MemberSite; defaults: { title: string; photo: string | null };
@@ -57,6 +60,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [skill, setSkill] = useState("");
+  const [adjust, setAdjust] = useState(false);
   const file = useRef<HTMLInputElement>(null);
 
   const take = (x: Data) => { setD(x); setS(x.site); };
@@ -92,7 +96,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
       const r = await apiFetch(`${API}/site/members/${userId}/photo`, { method: "POST", body: fd });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { notify(j.message || "Couldn't add the photo", { error: true }); return; }
-      setD(j); setS(x => (x ? { ...x, photoUrl: j.site.photoUrl } : j.site));
+      setD(j); setS(x => (x ? { ...x, photoUrl: j.site.photoUrl, crop: null } : j.site));
       notify("Website photo set");
     } finally { setPhotoBusy(false); }
   }
@@ -102,7 +106,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
       const r = await apiFetch(`${API}/site/members/${userId}/photo`, { method: "DELETE" });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { notify("Couldn't remove the photo", { error: true }); return; }
-      setD(j); setS(x => (x ? { ...x, photoUrl: null } : j.site));
+      setD(j); setS(x => (x ? { ...x, photoUrl: null, crop: null } : j.site));
       notify("Back to their own photo");
     } finally { setPhotoBusy(false); }
   }
@@ -146,7 +150,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
       <div className={cn(card, "flex items-center gap-3 px-4 py-3.5")}>
         <span className="w-14 h-14 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : d.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+          {photo ? <img src={photo} alt="" className="w-full h-full object-cover" style={cropStyle(s.crop ?? undefined)} /> : d.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-semibold text-[#17151F]">Photo on the website</p>
@@ -156,6 +160,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
           <button type="button" disabled={photoBusy} onClick={() => file.current?.click()} className="h-10 px-3 rounded-[12px] border border-[#E4E0EC] bg-white text-[13px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5 disabled:opacity-50">
             {photoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}{s.photoUrl ? "Change" : "Set photo"}
           </button>
+          {photo && <button type="button" onClick={() => setAdjust(true)} className="h-10 px-3 rounded-[12px] border border-[#E4E0EC] bg-white text-[13px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5"><Crop className="w-4 h-4" />Adjust</button>}
           {s.photoUrl && <button type="button" disabled={photoBusy} onClick={removePhoto} className="h-10 px-3 rounded-[12px] text-[13px] font-semibold text-[#6B6680] hover:text-[#C2304F]">Use theirs</button>}
         </div>
         <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} />
@@ -169,15 +174,22 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
       <div className={cn(card, "overflow-hidden")}>
         <p className="px-4 py-3 text-[13px] font-semibold text-[#4A4658] bg-[#FAF9FC] border-b border-[#EEEBF3]">On their page · switch off what you don&apos;t need</p>
         <div className="divide-y divide-[#EEEBF3]">
-          <Part title="With the studio since" hint="The year they joined" on={s.sinceOn} onChange={v => put({ sinceOn: v })} />
+          <div className="px-4 py-3.5 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-medium text-[#17151F]">With the studio since</p>
+              <p className="text-xs text-[#6B6680] mt-0.5">The year they started working with you</p>
+            </div>
+            <select aria-label="With the studio since" value={s.sinceYear ?? ""} onChange={e => put({ sinceYear: e.target.value ? Number(e.target.value) : null })}
+              className="h-11 px-3 rounded-[12px] border border-[#E4E0EC] bg-white text-[15px] text-[#17151F] focus:outline-none focus:border-[#7D5CEF]">
+              <option value="">Don&apos;t show</option>
+              {Array.from({ length: new Date().getFullYear() - 1979 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <Part title="About them" on={s.aboutOn} onChange={v => put({ aboutOn: v })}>
             <textarea aria-label="About them" className={cn(input, "h-auto min-h-[96px] py-2.5 resize-y")} maxLength={700} value={s.about} placeholder="A few lines about how they work" onChange={e => put({ about: e.target.value })} />
           </Part>
           <Part title="Experience" on={s.yearsOn} onChange={v => put({ yearsOn: v })}>
             <input aria-label="Experience" className={input} maxLength={20} value={s.years} placeholder="6 years" onChange={e => put({ years: e.target.value })} />
-          </Part>
-          <Part title="Languages" on={s.languagesOn} onChange={v => put({ languagesOn: v })}>
-            <input aria-label="Languages" className={input} maxLength={80} value={s.languages} placeholder="Bangla, English" onChange={e => put({ languages: e.target.value })} />
           </Part>
           <Part title="Good at" on={s.skillsOn} onChange={v => put({ skillsOn: v })}>
             <div className="flex flex-wrap gap-1.5">
@@ -194,7 +206,9 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
               </div>
             )}
           </Part>
-          <Part title="Number of weddings" hint="Counted from their programs in StuPanel" on={s.weddingsOn} onChange={v => put({ weddingsOn: v })} />
+          <Part title="Weddings covered" on={s.weddingsOn} onChange={v => put({ weddingsOn: v })}>
+            <input aria-label="Weddings covered" className={input} maxLength={12} value={s.weddings} placeholder="150+" onChange={e => put({ weddings: e.target.value })} />
+          </Part>
           <div className="px-4 py-3.5 space-y-2">
             <div>
               <p className="text-[15px] font-medium text-[#17151F]">Social links</p>
@@ -205,6 +219,11 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
           </div>
         </div>
       </div>
+
+      {adjust && photo && (
+        <FrameModal photo={{ url: photo }} title={d.name} ratio={4 / 5} value={s.crop ?? undefined}
+          onSave={v => { put({ crop: v }); setAdjust(false); }} onClose={() => setAdjust(false)} />
+      )}
 
       {dirty && (
         <div className="sticky bottom-3 z-10 flex justify-end gap-2">

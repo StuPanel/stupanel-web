@@ -16,6 +16,7 @@ import { VisitorsTab } from "./visitors-tab";
 import { StylePanel } from "./style-panel";
 import { PackagesTab } from "./packages-tab";
 import { TeamSheet } from "./team-sheet";
+import { FrameModal } from "@/components/site/frame-modal";
 import { MemberSitePanel } from "@/components/team/member-site-panel";
 import { AutofillAdd, AutofillText } from "@/lib/site-autofill";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
@@ -66,7 +67,7 @@ type Mine = {
   /** The studio's own domain (pending until its DNS records work, then live). */
   customDomain?: string | null; customDomainState?: "pending" | "live" | null;
   /** The studio's Team for Website → Team: who is shown, with their own name, title and photo */
-  people?: { id: string; memberId: string | null; name: string; title: string; photo: string | null; show: boolean }[];
+  people?: { id: string; memberId: string | null; name: string; title: string; photo: string | null; crop?: SiteCrop | null; show: boolean }[];
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
@@ -269,8 +270,10 @@ export default function WebsitePage() {
     const people = st.people ?? [];
     const shown = people.filter(p => p.show);
     const placed = new Set((st.content.team ?? []).map(r => r.userId).filter(Boolean));
+    const crop: Record<string, SiteCrop> = { ...(st.content.crop ?? {}) };
     const asMember = (id: string, p: (typeof people)[number]): SiteTeamMember => {
       if (p.photo) photos[`u:${p.id}`] = { url: p.photo, sm: p.photo, w: 600, h: 600 };
+      if (p.crop) crop[`team:${id}`] = p.crop;
       return { id, userId: p.id, memberId: p.memberId ?? undefined, name: p.name, role: p.title, photo: p.photo ? `u:${p.id}` : null };
     };
     const team: SiteTeamMember[] = [
@@ -281,7 +284,7 @@ export default function WebsitePage() {
       }),
       ...shown.filter(p => !placed.has(p.id)).map(p => asMember(`m${p.id.replace(/-/g, "").slice(0, 20)}`, p)),
     ];
-    return { type: "sg-draft", theme: st.theme, content: { ...st.content, team }, photos, styleOk: st.styleAllowed !== false };
+    return { type: "sg-draft", theme: st.theme, content: { ...st.content, team, crop }, photos, styleOk: st.styleAllowed !== false };
   }, []);
   useEffect(() => {
     const t = setTimeout(() => { const m = draftMsg(); if (m) frameRef.current?.contentWindow?.postMessage(m, window.location.origin); }, 60);
@@ -766,7 +769,7 @@ export default function WebsitePage() {
                 <div key={m.id} className="px-4 py-3.5 flex gap-3 items-center">
                   <span className="w-[56px] h-[56px] rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {person.photo ? <img src={person.photo} alt="" className="w-full h-full object-cover" /> : person.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                    {person.photo ? <img src={person.photo} alt="" className="w-full h-full object-cover" style={person.crop ? { objectPosition: `${person.crop.x}% ${person.crop.y}%`, transformOrigin: `${person.crop.x}% ${person.crop.y}%`, scale: person.crop.z > 1 ? String(person.crop.z) : undefined } : undefined} /> : person.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-semibold text-[#17151F] truncate">{person.name}</p>
@@ -1315,57 +1318,6 @@ function ScreenPhotos({ icon, title, shape, ratio, photos, crop, first, empty, o
         {photos.length > 0 && <button type="button" onClick={onClear} className="h-11 px-4 rounded-full text-[13px] font-semibold text-[#6B6680] hover:bg-[#F1EEF8]">Clear</button>}
       </div>
     </div>
-  );
-}
-
-function FrameModal({ photo, title, ratio, round, value, onSave, onClose }: {
-  photo: Photo; title: string; ratio: number; /** Shown in a circle on the site (team) */ round?: boolean; value?: SiteCrop; onSave: (v: SiteCrop | null) => void; onClose: () => void;
-}) {
-  const [v, setV] = useState<SiteCrop>(value ?? { x: 50, y: 50, z: 1 });
-  const box = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number } | null>(null);
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [onClose]);
-  const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n * 10) / 10));
-  const move = (e: React.PointerEvent) => {
-    if (!drag.current || !box.current) return;
-    const r = box.current.getBoundingClientRect();
-    const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y;
-    drag.current = { x: e.clientX, y: e.clientY };
-    // Dragging right shows more of the left side of the photo.
-    setV(c => ({ ...c, x: clamp(c.x - (dx / r.width) * 140 / c.z), y: clamp(c.y - (dy / r.height) * 140 / c.z) }));
-  };
-  return (
-    <>
-      <div className="sp-backdrop z-[60]" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={`Adjust: ${title}`} className="fixed z-[70] inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:max-w-[520px] sm:h-fit max-h-[94dvh] overflow-y-auto bg-white rounded-t-[24px] sm:rounded-[24px] shadow-2xl p-5">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-[18px] font-extrabold text-[#17151F] truncate">Adjust: {title}</h2>
-            <p className="text-[13px] text-[#6B6680]">Drag the photo to move it. Use the slider to zoom.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F3FA] text-[#6B6680]"><X className="w-4 h-4" /></button>
-        </div>
-        <div ref={box} className={cn("relative mx-auto overflow-hidden bg-[#F5F3FA] touch-none cursor-grab active:cursor-grabbing select-none", round ? "rounded-full" : "rounded-[12px]")}
-          style={{ aspectRatio: String(ratio), width: round ? "min(100%, 340px)" : ratio >= 1 ? "100%" : `min(100%, ${Math.round(420 * ratio)}px)` }}
-          onPointerDown={e => { drag.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
-          onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={cropStyle({ ...v, z: Math.max(v.z, 1.0001) })} />
-        </div>
-        <label className="flex items-center gap-3 mt-4 text-[13px] font-semibold text-[#4A4658]">Zoom
-          <input type="range" min={1} max={3} step={0.05} value={v.z} onChange={e => setV(c => ({ ...c, z: Number(e.target.value) }))} className="flex-1 accent-[#7D5CEF]" />
-          <span className="w-10 text-right tabular-nums">{v.z.toFixed(1)}×</span>
-        </label>
-        <div className="flex gap-2 mt-5">
-          <button type="button" onClick={() => setV({ x: 50, y: 50, z: 1 })} className="h-11 px-4 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-sm font-semibold text-[#4A4658]">Reset</button>
-          <button type="button" onClick={() => onSave(v.x === 50 && v.y === 50 && v.z === 1 ? null : v)} className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold">Use this</button>
-        </div>
-      </div>
-    </>
   );
 }
 

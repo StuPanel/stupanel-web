@@ -183,7 +183,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-semibold text-[#17151F]">Show on the website</p>
-            <p className="text-xs text-[#6B6680] mt-0.5">{s.show ? "In the team on the About page" : "Not in the team on the About page"}</p>
+            <p className="text-xs text-[#6B6680] mt-0.5">{s.show ? "In the team on the About page" : d.teamQr ? "Not in the team on the About page. Their ID card’s QR code still opens a page with only their name, title and photo." : "Not in the team on the About page"}</p>
           </div>
           <Switch on={s.show} onChange={v => put({ show: v })} label="Show on the website" />
         </div>

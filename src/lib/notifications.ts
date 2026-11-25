@@ -33,10 +33,19 @@ export const TYPE_META: Record<string, { icon: typeof Bell; color: TileColor; la
 };
 export const metaOf = (type: string) => TYPE_META[type] ?? { icon: Bell, color: "violet" as TileColor, label: "Notice" };
 
-/** Where a notification opens. */
+/** The part of a program a notice is about (review → Editing, money → Money…). */
+const PROGRAM_TAB: Record<string, string> = {
+  review: "editing", music: "editing", payment: "money", overdue: "money", backup: "raw",
+};
+
+/** Where a notification opens — straight to the thing it is about. */
 export function notifHref(n: Notif) {
   if (n.type === "team") return "/team";
-  return n.contractId ? `/contracts/${n.contractId}` : n.galleryId ? `/photo-selection/${n.galleryId}` : n.leadId ? `/leads?open=${n.leadId}` : n.bookingId ? `/programs?view=${n.bookingId}` : "/notifications";
+  if (n.contractId) return `/contracts/${n.contractId}`;
+  if (n.galleryId) return `/photo-selection/${n.galleryId}`;
+  if (n.leadId) return `/leads?open=${n.leadId}`;
+  if (n.bookingId) return `/programs/${n.bookingId}${PROGRAM_TAB[n.type] ? `?tab=${PROGRAM_TAB[n.type]}` : ""}`;
+  return "/notifications";
 }
 
 /**

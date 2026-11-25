@@ -17,7 +17,7 @@ import { enterSession, isChoice, rememberAfterLogin, postPublic, saveSession, ty
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("from") || "/dashboard";
+  const redirectTo = searchParams.get("from") || null;
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

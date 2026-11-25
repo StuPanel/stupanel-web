@@ -26,21 +26,27 @@ export function saveSession(d: Session) {
   setAccessTokenCookie(d.accessToken);
 }
 
-/** Google sign-in leaves the page: keep where to go after it (only an invite link). */
+/** One of our own pages (never another site, never the login page). */
+const ownPage = (p?: string | null) => !!p && p.startsWith("/") && !p.startsWith("//") && !p.startsWith("/login");
+
+/** Google sign-in leaves the page: keep where to go after it (an invite link, or the page an email link opened). */
 export function rememberAfterLogin(path: string | null) {
-  try { if (path?.startsWith("/invite/") || path === "/app-login") sessionStorage.setItem("after_login", path); else sessionStorage.removeItem("after_login"); } catch { /* ignore */ }
+  try { if (ownPage(path)) sessionStorage.setItem("after_login", path!); else sessionStorage.removeItem("after_login"); } catch { /* ignore */ }
 }
 export function takeAfterLogin(): string | null {
-  try { const p = sessionStorage.getItem("after_login"); sessionStorage.removeItem("after_login"); return p?.startsWith("/invite/") || p === "/app-login" ? p : null; } catch { return null; }
+  try { const p = sessionStorage.getItem("after_login"); sessionStorage.removeItem("after_login"); return ownPage(p) ? p : null; } catch { return null; }
 }
 
 /** Where this session starts: member panel for staff, otherwise the studio app. */
 export function homeFor(d: Session, redirectTo?: string | null) {
+  // Only our own pages ("/programs/…?tab=editing"), never another site.
+  if (!ownPage(redirectTo)) redirectTo = null;
   // An invite link the person came from always wins.
   if (redirectTo?.startsWith("/invite/")) return redirectTo;
   // Signing in for the StuPanel Live phone app: back to the hand-off page, whatever the role.
   if (redirectTo === "/app-login") return redirectTo;
-  if (d.user.role === "staff") return "/member/dashboard";
+  // A team member goes back to the member page they were opening (an email link), else their dashboard.
+  if (d.user.role === "staff") return redirectTo?.startsWith("/member/") ? redirectTo : "/member/dashboard";
   // A manager opens the panel they used last (their own work, or the studio).
   if (d.user.role === "manager" && !redirectTo) { try { if (localStorage.getItem("sp_last_panel") === "member") return "/member/dashboard"; } catch { /* ignore */ } }
   if (!d.company.onboardingCompleted) return "/onboarding";

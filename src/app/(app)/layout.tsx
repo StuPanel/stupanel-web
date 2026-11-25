@@ -130,7 +130,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     const token = localStorage.getItem("access_token");
     const role = localStorage.getItem("user_role");
-    if (!token) { router.replace("/login"); return; }
+    if (!token) { router.replace(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
     // The studio changed this person's role since they signed in (e.g. no longer a manager):
     // go by what the server says now, not what this browser remembers.
     if (user?.role && user.role !== role) {

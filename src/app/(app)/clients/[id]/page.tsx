@@ -375,7 +375,7 @@ export default function ClientProfilePage({ params }: { params: Promise<{ id: st
               {c.music.length > 0 && (
                 <Section title="Songs">
                   <List>{c.music.map(m => (
-                    <Row key={m.id} href={`/programs?view=${m.bookingId}`} icon={Music2} color="orchid" title={m.eventName || "Program"}
+                    <Row key={m.id} href={`/programs/${m.bookingId}?tab=editing`} icon={Music2} color="orchid" title={m.eventName || "Program"}
                       sub={m.submittedAt ? `Sent ${fmtDate(m.submittedAt)}` : "Songs for the videos"}
                       right={<Chip tone={MUSIC[m.status]?.tone ?? "grey"}>{MUSIC[m.status]?.label ?? m.status}</Chip>} />
                   ))}</List>

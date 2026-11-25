@@ -44,7 +44,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
     clearAccessTokenCookie();
-    window.location.href = "/login";
+    window.location.href = `/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     return res;
   }
   return fetch(input, {

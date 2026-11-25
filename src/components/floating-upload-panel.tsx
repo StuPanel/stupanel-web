@@ -8,6 +8,10 @@ import {
 } from "@/lib/drive-uploader";
 import { askConfirm, notify } from "@/components/feedback";
 import { X, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, HardDrive, Cloud, XCircle, WifiOff, RotateCcw, FolderOpen, Files, Pause, Play } from "lucide-react";
+import { titleOf } from "@/lib/work-items";
+
+/** "Edited / teaser|Holud/sub" → "Edited / Holud — Teaser / sub" (one video of an editor's work). */
+const prettyFolder = (f: string) => f.replace(/(^|\/ )([a-z_]+\|[^/]+)/, (_m, a: string, key: string) => `${a}${titleOf(key.trim())}`);
 
 function fmtBytes(n = 0) {
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -296,7 +300,7 @@ export function FloatingUploadPanel() {
                   <p className="text-xs font-semibold text-[#17151F] truncate">{u.fileName}</p>
                   <p className="text-xs text-[#6B6680] truncate">
                     {u.error ? <span className="text-[#C2304F]">{u.error}</span>
-                      : u.done ? <>{u.bookingName}{u.folderName ? ` › ${u.folderName}` : ""}</>
+                      : u.done ? <>{u.bookingName}{u.folderName ? ` › ${prettyFolder(u.folderName)}` : ""}</>
                       : paused ? (u.sent ? `Paused at ${fmtBytes(u.sent)} of ${fmtBytes(u.size)}` : "Paused")
                       : u.status === "waiting" ? "Waiting for internet — will continue"
                       : u.status === "resuming" ? "Continuing from where it stopped…"

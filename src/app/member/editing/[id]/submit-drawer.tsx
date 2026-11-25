@@ -172,7 +172,8 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, plan
         groups.set(g, [...(groups.get(g) ?? []), f]);
       }
       const used = new Set<string>();
-      const free = rows.filter(r => !r.sent || r.sent.status === "revision_requested").filter(r => !(files[r.key] && files[r.key] !== "err" && (files[r.key] as Pending).totals.count));
+      // Rows waiting for files: not sent, to fix, or "send a new version" pressed.
+      const free = rows.filter(r => !r.sent || r.sent.status === "revision_requested" || newVersion[r.key]).filter(r => !(files[r.key] && files[r.key] !== "err" && (files[r.key] as Pending).totals.count));
       const made: Row[] = [];
       for (const [name, fs] of groups) {
         const low = name.toLowerCase();

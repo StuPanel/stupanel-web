@@ -266,6 +266,9 @@ export default function EditorWorkspacePage() {
             </div>
             <p className={cn("text-[22px] font-extrabold tracking-[-0.02em] leading-tight mt-0.5", st.tone === "red" ? "text-[#C2304F]" : "text-[#17151F]")}>{st.label}</p>
             {st.hint && <p className="text-[13px] text-[#6B6680] mt-1">{st.hint}</p>}
+            {!done && prog && !prog.canComplete && prog.missing.length > 0 && assignment.status === "approved" && (
+              <p className="text-[13px] text-[#4A4658] mt-1.5">Still to send: <b>{prog.missing.map(k => titleOf(k)).join(", ")}</b></p>
+            )}
             {showProg && prog!.total > 0 && (
               <div className="mt-3 h-2 rounded-full bg-[#F1EFF6] overflow-hidden" role="progressbar" aria-label="Approved so far" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-[#1F8A5B] transition-[width] duration-500" style={{ width: `${pct}%` }} />
@@ -290,7 +293,7 @@ export default function EditorWorkspacePage() {
                     className="w-full h-11 rounded-full bg-[#1F8A5B] hover:bg-[#18724A] disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
                     {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Editing complete
                   </button>
-                ) : st.next && (
+                ) : st.next && st.next !== "delivered" && (
                   <button type="button" disabled={updatingStatus} onClick={() => updateStatus(st.next!)}
                     className="w-full h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6B4AE0] disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
                     {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : st.next === "delivered" ? <CheckCircle2 className="w-4 h-4" /> : <Play className="w-4 h-4" />}{st.nextLabel}

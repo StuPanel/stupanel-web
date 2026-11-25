@@ -4,7 +4,9 @@
  * site, never in the studio's preview). Counts:
  *  - a page view on the first load and on every move to another page of the site,
  *  - "Contact" when a visitor taps a phone, WhatsApp, Messenger or email link,
- *  - "Lead" when the booking form is sent (siteTrack("lead") from the form).
+ *  - "Lead" when the booking form is sent (siteTrack("lead") from the form),
+ *  - for a website package: "ViewContent" on its page, "InitiateCheckout" on "Book this package", and the
+ *    package's id, name and total with the Lead (so ads can be judged package by package).
  */
 import { useEffect, useRef } from "react";
 import Script from "next/script";
@@ -15,11 +17,24 @@ export type SiteTrackingIds = { fbPixel?: string; ga?: string; gtm?: string };
 
 type W = Window & { fbq?: (...a: unknown[]) => void; gtag?: (...a: unknown[]) => void; dataLayer?: unknown[] };
 
+/** A website package in the words Facebook and Google use (id, name, value, currency). */
+export function packageDetail(o: { id: string; name: string }, value: number | null | undefined, currency: string) {
+  return {
+    content_name: o.name, content_ids: [o.id], content_type: "product", currency,
+    ...(typeof value === "number" ? { value } : {}),
+    items: [{ item_id: o.id, item_name: o.name, ...(typeof value === "number" ? { price: value } : {}) }],
+  };
+}
+
 /** Tell the studio's pixel / analytics that something happened. Does nothing when the site has none. */
-export function siteTrack(what: "lead" | "contact", detail?: Record<string, unknown>) {
+export function siteTrack(what: "lead" | "contact" | "checkout", detail?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
   const w = window as W;
-  if (what === "lead") {
+  if (what === "checkout") {
+    w.fbq?.("track", "InitiateCheckout", detail);
+    w.gtag?.("event", "begin_checkout", detail);
+    w.dataLayer?.push({ event: "site_package_book", ...detail });
+  } else if (what === "lead") {
     w.fbq?.("track", "Lead", detail);
     w.gtag?.("event", "generate_lead", detail);
     w.dataLayer?.push({ event: "site_lead", ...detail });

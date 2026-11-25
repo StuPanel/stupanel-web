@@ -12,7 +12,7 @@ import { AutoArt, BookForm, ICON, Ic, Ph, buildKey, money, type SiteCrop, type S
 import { FilmTheater } from "./site-film";
 import { PhotoViewer } from "./site-viewer";
 import "./site-offers.css";
-import { siteTrack } from "./site-tracking";
+import { packageDetail, siteTrack } from "./site-tracking";
 import { extraCost, liveOffers, priceNow, type SiteOffer } from "@/lib/site-offer-kit";
 
 export { liveOffers, priceNow, type SiteOffer };
@@ -132,7 +132,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   }, [data.slug, o.name, o.id, addonNames.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const waText = `Hi ${data.studio.name}, I would like to know about the ${o.name} package${extras.length ? ` with ${extras.map(e => e.name).join(", ")}` : ""}${total !== null ? ` (${money(total, cur)})` : ""}.${typeof window !== "undefined" ? ` ${window.location.href.split("?")[0]}` : ""}`;
   const waHref = wa ? `${wa}?text=${encodeURIComponent(waText)}` : "";
-  const book = () => { siteTrack("contact", { content_name: o.name }); router.push(L("/contact")); };
+  const book = () => { siteTrack("checkout", packageDetail(o, total, cur)); router.push(L("/contact")); };
   const toggle = (name: string) => setPick(l => (l.includes(name) ? l.filter(x => x !== name) : [...l, name]));
   /** A day on or off for a per-day extra (at least one day stays). */
   const flipDay = (name: string, day: string) => setDayPick(m => {

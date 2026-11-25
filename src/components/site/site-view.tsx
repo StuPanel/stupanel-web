@@ -17,7 +17,7 @@ import { OfferCards, bookChoices } from "./site-offers";
 import { liveOffers, type SiteOffer } from "@/lib/site-offer-kit";
 import type { SiteSeo } from "@/lib/site-seo";
 import { styleOf, type SiteStyle } from "@/lib/site-style";
-import { siteTrack, type SiteTrackingIds } from "./site-tracking";
+import { packageDetail, siteTrack, type SiteTrackingIds } from "./site-tracking";
 import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
@@ -817,7 +817,12 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
     setBusy(true);
     try {
       const res = await fetch(`${API}/public/site/${slug}/enquiry`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) { siteTrack("lead", { content_name: body.packageName || undefined }); finish(); }
+      if (res.ok) {
+        // A website package: its id, name and total go with the Lead (the server priced it from the published site).
+        const j = (await res.json().catch(() => null)) as { offerId?: string; offerName?: string; value?: number | null; currency?: string } | null;
+        siteTrack("lead", j?.offerId ? packageDetail({ id: j.offerId, name: j.offerName || body.packageName || j.offerId }, j.value, j.currency || "BDT") : { content_name: body.packageName || undefined });
+        finish();
+      }
       else if (res.status === 429) setErr("Too many tries. Please wait a minute and send again.");
       else setErr("That did not go through. Please check the phone number and send again.");
     } catch {

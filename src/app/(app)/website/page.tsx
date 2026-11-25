@@ -648,7 +648,7 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "visitors"}>
-        <VisitorsTab active={tab === "visitors"} published={site.isPublished} albums={c.albums} stories={c.stories ?? []} />
+        <VisitorsTab active={tab === "visitors"} published={site.isPublished} albums={c.albums} stories={c.stories ?? []} offers={c.offers ?? []} />
       </div>
 
       <div hidden={tab !== "tracking"}>

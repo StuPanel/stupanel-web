@@ -53,7 +53,7 @@ export function TrackingTab({ content, allowed, onChange }: { content: SiteConte
         </div>
       )}
       <div className={cn("mb-5 rounded-[16px] px-4 py-3.5 text-[14px]", on.length ? "bg-[#EAF7EF] text-[#1E5E3A]" : "bg-[#F5F3FA] text-[#4A4658]")}>
-        {on.length ? <>Working after you publish: <b>{on.join(", ")}</b>. Counted: every page visit, taps on phone / WhatsApp / email, and every booking form sent (as a <b>Lead</b>).</>
+        {on.length ? <>Working after you publish: <b>{on.join(", ")}</b>. Counted: every page visit, taps on phone / WhatsApp / email, and every booking form sent (as a <b>Lead</b>). For each package: a look at its page (<b>ViewContent</b>), “Book this package” (<b>InitiateCheckout</b>), and the package&apos;s name and total with the Lead.</>
           : <>Add your Facebook Pixel to see in Facebook which ads bring bookings, and to show ads again to people who visited your website. Add Google Analytics to see how many people visit and from where.</>}
       </div>
 

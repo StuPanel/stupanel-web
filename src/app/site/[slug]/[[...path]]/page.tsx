@@ -111,7 +111,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const title = offer ? `${offer.name} | ${d.studio.name}` : story ? `${story.title} | ${d.studio.name}` : album ? `${album.title} | ${d.studio.name}` : own.title;
   const description = offer ? offerSummary(offer, d) : story ? story.text.replace(/\s+/g, " ").slice(0, 155) : album ? `${album.title} — ${album.photos.length} photos by ${d.studio.name}.` : own.description;
   // Each page's own picture: the package cover, the album cover, the story picture — with its Adjust.
-  const img = offer ? shareImage(d, offer.cover ?? offer.photos[0], `offer:${offer.id}`)
+  const img = offer ? shareImage(d, offer.cover ?? offer.photos[0], `offer:${offer.id}`, offer)
     : album ? shareImage(d, album.cover ?? album.photos[0], `album:${album.id}`)
     : story ? shareImage(d, story.cover ?? undefined, `story:${story.id}`)
     : shareImage(d);

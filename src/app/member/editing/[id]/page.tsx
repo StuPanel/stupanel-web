@@ -24,6 +24,7 @@ import { MusicSection } from "@/app/(app)/programs/_components/music-section";
 import type { Booking } from "@/app/(app)/programs/_components/types";
 import { MyCosts } from "../../_components/costs";
 import { SubmitWorkDrawer } from "./submit-drawer";
+import { keyOf, titleOf } from "@/lib/work-items";
 
 type Workspace = {
   progress?: { plan: string[]; approved: string[]; missing: string[]; total: number; done: number; canComplete: boolean };
@@ -39,7 +40,7 @@ type Workspace = {
     };
   };
   submissions: {
-    id: string; deliverableType: string; deliveryLink?: string; driveLink?: string;
+    id: string; deliverableType: string; itemKey?: string | null; title?: string | null; deliveryLink?: string; driveLink?: string;
     dropboxLink?: string; wetransferLink?: string; notes?: string;
     revisionNotes?: string; reviewStatus: string; reviewFeedback?: string;
     /** Who asked for the change: a user id, or "client". */
@@ -68,11 +69,6 @@ const SUB_STATUS: Record<string, { label: string; tone: Tone }> = {
   replaced:           { label: "Replaced",           tone: "grey" },
 };
 
-const DELIVERABLE: Record<string, string> = {
-  highlight_video: "Highlight Video", full_video: "Full Video", teaser: "Teaser", reel: "Reel",
-  photo_delivery: "Photo Delivery", album: "Album", other: "Other",
-};
-const typeLabel = (t: string) => DELIVERABLE[t] ?? t.replace(/_/g, " ");
 
 function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
@@ -202,11 +198,12 @@ export default function EditorWorkspacePage() {
 
   // Several things can be sent for one program (teaser, full video, reel…), each reviewed on its own.
   const done = assignment.status === "delivered";
+  // One card per video / photo set (its key); versions of the same one stack in it.
   const byType = new Map<string, typeof submissions>();
-  for (const s of submissions) if (s.reviewStatus !== "replaced") byType.set(s.deliverableType, [...(byType.get(s.deliverableType) ?? []), s]);
+  for (const s of submissions) if (s.reviewStatus !== "replaced") byType.set(keyOf(s), [...(byType.get(keyOf(s)) ?? []), s]);
   const groups = [...byType.entries()].map(([type, list]) => {
     const sorted = [...list].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-    return { type, latest: sorted[0], versions: sorted };
+    return { type, name: titleOf(type, sorted.find(x => x.title)?.title), latest: sorted[0], versions: sorted };
   }).sort((a, b) => b.latest.submittedAt.localeCompare(a.latest.submittedAt));
   const toFix = groups.filter(g => g.latest.reviewStatus === "revision_requested");
   const isRevision = toFix.length > 0;
@@ -280,7 +277,7 @@ export default function EditorWorkspacePage() {
                   const ok = prog!.approved.includes(t);
                   return (
                     <span key={t} className={cn("h-6 px-2.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1", ok ? "bg-[#E7F5EE] text-[#14613F]" : "bg-[#F1EFF6] text-[#4A4658]")}>
-                      {ok && <CheckCircle2 className="w-3 h-3" />}{typeLabel(t)}
+                      {ok && <CheckCircle2 className="w-3 h-3" />}{titleOf(t)}
                     </span>
                   );
                 })}
@@ -346,7 +343,7 @@ export default function EditorWorkspacePage() {
                 <div className={cn(card, "p-4 space-y-2")}>
                   {toFix.map(g => (
                     <div key={g.type} className="rounded-[14px] bg-[#FDECEF] px-4 py-3" role="status">
-                      <p className="text-[13.5px] font-bold text-[#9C2340]">{typeLabel(g.type)}</p>
+                      <p className="text-[13.5px] font-bold text-[#9C2340]">{g.name}</p>
                       <p className="text-[13px] text-[#9C2340] mt-0.5 whitespace-pre-wrap break-words">{g.latest.reviewedBy === "client" && <b>The client asked: </b>}{g.latest.reviewFeedback || "The studio asked for changes."}</p>
                     </div>
                   ))}
@@ -373,7 +370,7 @@ export default function EditorWorkspacePage() {
                     return (
                       <div key={g.type} className={cn(card, "p-4 space-y-2")}>
                         <div className="flex items-center gap-2">
-                          <span className="text-[15px] font-bold text-[#17151F] flex-1 truncate">{typeLabel(g.type)}</span>
+                          <span className="text-[15px] font-bold text-[#17151F] flex-1 min-w-0 break-words">{g.name}</span>
                           <Chip tone={ss.tone}>{ss.label}</Chip>
                         </div>
                         {g.versions.map((s, i) => {
@@ -517,9 +514,10 @@ export default function EditorWorkspacePage() {
       </div>
 
       {showSubmitForm && (
-        <SubmitWorkDrawer assignmentId={id} role={assignment.role} isRevision={isRevision}
-          toFix={toFix.map(g => ({ type: g.type, feedback: g.latest.reviewFeedback ?? null, byClient: g.latest.reviewedBy === "client" }))}
-          sent={groups.map(g => ({ type: g.type, status: g.latest.reviewStatus, version: g.versions.length }))}
+        <SubmitWorkDrawer assignmentId={id} role={assignment.role}
+          plan={prog?.plan ?? []}
+          days={(booking.eventDays ?? []).map(d => d.eventType).filter(Boolean)}
+          sent={groups.map(g => ({ key: g.type, title: g.name, status: g.latest.reviewStatus, version: g.versions.length, feedback: g.latest.reviewFeedback ?? null, byClient: g.latest.reviewedBy === "client" }))}
           title={booking.eventName ?? booking.bookingNumber}
           onClose={() => setShowSubmitForm(false)}
           onDone={() => { setShowSubmitForm(false); reload(); }} />

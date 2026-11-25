@@ -11,6 +11,7 @@ import { fmtDate } from "./constants";
 import type { Booking, ShiftAssignment } from "./types";
 import { Group, Tile } from "@/components/ui/apple";
 import { AddWorkDrawer, WorkLinkDrawer } from "./editor-work";
+import { keyOf, makeKey, slotOf, titleOf, typeOf } from "@/lib/work-items";
 
 export function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -171,6 +172,8 @@ const PLAN_TYPES: Record<"photo_editor" | "video_editor", string[]> = {
 };
 type Submission = {
   id: string; reviewStatus: string; deliverableType: string; submittedAt: string;
+  /** One video of the type ("full_video|Holud") and its name; older work has none. */
+  itemKey?: string | null; title?: string | null; batchId?: string | null;
   deliveryLink?: string | null; driveLink?: string | null; dropboxLink?: string | null; wetransferLink?: string | null;
   notes?: string | null; revisionNotes?: string | null; reviewFeedback?: string | null;
   /** Who asked for the change: a user id, or "client". */
@@ -182,6 +185,58 @@ const DELIVERABLE: Record<string, string> = {
   highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
   photo_delivery: "Photos", album: "Album", other: "Other",
 };
+
+/** Kinds that are usually made once per day (a film for Holud, one for the Wedding…). */
+const PER_DAY = ["highlight_video", "full_video", "teaser", "photo_delivery"];
+
+/**
+ * What an editor must deliver: kinds, and for each kind either one for the whole program or one per day.
+ * Each day becomes its own row for the editor ("Holud — Full video"), sent and reviewed on its own.
+ */
+function PlanPicker({ kinds, days, value, onChange }: { kinds: string[]; days: string[]; value: string[]; onChange: (v: string[]) => void }) {
+  const of = (t: string) => value.filter(k => typeOf(k) === t);
+  const set = (t: string, list: string[]) => onChange([...value.filter(k => typeOf(k) !== t), ...list]);
+  const pill = (on: boolean) => `text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${on ? "bg-[#17151F] text-white border-[#17151F]" : "border-[#E6E2EE] text-[#4A4658] hover:border-[#CFC8DD]"}`;
+  const dayPill = (on: boolean) => `text-[11.5px] min-h-[30px] px-2.5 rounded-full border font-semibold transition-colors ${on ? "bg-[#EEE8FD] text-[#4A2FB8] border-[#CBBEF7]" : "bg-white text-[#6B6680] border-[#E6E2EE] hover:border-[#CFC8DD]"}`;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {kinds.map(t => {
+          const on = of(t).length > 0;
+          return (
+            <button key={t} type="button" className={pill(on)}
+              onClick={() => set(t, on ? [] : days.length > 1 && PER_DAY.includes(t) ? days.map(d => makeKey(t, d)) : [t])}>
+              {on && "✓ "}{DELIVERABLE[t] ?? t}{on && of(t).some(k => slotOf(k)) ? ` · ${of(t).length}` : ""}
+            </button>
+          );
+        })}
+      </div>
+      {days.length > 0 && kinds.filter(t => of(t).length > 0 && t !== "other").map(t => {
+        const mine = of(t);
+        const whole = mine.includes(t);
+        return (
+          <div key={t} className="rounded-xl bg-[#F7F5FB] px-2.5 py-2">
+            <p className="text-[11.5px] font-semibold text-[#4A4658] mb-1.5">{DELIVERABLE[t] ?? t}: one for each day you tick, or one for all</p>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${DELIVERABLE[t] ?? t} days`}>
+              <button type="button" aria-pressed={whole} className={dayPill(whole)} onClick={() => set(t, [t])}>One for all</button>
+              {days.map(d => {
+                const k = makeKey(t, d);
+                const on = mine.includes(k);
+                return (
+                  <button key={d} type="button" aria-pressed={on} className={dayPill(on)}
+                    onClick={() => {
+                      const next = on ? mine.filter(x => x !== k) : [...mine.filter(x => x !== t), k];
+                      set(t, next.length ? next : [t]);
+                    }}>{on && "✓ "}{d}</button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** What an editor sent, newest first — open the files, approve, or ask for changes. */
 function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: string; a: EditorAssignment; onChanged: () => void; onDelivered?: () => void }) {
@@ -195,7 +250,7 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
   const [fbFor, setFbFor] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState<string | null>(null);
   // While files are being copied to delivery, check again every few seconds.
   const copying = subs.some(x => x.copy?.status === "copying" && Date.now() - new Date(x.copy.at).getTime() < 10 * 60_000);
   useEffect(() => {
@@ -219,7 +274,7 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
     if (status === "approved") {
       const own = !!s.driveLink && /drive\.google\.com\/drive(\/u\/\d+)?\/folders\//.test(s.driveLink);
       const ok = await askConfirm({
-        title: `Approve ${DELIVERABLE[s.deliverableType] ?? "this"}?`,
+        title: `Approve ${titleOf(keyOf(s), s.title)}?`,
         message: own ? "The files will be copied to the client's delivery folder." : "Mark this work as approved.",
         confirmLabel: "Approve",
       });
@@ -239,12 +294,12 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
     } finally { setBusy(null); }
   }
 
-  // One card per thing the editor sent (teaser, full video…); the newest version is the one to review.
+  // One card per video / photo set (Holud full video, Teaser…); each is reviewed on its own, the newest version counts.
   const byType = new Map<string, Submission[]>();
-  for (const x of subs) if (x.reviewStatus !== "replaced") byType.set(x.deliverableType, [...(byType.get(x.deliverableType) ?? []), x]);
+  for (const x of subs) if (x.reviewStatus !== "replaced") byType.set(keyOf(x), [...(byType.get(keyOf(x)) ?? []), x]);
   const groups = [...byType.entries()].map(([type, l]) => {
     const versions = [...l].sort((p, q) => q.submittedAt.localeCompare(p.submittedAt));
-    return { type, versions, latest: versions[0] };
+    return { type, name: titleOf(type, versions.find(v => v.title)?.title), versions, latest: versions[0] };
   }).sort((p, q) => (p.latest.reviewStatus === "pending" ? 0 : 1) - (q.latest.reviewStatus === "pending" ? 0 : 1) || q.latest.submittedAt.localeCompare(p.latest.submittedAt));
   const tone = (st: string) => st === "approved" ? "bg-[#E9F5EF] text-[#1F8A5B]" : st === "revision_requested" ? "bg-[#FDECEF] text-[#C2304F]" : "bg-[#EEE8FD] text-[#5B3FD0]";
   const label = (st: string) => st === "approved" ? "Approved" : st === "revision_requested" ? "Changes asked" : "To review";
@@ -254,16 +309,46 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
     x.dropboxLink && { href: x.dropboxLink, text: "Dropbox" },
     x.wetransferLink && { href: x.wetransferLink, text: "WeTransfer" },
   ].filter(Boolean) as { href: string; text: string }[];
+  const waiting = groups.filter(g => g.latest.reviewStatus === "pending");
+  async function approveAll() {
+    const own = waiting.some(g => !!g.latest.driveLink && /folders\//.test(g.latest.driveLink));
+    const ok = await askConfirm({
+      title: `Approve all ${waiting.length}?`,
+      message: `${waiting.map(g => g.name).join(", ")}.${own ? " The files go to the client's delivery folder." : ""} To ask for a change on one, use Ask for changes on that one instead.`,
+      confirmLabel: `Approve ${waiting.length}`,
+    });
+    if (!ok) return;
+    setBusy("all");
+    try {
+      const r = await apiFetch(`${API}/bookings/${bookingId}/editor-assignments/${a.id}/review-many`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: waiting.map(g => ({ id: g.latest.id, status: "approved" })) }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { notify((Array.isArray(d?.message) ? d.message[0] : d?.message) || "Couldn't save", { error: true }); return; }
+      notify(`${waiting.length} approved${d.copying ? " — copying to the delivery folder" : ""}`);
+      onChanged();
+    } finally { setBusy(null); }
+  }
   return (
     <div className="space-y-2 pt-1">
+      {waiting.length > 1 && (
+        <div className="flex items-center gap-2 rounded-xl bg-[#EEE8FD] px-3 py-2">
+          <p className="flex-1 text-[12.5px] font-semibold text-[#4A2FB8]">{waiting.length} to review — each one on its own, or all at once</p>
+          <button type="button" disabled={busy === "all"} onClick={approveAll}
+            className="h-8 px-3.5 rounded-full bg-[#17151F] text-white text-[12px] font-semibold inline-flex items-center gap-1 disabled:opacity-60">
+            {busy === "all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}Approve all
+          </button>
+        </div>
+      )}
       {groups.map(g => {
         const s = g.latest;
         const older = g.versions.slice(1);
         return (
           <div key={g.type} className="rounded-xl bg-[#F7F5FB] px-3 py-2.5 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-[#17151F] flex-1 min-w-0 truncate">
-                {DELIVERABLE[g.type] ?? g.type} · v{g.versions.length}
+              <span className="text-[13px] font-semibold text-[#17151F] flex-1 min-w-0 break-words">
+                {g.name} · v{g.versions.length}
               </span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{s.reviewStatus === "revision_requested" && s.reviewedBy === "client" ? "Client asked for a change" : label(s.reviewStatus)}</span>
             </div>
@@ -320,10 +405,10 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
             )}
             {older.length > 0 && (
               <div>
-                <button type="button" onClick={() => setShowAll(v => !v)} className="text-[12px] font-semibold text-[#5B3FD0]">
-                  {showAll ? "Hide earlier versions" : `Earlier versions (${older.length})`}
+                <button type="button" onClick={() => setShowAll(v => (v === g.type ? null : g.type))} className="text-[12px] font-semibold text-[#5B3FD0]">
+                  {showAll === g.type ? "Hide earlier versions" : `Earlier versions (${older.length})`}
                 </button>
-                {showAll && older.map((o, i) => (
+                {showAll === g.type && older.map((o, i) => (
                   <div key={o.id} className="flex items-center gap-2 text-[12px] text-[#6B6680] mt-1">
                     <b className="text-[#4A4658]">v{older.length - i}</b>
                     <span>{label(o.reviewStatus)}</span>
@@ -370,6 +455,8 @@ export function EditorsSection({ booking, teamMembers, onSaved, onReviewed }: { 
 
   useEffect(() => { reload(); }, [booking.id]);
 
+  // The program's days, so the studio can ask for one film per day (Holud, Wedding…).
+  const programDays = [...new Set((booking.eventDays ?? []).map(d => (d.eventType ?? "").trim()).filter(Boolean))];
   const editorMembers = teamMembers.filter(m => m.memberRoles.includes("photo_editor") || m.memberRoles.includes("video_editor"));
 
   const silentReload = useCallback(() => { reload(true); onReviewed?.(); }, [booking.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -378,7 +465,10 @@ export function EditorsSection({ booking, teamMembers, onSaved, onReviewed }: { 
     setDraft(prev => {
       const exists = prev.find(e => e.userId === userId && e.role === role);
       return exists ? prev.filter(e => !(e.userId === userId && e.role === role))
-        : [...prev, { userId, role, editingDeadline: "", deliveryDeadline: "", studioNote: "", deliverables: role === "video_editor" ? ["teaser", "highlight_video"] : ["photo_delivery"] }];
+        : [...prev, { userId, role, editingDeadline: "", deliveryDeadline: "", studioNote: "",
+          // One per day when the program has several days (Faisal 25-NOV), else one for all.
+          deliverables: (role === "video_editor" ? ["teaser", "highlight_video"] : ["photo_delivery"])
+            .flatMap(t => (programDays.length > 1 && PER_DAY.includes(t) ? programDays.map(d => makeKey(t, d)) : [t])) }];
     });
   }
 
@@ -451,19 +541,8 @@ export function EditorsSection({ booking, teamMembers, onSaved, onReviewed }: { 
                       </div>
                       <div>
                         <p className="text-xs text-[#8A8599] mb-1">What to deliver <span className="text-[#B5B0C4]">— the client hears once, when all of it is done</span></p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {PLAN_TYPES[e.role].map(t => {
-                            const on = (e.deliverables ?? []).includes(t);
-                            return (
-                              <button key={t} type="button"
-                                onClick={() => setDraft(prev => prev.map(x => x.userId === m.id && x.role === e.role
-                                  ? { ...x, deliverables: on ? (x.deliverables ?? []).filter(y => y !== t) : [...(x.deliverables ?? []), t] } : x))}
-                                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${on ? "bg-[#17151F] text-white border-[#17151F]" : "border-[#E6E2EE] text-[#4A4658] hover:border-[#CFC8DD]"}`}>
-                                {on && "✓ "}{DELIVERABLE[t] ?? t}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <PlanPicker kinds={PLAN_TYPES[e.role]} days={programDays} value={e.deliverables ?? []}
+                          onChange={v => setDraft(prev => prev.map(x => x.userId === m.id && x.role === e.role ? { ...x, deliverables: v } : x))} />
                       </div>
                       <div>
                         <p className="text-xs text-[#8A8599] mb-0.5">Studio Note</p>
@@ -537,7 +616,7 @@ export function EditorsSection({ booking, teamMembers, onSaved, onReviewed }: { 
                           const ok = a.progress!.approved.includes(t);
                           return (
                             <span key={t} className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${ok ? "bg-[#E6F4EC] text-[#1F8A5B]" : "bg-white text-[#6B6680] border border-[#E6E2EE]"}`}>
-                              {ok ? "✓ " : ""}{DELIVERABLE[t] ?? t}
+                              {ok ? "✓ " : ""}{titleOf(t)}
                             </span>
                           );
                         })}

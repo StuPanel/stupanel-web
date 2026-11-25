@@ -18,8 +18,9 @@ import { PublicLoading, PublicMessage, PublicShell } from "@/components/public/p
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { inputCls } from "@/components/ui/form-kit";
 import { SubmitWorkDrawer } from "@/app/member/editing/[id]/submit-drawer";
+import { keyOf, titleOf, typeOf } from "@/lib/work-items";
 
-type Sub = { id: string; deliverableType: string; link: string | null; notes?: string | null; reviewStatus: string; reviewFeedback?: string | null; byClient?: boolean; submittedAt: string };
+type Sub = { id: string; deliverableType: string; itemKey?: string | null; title?: string | null; link: string | null; notes?: string | null; reviewStatus: string; reviewFeedback?: string | null; byClient?: boolean; submittedAt: string };
 type Song = { youtubeId: string; url: string; title: string; thumb?: string; note?: string; instrumental?: boolean };
 type View = {
   studio: { name: string; logoUrl: string | null; phone: string | null };
@@ -32,10 +33,6 @@ type View = {
   music: { status: string; clientNote: string | null; parts: { key: string; label: string; songs: Song[] }[] } | null;
 };
 
-const LABEL: Record<string, string> = {
-  highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
-  photo_delivery: "Photos", album: "Album", other: "Other",
-};
 const card = cn("bg-white rounded-[22px]", CARD_SHADOW);
 const primary = "h-12 px-6 rounded-full bg-[#7D5CEF] hover:bg-[#6B4AE0] text-white text-[15px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50";
 const soft = "h-11 px-4 rounded-full bg-[#F1EFF6] hover:bg-[#E4E0EC] text-[14px] font-semibold text-[#17151F] inline-flex items-center justify-center gap-2 disabled:opacity-50";
@@ -44,7 +41,7 @@ const errOf = (d: { message?: string | string[] }, fallback: string) => (Array.i
 
 /** Where each thing stands, from its newest version. */
 function stateOf(type: string, subs: Sub[]) {
-  const s = subs.find(x => x.deliverableType === type && x.reviewStatus !== "replaced");
+  const s = subs.find(x => keyOf(x) === type && x.reviewStatus !== "replaced");
   if (!s) return { key: "todo", label: "Not sent yet", cls: "bg-[#F1EFF6] text-[#4A4658]", sub: null as Sub | null };
   if (s.reviewStatus === "approved") return { key: "ok", label: "Approved", cls: "bg-[#E7F5EE] text-[#14613F]", sub: s };
   if (s.reviewStatus === "revision_requested") return { key: "fix", label: "Changes asked", cls: "bg-[#FDECEF] text-[#9C2340]", sub: s };
@@ -83,8 +80,11 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
   if (!v) return <PublicLoading />;
 
   const { work, program, progress, submissions } = v;
-  const plan = progress.plan.length ? progress.plan : [...new Set(submissions.filter(s => s.reviewStatus !== "replaced").map(s => s.deliverableType))];
-  const states = plan.map(t => ({ type: t, ...stateOf(t, submissions) }));
+  // One row per video / photo set: what the studio listed, and everything sent (newest version counts).
+  const sentKeys = [...new Set(submissions.filter(s => s.reviewStatus !== "replaced").map(keyOf))];
+  const plan = [...progress.plan.filter(k => k.includes("|") || sentKeys.includes(k) || !sentKeys.some(x => typeOf(x) === k)), ...sentKeys.filter(k => !progress.plan.includes(k))];
+  const nameOf = (k: string) => titleOf(k, submissions.find(x => keyOf(x) === k && x.title)?.title);
+  const states = plan.map(t => ({ type: t, name: nameOf(t), ...stateOf(t, submissions) }));
   const finished = work.status === "delivered";
   const toFix = states.filter(s => s.key === "fix");
   const todo = states.filter(s => s.key === "todo");
@@ -95,7 +95,7 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
 
   const next = finished ? { title: "All done — thank you", text: "The studio has everything from you for this program.", tone: "green" as const }
     : work.status === "assigned" ? { title: "Start when you begin", text: "Press Start editing so the studio knows you are on it.", tone: "violet" as const }
-    : toFix.length ? { title: `${toFix.every(s => s.sub?.byClient) ? "The client" : "The studio"} asked for changes to ${toFix.map(s => LABEL[s.type] ?? s.type).join(", ")}`, text: "Read the note below, fix it and send a new version.", tone: "red" as const }
+    : toFix.length ? { title: `${toFix.every(s => s.sub?.byClient) ? "The client" : "The studio"} asked for changes to ${toFix.map(s => s.name).join(", ")}`, text: "Read the note below, fix it and send a new version.", tone: "red" as const }
     : progress.canComplete ? { title: "Everything is approved", text: "Mark the work complete to finish.", tone: "green" as const }
     : todo.length || !plan.length ? { title: "Hand in your work when it is ready", text: "Upload the files here, or paste a link to them.", tone: "violet" as const }
     : { title: "The studio is checking your work", text: waiting.length ? "You will see the answer here. Open this page again later." : "Nothing more to do right now.", tone: "amber" as const };
@@ -160,10 +160,10 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
               <div key={s.type} className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-semibold text-[#17151F]">{LABEL[s.type] ?? s.type}</p>
+                    <p className="text-[15px] font-semibold text-[#17151F] break-words">{s.name}</p>
                     <span className={cn("mt-1 h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center", s.cls)}>{s.label}</span>
                   </div>
-                  {s.sub?.link && <a href={s.sub.link} target="_blank" rel="noreferrer" aria-label={`Open what you sent for ${LABEL[s.type] ?? s.type}`} className="w-11 h-11 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] flex items-center justify-center text-[#4A4658] flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>}
+                  {s.sub?.link && <a href={s.sub.link} target="_blank" rel="noreferrer" aria-label={`Open what you sent for ${s.name}`} className="w-11 h-11 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] flex items-center justify-center text-[#4A4658] flex-shrink-0"><ExternalLink className="w-4 h-4" /></a>}
                   {!finished && s.key !== "ok" && (
                     <button type="button" className={cn(soft, "flex-shrink-0")} onClick={() => setSendFor(s.type)}>{s.key === "todo" ? "Hand in" : "Send new"}</button>
                   )}
@@ -219,8 +219,9 @@ export default function EditorWorkPage({ params }: { params: Promise<{ token: st
 
       {sendFor !== null && (
         <SubmitWorkDrawer token={token} assignmentId={token} role={work.role} title={program.name ?? program.number ?? "Editing work"}
-          toFix={[...toFix].sort((a, b) => Number(b.type === sendFor) - Number(a.type === sendFor)).map(s => ({ type: s.type, feedback: s.sub?.reviewFeedback ?? null, byClient: !!s.sub?.byClient }))}
-          sent={states.filter(s => s.sub).map(s => ({ type: s.type, status: s.sub!.reviewStatus, version: submissions.filter(x => x.deliverableType === s.type).length }))}
+          plan={progress.plan}
+          days={program.days.map(d => d.name ?? "").filter(Boolean)}
+          sent={states.filter(s => s.sub).map(s => ({ key: s.type, title: s.name, status: s.sub!.reviewStatus, version: submissions.filter(x => keyOf(x) === s.type).length, feedback: s.sub?.reviewFeedback ?? null, byClient: !!s.sub?.byClient }))}
           first={sendFor || undefined}
           onClose={() => setSendFor(null)}
           onDone={async () => { setSendFor(null); await load(); }} />

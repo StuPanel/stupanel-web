@@ -11,7 +11,7 @@ import { fmtDate } from "./constants";
 import type { Booking, ShiftAssignment } from "./types";
 import { Group, Tile } from "@/components/ui/apple";
 import { AddWorkDrawer, WorkLinkDrawer } from "./editor-work";
-import { keyOf, makeKey, slotOf, titleOf, typeOf } from "@/lib/work-items";
+import { cleanSlot, keyOf, makeKey, slotOf, titleOf, typeOf } from "@/lib/work-items";
 
 export function DeliveryOverview({ booking }: { booking: Booking }) {
   const [r2FileCount, setR2FileCount] = useState<number | null>(null);
@@ -191,11 +191,24 @@ const PER_DAY = ["highlight_video", "full_video", "teaser", "photo_delivery"];
 
 /**
  * What an editor must deliver: kinds, and for each kind either one for the whole program or one per day.
- * Each day becomes its own row for the editor ("Holud — Full video"), sent and reviewed on its own.
+ * The studio can also type its own ("Holud same-day edit"). Each becomes its own row for the editor,
+ * sent and reviewed on its own.
  */
 function PlanPicker({ kinds, days, value, onChange }: { kinds: string[]; days: string[]; value: string[]; onChange: (v: string[]) => void }) {
-  const of = (t: string) => value.filter(k => typeOf(k) === t);
-  const set = (t: string, list: string[]) => onChange([...value.filter(k => typeOf(k) !== t), ...list]);
+  const isOwn = (k: string) => !!slotOf(k) && !days.includes(slotOf(k));
+  const own = value.filter(isOwn);
+  const of = (t: string) => value.filter(k => typeOf(k) === t && !isOwn(k));
+  // Day / kind choices never touch the studio's own items.
+  const set = (t: string, list: string[]) => onChange([...value.filter(k => typeOf(k) !== t || isOwn(k)), ...list]);
+  const [ownKind, setOwnKind] = useState(kinds[0]);
+  const [ownName, setOwnName] = useState("");
+  const addOwn = () => {
+    const name = cleanSlot(ownName);
+    if (!name) return;
+    const k = makeKey(ownKind, name);
+    if (!value.includes(k)) onChange([...value, k]);
+    setOwnName("");
+  };
   const pill = (on: boolean) => `text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${on ? "bg-[#17151F] text-white border-[#17151F]" : "border-[#E6E2EE] text-[#4A4658] hover:border-[#CFC8DD]"}`;
   const dayPill = (on: boolean) => `text-[11.5px] min-h-[30px] px-2.5 rounded-full border font-semibold transition-colors ${on ? "bg-[#EEE8FD] text-[#4A2FB8] border-[#CBBEF7]" : "bg-white text-[#6B6680] border-[#E6E2EE] hover:border-[#CFC8DD]"}`;
   return (
@@ -234,6 +247,32 @@ function PlanPicker({ kinds, days, value, onChange }: { kinds: string[]; days: s
           </div>
         );
       })}
+      <div className="rounded-xl border border-dashed border-[#D9D3E6] px-2.5 py-2 space-y-2">
+        <p className="text-[11.5px] font-semibold text-[#4A4658]">Add your own — each one is its own video for the editor</p>
+        {own.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {own.map(k => (
+              <span key={k} className="inline-flex items-center gap-1 min-h-[30px] pl-2.5 pr-1 rounded-full bg-[#EEE8FD] text-[#4A2FB8] text-[11.5px] font-semibold">
+                {titleOf(k)}
+                <button type="button" aria-label={`Remove ${titleOf(k)}`} onClick={() => onChange(value.filter(x => x !== k))}
+                  className="w-6 h-6 rounded-full inline-flex items-center justify-center hover:bg-white/70">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-1.5 flex-wrap">
+          <select aria-label="Kind" value={ownKind} onChange={e => setOwnKind(e.target.value)}
+            className="h-9 px-2 rounded-[10px] bg-[#F5F3FA] text-[13px] text-[#17151F] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]">
+            {kinds.map(t => <option key={t} value={t}>{DELIVERABLE[t] ?? t}</option>)}
+          </select>
+          <input value={ownName} maxLength={80} onChange={e => setOwnName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); addOwn(); } }}
+            placeholder="e.g. Holud same-day edit" aria-label="Name of the video"
+            className="flex-1 min-w-[150px] h-9 px-2.5 rounded-[10px] bg-[#F5F3FA] text-[13px] text-[#17151F] border border-transparent outline-none focus:bg-white focus:border-[#7D5CEF]" />
+          <button type="button" onClick={addOwn} disabled={!ownName.trim()}
+            className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[12.5px] font-semibold disabled:opacity-40">Add</button>
+        </div>
+      </div>
     </div>
   );
 }

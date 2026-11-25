@@ -18,7 +18,10 @@ export function titleOf(key: string, title?: string | null) {
   if (title?.trim()) return title.trim();
   const t = WORK_LABEL[typeOf(key)] ?? typeOf(key);
   const s = slotOf(key);
-  return s ? `${s} — ${t}` : t;
+  if (!s) return t;
+  // A name that already says what it is ("Holud full video"), or an "Other" one, stands alone.
+  if (typeOf(key) === "other" || s.toLowerCase().includes(t.toLowerCase().split(" ")[0])) return s;
+  return `${s} — ${t}`;
 }
 /** "Holud Trailer.mp4" → "Holud Trailer" */
 export const nameFromFile = (n: string) => cleanSlot(n.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_]+/g, " "));

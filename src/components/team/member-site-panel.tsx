@@ -34,6 +34,7 @@ const btn = "h-10 px-3.5 rounded-[12px] border border-[#E4E0EC] bg-white hover:b
 const heading = "px-4 py-3 text-[13px] font-semibold text-[#4A4658] bg-[#FAF9FC] border-b border-[#EEEBF3]";
 
 /** What is sent and compared: everything but the photo (it has its own upload). */
+const initialsOf = (n: string) => { const w = n.trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase(); };
 const bodyOf = (s: MemberSite) => { const { photoUrl: _photo, ...rest } = s; void _photo; return rest; };
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -162,7 +163,8 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
     const typed = s[kind].trim(), kept = d.site[kind];
     if (!typed || dirty || saving) return null;
     if (!kept) return <p role="alert" className="text-xs text-[#C2304F] mt-1">This doesn&apos;t look like {kind === "instagram" ? "an Instagram" : "a Facebook"} link, so it is not shown.</p>;
-    return kept !== typed ? <p className="text-xs text-[#6B6680] mt-1 break-all">Saved as {kept.replace(/^https:\/\//, "")}</p> : null;
+    const bare = (x: string) => x.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+    return bare(kept) !== bare(typed) ? <p className="text-xs text-[#6B6680] mt-1 break-all">Saved as {kept.replace(/^https:\/\//, "")}</p> : null;
   };
   const makeQr = async (kind: "png" | "svg") => {
     setQrBusy(kind);
@@ -197,7 +199,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
           <div className="flex items-center gap-3">
             <span className="w-16 h-16 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {photo ? <img src={photo} alt="" className="w-full h-full object-cover" style={cropStyle(s.crop ?? undefined)} /> : d.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+              {photo ? <img src={photo} alt="" className="w-full h-full object-cover" style={cropStyle(s.crop ?? undefined)} /> : initialsOf(d.name)}
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-medium text-[#17151F]">Photo</p>

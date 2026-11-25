@@ -81,6 +81,8 @@ const THEMES: { id: string; name: string; note: string; colors: [string, string,
 ];
 const areaCls = inputCls.replace("h-11", "min-h-[96px] py-2.5 leading-relaxed");
 const newId = () => Math.random().toString(36).slice(2, 10);
+/** "Meherab Hosen Munna" → MM (first and last word, as the Team page shows). */
+const initialsOf = (n: string) => { const w = n.trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase(); };
 /** The video id of a YouTube link (watch, share, shorts or embed address). */
 /** No own cover: pick YouTube's cover or one of three moments from the film (about ¼, ½, ¾ in). */
 function FramePick({ vid, value, onPick, name, onAdjust, crop }: { vid: string; value: number; onPick: (n: number) => void; name: string; onAdjust: () => void; crop?: SiteCrop }) {
@@ -773,59 +775,53 @@ export default function WebsitePage() {
             const rows = teamRows;
             const put = (patch: Partial<SiteTeamMember>) => setRows(rows.map((y, k) => (k === i ? { ...y, ...patch } : y)));
             const move = (d: number) => { const next = [...rows]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); setRows(next); };
-            const arrows = (
-              <div className="flex flex-col gap-1 flex-shrink-0">
-                <button type="button" disabled={i === 0} onClick={() => move(-1)} aria-label="Move up" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowUp className="w-4 h-4" /></button>
-                <button type="button" disabled={i === rows.length - 1} onClick={() => move(1)} aria-label="Move down" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowDown className="w-4 h-4" /></button>
-              </div>
-            );
-            if (m.userId) {
-              const person = people.find(p => p.id === m.userId);
-              if (!person) return null;
-              return (
-                <div key={m.id} className="px-4 py-3.5 flex gap-3 items-center">
-                  <span className="w-[56px] h-[56px] rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {person.photo ? <img src={person.photo} alt="" className="w-full h-full object-cover" style={person.crop ? { objectPosition: `${person.crop.x}% ${person.crop.y}%`, transformOrigin: `${person.crop.x}% ${person.crop.y}%`, scale: person.crop.z > 1 ? String(person.crop.z) : undefined } : undefined} /> : person.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-[#17151F] truncate">{person.name}</p>
-                    <p className="text-[13px] text-[#6B6680] truncate">{[person.title, person.memberId].filter(Boolean).join(" · ")}</p>
-                    <span className="mt-1 inline-flex h-6 px-2.5 rounded-full bg-[#E7F5EE] text-[#14613F] text-[12px] font-bold items-center">From Team</span>
-                  </div>
-                  <button type="button" onClick={() => setMemberEdit(person.id)} className="h-10 px-3.5 rounded-[12px] bg-[#EEE8FD] hover:bg-[#E4DBFB] text-[14px] font-semibold text-[#5B3FD0] flex-shrink-0">Edit</button>
-                  <div className="flex flex-col gap-1 flex-shrink-0">
-                    {arrows}
-                    <button type="button" disabled={!!showBusy} onClick={() => showMember(person.id, false)} aria-label={`Hide ${person.name} from the website`} title="Hide from the website"
-                      className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center disabled:opacity-50">{showBusy === person.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <EyeOff className="w-4 h-4" />}</button>
-                  </div>
-                </div>
-              );
-            }
+            const tool = "w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center flex-shrink-0";
+            const person = m.userId ? people.find(x => x.id === m.userId) : undefined;
+            if (m.userId && !person) return null;
+            const who = person?.name || m.name || "this person";
             const p = ph(m.photo);
             const k = crops[`team:${m.id}`];
             return (
-              <div key={m.id} className="px-4 py-3.5 flex gap-3 items-start">
-                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+              <div key={m.id} className="px-4 py-3 flex flex-wrap sm:flex-nowrap items-center gap-3">
+                {person ? (
+                  <span className="w-14 h-14 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {person.photo ? <img src={person.photo} alt="" className="w-full h-full object-cover" style={cropStyle(person.crop ?? undefined)} /> : initialsOf(person.name)}
+                  </span>
+                ) : (
                   <button type="button" onClick={() => (p ? adjust(`team:${m.id}`, m.photo, `${m.name || "Team member"}: photo`, 1, true) : choose("Team member photo", [], ids => put({ photo: ids[0] ?? null })))}
-                    aria-label={p ? `Adjust the photo of ${m.name || "this person"}` : "Choose a photo"}
-                    className="relative w-[76px] h-[76px] rounded-full overflow-hidden bg-[#F1EEF8] border-2 border-white shadow-[0_0_0_1px_#E4E0EC] text-[#7D5CEF] flex items-center justify-center">
+                    aria-label={p ? `Adjust the photo of ${who}` : "Choose a photo"} title={p ? "Adjust the photo" : "Choose a photo"}
+                    className="relative w-14 h-14 rounded-full overflow-hidden bg-[#F1EEF8] shadow-[0_0_0_1px_#E4E0EC] text-[#7D5CEF] flex items-center justify-center flex-shrink-0">
                     {p ? <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={small(p)} alt="" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
-                      <span className="absolute inset-x-0 bottom-0 h-6 bg-black/55 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
+                      <img src={small(p)} alt="" className="w-full h-full object-cover" style={cropStyle(k)} />
+                      <span className="absolute inset-x-0 bottom-0 h-5 bg-black/55 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
                     </> : <ImagePlus className="w-5 h-5" />}
                   </button>
-                  {p && <button type="button" onClick={() => choose("Team member photo", m.photo ? [m.photo] : [], ids => put({ photo: ids[0] ?? null }))} className="text-[12px] font-semibold text-[#7D5CEF] h-7 px-1">Change</button>}
+                )}
+                <div className="flex-1 min-w-[200px]">
+                  {person ? <>
+                    <p className="text-[15px] font-semibold text-[#17151F] truncate">{person.name}</p>
+                    <p className="text-[13px] text-[#6B6680] truncate">{[person.title, person.memberId].filter(Boolean).join(" · ")}</p>
+                  </> : (
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <input aria-label="Name" className={inputCls} placeholder="Name" value={m.name} maxLength={80} onChange={e => put({ name: e.target.value })} />
+                      <input aria-label="What they do" list="team-roles" className={inputCls} placeholder="Photographer, Founder…" value={m.role} maxLength={60} onChange={e => put({ role: e.target.value })} />
+                    </div>
+                  )}
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className={cn("inline-flex h-6 px-2.5 rounded-full text-[12px] font-bold items-center", person ? "bg-[#E7F5EE] text-[#14613F]" : "bg-[#F1EFF6] text-[#4A4658]")}>{person ? "From Team" : "Added here"}</span>
+                    {!person && p && <button type="button" onClick={() => choose("Team member photo", m.photo ? [m.photo] : [], ids => put({ photo: ids[0] ?? null }))} className="text-[13px] font-semibold text-[#7D5CEF] h-7 px-1">Change photo</button>}
+                    {!person && !m.name.trim() && <span className="text-[12px] text-[#9C5A00]">Add a name to show them</span>}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0 grid gap-2">
-                  <input aria-label="Name" className={inputCls} placeholder="Name" value={m.name} maxLength={80} onChange={e => put({ name: e.target.value })} />
-                  <input aria-label="What they do" list="team-roles" className={inputCls} placeholder="Photographer, Cinematographer…" value={m.role} maxLength={60} onChange={e => put({ role: e.target.value })} />
-                  <span className="inline-flex w-fit h-6 px-2.5 rounded-full bg-[#F1EFF6] text-[#4A4658] text-[12px] font-bold items-center">Added here</span>
-                </div>
-                <div className="flex flex-col gap-1 flex-shrink-0">
-                  {arrows}
-                  <button type="button" onClick={() => setRows(rows.filter((_, x) => x !== i))} aria-label={`Remove ${m.name || "this person"}`} className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                  {person && <button type="button" onClick={() => setMemberEdit(person.id)} className="h-10 px-3.5 mr-1 rounded-[12px] bg-[#EEE8FD] hover:bg-[#E4DBFB] text-[14px] font-semibold text-[#5B3FD0]">Edit</button>}
+                  <button type="button" disabled={i === 0} onClick={() => move(-1)} aria-label={`Move ${who} up`} title="Move up" className={tool}><ArrowUp className="w-4 h-4" /></button>
+                  <button type="button" disabled={i === rows.length - 1} onClick={() => move(1)} aria-label={`Move ${who} down`} title="Move down" className={tool}><ArrowDown className="w-4 h-4" /></button>
+                  {person
+                    ? <button type="button" disabled={!!showBusy} onClick={() => showMember(person.id, false)} aria-label={`Hide ${who} from the website`} title="Hide from the website" className={cn(tool, "hover:bg-[#FDECEF] hover:text-[#C2304F]")}>{showBusy === person.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <EyeOff className="w-4 h-4" />}</button>
+                    : <button type="button" onClick={() => setRows(rows.filter((_, x) => x !== i))} aria-label={`Remove ${who}`} title="Remove" className={cn(tool, "hover:bg-[#FDECEF] hover:text-[#C2304F]")}><Trash2 className="w-4 h-4" /></button>}
                 </div>
               </div>
             );
@@ -1179,7 +1175,7 @@ export default function WebsitePage() {
                 <button type="button" disabled={!!showBusy} onClick={() => showMember(p.id, true)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FC] disabled:opacity-60">
                   <span className="w-11 h-11 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold flex items-center justify-center flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : p.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                    {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" style={cropStyle(p.crop ?? undefined)} /> : initialsOf(p.name)}
                   </span>
                   <span className="flex-1 min-w-0"><span className="block text-[15px] font-semibold text-[#17151F] truncate">{p.name}</span><span className="block text-[13px] text-[#6B6680] truncate">{[p.title, p.memberId].filter(Boolean).join(" · ")}</span></span>
                   {showBusy === p.id ? <Loader2 className="w-5 h-5 text-[#7D5CEF] animate-spin" /> : <Plus className="w-5 h-5 text-[#7D5CEF]" />}

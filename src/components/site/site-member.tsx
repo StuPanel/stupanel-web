@@ -7,10 +7,19 @@
  * a centred card. Every look dresses it its own way in site.css (.mbp). Someone who left: only that, no name.
  */
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { SiteData, SiteMember } from "./site-view";
 
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("");
-const checkedAt = () => new Date().toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+/** "Checked 25 Nov 2026, 11:52 pm" in the visitor's own time (the server's clock is another time zone). */
+function CheckedAt() {
+  const [t, setT] = useState("just now");
+  useEffect(() => {
+    const id = setTimeout(() => setT(new Date().toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })), 0);
+    return () => clearTimeout(id);
+  }, []);
+  return <small>Checked {t}</small>;
+}
 
 export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData; L: (path: string) => string; scan: boolean }) {
   const studio = data.studio.name;
@@ -20,7 +29,7 @@ export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData
     <>
       <div className="mbbar no" role="alert">
         <span className="mbi" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></span>
-        <span><b>Not a member of {studio} now</b><small suppressHydrationWarning>Checked {checkedAt()}</small></span>
+        <span><b>Not a member of {studio} now</b><CheckedAt /></span>
       </div>
       <section className="mbgone wrap">
         <span className="mbx" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" /></svg></span>
@@ -46,7 +55,7 @@ export function MemberPage({ m, data, L, scan }: { m: SiteMember; data: SiteData
       {scan && (
         <div className="mbbar ok" role="status">
           <span className="mbi" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10" /></svg></span>
-          <span><b>Verified member of {studio}</b><small suppressHydrationWarning>Checked {checkedAt()}</small></span>
+          <span><b>Verified member of {studio}</b><CheckedAt /></span>
         </div>
       )}
       <section className={`mbp wrap${bare ? " bare" : ""}`}>

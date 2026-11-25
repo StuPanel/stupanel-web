@@ -5,7 +5,7 @@
  * Their page shows who they are only; a part that is off or empty is left out. See stupanel-api site/member-site.ts.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, Download, ExternalLink, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Copy, Download, ExternalLink, ImagePlus, Loader2, Plus, Undo2, X } from "lucide-react";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { notify } from "@/components/feedback";
 import { shrink } from "@/lib/shrink-photo";
@@ -208,7 +208,7 @@ export function MemberSitePanel({ userId, onShowChange }: { userId: string; /** 
 
       {dirty && (
         <div className="sticky bottom-3 z-10 flex justify-end gap-2">
-          <button type="button" onClick={() => setS(d.site)} disabled={saving} className="h-11 px-4 rounded-[14px] bg-white border border-[#E4E0EC] text-[14px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5"><Trash2 className="w-4 h-4" />Undo</button>
+          <button type="button" onClick={() => setS(d.site)} disabled={saving} className="h-11 px-4 rounded-[14px] bg-white border border-[#E4E0EC] text-[14px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5"><Undo2 className="w-4 h-4" />Undo</button>
           <button type="button" onClick={() => save()} disabled={saving} className="h-11 px-5 rounded-[14px] bg-[#7D5CEF] text-white text-[14px] font-semibold inline-flex items-center gap-1.5 shadow-[0_8px_20px_rgba(125,92,239,.3)]">
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}Save
           </button>

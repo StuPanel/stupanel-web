@@ -883,7 +883,7 @@
 .sg .mbgone p{margin:0;line-height:1.8;color:var(--mut)}
 .sg .mbx{width:84px;height:84px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#8A2E24}
 /* looks */
-.sg.t-editorial .mbph{border-radius:0;aspect-ratio:4/5;box-shadow:none;outline:1px solid var(--ink);outline-offset:12px;margin:13px}
+.sg.t-editorial .mbph{border-radius:0;aspect-ratio:4/5;box-shadow:0 0 0 12px var(--bg),0 0 0 13px var(--ink);margin:13px}
 .sg.t-editorial .mbph img{filter:grayscale(1)}
 .sg.t-editorial .mbmeet,.sg.t-mono .mbmeet,.sg.t-editorial .mbrule,.sg.t-mono .mbrule{display:none}
 .sg.t-editorial .mbname{font-style:normal;font-weight:300;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(38px,5vw,64px);line-height:1.1}

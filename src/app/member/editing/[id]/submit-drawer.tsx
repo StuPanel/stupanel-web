@@ -243,6 +243,8 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, plan
     : s.status === "revision_requested" ? { t: s.byClient ? "Client asked a change" : "Changes asked", c: "bg-[#FDECEF] text-[#C2304F]" }
     : { t: "Waiting for review", c: "bg-[#EEE8FD] text-[#5B3FD0]" };
   const kindCount = (t: string) => sent.filter(s => typeOf(s.key) === t && s.status === "revision_requested").length;
+  /** Listed by the studio for this kind and not sent yet. */
+  const kindTodo = (t: string) => plan.filter(k => typeOf(k) === t && (k.includes("|") || !sent.some(s => typeOf(s.key) === t)) && !sent.some(s => s.key === k)).length;
 
   return createPortal(
     <>
@@ -267,6 +269,7 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, plan
                   <button key={t} type="button" className={chip(kind === t)} onClick={() => setKind(t)}>
                     {WORK_LABEL[t] ?? t}
                     {kindCount(t) > 0 && <span className={cn("ml-1.5 text-[11px] font-bold", kind === t ? "text-white/75" : "text-[#C2304F]")}>· {kindCount(t)} to fix</span>}
+                    {kindCount(t) === 0 && kindTodo(t) > 0 && <span className={cn("ml-1.5 text-[11px] font-bold", kind === t ? "text-white/75" : "text-[#5B3FD0]")}>· {kindTodo(t)} to send</span>}
                   </button>
                 ))}
               </div>

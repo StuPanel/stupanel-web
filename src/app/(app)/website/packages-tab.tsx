@@ -298,7 +298,11 @@ function CardPreview({ o, cover, crop }: { o: SiteOffer; cover?: Photo; crop?: S
     <div className="rounded-[16px] bg-white border border-[#ECE8F4] p-3 flex gap-3 items-center">
       <span className="w-[92px] h-[70px] rounded-[10px] overflow-hidden bg-[#EEEBF4] flex-shrink-0 relative flex items-center justify-center text-[#A29DB3]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(crop)} /> : <ImagePlus className="w-5 h-5" />}
+        {cover ? <img src={small(cover)} alt="" className="w-full h-full object-cover" style={cropStyle(crop)} /> : (
+          <span title="No photo yet: the website shows a designed picture in your look's colours" className="absolute inset-0 flex items-center justify-center bg-[#2A2340] text-[#F1E3B8] text-[30px] font-serif">
+            <span className="absolute inset-[6px] border border-[#F1E3B8]/40 rounded-[6px]" />{(o.name.trim()[0] ?? "★").toUpperCase()}
+          </span>
+        )}
         {(o.badge || o.was) && <span className="absolute left-1 top-1 rounded-[4px] bg-[#17151F]/80 text-white text-[9px] font-bold px-1.5 py-0.5">{o.badge || "Offer"}</span>}
       </span>
       <span className="min-w-0 flex-1">
@@ -372,7 +376,7 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
         <input className={inputCls} value={o.tagline} maxLength={160} placeholder="Holud, wedding and reception — the whole story" onChange={e => put({ tagline: e.target.value })} /></label>
 
       </Step>
-      <Step n={2} title="Photos" done={!!o.cover && o.photos.length >= 3} help="The cover is the photo on the card, and the picture Facebook and WhatsApp show when the link is shared. The other photos are on the package page.">
+      <Step n={2} title="Photos" done={!!o.cover && o.photos.length >= 3} help="The cover is the photo on the card, and the picture Facebook and WhatsApp show when the link is shared. The other photos are on the package page. Without a photo the website shows a designed picture in your look's colours.">
       <div className="flex gap-3 items-start flex-wrap">
         <div className="w-[104px]">
           <button type="button" onClick={() => choose(`Cover of ${name}`, o.cover ? [o.cover] : [], ids => put({ cover: ids[0] ?? null }), false, 1, o.photos)}
@@ -436,9 +440,10 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
         row={(g, p) => <div className="grid sm:grid-cols-[1fr_1.4fr] gap-2"><input aria-label="What" className={inputCls} value={g.t} maxLength={60} placeholder="40-page album" onChange={e => p({ t: e.target.value })} /><input aria-label="Detail" className={inputCls} value={g.d} maxLength={160} placeholder="Photos chosen online (optional)" onChange={e => p({ d: e.target.value })} /></div>} />
 
       </Step>
-      <Step n={7} title="Extras (add-ons)" done={o.extras.length > 0} help="Things the client can tick, like Drone or a second album. The total updates as they tick, and you see what they chose on the lead.">
+      <Step n={7} title="Extras (add-ons)" done={o.extras.length > 0} help="Things the client can tick, like Drone or a second album. The total updates as they tick, and you see what they chose on the lead. A per-day extra on a package of several days is counted for each day the client picks.">
       <Rows label="extra" list={o.extras} max={10} empty={{ name: "", price: 0 }} set={l => put({ extras: l })} add="Add an extra"
-        row={(x, p) => <div className="grid grid-cols-[1fr_120px] gap-2"><input aria-label="Extra" className={inputCls} value={x.name} maxLength={60} placeholder="Drone" onChange={e => p({ name: e.target.value })} /><input aria-label="Price" className={inputCls} inputMode="numeric" value={x.price || ""} placeholder="৳ 0" onChange={e => p({ price: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></div>} />
+        row={(x, p) => <div><div className="grid grid-cols-[1fr_120px] gap-2"><input aria-label="Extra" className={inputCls} value={x.name} maxLength={60} placeholder="Drone" onChange={e => p({ name: e.target.value })} /><input aria-label="Price" className={inputCls} inputMode="numeric" value={x.price || ""} placeholder="৳ 0" onChange={e => p({ price: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></div>
+          {o.days.length > 1 && <label className="mt-1 flex items-center gap-2 text-[13px] text-[#4A4658] min-h-[36px]"><input type="checkbox" className="w-4 h-4 accent-[#7D5CEF]" checked={!!x.perDay} onChange={e => p({ perDay: e.target.checked || undefined })} />Price is for one day — the client picks the days</label>}</div>} />
 
       </Step>
       <Step n={8} title="Film" optional done={!!o.film} help="A YouTube link of a trailer for this package. It plays on the package page (optional).">

@@ -8,12 +8,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookForm, ICON, Ic, Ph, buildKey, money, type SiteCrop, type SiteData, type SitePackage, type SitePhoto } from "./site-view";
+import { AutoArt, BookForm, ICON, Ic, Ph, buildKey, money, type SiteCrop, type SiteData, type SitePackage, type SitePhoto } from "./site-view";
 import { FilmTheater } from "./site-film";
 import { PhotoViewer } from "./site-viewer";
 import "./site-offers.css";
 import { siteTrack } from "./site-tracking";
-import { liveOffers, priceNow, type SiteOffer } from "@/lib/site-offer-kit";
+import { extraCost, liveOffers, priceNow, type SiteOffer } from "@/lib/site-offer-kit";
 
 export { liveOffers, priceNow, type SiteOffer };
 
@@ -49,7 +49,7 @@ function OfferCard({ o, i, photo, crop, href, cur, theme }: { o: SiteOffer; i: n
   return (
     <Link href={href} className={`ofc${badge ? " has-b" : ""}`} style={{ ["--i" as string]: Math.min(i, 8) }}>
       <span className="ofi">
-        <Ph p={photo} alt="" eager={i < 3} crop={crop} sizes="(max-width: 860px) 92vw, 33vw" />
+        {photo ? <Ph p={photo} alt="" eager={i < 3} crop={crop} sizes="(max-width: 860px) 92vw, 33vw" /> : <AutoArt name={o.name} />}
         {badge && <span className="ofb">{badge}</span>}
         {theme === "dark" && <span className="ofplay" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7z" /></svg></span>}
       </span>
@@ -105,8 +105,19 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   const ids = [o.cover, ...o.photos].filter((id, k, all): id is string => !!id && !!data.photos[id] && all.indexOf(id) === k);
   const shots = ids.map(id => data.photos[id]);
   const extras = o.extras.filter(e => pick.includes(e.name));
-  const total = p.price === null ? null : p.price + extras.reduce((s, e) => s + e.price, 0);
-  const addonNames = extras.map(e => (e.price ? `${e.name} (+${money(e.price, cur)})` : e.name));
+  // Per-day extras (priced for one event): on a package of several days the visitor picks the days
+  const dayNames = o.days.map(d => d.name);
+  const manyDays = dayNames.length > 1;
+  const [dayPick, setDayPick] = useState<Record<string, string[]>>({});
+  const daysOf = (name: string) => dayPick[name] ?? dayNames;
+  const cost = (e: SiteOffer["extras"][number]) => extraCost(e, dayNames.length, daysOf(e.name));
+  const total = p.price === null ? null : p.price + extras.reduce((s, e) => s + cost(e), 0);
+  const extraDays = Object.fromEntries(extras.filter(e => e.perDay && manyDays).map(e => [e.name, daysOf(e.name)]));
+  const addonNames = extras.map(e => {
+    const c = cost(e);
+    const on = e.perDay && manyDays ? ` — ${daysOf(e.name).join(", ")}` : "";
+    return c ? `${e.name}${on} (+${money(c, cur)})` : `${e.name}${on}`;
+  });
   const badge = o.badge || (p.offer && o.ends ? `Offer until ${endsText(o.ends)}` : p.offer ? "Offer" : "");
   // Facebook / Google count a look at a package (for ads that show one package).
   useEffect(() => {
@@ -117,12 +128,18 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   }, [o.id, o.name, o.price, cur, preview]);
   // What the visitor chose goes with them to the booking form.
   useEffect(() => {
-    try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg: o.name, addons: addonNames, offer: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name) })); } catch { /* private window */ }
+    try { sessionStorage.setItem(buildKey(data.slug), JSON.stringify({ pkg: o.name, addons: addonNames, offer: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name), extraDays })); } catch { /* private window */ }
   }, [data.slug, o.name, o.id, addonNames.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const waText = `Hi ${data.studio.name}, I would like to know about the ${o.name} package${extras.length ? ` with ${extras.map(e => e.name).join(", ")}` : ""}${total !== null ? ` (${money(total, cur)})` : ""}.${typeof window !== "undefined" ? ` ${window.location.href.split("?")[0]}` : ""}`;
   const waHref = wa ? `${wa}?text=${encodeURIComponent(waText)}` : "";
   const book = () => { siteTrack("contact", { content_name: o.name }); router.push(L("/contact")); };
   const toggle = (name: string) => setPick(l => (l.includes(name) ? l.filter(x => x !== name) : [...l, name]));
+  /** A day on or off for a per-day extra (at least one day stays). */
+  const flipDay = (name: string, day: string) => setDayPick(m => {
+    const cur = m[name] ?? dayNames;
+    const next = cur.includes(day) ? cur.filter(d => d !== day) : dayNames.filter(d => d === day || cur.includes(d));
+    return next.length ? { ...m, [name]: next } : m;
+  });
   const count = shots.length;
   const step = useCallback((by: number) => setShot(s => (s === null ? s : (s + by + count) % count)), [count]);
   const closeShot = useCallback(() => setShot(null), []);
@@ -150,12 +167,26 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
       {o.extras.length > 0 && (
         <fieldset className="ofx">
           <legend>Add extras</legend>
-          {o.extras.map(e => (
-            <label key={e.name} className={pick.includes(e.name) ? "on" : undefined}>
-              <input type="checkbox" checked={pick.includes(e.name)} onChange={() => toggle(e.name)} />
-              <span className="ofxn">{e.name}</span><span>{e.price ? `+${money(e.price, cur)}` : "Free"}</span>
-            </label>
-          ))}
+          {o.extras.map(e => {
+            const on = pick.includes(e.name);
+            const perDay = !!e.perDay && manyDays;
+            return (
+              <div key={e.name} className="ofxi">
+                <label className={on ? "on" : undefined}>
+                  <input type="checkbox" checked={on} onChange={() => toggle(e.name)} />
+                  <span className="ofxn">{e.name}{perDay && <small className="ofxu"> per day</small>}</span>
+                  <span>{e.price ? `+${money(on ? cost(e) : e.price, cur)}` : "Free"}</span>
+                </label>
+                {on && perDay && (
+                  <div className="ofxd" role="group" aria-label={`Days for ${e.name}`}>
+                    {dayNames.map(d => (
+                      <button key={d} type="button" aria-pressed={daysOf(e.name).includes(d)} onClick={() => flipDay(e.name, d)}>{d}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </fieldset>
       )}
       {total !== null && extras.length > 0 && <p className="oftot"><span>Total</span><b aria-live="polite">{money(total, cur)}</b></p>}
@@ -209,7 +240,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
       )}
       <section className="ofsec ofform rv" id="ask">
         <h2 className="ofh3">Ask for your date</h2>
-        <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare chosen={addonNames} offer={{ id: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name) }} onDone={() => router.push(L("/thank-you"))} />
+        <BookForm slug={data.slug} preview={preview} packages={bookChoices(data)} kinds={data.content.events} ask={ask} setAsk={setAsk} wa={wa} bare chosen={addonNames} offer={{ id: o.id, days: o.days.map(d => d.name), extras: extras.map(e => e.name), extraDays }} onDone={() => router.push(L("/thank-you"))} />
       </section>
     </div>
   );
@@ -218,14 +249,14 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
     <div className={`ofpage th-${theme}${over ? " over" : ""}${mono ? " split" : ""}`}>
       {mono ? (
         <div className="wrap ofsplit">
-          <div className="ofstack">{shots.map((_, k) => photoBtn(k, k === 0 ? "first" : undefined, "(max-width: 860px) 100vw, 60vw"))}</div>
+          <div className="ofstack">{shots.length ? shots.map((_, k) => photoBtn(k, k === 0 ? "first" : undefined, "(max-width: 860px) 100vw, 60vw")) : <AutoArt name={o.name} className="first" />}</div>
           <div className="ofside">{crumbs}{heading}{box}{body}</div>
         </div>
       ) : (
         <>
           {over ? (
             <section className="ofhero">
-              <div className="ofhi">{photoBtn(0, "ofhb", "100vw")}</div>
+              <div className="ofhi">{shots.length ? photoBtn(0, "ofhb", "100vw") : <AutoArt name={o.name} className="ofhb" />}</div>
               <div className="wrap ofho">
                 {crumbs}{heading}
                 {o.filmId && <a href="#film" className="ofpl" aria-label="Watch the film"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg></a>}
@@ -235,11 +266,11 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
             <section className="wrap oftop">
               {crumbs}
               {theme === "cream" ? <>
-                <div className={`ofmos m${Math.min(shots.length, 3)}`}>{photoBtn(0, "a")}{photoBtn(1, "b", "30vw")}{photoBtn(2, "c", "30vw")}</div>
+                {shots.length ? <div className={`ofmos m${Math.min(shots.length, 3)}`}>{photoBtn(0, "a")}{photoBtn(1, "b", "30vw")}{photoBtn(2, "c", "30vw")}</div> : <div className="ofmos m1"><AutoArt name={o.name} className="a" /></div>}
                 {heading}
               </> : <>
                 {heading}
-                <div className={`ofmos m${Math.min(shots.length, 3)}`}>{photoBtn(0, "a", "(max-width: 860px) 92vw, 1280px")}{photoBtn(1, "b", "30vw")}{photoBtn(2, "c", "30vw")}</div>
+                {shots.length ? <div className={`ofmos m${Math.min(shots.length, 3)}`}>{photoBtn(0, "a", "(max-width: 860px) 92vw, 1280px")}{photoBtn(1, "b", "30vw")}{photoBtn(2, "c", "30vw")}</div> : <div className="ofmos m1"><AutoArt name={o.name} className="a" /></div>}
               </>}
             </section>
           )}

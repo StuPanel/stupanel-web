@@ -112,6 +112,29 @@ export function Ph({ p, alt, eager, className, style, sizes, crop }: { p?: SiteP
   );
 }
 
+/**
+ * The picture a package shows when the studio has not chosen a photo yet: the look's own colours, a pattern and the
+ * package's first letter, so a card is never an empty box. The pattern is picked from the name, so packages differ.
+ */
+export function AutoArt({ name, className }: { name: string; className?: string }) {
+  const clean = (name || "").trim();
+  let h = 0;
+  for (let k = 0; k < clean.length; k++) h = (h * 31 + clean.charCodeAt(k)) >>> 0;
+  const kind = h % 3;
+  const letter = (clean.match(/[A-Za-z0-9\u0980-\u09FF]/)?.[0] ?? "★").toUpperCase();
+  return (
+    <span className={`ofauto k${kind} ${className ?? ""}`} aria-hidden="true">
+      <svg className="ofautp" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+        {kind === 0 && Array.from({ length: 9 }, (_, k) => <circle key={k} cx="200" cy="150" r={34 + k * 26} />)}
+        {kind === 1 && Array.from({ length: 16 }, (_, k) => <g key={k}><line x1={-150 + k * 44} y1="0" x2={k * 44 + 50} y2="300" /><line x1={k * 44 + 50} y1="0" x2={-150 + k * 44} y2="300" /></g>)}
+        {kind === 2 && Array.from({ length: 12 }, (_, k) => <ellipse key={k} cx="200" cy="150" rx="150" ry="44" transform={`rotate(${k * 15} 200 150)`} />)}
+      </svg>
+      <span className="ofautf" />
+      <span className="ofautl">{letter}</span>
+    </span>
+  );
+}
+
 /** An album as a clean photo; its name and "View gallery" come in on hover (always shown on touch screens). */
 export function AlbumCard({ a, photo, crop, onOpen, i, eager, count }: { a: SiteAlbum; photo?: SitePhoto; crop?: SiteCrop; onOpen: () => void; i: number; eager?: boolean; count?: boolean }) {
   return (
@@ -721,12 +744,14 @@ const DEFAULT_KINDS = ["Holud", "Mehendi", "Akdh", "Wedding", "Reception", "Enga
 const OTHER = "__other";
 /** What the visitor put together on the Packages page, carried to the form (this browser tab only). */
 export const buildKey = (slug: string) => `sg-build-${slug}`;
-export type Build = { pkg: string; addons: string[]; /** Website package: its address, its days (one event each) and the plain names of the extras */ offer?: string; days?: string[]; extras?: string[] };
+export type Build = { pkg: string; addons: string[]; /** Website package: its address, its days (one event each) and the plain names of the extras */ offer?: string; days?: string[]; extras?: string[]; /** Per-day extras: the days picked */ extraDays?: Record<string, string[]> };
 export function readBuild(slug: string): Build {
   try {
     const b = JSON.parse(sessionStorage.getItem(buildKey(slug)) || "null");
     const list = (v: unknown, n: number) => (Array.isArray(v) ? v.filter((x: unknown): x is string => typeof x === "string").slice(0, n) : []);
-    return { pkg: typeof b?.pkg === "string" ? b.pkg : "", addons: list(b?.addons, 20), offer: typeof b?.offer === "string" ? b.offer : undefined, days: list(b?.days, 6), extras: list(b?.extras, 10) };
+    const ed: Record<string, string[]> = {};
+    if (b?.extraDays && typeof b.extraDays === "object") for (const [k, v] of Object.entries(b.extraDays as Record<string, unknown>).slice(0, 10)) ed[k.slice(0, 60)] = list(v, 7);
+    return { pkg: typeof b?.pkg === "string" ? b.pkg : "", addons: list(b?.addons, 20), offer: typeof b?.offer === "string" ? b.offer : undefined, days: list(b?.days, 6), extras: list(b?.extras, 10), extraDays: ed };
   } catch { return { pkg: "", addons: [] }; }
 }
 
@@ -735,7 +760,7 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
   ask: string; setAsk: (v: string) => void; wa: string;
   /** The page already has the heading */ bare?: boolean; /** After a sent enquiry (goes to the Thank-you page) */ onDone?: () => void;
   /** Extras picked on a package's own page (shown and sent instead of the remembered ones) */ chosen?: string[];
-  /** The website package being booked: one event per day of it, and what to send with the enquiry */ offer?: { id: string; days: string[]; extras: string[] };
+  /** The website package being booked: one event per day of it, and what to send with the enquiry */ offer?: { id: string; days: string[]; extras: string[]; extraDays?: Record<string, string[]> };
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -750,7 +775,7 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
   const kinds = [...new Set((own ?? []).map(k => k.trim()).filter(k => k && k.length <= 60))];
   const kindList = [...new Set([...(kinds.length ? kinds : DEFAULT_KINDS), ...events.map(e => e.kind).filter(k => k && k !== OTHER)])];
   /** What goes with the enquiry for a website package: its address and the extras by their plain names */
-  const pkgInfo = offer ?? (() => { if (typeof window === "undefined") return undefined; const b = readBuild(slug); return b.offer && b.pkg === ask ? { id: b.offer, days: b.days ?? [], extras: b.extras ?? [] } : undefined; })();
+  const pkgInfo = offer ?? (() => { if (typeof window === "undefined") return undefined; const b = readBuild(slug); return b.offer && b.pkg === ask ? { id: b.offer, days: b.days ?? [], extras: b.extras ?? [], extraDays: b.extraDays } : undefined; })();
   const [kept, setAddons] = useState<string[]>(() => (typeof window === "undefined" ? [] : readBuild(slug).addons));
   const addons = chosen ?? kept;
   const setEv = (i: number, patch: Partial<Ev>) => setEvents(list => list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
@@ -768,7 +793,7 @@ export function BookForm({ slug, preview, packages, kinds: own, ask, setAsk, wa,
       date: list.find(ev => ev.date)?.date, packageName: ask || undefined,
       events: list.length > 1 || list[0]?.shift || list[0]?.kind ? list : undefined, addons: addons.length ? addons : undefined,
       message: String(f.get("message") || "").trim() || undefined, website: String(f.get("website") || "") || undefined,
-      ...(pkgInfo && ask ? { offerId: pkgInfo.id, extras: pkgInfo.extras.length ? pkgInfo.extras : undefined } : {}),
+      ...(pkgInfo && ask ? { offerId: pkgInfo.id, extras: pkgInfo.extras.length ? pkgInfo.extras : undefined, extraDays: pkgInfo.extraDays && Object.keys(pkgInfo.extraDays).length ? pkgInfo.extraDays : undefined } : {}),
     };
     if (!body.name) return setErr("Please write your name.");
     if (body.phone.replace(/\D/g, "").length < 7) return setErr("Please write a phone number we can reach you on.");

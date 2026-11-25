@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Package as HeaderIcon, Plus, Edit3, Trash2, Loader2, Package, CheckCircle2, Eye, EyeOff, Search, X } from "lucide-react";
+import { Package as HeaderIcon, Plus, Edit3, Trash2, Loader2, Package, CheckCircle2, Eye, EyeOff, Search, X, Copy, PackagePlus } from "lucide-react";
 import { CARD_SHADOW, EmptyState, MainButton, PageHeader, RowsSkeleton, SearchField, Tile } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -22,6 +22,7 @@ import { jumpToField } from "@/lib/jump-to-field";
 import { TabBar, useTab } from "@/components/ui/profile-page";
 import type { Extra } from "@/lib/extras";
 import { ExtraDrawer, ExtrasList, draftOf, loadExtras } from "./_components/extras";
+import { ReadyDrawer, offerWebsiteUpdate } from "./_components/ready-drawer";
 
 type WorkType = { id: string; name: string; active: boolean; events: { id: string; name: string }[] };
 
@@ -129,6 +130,8 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
       if (!r.ok) { setError(Array.isArray(d.message) ? d.message[0] : d.message || "Couldn't save."); return; }
       notify(isEdit ? "Saved" : "Package added");
       onSaved(); onClose();
+      // The same package on the website: ask whether to update it there too
+      if (isEdit) void offerWebsiteUpdate(editing!.id, askConfirm);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setSaving(false); }
   }
@@ -318,8 +321,8 @@ function PackageDrawer({ open, onClose, onSaved, editing, workTypes, customRoles
 }
 
 // ─── Package Card ─────────────────────────────────────────────────────────────
-function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
-  pkg: Pkg; onEdit: (p: Pkg) => void; onDelete: (p: Pkg) => void; onToggle: (p: Pkg) => void;
+function PackageCard({ pkg, onEdit, onDelete, onToggle, onCopy }: {
+  pkg: Pkg; onEdit: (p: Pkg) => void; onDelete: (p: Pkg) => void; onToggle: (p: Pkg) => void; onCopy: (p: Pkg) => void;
 }) {
   const lines = summaryLines(pkg);
   const duration = pkg.durationUnit === "days" && pkg.durationDays ? `${pkg.durationDays} day${pkg.durationDays > 1 ? "s" : ""}` : pkg.durationHours ? `${pkg.durationHours} hours` : null;
@@ -333,6 +336,7 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
             <p className="text-xs text-[#6B6680] mt-0.5 flex items-center gap-1.5 flex-wrap">
               {pkg.category && <span>{pkg.category}</span>}
               {!pkg.isActive && <span className="font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full">Hidden</span>}
+              {pkg.isSample && <span title="A ready-made package from StuPanel. Check the price and save it to make it yours." className="font-bold text-[#8A5A00] bg-[#FFF4D6] px-1.5 py-0.5 rounded-full">Sample — check the price</span>}
             </p>
           </div>
         </div>
@@ -364,6 +368,7 @@ function PackageCard({ pkg, onEdit, onDelete, onToggle }: {
         <button onClick={() => onToggle(pkg)} className="flex-1 h-11 text-sm font-semibold text-[#4A4658] hover:bg-[#F7F5FB] inline-flex items-center justify-center gap-1.5">
           {pkg.isActive ? <><EyeOff className="w-4 h-4" />Hide</> : <><Eye className="w-4 h-4" />Offer again</>}
         </button>
+        <button onClick={() => onCopy(pkg)} aria-label={`Make a copy of ${pkg.name}`} title="Make a copy" className="w-14 h-11 text-[#4A4658] hover:bg-[#F7F5FB] inline-flex items-center justify-center"><Copy className="w-4 h-4" /></button>
         <button onClick={() => onDelete(pkg)} aria-label={`Delete ${pkg.name}`} className="w-14 h-11 text-[#C2304F] hover:bg-[#FDECEF] inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
       </div>
     </div>
@@ -393,6 +398,7 @@ function PackagesPageInner() {
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [editTarget, setEditTarget] = useState<Pkg | null>(null);
+  const [readyOpen, setReadyOpen] = useState(false);
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -417,6 +423,16 @@ function PackagesPageInner() {
     fetchPackages();
   }
 
+  /** A copy right away ("Golpo (copy)"), opened for editing — e.g. a photo-only package with video added. */
+  async function copy(pkg: Pkg) {
+    const r = await apiFetch(`${API}/packages/${pkg.id}/duplicate`, { method: "POST" }).catch(() => null);
+    const d = await r?.json().catch(() => null);
+    if (!r?.ok || !d?.id) { notify("Couldn't make a copy", { error: true }); return; }
+    notify(`${d.name} made`);
+    await fetchPackages();
+    setEditTarget(d); setDrawer(true);
+  }
+
   async function remove(pkg: Pkg) {
     if (!(await askConfirm({ title: `Delete "${pkg.name}"?`, message: "It won't be offered any more. Programs and quotes that already use it keep their price and details.", confirmLabel: "Delete", danger: true }))) return;
     const r = await apiFetch(`${API}/packages/${pkg.id}`, { method: "DELETE" }).catch(() => null);
@@ -436,6 +452,10 @@ function PackagesPageInner() {
       <PageHeader icon={HeaderIcon} color="violet" title="Packages"
         sub={isExtras ? <>{extras.length} extra{extras.length === 1 ? "" : "s"} you sell on top of a package</> : <>{packages.length} package{packages.length === 1 ? "" : "s"} you offer</>}>
         {list.length > 0 && <SearchField className="flex-1 min-w-0 sm:w-64 sm:flex-none" value={q} onChange={setQ} placeholder={isExtras ? "Search extras" : "Search packages"} />}
+        <button type="button" onClick={() => setReadyOpen(true)} className="h-10 px-4 rounded-full bg-white border border-[#E4E0EE] hover:bg-[#F7F5FB] text-[#4A4658] text-sm font-semibold inline-flex items-center gap-1.5 flex-shrink-0">
+          <PackagePlus className="w-4 h-4" /><span className="hidden sm:inline">Ready-made</span>
+          <span className="sm:hidden">Ready</span>
+        </button>
         {isExtras ? <MainButton icon={Plus} onClick={() => setExtraDraft(draftOf())}>New extra</MainButton> : <MainButton icon={Plus} onClick={openNew}>New package</MainButton>}
       </PageHeader>
 
@@ -449,17 +469,18 @@ function PackagesPageInner() {
       ) : loading ? (
         <RowsSkeleton n={4} />
       ) : packages.length === 0 ? (
-        <EmptyState icon={Package} title="No packages yet" text="Make ready-made packages — pick one when you add a program or a quote and its price and days fill in."
-          action={<MainButton icon={Plus} onClick={openNew}>New package</MainButton>} />
+        <EmptyState icon={Package} title="No packages yet" text="Start with StuPanel's ready-made packages and change the prices, or make your own. Pick one when you add a program or a quote and its price and days fill in."
+          action={<div className="flex flex-wrap gap-2 justify-center"><MainButton icon={PackagePlus} onClick={() => setReadyOpen(true)}>Add ready-made packages</MainButton><button type="button" onClick={openNew} className="h-10 px-4 rounded-full bg-[#F5F3FA] text-[#4A4658] text-sm font-semibold">New package</button></div>} />
       ) : shown.length === 0 ? (
         <EmptyState icon={Search} title={`No packages match "${q}"`} text="Try another name." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-          {shown.map(p => <PackageCard key={p.id} pkg={p} onEdit={x => { setEditTarget(x); setDrawer(true); }} onDelete={remove} onToggle={toggle} />)}
+          {shown.map(p => <PackageCard key={p.id} pkg={p} onEdit={x => { setEditTarget(x); setDrawer(true); }} onDelete={remove} onToggle={toggle} onCopy={copy} />)}
         </div>
       )}
 
       {extraDraft && <ExtraDrawer key={extraDraft.id ?? `new-${extraDraft.name}-${extraKey}`} draft={extraDraft} onClose={() => setExtraDraft(null)} onSaved={fetchExtras} />}
+      <ReadyDrawer open={readyOpen} onClose={() => setReadyOpen(false)} onAdded={() => { fetchPackages(); fetchExtras(); }} />
       <PackageDrawer open={drawer} onClose={() => { setDrawer(false); setEditTarget(null); }} onSaved={fetchPackages} editing={editTarget}
         workTypes={workTypes} customRoles={customRoles} />
     </div>

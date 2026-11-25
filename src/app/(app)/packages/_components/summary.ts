@@ -15,6 +15,8 @@ export interface Pkg {
   photoEditCount?: number; trailerCount?: number; fullVideoCount?: number;
   ritualsIncluded?: string[]; deliveryMethod?: string;
   isActive: boolean; isVisibleInPortal: boolean; sortOrder: number;
+  /** Made from a StuPanel ready-made package and not edited yet */
+  isSample?: boolean; readyKey?: string | null;
   /** Client corrections after delivery: null = the studio's setting; limit 0 = no limit. */
   correctionsIncluded?: boolean | null; correctionLimit?: number | null;
 }

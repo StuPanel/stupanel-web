@@ -5,7 +5,7 @@
  * Picked in a quote with one tap; the price fills in. Saved in the service catalog.
  */
 import { useState } from "react";
-import { EyeOff, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { EyeOff, Loader2, Pencil, Plus, Sparkles, Trash2 , Copy } from "lucide-react";
 import { CARD_SHADOW, EmptyState, Tile } from "@/components/ui/apple";
 import { Field, FormDrawer, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { askConfirm, notify } from "@/components/feedback";
@@ -57,6 +57,7 @@ export function ExtrasList({ extras, all = extras, searching, loading, onAdd, on
                 <span className="flex items-center gap-1.5">
                   <span className="text-[15px] font-semibold text-[#17151F] truncate">{x.name}</span>
                   {!x.isActive && <span className="text-[11px] font-bold text-[#6B6680] bg-[#EEEDF2] px-1.5 py-0.5 rounded-full flex-shrink-0">Hidden</span>}
+                  {x.isSample && <span className="text-[11px] font-bold text-[#8A5A00] bg-[#FFF4D6] px-1.5 py-0.5 rounded-full flex-shrink-0">Sample</span>}
                 </span>
                 <span className="block text-[12.5px] text-[#6B6680] truncate">{[x.category, x.description].filter(Boolean).join(" · ") || "—"}</span>
               </span>
@@ -100,6 +101,15 @@ export function ExtraDrawer({ draft, onClose, onSaved }: { draft: Draft; onClose
     finally { setSaving(false); }
   }
 
+  /** A copy ("Drone (copy)") to change, e.g. a second price. */
+  async function copy() {
+    if (!f.id) return;
+    const r = await apiFetch(`${API}/service-catalog/${f.id}/duplicate`, { method: "POST" }).catch(() => null);
+    const d = await r?.json().catch(() => null);
+    if (!r?.ok || !d?.id) { notify("Couldn't make a copy", { error: true }); return; }
+    notify(`${d.name} made`); onSaved(); onClose();
+  }
+
   async function remove() {
     if (!f.id) return;
     if (!(await askConfirm({ title: `Delete "${f.name}"?`, message: "It won't be offered in new quotes. Quotes and invoices that already have it don't change.", confirmLabel: "Delete", danger: true }))) return;
@@ -113,6 +123,7 @@ export function ExtraDrawer({ draft, onClose, onSaved }: { draft: Draft; onClose
     <FormDrawer open onClose={onClose} icon={Sparkles} color="violet" title={f.id ? "Edit extra" : "New extra"} sub="Sold on top of a package"
       footer={<>
         {f.id && <button type="button" onClick={remove} aria-label="Delete extra" className="w-11 h-11 rounded-full bg-[#FDECEF] text-[#C2304F] inline-flex items-center justify-center flex-shrink-0"><Trash2 className="w-4 h-4" /></button>}
+        {f.id && <button type="button" onClick={copy} aria-label="Make a copy" title="Make a copy" className="w-11 h-11 rounded-full bg-[#F5F3FA] text-[#4A4658] inline-flex items-center justify-center flex-shrink-0"><Copy className="w-4 h-4" /></button>}
         <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-sm font-semibold">Cancel</button>
         <button type="button" onClick={save} disabled={saving} className="flex-1 h-11 rounded-full bg-[#7D5CEF] text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}{f.id ? "Save changes" : "Add extra"}

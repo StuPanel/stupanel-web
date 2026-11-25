@@ -8,6 +8,8 @@ import type { TileColor } from "@/components/ui/apple";
 export type Extra = {
   id: string; name: string; description?: string | null; category?: string | null;
   unit: string; defaultPrice: number | string; currency: string; isActive: boolean; sortOrder: number;
+  /** A StuPanel ready-made add-on not edited yet */
+  isSample?: boolean;
 };
 
 export const EXTRA_CATEGORIES = ["Photography", "Cinematography", "Drone", "Editing", "Album", "Printing", "Other"] as const;

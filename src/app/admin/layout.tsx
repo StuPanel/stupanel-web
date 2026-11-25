@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Settings, LogOut, Menu, X, ChevronRight,   ClipboardList, MessageCircle, Megaphone,
-  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe, Hourglass, LifeBuoy, PackagePlus } from "lucide-react";
+  HardDrive, MailCheck, ShieldAlert, Wallet, UserCog, Loader2, TrendingUp, Server, Music2, ScanFace, Globe, Hourglass, LifeBuoy, PackagePlus, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
 import { BrandMark } from "@/components/layout/app-sidebar";
@@ -34,7 +34,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   { label: "Studios", items: [
     { label: "Studios",   href: "/admin/studios",   icon: Building2, perm: "studios.view" },
     { label: "Users",     href: "/admin/users",     icon: Users,     perm: "users.view" },
-    { label: "Websites",  href: "/admin/websites",  icon: Globe,     perm: "studios.view" },
     { label: "Account recovery", href: "/admin/recovery", icon: LifeBuoy, perm: "studios.view", wait: "recovery" },
     { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone, perm: "content.manage" },
   ] },
@@ -44,10 +43,15 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     { label: "Trials",          href: "/admin/trials",  icon: Hourglass,  perm: "studios.view" },
     { label: "Growth",          href: "/admin/growth",  icon: TrendingUp, perm: "reports.view" },
   ] },
+  // Studios' own websites. StuPanel's marketing site (stupanel.com) gets its own "StuPanel.com" group, never mixed with this one.
+  { label: "Studio sites", items: [
+    { label: "All studio sites",    href: "/admin/websites",       icon: Globe,       perm: "studios.view" },
+    { label: "Text templates",      href: "/admin/site-texts",     icon: Wand2,       perm: "content.manage" },
+    { label: "Ready-made packages", href: "/admin/ready-packages", icon: PackagePlus, perm: "content.manage" },
+  ]},
   { label: "Products", items: [
     { label: "AI Face Search", href: "/admin/face-search", icon: ScanFace, perm: "settings.manage", wait: "creditOrders" },
     { label: "Music",          href: "/admin/music",       icon: Music2,   perm: "content.manage" },
-    { label: "Ready-made packages", href: "/admin/ready-packages", icon: PackagePlus, perm: "content.manage" },
   ] },
   { label: "System", items: [
     { label: "Health",  href: "/admin/system",  icon: Server,    perm: "settings.manage" },

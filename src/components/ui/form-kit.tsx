@@ -58,8 +58,10 @@ export function FormGroup({ title, note, children, className }: {
 }
 
 /** One row: label (+hint) over the control. `children` may use the id passed to render. */
-export function Field({ label, hint, required, name, children, className }: {
+export function Field({ label, hint, required, name, children, className, action }: {
   label: React.ReactNode; hint?: React.ReactNode; required?: boolean; className?: string;
+  /** A small button at the right of the label (Autofill) */
+  action?: React.ReactNode;
   /** Lets a failed save jump here: jumpToField(name). */
   name?: string;
   children: (id: string) => React.ReactNode;
@@ -67,9 +69,18 @@ export function Field({ label, hint, required, name, children, className }: {
   const id = useId();
   return (
     <div data-field={name} data-required={required || undefined} className={cn("px-4 py-3.5", className)}>
-      <label htmlFor={id} className="block text-[13px] font-semibold text-[#4A4658] mb-1.5">
-        {label}{required && <span className="text-[#C2304F]"> *</span>}
-      </label>
+      {action ? (
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <label htmlFor={id} className="block text-[13px] font-semibold text-[#4A4658]">
+            {label}{required && <span className="text-[#C2304F]"> *</span>}
+          </label>
+          {action}
+        </div>
+      ) : (
+        <label htmlFor={id} className="block text-[13px] font-semibold text-[#4A4658] mb-1.5">
+          {label}{required && <span className="text-[#C2304F]"> *</span>}
+        </label>
+      )}
       {children(id)}
       {hint && <p className="text-xs text-[#6B6680] mt-1.5 leading-relaxed">{hint}</p>}
     </div>

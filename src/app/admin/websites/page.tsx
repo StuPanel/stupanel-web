@@ -170,7 +170,7 @@ export default function AdminWebsitesPage() {
   return (
     <div className="p-6 md:p-8 space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-white">Websites</h1>
+        <h1 className="text-2xl font-bold text-white">Studio sites</h1>
         <p className="text-sm text-slate-400 mt-0.5">Every studio&apos;s website, the addresses nobody may take for now, and the rules for both</p>
       </div>
 

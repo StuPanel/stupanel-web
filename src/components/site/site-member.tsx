@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cropStyle, type SiteData, type SiteMember } from "./site-view";
 
-const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("");
+const initials = (n: string) => { const w = n.trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase(); };
 /** "Checked 25 Nov 2026, 11:52 pm" in the visitor's own time (the server's clock is another time zone). */
 function CheckedAt() {
   const [t, setT] = useState("just now");

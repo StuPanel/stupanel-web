@@ -6,7 +6,7 @@
  */
 import { shrink } from "@/lib/shrink-photo";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Scale, AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X, Download } from "lucide-react";
+import { Scale, AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X, Download, EyeOff } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
@@ -215,12 +215,26 @@ export default function WebsitePage() {
       if (d?.people && s) put({ ...s, people: d.people });
     }).catch(() => {});
   };
-  const showMember = async (id: string) => {
-    const r = await apiFetch(`${API}/site/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: true }) });
-    if (!r.ok) { notify("Couldn't show them", { error: true }); return; }
-    setPeopleShow(id, true);
-    setTeamPick(false);
-    notify("Shown on the website");
+  // A member's settings save by themselves while their sheet is open: read the team again shortly after.
+  const peopleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peopleChanged = (id: string, show: boolean) => {
+    setPeopleShow(id, show);
+    if (peopleTimer.current) clearTimeout(peopleTimer.current);
+    peopleTimer.current = setTimeout(reloadPreview, 500);
+  };
+  const [showBusy, setShowBusy] = useState<string | null>(null);
+  /** Show or hide a member of the Team (saved at once, like in their profile). */
+  const showMember = async (id: string, show: boolean) => {
+    if (showBusy) return;
+    setShowBusy(id);
+    try {
+      const r = await apiFetch(`${API}/site/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show }) });
+      if (!r.ok) { notify(show ? "Couldn't show them" : "Couldn't hide them", { error: true }); return; }
+      setPeopleShow(id, show);
+      // The last one picked: nothing left to choose from.
+      if (show && !(live.current?.people ?? []).some(p => !p.show)) setTeamPick(false);
+      notify(show ? "Shown on the website" : "Hidden from the website");
+    } finally { setShowBusy(null); }
   };
   const remember = (key: string, typing = false) => {
     const site = live.current;
@@ -752,6 +766,9 @@ export default function WebsitePage() {
       <Sec icon={Users} tone="amber" where="About page" title="Team" help="Members of your Team come with their own name, title and photo: show or hide them here or in their profile → Website. People who are not in your Team can be added by hand.">
         <SwitchRow label="Open a member's page on click" hint="Off: the team only moves on the About page. On: clicking a member opens their page." on={!!c.teamClick} onChange={v => set("teamClick", v)} />
         <SwitchRow label="QR code for ID cards" hint="Each member gets a QR code for their ID card (their profile → Website). Scanning it opens their page and shows if they still work here." on={!!c.teamQr} onChange={v => set("teamQr", v)} />
+        {teamRows.length === 0 && (
+          <p className="px-4 py-6 text-center text-[14px] text-[#6B6680]">Nobody is on the website yet. Choose people from your Team, or add someone by hand.</p>
+        )}
         {teamRows.map((m, i) => {
             const rows = teamRows;
             const put = (patch: Partial<SiteTeamMember>) => setRows(rows.map((y, k) => (k === i ? { ...y, ...patch } : y)));
@@ -776,8 +793,12 @@ export default function WebsitePage() {
                     <p className="text-[13px] text-[#6B6680] truncate">{[person.title, person.memberId].filter(Boolean).join(" · ")}</p>
                     <span className="mt-1 inline-flex h-6 px-2.5 rounded-full bg-[#E7F5EE] text-[#14613F] text-[12px] font-bold items-center">From Team</span>
                   </div>
-                  <button type="button" onClick={() => setMemberEdit(person.id)} className="h-10 px-3 rounded-[12px] text-[14px] font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA] flex-shrink-0">Edit</button>
-                  {arrows}
+                  <button type="button" onClick={() => setMemberEdit(person.id)} className="h-10 px-3.5 rounded-[12px] bg-[#EEE8FD] hover:bg-[#E4DBFB] text-[14px] font-semibold text-[#5B3FD0] flex-shrink-0">Edit</button>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    {arrows}
+                    <button type="button" disabled={!!showBusy} onClick={() => showMember(person.id, false)} aria-label={`Hide ${person.name} from the website`} title="Hide from the website"
+                      className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center disabled:opacity-50">{showBusy === person.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <EyeOff className="w-4 h-4" />}</button>
+                  </div>
                 </div>
               );
             }
@@ -1145,23 +1166,23 @@ export default function WebsitePage() {
       )}
       {pick && <PhotoPicker photos={site.photos} {...pick} onUpload={upload} uploading={uploading} onClose={() => setPick(null)} />}
       {memberEdit && (
-        <TeamSheet title="Team member on the website" onClose={() => { setMemberEdit(null); reloadPreview(); }}>
-          <MemberSitePanel userId={memberEdit} onShowChange={show => setPeopleShow(memberEdit, show)} />
+        <TeamSheet title={(site.people ?? []).find(p => p.id === memberEdit)?.name ?? "Team member"} onClose={() => setMemberEdit(null)}>
+          <MemberSitePanel userId={memberEdit} onSaved={ms => peopleChanged(memberEdit, ms.show)} />
         </TeamSheet>
       )}
       {teamPick && (
         <TeamSheet title="Choose from your team" onClose={() => setTeamPick(false)}>
-          <p className="text-[14px] text-[#6B6680] mb-3">Tap someone to show them on the website. Their name, title and photo come from their profile.</p>
+          <p className="text-[14px] text-[#6B6680] mb-3">Tap someone to show them on the website. Their name, title and photo come from their profile; you can change how they appear with Edit.</p>
           <ul className="bg-white rounded-[18px] border border-[#EEEBF3] divide-y divide-[#EEEBF3] overflow-hidden">
             {(site.people ?? []).filter(p => !p.show).map(p => (
               <li key={p.id}>
-                <button type="button" onClick={() => showMember(p.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FC]">
+                <button type="button" disabled={!!showBusy} onClick={() => showMember(p.id, true)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FC] disabled:opacity-60">
                   <span className="w-11 h-11 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold flex items-center justify-center flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : p.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
                   </span>
                   <span className="flex-1 min-w-0"><span className="block text-[15px] font-semibold text-[#17151F] truncate">{p.name}</span><span className="block text-[13px] text-[#6B6680] truncate">{[p.title, p.memberId].filter(Boolean).join(" · ")}</span></span>
-                  <Plus className="w-5 h-5 text-[#7D5CEF]" />
+                  {showBusy === p.id ? <Loader2 className="w-5 h-5 text-[#7D5CEF] animate-spin" /> : <Plus className="w-5 h-5 text-[#7D5CEF]" />}
                 </button>
               </li>
             ))}

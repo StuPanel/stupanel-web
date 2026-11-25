@@ -17,7 +17,7 @@ import { API_URL as API } from "@/lib/api";
 import { RateEditor, SetupEditor, firstLine, gearHasRent, itemsToSetup, linesToRates, ratesToLines, setupToItems, type RateLine, type SavedGear, type SavedRate, type SetupItem } from "./rate-card";
 import { currencySymbol, currencyPad } from "@/lib/format";
 import { useAuth } from "@/context/auth-context";
-import { AREAS } from "@/lib/access";
+import { ALL_AREAS, AREAS, FEATURE_GROUPS } from "@/lib/access";
 import { jumpToField } from "@/lib/jump-to-field";
 
 
@@ -539,23 +539,49 @@ export function MemberDrawer({ open, onClose, onSaved, editing, customRoles, onC
         {tab === "login" && isStaff && isOwner && (
           <FormGroup title="Manager" note={access.manager ? "They log in to the studio app and see only what you tick. Billing and Settings stay yours." : "Turn on to let them help run the studio."}>
             <SwitchRow label="Make manager" hint="Gives access to parts of the studio app" on={access.manager}
-              onChange={v => setAccess(a => ({ manager: v, areas: v && !a.areas.length ? ["programs", "clients"] : a.areas }))} />
+              onChange={v => setAccess(a => ({ manager: v, areas: v && !a.areas.length ? ["programs", "calendar", "clients"] : a.areas }))} />
             {access.manager && (
               <div className="px-2 pb-2">
-                {AREAS.map(ar => {
-                  const on = access.areas.includes(ar.key);
+                {/* Everything in one click, or each feature on its own */}
+                <div className="flex items-center justify-between gap-2 px-2.5 pt-1 pb-2">
+                  <span className="text-[13px] text-[#6B6680]">{access.areas.length} of {ALL_AREAS.length} features</span>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setAccess(a => ({ ...a, areas: [...ALL_AREAS] }))}
+                      disabled={access.areas.length === ALL_AREAS.length}
+                      className="h-9 px-3 rounded-[10px] bg-[#EEE8FD] text-[13px] font-semibold text-[#5B3FD0] disabled:opacity-50">Give full access</button>
+                    <button type="button" onClick={() => setAccess(a => ({ ...a, areas: [] }))} disabled={!access.areas.length}
+                      className="h-9 px-3 rounded-[10px] border border-[#E4E0EC] text-[13px] font-medium text-[#3D3950] disabled:opacity-50">Clear</button>
+                  </div>
+                </div>
+                {FEATURE_GROUPS.map(g => {
+                  const items = AREAS.filter(ar => ar.group === g);
+                  const allOn = items.every(ar => access.areas.includes(ar.key));
                   return (
-                    <button key={ar.key} type="button" role="checkbox" aria-checked={on}
-                      onClick={() => setAccess(a => ({ ...a, areas: on ? a.areas.filter(x => x !== ar.key) : [...a.areas, ar.key] }))}
-                      className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-[12px] hover:bg-[#F5F3FA] text-left">
-                      <span className={cn("w-5 h-5 rounded-[6px] border-2 flex items-center justify-center flex-shrink-0", on ? "bg-[#7D5CEF] border-[#7D5CEF]" : "border-[#D8D3E3]")}>
-                        {on && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-[15px] font-medium text-[#17151F]">{ar.label}</span>
-                        <span className="block text-xs text-[#6B6680]">{ar.hint}</span>
-                      </span>
-                    </button>
+                    <div key={g} className="mt-2">
+                      <div className="flex items-center justify-between px-2.5 py-1">
+                        <span className="text-[13px] font-semibold text-[#3D3950]">{g}</span>
+                        <button type="button" className="text-[13px] font-medium text-[#5B3FD0]"
+                          onClick={() => setAccess(a => ({ ...a, areas: allOn ? a.areas.filter(x => !items.some(i => i.key === x)) : [...new Set([...a.areas, ...items.map(i => i.key)])] }))}>
+                          {allOn ? "Untick all" : "Tick all"}
+                        </button>
+                      </div>
+                      {items.map(ar => {
+                        const on = access.areas.includes(ar.key);
+                        return (
+                          <button key={ar.key} type="button" role="checkbox" aria-checked={on}
+                            onClick={() => setAccess(a => ({ ...a, areas: on ? a.areas.filter(x => x !== ar.key) : [...a.areas, ar.key] }))}
+                            className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-[12px] hover:bg-[#F5F3FA] text-left">
+                            <span className={cn("w-5 h-5 rounded-[6px] border-2 flex items-center justify-center flex-shrink-0", on ? "bg-[#7D5CEF] border-[#7D5CEF]" : "border-[#D8D3E3]")}>
+                              {on && <Check className="w-3.5 h-3.5 text-white" />}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-[15px] font-medium text-[#17151F]">{ar.label}</span>
+                              <span className="block text-xs text-[#6B6680]">{ar.hint}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>

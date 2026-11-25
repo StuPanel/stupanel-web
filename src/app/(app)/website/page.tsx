@@ -6,7 +6,7 @@
  */
 import { shrink } from "@/lib/shrink-photo";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Scale, AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X } from "lucide-react";
+import { Scale, AlertTriangle, BarChart3, BookOpen, Check, HelpCircle, Link2, MessageSquareQuote, Settings2, Share2, ChevronDown, ChevronUp, Clapperboard, Copy, Crop, ExternalLink, Eye, Globe, Home, ImagePlus, Images, LayoutGrid, Loader2, Monitor, Users, ArrowUp, ArrowDown, Package, Palette, Phone, Plus, Search, Smartphone, Trash2, TrendingUp, Undo2, Upload, X, Download } from "lucide-react";
 import "./website.css";
 import { SITE_SUBDOMAINS, siteUrl } from "@/lib/site-url";
 import { DomainGuide } from "./domain-guide";
@@ -15,6 +15,8 @@ import { TrackingTab } from "./tracking-tab";
 import { VisitorsTab } from "./visitors-tab";
 import { StylePanel } from "./style-panel";
 import { PackagesTab } from "./packages-tab";
+import { TeamSheet } from "./team-sheet";
+import { MemberSitePanel } from "@/components/team/member-site-panel";
 import { AutofillAdd, AutofillText } from "@/lib/site-autofill";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -63,6 +65,8 @@ type Mine = {
   styleAllowed?: boolean;
   /** The studio's own domain (pending until its DNS records work, then live). */
   customDomain?: string | null; customDomainState?: "pending" | "live" | null;
+  /** The studio's Team for Website → Team: who is shown, with their own name, title and photo */
+  people?: { id: string; memberId: string | null; name: string; title: string; photo: string | null; show: boolean }[];
 };
 
 const THEMES: { id: string; name: string; note: string; colors: [string, string, string] }[] = [
@@ -116,6 +120,9 @@ type DomainInfo = {
 
 export default function WebsitePage() {
   const [site, setSite] = useState<Mine | null>(null);
+  /** Website → Team: a member's website settings open; picking who from the Team to show */
+  const [memberEdit, setMemberEdit] = useState<string | null>(null);
+  const [teamPick, setTeamPick] = useState(false);
   const [state, setState] = useState<"load" | "ok" | "denied" | "error">("load");
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [busy, setBusy] = useState(false);
@@ -195,6 +202,25 @@ export default function WebsitePage() {
   const live = useRef<Mine | null>(null);
   useLayoutEffect(() => { live.current = site; });
   const put = (next: Mine) => { live.current = next; setSite(next); };
+  /** A member shown or hidden (saved at once on their profile): keep the list and the preview in step. */
+  const setPeopleShow = (id: string, show: boolean) => {
+    const s = live.current;
+    if (s) put({ ...s, people: (s.people ?? []).map(p => (p.id === id ? { ...p, show } : p)) });
+  };
+  const reloadPreview = () => {
+    // Their name, title or photo may have changed: read the team again.
+    apiFetch(`${API}/site`).then(r => (r.ok ? r.json() : null)).then((d: Mine | null) => {
+      const s = live.current;
+      if (d?.people && s) put({ ...s, people: d.people });
+    }).catch(() => {});
+  };
+  const showMember = async (id: string) => {
+    const r = await apiFetch(`${API}/site/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: true }) });
+    if (!r.ok) { notify("Couldn't show them", { error: true }); return; }
+    setPeopleShow(id, true);
+    setTeamPick(false);
+    notify("Shown on the website");
+  };
   const remember = (key: string, typing = false) => {
     const site = live.current;
     if (!site) return;
@@ -239,12 +265,28 @@ export default function WebsitePage() {
     if (!st) return null;
     const photos: Record<string, { url: string; sm: string | null; w: number; h: number; blur?: string }> = {};
     for (const p of st.photos) photos[p.id] = { url: p.url, sm: p.thumbUrl ?? null, w: p.width, h: p.height, blur: p.blur };
-    return { type: "sg-draft", theme: st.theme, content: st.content, photos, styleOk: st.styleAllowed !== false };
+    // The team as the site shows it: members with their own name, title and photo (as the server does).
+    const people = st.people ?? [];
+    const shown = people.filter(p => p.show);
+    const placed = new Set((st.content.team ?? []).map(r => r.userId).filter(Boolean));
+    const asMember = (id: string, p: (typeof people)[number]): SiteTeamMember => {
+      if (p.photo) photos[`u:${p.id}`] = { url: p.photo, sm: p.photo, w: 600, h: 600 };
+      return { id, userId: p.id, memberId: p.memberId ?? undefined, name: p.name, role: p.title, photo: p.photo ? `u:${p.id}` : null };
+    };
+    const team: SiteTeamMember[] = [
+      ...(st.content.team ?? []).flatMap(r => {
+        if (!r.userId) return r.name ? [r] : [];
+        const p = shown.find(x => x.id === r.userId);
+        return p ? [asMember(r.id, p)] : [];
+      }),
+      ...shown.filter(p => !placed.has(p.id)).map(p => asMember(`m${p.id.replace(/-/g, "").slice(0, 20)}`, p)),
+    ];
+    return { type: "sg-draft", theme: st.theme, content: { ...st.content, team }, photos, styleOk: st.styleAllowed !== false };
   }, []);
   useEffect(() => {
     const t = setTimeout(() => { const m = draftMsg(); if (m) frameRef.current?.contentWindow?.postMessage(m, window.location.origin); }, 60);
     return () => clearTimeout(t);
-  }, [site?.content, site?.theme, site?.photos, draftMsg]);
+  }, [site?.content, site?.theme, site?.photos, site?.people, draftMsg]);
   useEffect(() => {
     const on = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.type !== "sg-ready" || e.source !== frameRef.current?.contentWindow) return;
@@ -420,6 +462,15 @@ export default function WebsitePage() {
   const status = !site.isPublished ? "Not published yet" : site.hasChanges ? "Published, with changes not yet published" : "Published";
 
   const ph = (id: string | null | undefined) => (id ? byId.get(id) : undefined);
+  // Website → Team: the studio's order; members shown in their profile but not placed yet come at the end.
+  const people = site.people ?? [];
+  const shownIds = new Set(people.filter(p => p.show).map(p => p.id));
+  const placedIds = new Set((c.team ?? []).map(r => r.userId).filter(Boolean));
+  const teamRows: SiteTeamMember[] = [
+    ...(c.team ?? []).filter(r => !r.userId || shownIds.has(r.userId)),
+    ...people.filter(p => p.show && !placedIds.has(p.id)).map(p => ({ id: `m${p.id.replace(/-/g, "").slice(0, 20)}`, name: "", role: "", photo: null, userId: p.id })),
+  ];
+  function setRows(next: SiteTeamMember[]) { set("team", next.map(r => (r.userId ? { id: r.id, name: "", role: "", photo: null, userId: r.userId } : r))); }
   const crops = c.crop ?? {};
   /** Gallery White: the photos of its full-screen slideshow. */
   const slides = (c.slides ?? []).filter(id => byId.has(id));
@@ -695,43 +746,81 @@ export default function WebsitePage() {
         <Field label="Text" action={<AutofillText field="about.text" value={c.aboutText} onFill={v => set("aboutText", v)} ctx={{ events: c.events }} />}>{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} crop={crops.about} onAdjust={() => adjust("about", c.aboutPhoto, "About photo", RATIO.about)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
       </Sec>
-      <Sec icon={Users} tone="amber" where="About page" title="Team" help="Shown on the About page, each with a round photo. Leave it empty to show no team.">
-        {(c.team ?? []).map((m, i) => {
-          const team = c.team ?? [];
-          const put = (patch: Partial<SiteTeamMember>) => set("team", team.map((y, k) => (k === i ? { ...y, ...patch } : y)));
-          const move = (d: number) => { const next = [...team]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); set("team", next); };
-          const p = ph(m.photo);
-          const k = crops[`team:${m.id}`];
-          return (
-            <div key={m.id} className="px-4 py-3.5 flex gap-3 items-start">
-              <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                <button type="button" onClick={() => (p ? adjust(`team:${m.id}`, m.photo, `${m.name || "Team member"}: photo`, 1, true) : choose("Team member photo", [], ids => put({ photo: ids[0] ?? null })))}
-                  aria-label={p ? `Adjust the photo of ${m.name || "this person"}` : "Choose a photo"}
-                  className="relative w-[76px] h-[76px] rounded-full overflow-hidden bg-[#F1EEF8] border-2 border-white shadow-[0_0_0_1px_#E4E0EC] text-[#7D5CEF] flex items-center justify-center">
-                  {p ? <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={small(p)} alt="" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
-                    <span className="absolute inset-x-0 bottom-0 h-6 bg-black/55 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
-                  </> : <ImagePlus className="w-5 h-5" />}
-                </button>
-                {p && <button type="button" onClick={() => choose("Team member photo", m.photo ? [m.photo] : [], ids => put({ photo: ids[0] ?? null }))} className="text-[12px] font-semibold text-[#7D5CEF] h-7 px-1">Change</button>}
-              </div>
-              <div className="flex-1 min-w-0 grid gap-2">
-                <input aria-label="Name" className={inputCls} placeholder="Name" value={m.name} maxLength={80} onChange={e => put({ name: e.target.value })} />
-                <input aria-label="What they do" list="team-roles" className={inputCls} placeholder="Photographer, Cinematographer…" value={m.role} maxLength={60} onChange={e => put({ role: e.target.value })} />
-              </div>
+      <Sec icon={Users} tone="amber" where="About page" title="Team" help="Members of your Team come with their own name, title and photo: show or hide them here or in their profile → Website. People who are not in your Team can be added by hand.">
+        <SwitchRow label="Open a member's page on click" hint="Off: the team only moves on the About page. On: clicking a member opens their page." on={!!c.teamClick} onChange={v => set("teamClick", v)} />
+        <SwitchRow label="QR code for ID cards" hint="Each member gets a QR code for their ID card (their profile → Website). Scanning it opens their page and shows if they still work here." on={!!c.teamQr} onChange={v => set("teamQr", v)} />
+        {teamRows.map((m, i) => {
+            const rows = teamRows;
+            const put = (patch: Partial<SiteTeamMember>) => setRows(rows.map((y, k) => (k === i ? { ...y, ...patch } : y)));
+            const move = (d: number) => { const next = [...rows]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); setRows(next); };
+            const arrows = (
               <div className="flex flex-col gap-1 flex-shrink-0">
                 <button type="button" disabled={i === 0} onClick={() => move(-1)} aria-label="Move up" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowUp className="w-4 h-4" /></button>
-                <button type="button" disabled={i === (c.team ?? []).length - 1} onClick={() => move(1)} aria-label="Move down" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowDown className="w-4 h-4" /></button>
-                <button type="button" onClick={() => set("team", team.filter((_, x) => x !== i))} aria-label={`Remove ${m.name || "this person"}`} className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+                <button type="button" disabled={i === rows.length - 1} onClick={() => move(1)} aria-label="Move down" className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#EEEBF4] disabled:opacity-30 text-[#6B6680] flex items-center justify-center"><ArrowDown className="w-4 h-4" /></button>
               </div>
-            </div>
-          );
-        })}
+            );
+            if (m.userId) {
+              const person = people.find(p => p.id === m.userId);
+              if (!person) return null;
+              return (
+                <div key={m.id} className="px-4 py-3.5 flex gap-3 items-center">
+                  <span className="w-[56px] h-[56px] rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] font-semibold flex items-center justify-center flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {person.photo ? <img src={person.photo} alt="" className="w-full h-full object-cover" /> : person.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-semibold text-[#17151F] truncate">{person.name}</p>
+                    <p className="text-[13px] text-[#6B6680] truncate">{[person.title, person.memberId].filter(Boolean).join(" · ")}</p>
+                    <span className="mt-1 inline-flex h-6 px-2.5 rounded-full bg-[#E7F5EE] text-[#14613F] text-[12px] font-bold items-center">From Team</span>
+                  </div>
+                  <button type="button" onClick={() => setMemberEdit(person.id)} className="h-10 px-3 rounded-[12px] text-[14px] font-semibold text-[#5B3FD0] hover:bg-[#F5F3FA] flex-shrink-0">Edit</button>
+                  {arrows}
+                </div>
+              );
+            }
+            const p = ph(m.photo);
+            const k = crops[`team:${m.id}`];
+            return (
+              <div key={m.id} className="px-4 py-3.5 flex gap-3 items-start">
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <button type="button" onClick={() => (p ? adjust(`team:${m.id}`, m.photo, `${m.name || "Team member"}: photo`, 1, true) : choose("Team member photo", [], ids => put({ photo: ids[0] ?? null })))}
+                    aria-label={p ? `Adjust the photo of ${m.name || "this person"}` : "Choose a photo"}
+                    className="relative w-[76px] h-[76px] rounded-full overflow-hidden bg-[#F1EEF8] border-2 border-white shadow-[0_0_0_1px_#E4E0EC] text-[#7D5CEF] flex items-center justify-center">
+                    {p ? <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={small(p)} alt="" className="w-full h-full object-cover" style={k ? { objectPosition: `${k.x}% ${k.y}%`, transformOrigin: `${k.x}% ${k.y}%`, scale: k.z > 1 ? String(k.z) : undefined } : undefined} />
+                      <span className="absolute inset-x-0 bottom-0 h-6 bg-black/55 text-white flex items-center justify-center"><Crop className="w-3 h-3" /></span>
+                    </> : <ImagePlus className="w-5 h-5" />}
+                  </button>
+                  {p && <button type="button" onClick={() => choose("Team member photo", m.photo ? [m.photo] : [], ids => put({ photo: ids[0] ?? null }))} className="text-[12px] font-semibold text-[#7D5CEF] h-7 px-1">Change</button>}
+                </div>
+                <div className="flex-1 min-w-0 grid gap-2">
+                  <input aria-label="Name" className={inputCls} placeholder="Name" value={m.name} maxLength={80} onChange={e => put({ name: e.target.value })} />
+                  <input aria-label="What they do" list="team-roles" className={inputCls} placeholder="Photographer, Cinematographer…" value={m.role} maxLength={60} onChange={e => put({ role: e.target.value })} />
+                  <span className="inline-flex w-fit h-6 px-2.5 rounded-full bg-[#F1EFF6] text-[#4A4658] text-[12px] font-bold items-center">Added here</span>
+                </div>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  {arrows}
+                  <button type="button" onClick={() => setRows(rows.filter((_, x) => x !== i))} aria-label={`Remove ${m.name || "this person"}`} className="w-10 h-10 rounded-[12px] bg-[#F5F3FA] hover:bg-[#FDECEF] hover:text-[#C2304F] text-[#6B6680] flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            );
+          })}
         <datalist id="team-roles">{["Founder", "Lead photographer", "Photographer", "Cinematographer", "Lead cinematographer", "Video editor", "Photo editor", "Drone pilot", "Studio manager"].map(r => <option key={r} value={r} />)}</datalist>
-        {(c.team ?? []).length < 24 && (
-          <button type="button" onClick={() => set("team", [...(c.team ?? []), { id: newId(), name: "", role: "", photo: null }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a team member</button>
-        )}
+        <div className="px-4 py-3.5 flex flex-wrap gap-2">
+          {(site.people ?? []).some(p => !p.show) && (
+            <button type="button" onClick={() => setTeamPick(true)} className="h-11 px-4 rounded-[12px] border border-[#E4E0EC] bg-white text-[14px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5"><Users className="w-4 h-4" />Choose from your team</button>
+          )}
+          {(c.team ?? []).length < 24 && (
+            <button type="button" onClick={() => set("team", [...(c.team ?? []), { id: newId(), name: "", role: "", photo: null }])} className="h-11 px-4 rounded-[12px] bg-[#EEE8FD] text-[14px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />Add someone not in your team</button>
+          )}
+          {c.teamQr && (site.people ?? []).length > 0 && (
+            <button type="button" onClick={async () => {
+              const list = (site.people ?? []).filter(p => p.memberId).map(p => ({ name: p.name, memberId: p.memberId!, link: `${url}/team/${p.memberId}?v=1` }));
+              try { const { qrSheet, saveFile } = await import("@/lib/member-qr"); saveFile(await qrSheet(list, site.studio.name), "team-qr-codes.pdf"); } catch { notify("Couldn't make the file", { error: true }); }
+            }} className="h-11 px-4 rounded-[12px] border border-[#E4E0EC] bg-white text-[14px] font-semibold text-[#3D3950] inline-flex items-center gap-1.5"><Download className="w-4 h-4" />Everyone&apos;s QR codes (PDF)</button>
+          )}
+        </div>
       </Sec>
       </div>
 
@@ -1052,6 +1141,30 @@ export default function WebsitePage() {
         </>
       )}
       {pick && <PhotoPicker photos={site.photos} {...pick} onUpload={upload} uploading={uploading} onClose={() => setPick(null)} />}
+      {memberEdit && (
+        <TeamSheet title="Team member on the website" onClose={() => { setMemberEdit(null); reloadPreview(); }}>
+          <MemberSitePanel userId={memberEdit} onShowChange={show => setPeopleShow(memberEdit, show)} />
+        </TeamSheet>
+      )}
+      {teamPick && (
+        <TeamSheet title="Choose from your team" onClose={() => setTeamPick(false)}>
+          <p className="text-[14px] text-[#6B6680] mb-3">Tap someone to show them on the website. Their name, title and photo come from their profile.</p>
+          <ul className="bg-white rounded-[18px] border border-[#EEEBF3] divide-y divide-[#EEEBF3] overflow-hidden">
+            {(site.people ?? []).filter(p => !p.show).map(p => (
+              <li key={p.id}>
+                <button type="button" onClick={() => showMember(p.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F7F5FC]">
+                  <span className="w-11 h-11 rounded-full overflow-hidden bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold flex items-center justify-center flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : p.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                  </span>
+                  <span className="flex-1 min-w-0"><span className="block text-[15px] font-semibold text-[#17151F] truncate">{p.name}</span><span className="block text-[13px] text-[#6B6680] truncate">{[p.title, p.memberId].filter(Boolean).join(" · ")}</span></span>
+                  <Plus className="w-5 h-5 text-[#7D5CEF]" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </TeamSheet>
+      )}
       {frame && <FrameModal {...frame} value={crops[frame.key]} onClose={() => setFrame(null)}
         onSave={v => { const next = { ...crops }; if (v) next[frame.key] = v; else delete next[frame.key]; set("crop", next); setFrame(null); }} />}
     </div>

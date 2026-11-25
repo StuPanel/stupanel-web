@@ -4,6 +4,7 @@
  * (WhatsApp, Facebook, Messenger), the Search Console code and the switch to keep the site out of search.
  * Empty boxes mean "automatic": the preview shows what visitors will get. Goes live with Publish, like the rest.
  */
+import { AutofillPair, AutofillText } from "@/lib/site-autofill";
 import { useState } from "react";
 import { ChevronDown, Copy, ExternalLink, ImagePlus, X } from "lucide-react";
 import { Field, FormGroup, SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -83,10 +84,10 @@ export function SeoTab({ content, studio, url, allowed, photo, onChange, onChoos
       <fieldset disabled={!allowed} className="contents">
         <FormGroup title="How Google shows your website" note="Empty boxes are filled in for you from your Home page. Changes go live when you publish.">
           <div className="px-4 py-3.5"><GoogleCard url={url} name={studio.name} title={title} description={description} /></div>
-          <Field label="Title" hint={<Count n={title.length} fit={TITLE_FIT} />}>
+          <Field label="Title" hint={<Count n={title.length} fit={TITLE_FIT} />} action={<AutofillText field="seo.title" value={seo.title} onFill={v => put({ title: v })} ctx={{ events: content.events }} />}>
             {id => <input id={id} className={inputCls} value={seo.title} maxLength={70} placeholder={auto.title} onChange={e => put({ title: e.target.value })} />}
           </Field>
-          <Field label="Description" hint={<><Count n={description.length} fit={DESC_FIT} /> · Say what you shoot and where, e.g. &ldquo;Wedding photography and films in Feni and Chattogram.&rdquo;</>}>
+          <Field label="Description" action={<AutofillText field="seo.description" value={seo.description} onFill={v => put({ description: v })} ctx={{ events: content.events }} />} hint={<><Count n={description.length} fit={DESC_FIT} /> · Say what you shoot and where, e.g. &ldquo;Wedding photography and films in Feni and Chattogram.&rdquo;</>}>
             {id => <textarea id={id} rows={3} className={cn(inputCls, "h-auto py-2.5 resize-none")} value={seo.description} maxLength={170} placeholder={auto.description} onChange={e => put({ description: e.target.value })} />}
           </Field>
         </FormGroup>
@@ -130,6 +131,8 @@ export function SeoTab({ content, studio, url, allowed, photo, onChange, onChoos
                 </button>
                 {open === key && (
                   <div className="px-4 pb-4 space-y-3">
+                    <div className="flex justify-end"><AutofillPair field={`seo.page.${key}`} value={{ a: own.title, b: own.description }} ctx={{ events: content.events }}
+                      onFill={v => setPage({ title: v.a, description: v.b })} /></div>
                     <label className="block">
                       <span className="text-[13px] font-semibold text-[#4A4658]">Title</span>
                       <input className={cn(inputCls, "mt-1")} value={own.title} maxLength={70} placeholder={a.title} onChange={e => setPage({ title: e.target.value })} />

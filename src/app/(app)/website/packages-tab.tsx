@@ -5,6 +5,7 @@
  * photos, price and offer, short facts, day plan, what the client gets, extras, a film and questions.
  * "Make from my package" fills everything the studio's own package already knows and marks what is left.
  */
+import { AutofillAdd, AutofillText } from "@/lib/site-autofill";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronUp, Copy, Crop, ExternalLink, Eye, EyeOff, ImagePlus, Loader2, Package, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { SwitchRow, inputCls } from "@/components/ui/form-kit";
@@ -372,7 +373,9 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
             </span>
           )}</label>
       </div>
-      <label className="block mt-2.5"><span className="block text-[13px] font-semibold text-[#4A4658] mb-1">One line about it</span>
+      <div className="mt-2.5 flex items-center justify-between gap-2 mb-1"><span className="block text-[13px] font-semibold text-[#4A4658]">One line about it</span>
+        <AutofillText field="package.tagline" value={o.tagline} onFill={v => put({ tagline: v })} ctx={{ events: o.days.map(d => d.name), packageName: o.name }} /></div>
+      <label className="block"><span className="sr-only">One line about it</span>
         <input className={inputCls} value={o.tagline} maxLength={160} placeholder="Holud, wedding and reception — the whole story" onChange={e => put({ tagline: e.target.value })} /></label>
 
       </Step>
@@ -420,8 +423,9 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
       {o.was !== null && o.ends && <p className="text-xs text-[#6B6680] mt-1.5">After this day the old price comes back by itself.</p>}
       <div className="grid sm:grid-cols-2 gap-2.5 mt-2.5">
         <label className="flex items-center gap-2 text-[14px] text-[#17151F] min-h-[44px]"><input type="checkbox" className="w-4 h-4 accent-[#7D5CEF]" checked={o.from} onChange={e => put({ from: e.target.checked })} />Show as &quot;from&quot; price</label>
-        <label className="block"><span className="sr-only">Label on the card</span>
+        <div className="flex items-center gap-2"><label className="block flex-1 min-w-0"><span className="sr-only">Label on the card</span>
           <input className={inputCls} value={o.badge} maxLength={30} placeholder="Label on the card: Most loved" onChange={e => put({ badge: e.target.value })} /></label>
+          <AutofillText field="package.badge" value={o.badge} onFill={v => put({ badge: v })} ctx={{ events: o.days.map(d => d.name), packageName: o.name }} /></div>
       </div>
 
       </Step>
@@ -451,9 +455,12 @@ function OfferEditor({ o, i, count, put, settle, rename, taken, photo, crops, ch
 
       </Step>
       <Step n={9} title="Good to know and questions" optional done={!!o.note || o.faqs.length > 0} help="Advance, travel, what changes are possible. Questions open with a tap on the package page (optional).">
+      <div className="flex justify-end mb-1.5"><AutofillText field="package.note" value={o.note} onFill={v => put({ note: v })} ctx={{ events: o.days.map(d => d.name), packageName: o.name }} /></div>
       <textarea aria-label="Good to know" className={inputCls.replace("h-11", "min-h-[84px] py-2.5 leading-relaxed")} value={o.note} maxLength={1000} placeholder="A 30% advance books your date. Outside the city we add travel." onChange={e => put({ note: e.target.value })} />
       <Rows label="question" list={o.faqs} max={8} empty={{ q: "", a: "" }} set={l => put({ faqs: l })} add="Add a question"
         row={(f, p) => <div className="grid gap-2"><input aria-label="Question" className={inputCls} value={f.q} maxLength={160} placeholder="Can we swap a day?" onChange={e => p({ q: e.target.value })} /><input aria-label="Answer" className={inputCls} value={f.a} maxLength={800} placeholder="Answer" onChange={e => p({ a: e.target.value })} /></div>} />
+      <div className="mt-1"><AutofillAdd field="package.faq" max={8} ctx={{ events: o.days.map(d => d.name), packageName: o.name }} have={o.faqs.map(f => f.q)}
+        onAdd={v => put({ faqs: [...o.faqs.filter(f => f.q.trim() || f.a.trim()), { q: v.a, a: v.b }].slice(0, 8) })} /></div>
 
       </Step>
       <Step n={10} title="Link and showing it" done help="Use this link on Facebook, in an ad or on WhatsApp. Turn it off to keep the package here without showing it.">

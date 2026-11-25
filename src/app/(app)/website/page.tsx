@@ -15,6 +15,7 @@ import { TrackingTab } from "./tracking-tab";
 import { VisitorsTab } from "./visitors-tab";
 import { StylePanel } from "./style-panel";
 import { PackagesTab } from "./packages-tab";
+import { AutofillAdd, AutofillText } from "@/lib/site-autofill";
 import { PageHeader, RowsSkeleton, EmptyState } from "@/components/ui/apple";
 import { Field, SwitchRow, inputCls } from "@/components/ui/form-kit";
 import { Sec, TabIntro } from "./ed-kit";
@@ -646,10 +647,10 @@ export default function WebsitePage() {
       <div hidden={tab !== "home"}>
       <TabIntro icon={Home} title="Home page" text="The first screen visitors see: your words and the main photos. Changes show in the phone preview at once." />
       <Sec icon={Home} tone="violet" where="Home, first screen" title="Top of the page">
-        <Field label="Small handwritten line">{id => <input id={id} className={inputCls} value={c.script} maxLength={40} onChange={e => set("script", e.target.value)} />}</Field>
-        <Field label="Big headline" hint="Two or three words look best.">{id => <input id={id} className={inputCls} value={c.headline} maxLength={60} onChange={e => set("headline", e.target.value)} />}</Field>
-        <Field label="Line under the headline" hint="For example: Photography and films, Feni">{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
-        <Field label="Short introduction">{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
+        <Field label="Small handwritten line" action={<AutofillText field="home.script" value={c.script} onFill={v => set("script", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} value={c.script} maxLength={40} onChange={e => set("script", e.target.value)} />}</Field>
+        <Field label="Big headline" hint="Two or three words look best." action={<AutofillText field="home.headline" value={c.headline} onFill={v => set("headline", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} value={c.headline} maxLength={60} onChange={e => set("headline", e.target.value)} />}</Field>
+        <Field label="Line under the headline" hint="For example: Photography and films, Feni" action={<AutofillText field="home.kicker" value={c.kicker} onFill={v => set("kicker", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} value={c.kicker} maxLength={80} onChange={e => set("kicker", e.target.value)} />}</Field>
+        <Field label="Short introduction" action={<AutofillText field="home.intro" value={c.intro} onFill={v => set("intro", v)} ctx={{ events: c.events }} />}>{id => <textarea id={id} className={areaCls} value={c.intro} maxLength={300} onChange={e => set("intro", e.target.value)} />}</Field>
         <SwitchRow label="Show my logo image at the top" hint="Off: your studio name is written in the website's own lettering, which suits most logos better." on={!!c.showLogo} onChange={v => set("showLogo", v)} />
         <div className="px-4 py-3.5">
           <div className="text-sm font-semibold text-[#1F1B2E]">First screen photos</div>
@@ -680,8 +681,9 @@ export default function WebsitePage() {
             )}
           </div>
         </div>
-        <Field label="Moving words" hint="The events you cover, with a comma between them.">
-          {id => <input id={id} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
+        <Field label="Moving words" hint="The events you cover, with a comma between them."
+          action={<AutofillText field="home.events" value={c.events.join(", ")} onFill={v => set("events", v.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}>
+          {id => <input id={id} key={c.events.join(",")} className={inputCls} defaultValue={c.events.join(", ")} onBlur={e => set("events", e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10))} />}
         </Field>
       </Sec>
       </div>
@@ -689,8 +691,8 @@ export default function WebsitePage() {
       <div hidden={tab !== "about"}>
       <TabIntro icon={Users} title="About" text="Your studio's story, photo and team, shown on the About page." />
       <Sec icon={Users} tone="amber" where="About page" title="About the studio">
-        <Field label="Title" hint="The first word is shown in handwriting.">{id => <input id={id} className={inputCls} value={c.aboutTitle} maxLength={40} onChange={e => set("aboutTitle", e.target.value)} />}</Field>
-        <Field label="Text">{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
+        <Field label="Title" hint="The first word is shown in handwriting." action={<AutofillText field="about.title" value={c.aboutTitle} onFill={v => set("aboutTitle", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} value={c.aboutTitle} maxLength={40} onChange={e => set("aboutTitle", e.target.value)} />}</Field>
+        <Field label="Text" action={<AutofillText field="about.text" value={c.aboutText} onFill={v => set("aboutText", v)} ctx={{ events: c.events }} />}>{id => <textarea id={id} className={areaCls.replace("96px", "140px")} value={c.aboutText} maxLength={900} onChange={e => set("aboutText", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.aboutPhoto)} crop={crops.about} onAdjust={() => adjust("about", c.aboutPhoto, "About photo", RATIO.about)} label="Photo" onPick={() => choose("About photo (tall)", c.aboutPhoto ? [c.aboutPhoto] : [], ids => set("aboutPhoto", ids[0] ?? null))} onClear={() => set("aboutPhoto", null)} /></div>
       </Sec>
       <Sec icon={Users} tone="amber" where="About page" title="Team" help="Shown on the About page, each with a round photo. Leave it empty to show no team.">
@@ -787,7 +789,7 @@ export default function WebsitePage() {
       <TabIntro icon={Clapperboard} title="Films" text="YouTube films. The first one is shown big on Home; all of them are on the Films page." />
       <Sec icon={Clapperboard} tone="blue" where="Home and Films" title="Wedding film" help="Leave the link empty to hide this part.">
         <Field label="YouTube link">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtu.be/…" value={c.filmUrl} maxLength={200} onChange={e => set("filmUrl", e.target.value)} />}</Field>
-        <Field label="Film name">{id => <input id={id} className={inputCls} placeholder="Tanvir and Nusrat, the wedding film" value={c.filmTitle} maxLength={80} onChange={e => set("filmTitle", e.target.value)} />}</Field>
+        <Field label="Film name" action={<AutofillText field="film.title" value={c.filmTitle} onFill={v => set("filmTitle", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} placeholder="Tanvir and Nusrat, the wedding film" value={c.filmTitle} maxLength={80} onChange={e => set("filmTitle", e.target.value)} />}</Field>
         <div className="px-4 py-3.5"><Slot p={ph(c.filmPhoto)} crop={crops.film} onAdjust={() => adjust("film", c.filmPhoto, "Film cover", RATIO.film)} label="Cover photo" onPick={() => choose("Film cover (wide)", c.filmPhoto ? [c.filmPhoto] : [], ids => set("filmPhoto", ids[0] ?? null))} onClear={() => set("filmPhoto", null)} /></div>
         {!c.filmPhoto && ytId(c.filmUrl) && <div className="px-4 pb-3.5"><FramePick vid={ytId(c.filmUrl)!} value={c.filmFrame ?? 0} onPick={n => { set("filmFrame", n); dropCrop("filmf"); }} name={c.filmTitle || "the film"} crop={crops.filmf} onAdjust={() => adjustYt("filmf", ytId(c.filmUrl)!, c.filmFrame ?? 0, `Picture of ${c.filmTitle || "the film"}`)} /></div>}
       </Sec>
@@ -894,7 +896,11 @@ export default function WebsitePage() {
           </div>
         ))}
         {(c.faqs ?? []).length < 12 && (
-          <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="w-full px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
+          <div className="flex flex-wrap items-center gap-2 pr-4">
+            <button type="button" onClick={() => set("faqs", [...(c.faqs ?? []), { q: "", a: "" }])} className="flex-1 px-4 py-3.5 text-left text-[15px] font-semibold text-[#7D5CEF] inline-flex items-center gap-2"><Plus className="w-4 h-4" />Add a question</button>
+            <AutofillAdd field="faq" max={12} ctx={{ events: c.events }} have={(c.faqs ?? []).map(f => f.q)}
+              onAdd={v => set("faqs", [...(c.faqs ?? []).filter(f => f.q.trim() || f.a.trim()), { q: v.a, a: v.b }].slice(0, 12))} />
+          </div>
         )}
       </Sec>
       </div>
@@ -914,7 +920,7 @@ export default function WebsitePage() {
         <Field label="WhatsApp number">{id => <input id={id} className={inputCls} inputMode="tel" value={c.whatsapp} maxLength={30} onChange={e => set("whatsapp", e.target.value)} />}</Field>
         <Field label="Email">{id => <input id={id} className={inputCls} inputMode="email" value={c.email} maxLength={120} onChange={e => set("email", e.target.value)} />}</Field>
         <Field label="Address">{id => <input id={id} className={inputCls} value={c.address} maxLength={200} onChange={e => set("address", e.target.value)} />}</Field>
-        <Field label="Open hours">{id => <input id={id} className={inputCls} placeholder="Sat to Thu, 10 am to 8 pm" value={c.hours} maxLength={80} onChange={e => set("hours", e.target.value)} />}</Field>
+        <Field label="Open hours" action={<AutofillText field="contact.hours" value={c.hours} onFill={v => set("hours", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} placeholder="Sat to Thu, 10 am to 8 pm" value={c.hours} maxLength={80} onChange={e => set("hours", e.target.value)} />}</Field>
       </Sec>
       </div>
 
@@ -923,7 +929,7 @@ export default function WebsitePage() {
         <Field label="Facebook page">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://facebook.com/…" value={c.facebook} maxLength={200} onChange={e => set("facebook", e.target.value)} />}</Field>
         <Field label="Instagram">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://instagram.com/…" value={c.instagram} maxLength={200} onChange={e => set("instagram", e.target.value)} />}</Field>
         <Field label="YouTube channel">{id => <input id={id} className={inputCls} inputMode="url" placeholder="https://youtube.com/…" value={c.youtube} maxLength={200} onChange={e => set("youtube", e.target.value)} />}</Field>
-        <Field label="One line about the studio (footer)">{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
+        <Field label="One line about the studio (footer)" action={<AutofillText field="footer.line" value={c.footerLine} onFill={v => set("footerLine", v)} ctx={{ events: c.events }} />}>{id => <input id={id} className={inputCls} value={c.footerLine} maxLength={160} onChange={e => set("footerLine", e.target.value)} />}</Field>
       </Sec>
       </div>
 
@@ -941,6 +947,7 @@ export default function WebsitePage() {
                 placeholder={`## Bookings\nYour date is held once the advance is paid.\n\n## Payments\n- Advance: 50% to book the date\n- The rest: on the wedding day`}
                 onChange={e => set(key, e.target.value)} />
               <div className="flex flex-wrap items-center gap-2">
+                <AutofillText field={`legal.${kind}`} value={val} onFill={v => set(key, v)} ctx={{ events: c.events }} />
                 {!val.trim() && <button type="button" onClick={() => set(key, standardLegal(kind, site.studio.name))} className="h-9 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold">Start from the standard words</button>}
                 {!!val.trim() && <button type="button" onClick={() => set(key, "")} className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#4A4658] text-[13px] font-semibold">Use the standard words again</button>}
                 <a href={`/site/${site.slug}/${kind}?preview=1`} target="_blank" rel="noopener noreferrer" className="h-9 px-3.5 rounded-full bg-[#F5F3FA] hover:bg-[#EEEBF4] text-[#4A4658] text-[13px] font-semibold inline-flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" />See the page</a>

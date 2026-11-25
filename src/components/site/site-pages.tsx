@@ -11,14 +11,15 @@ import { FilmTheater } from "./site-film";
 import { parseLegal, standardLegal } from "./site-legal";
 import { PackageBrowser } from "./site-packages";
 import { OfferCards, OfferPage, bookChoices, liveOffers } from "./site-offers";
-import { AlbumCard, BookForm, addressLines, cropStyle, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
+import { AlbumCard, BookForm, addressLines, cropStyle, MonoAlbums, MonoRows, Ph, buildKey, money, readBuild, type SiteAlbum, type SiteData, type SiteMember, type SitePageName, type SiteTeamMember, type SiteCrop, type SitePhoto, Heading } from "./site-view";
+import { MemberPage } from "./site-member";
 
-type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string; offerId?: string };
+type Props = { page: SitePageName; data: SiteData; preview?: boolean; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void; wa: string; thanks: () => void; storyId?: string; offerId?: string; member?: SiteMember; scan?: boolean };
 
 const TITLES: Record<Exclude<SitePageName, "home">, [string, string]> = {
   portfolio: ["our", "Portfolio"], films: ["wedding", "Films"], packages: ["our", "Packages"], about: ["about", "The studio"],
   reviews: ["kind", "Words"], faq: ["good to", "Know"], contact: ["save", "Your date"], privacy: ["your", "Privacy"], terms: ["the", "Terms"],
-  stories: ["wedding", "Stories"], "thank-you": ["thank", "You"], notfound: ["lost", "Page"],
+  stories: ["wedding", "Stories"], "thank-you": ["thank", "You"], notfound: ["lost", "Page"], member: ["meet", "The team"],
 };
 
 /** FAQ: one answer open at a time; it slides open and closes again smoothly (height + fade), the + turns into a −. */
@@ -70,10 +71,10 @@ function Film({ id, title, poster, posterStyle, frame }: { id: string; title: st
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("");
 
 /** About page: the team, round portraits. Every look dresses it its own way in site.css (.tgrid). */
-function Team({ team, photos, crops, mono }: { team: SiteTeamMember[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; mono?: boolean }) {
+function Team({ team, photos, crops, mono, link }: { team: SiteTeamMember[]; photos: Record<string, SitePhoto>; crops?: Record<string, SiteCrop>; mono?: boolean; /** "Open a member's page on click" is on */ link?: (memberId: string) => string }) {
   if (!team.length) return null;
-  const card = (m: SiteTeamMember, copy?: boolean) => (
-    <li key={`${copy ? "b" : "a"}${m.id}`} className="tm" aria-hidden={copy || undefined}>
+  const card = (m: SiteTeamMember, copy?: boolean) => {
+    const inner = <>
       <span className="tmo" aria-hidden="true">
         <span className="tmi">
           {m.photo && photos[m.photo]
@@ -85,8 +86,15 @@ function Team({ team, photos, crops, mono }: { team: SiteTeamMember[]; photos: R
         <span className="tmname pf">{m.name}</span>
         {m.role && <span className="tmrole cap">{m.role}</span>}
       </span>
-    </li>
-  );
+    </>;
+    return (
+      <li key={`${copy ? "b" : "a"}${m.id}`} className="tm" aria-hidden={copy || undefined}>
+        {link && m.memberId
+          ? <Link href={link(m.memberId)} className="tmlink" tabIndex={copy ? -1 : undefined} draggable={false}>{inner}</Link>
+          : inner}
+      </li>
+    );
+  };
   return (
     <section className={`tsec${mono ? " tmono" : ""}`} aria-label="Our team">
       <div className="wrap">
@@ -146,13 +154,17 @@ function TeamRow({ count, render }: { count: number; render: (copy: boolean) => 
     // Only a team member counts, not the empty space beside them.
     const onMember = (e: Event) => !!(e.target as Element | null)?.closest?.(".tm");
     const over = (e: MouseEvent) => { hover = onMember(e); }, leave = () => { hover = false; };
-    const down = (e: PointerEvent) => { if (!onMember(e)) return; hold = true; drag = { at: e.clientX, x }; };
-    const move = (e: PointerEvent) => { if (drag) { x = drag.x + (e.clientX - drag.at); } };
+    let dragged = 0;
+    const down = (e: PointerEvent) => { if (!onMember(e)) return; hold = true; dragged = 0; drag = { at: e.clientX, x }; };
+    const move = (e: PointerEvent) => { if (drag) { dragged = Math.max(dragged, Math.abs(e.clientX - drag.at)); x = drag.x + (e.clientX - drag.at); } };
+    // A drag that ends on a member is not a click on their page.
+    const click = (e: MouseEvent) => { if (dragged > 6) { e.preventDefault(); e.stopPropagation(); } dragged = 0; };
     // Only when this row was held: a click somewhere else on the page must not pause it.
     const up = () => { if (!hold && !drag) return; hold = false; drag = null; restart = performance.now() + 1400; };
     const mq = window.matchMedia("(hover: hover)");
     if (mq.matches) { v.addEventListener("mouseover", over); v.addEventListener("mouseleave", leave); }
     v.addEventListener("pointerdown", down);
+    v.addEventListener("click", click, true);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -160,6 +172,7 @@ function TeamRow({ count, render }: { count: number; render: (copy: boolean) => 
       cancelAnimationFrame(raf);
       v.removeEventListener("mouseover", over); v.removeEventListener("mouseleave", leave);
       v.removeEventListener("pointerdown", down);
+      v.removeEventListener("click", click, true);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
@@ -174,7 +187,7 @@ function TeamRow({ count, render }: { count: number; render: (copy: boolean) => 
 
 const longDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
 
-export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId, offerId }: Props) {
+export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, storyId, offerId, member, scan }: Props) {
   // Films page: ten at a time.
   const [filmCount, setFilmCount] = useState(10);
   const { content: c, photos, packages, studio } = data;
@@ -186,6 +199,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
   const [tag, setTag] = useState("");
   const [ask, setAsk] = useState(() => (typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? readBuild(data.slug).pkg));
   if (page === "home") return null;
+  if (page === "member") return member ? <MemberPage m={member} data={data} L={L} scan={!!scan} /> : null;
   const [script, title] = TITLES[page];
   /** The gallery look has its own, plainer pages. */
   const mono = data.theme === "mono";
@@ -341,7 +355,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             <p style={{ marginTop: 30 }}><Link href={L("/contact")} className="mlk">Book us</Link></p>
           </div>
         </section>
-        <Team team={c.team ?? []} photos={photos} crops={c.crop} mono />
+        <Team team={c.team ?? []} photos={photos} crops={c.crop} mono link={c.teamClick && !preview ? (id => L(`/team/${id}`)) : undefined} />
       </>
     );
   }
@@ -369,7 +383,7 @@ export function InnerPage({ page, data, preview, L, openAlbum, wa, thanks, story
             <div className="mq cz out">{[...c.events, ...c.events, ...c.events, ...c.events].map((e, i) => <span key={i} className={i % 2 ? "fill" : undefined}>{e}</span>)}</div>
           </div>
         )}
-        <Team team={c.team ?? []} photos={photos} crops={c.crop} />
+        <Team team={c.team ?? []} photos={photos} crops={c.crop} link={c.teamClick && !preview ? (id => L(`/team/${id}`)) : undefined} />
       </>
     );
   }

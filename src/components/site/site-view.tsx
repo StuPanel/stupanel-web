@@ -22,7 +22,20 @@ import "./site.css";
 
 export type SitePhoto = { url: string; /** 900 px copy for phones and grids */ sm?: string | null; w: number; h: number; /** Tiny blurred preview; not sent for photos inside albums */ blur?: string };
 /** A person in the studio's team (About page). */
-export type SiteTeamMember = { id: string; name: string; role: string; photo: string | null };
+export type SiteTeamMember = {
+  id: string; name: string; role: string; photo: string | null;
+  /** A member of the studio's Team (name, title and photo from their profile); none = added by hand */
+  userId?: string;
+  /** Their page: /team/<memberId> (only on the published site, for members of the Team) */
+  memberId?: string;
+};
+/** One team member's own page (/team/TM-016): who they are, never their work. Left the studio: only `left`. */
+export type SiteMember = {
+  memberId: string; left?: boolean;
+  name?: string; role?: string; photo?: string | null; since?: number | null; about?: string | null;
+  years?: string | null; languages?: string | null; weddings?: number | null; skills?: string[];
+  instagram?: string | null; facebook?: string | null;
+};
 export type SiteStory = { id: string; title: string; date: string; cover: string | null; text: string };
 /** How a photo sits in its frame: centre point in % and zoom (1 = fills the frame). */
 export type SiteCrop = { x: number; y: number; z: number };
@@ -41,7 +54,7 @@ export type SiteContent = {
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment from the film */ filmFrame?: number; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string; /** Own cover photo */ cover?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment */ frame?: number }[]; faqs?: { q: string; a: string }[];
-  stories?: SiteStory[]; team?: SiteTeamMember[]; hide?: string[]; crop?: Record<string, SiteCrop>;
+  stories?: SiteStory[]; team?: SiteTeamMember[]; /** Clicking a member opens their page */ teamClick?: boolean; /** ID card QR codes */ teamQr?: boolean; hide?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
   /** Own Terms / Privacy page text (empty = the standard words). See site-legal.ts for the writing rules. */
@@ -77,7 +90,7 @@ export const fontHref = (theme: string) => `https://fonts.googleapis.com/css2?${
 /** Website packages shown on the Home page (Faisal 24-NOV): the first two, then "See all packages". */
 export const HOME_PACKAGES = 2;
 
-export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms" | "stories" | "thank-you" | "notfound";
+export type SitePageName = "home" | "portfolio" | "films" | "packages" | "about" | "reviews" | "faq" | "contact" | "privacy" | "terms" | "stories" | "thank-you" | "notfound" | "member";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
 export const money = (n: number, cur: string) => (cur === "BDT" ? `৳ ${n.toLocaleString("en-IN")}` : `${cur} ${n.toLocaleString("en-US")}`);
@@ -361,7 +374,7 @@ export function addressLines(a: string): string {
   return lines.join("\n");
 }
 
-export function SiteView({ data, preview, base, page = "home", albumId, storyId, offerId }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string; /** One website package's own page */ offerId?: string }) {
+export function SiteView({ data, preview, base, page = "home", albumId, storyId, offerId, member, scan }: { data: SiteData; preview?: boolean; /** "" on <address>.stupanel.com; default /site/<address> */ base?: string; page?: SitePageName; albumId?: string; storyId?: string; /** One website package's own page */ offerId?: string; /** A team member's page */ member?: SiteMember; /** Opened from the ID card QR: the "verified" bar */ scan?: boolean }) {
   const { content: c, photos, studio, packages } = data;
   const root = useRef<HTMLDivElement>(null);
   const hero = useRef<HTMLElement>(null);
@@ -515,7 +528,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
       </div>
 
       <main>
-        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} offerId={offerId} /> : mono ? <MonoHome data={data} L={L} openAlbum={openAlbum} /> : <>
+        {!home ? <InnerPage page={page} data={data} preview={preview} L={L} openAlbum={openAlbum} wa={wa} thanks={thanks} storyId={storyId} offerId={offerId} member={member} scan={scan} /> : mono ? <MonoHome data={data} L={L} openAlbum={openAlbum} /> : <>
         <section ref={hero} className="wrap hero" style={{ paddingTop: 30, paddingBottom: 120 }}>
           <div className="hcol" style={{ position: "relative", padding: "0 40px 70px 0" }}>
             <div className="card dev hmain" style={{ aspectRatio: "3 / 2", rotate: "-1.5deg", translate: "calc(var(--mx, 0) * -14px) calc(var(--my, 0) * -10px)", transition: "translate .6s ease-out", ...d(0.35) }}>

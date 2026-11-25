@@ -5,6 +5,7 @@
  * Left: who they are + quick actions, and what the studio owes them.
  * Right: tabs — Overview, Programs, Payments, Prices & gear, About.
  */
+import { MemberSitePanel } from "@/components/team/member-site-panel";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,7 +30,7 @@ import { DaysOffList, PastRateRequests, PayoutView, RateRequestCard, waitingRequ
 import { dayRange, todayStr, type MemberPrefs } from "@/lib/member-prefs";
 
 const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
-const TABS = ["overview", "programs", "payments", "prices", "about"] as const;
+const TABS = ["overview", "programs", "payments", "prices", "about", "website"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function TeamMemberPage({ params }: { params: Promise<{ id: string }> }) {
@@ -146,6 +147,8 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
     { id: "payments", label: "Payments", count: pays.length },
     { id: "prices", label: "Prices & gear" },
     { id: "about", label: "About" },
+    // Their place on the studio website and their ID card QR (only people with a member ID)
+    ...(m?.memberId ? [{ id: "website" as Tab, label: "Website" }] : []),
   ];
 
   const upcomingRow = (u: NonNullable<ProfileData["upcoming"]>[number], i: number) => (
@@ -397,6 +400,8 @@ export default function TeamMemberPage({ params }: { params: Promise<{ id: strin
               {prefs && <PastRateRequests list={prefs.rateRequests} />}
             </>
           )}
+
+          {tab === "website" && m.memberId && <MemberSitePanel userId={m.id} />}
 
           {tab === "about" && (
             <>

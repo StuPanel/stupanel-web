@@ -9,7 +9,7 @@ import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { SITE_ROOT } from "@/lib/site-url";
 import { API_URL } from "@/lib/api";
-import { SiteView, type SiteData, type SitePageName } from "@/components/site/site-view";
+import { SiteView, type SiteData, type SiteMember, type SitePageName } from "@/components/site/site-view";
 import { SitePreview } from "./preview";
 import { SiteBeacon, SiteTracking } from "@/components/site/site-tracking";
 import { ldJson, offerSummary, pageSeo, shareImage, siteHome, structuredData } from "@/lib/site-seo";
@@ -22,9 +22,11 @@ const PAGES: Record<string, string> = {
 
 /** /portfolio/<album> opens that album; /stories/<story> is one story; /packages/<package> is one website package.
  *  Anything unknown shows the site's own "not here" page. */
-function route(path: string[] | undefined): { page: SitePageName; albumId?: string; storyId?: string; offerId?: string } {
+function route(path: string[] | undefined): { page: SitePageName; albumId?: string; storyId?: string; offerId?: string; memberId?: string } {
   if (!path?.length) return { page: "home" };
   const [first, second, ...rest] = path;
+  // A team member's page: /team/TM-016 (from their ID card QR, or a click on the About page)
+  if (first === "team" && second && !rest.length) return /^[A-Za-z0-9-]{1,20}$/.test(second) ? { page: "member", memberId: second.toUpperCase() } : { page: "notfound" };
   if (rest.length || !(first in PAGES)) return { page: "notfound" };
   if (second && first === "portfolio") return { page: "portfolio", albumId: second };
   if (second && first === "stories") return { page: "stories", storyId: second };
@@ -70,12 +72,30 @@ async function loadHere(slug: string): Promise<Loaded | null> {
   return d;
 }
 
-type Props = { params: Promise<{ slug: string; path?: string[] }>; searchParams: Promise<{ preview?: string }> };
+type Props = { params: Promise<{ slug: string; path?: string[] }>; searchParams: Promise<{ preview?: string; v?: string }> };
+
+/** A team member's page: the site plus { member }. Same 5-minute cache as the site, cleared with it. */
+async function loadMember(slug: string, memberId: string): Promise<(SiteData & { member: SiteMember }) | { offline: true } | null> {
+  if (!/^[a-z0-9-]{1,40}$/.test(slug)) return null;
+  try {
+    const res = await fetch(`${API_URL}/public/site/${slug}/team/${encodeURIComponent(memberId)}`, { next: { revalidate: 300, tags: [`site:${slug}`] } });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const [{ slug, path }, q] = await Promise.all([params, searchParams]);
   if (q.preview) return { title: "Website preview", robots: { index: false } };
   const r = route(path);
+  if (r.page === "member" && r.memberId) {
+    // A person's page: never in Google (it is for their ID card and the studio's visitors).
+    const m = await loadMember(slug, r.memberId);
+    if (!m || "offline" in m) return { title: "Page not found", robots: { index: false } };
+    const title = m.member.left ? `ID ${m.member.memberId} | ${m.studio.name}` : `${m.member.name} | ${m.studio.name}`;
+    return { title: { absolute: title }, robots: { index: false, follow: false } };
+  }
   const d = await loadHere(slug);
   // Here too (not only in the page): search engines get a real 308 for an old address, since metadata is
   // ready before the page streams.
@@ -112,7 +132,19 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function StudioSitePage({ params, searchParams }: Props) {
   const [{ slug, path }, q] = await Promise.all([params, searchParams]);
   const r = route(path);
-  if (q.preview) return <SitePreview page={r.page} albumId={r.albumId} storyId={r.storyId} offerId={r.offerId} />;
+  if (q.preview) return <SitePreview page={r.page === "member" ? "notfound" : r.page} albumId={r.albumId} storyId={r.storyId} offerId={r.offerId} />;
+  if (r.page === "member" && r.memberId) {
+    const m = await loadMember(slug, r.memberId);
+    if (m && "offline" in m) return <SiteOffline />;
+    if (!m) notFound();
+    await toOwnDomain(slug, m.domain, path);
+    const base = (await onSubdomain(slug)) ? "" : undefined;
+    const { member, ...site } = m;
+    return <>
+      <SiteBeacon slug={site.slug} />
+      <SiteView key={`member-${member.memberId}`} data={site} base={base} page="member" member={member} scan={q.v === "1" && !member.left} />
+    </>;
+  }
   const data = await loadHere(slug);
   if (data && "redirect" in data) permanentRedirect(await movedTo(slug, data.redirect, path));
   if (data && "offline" in data) return <SiteOffline />;

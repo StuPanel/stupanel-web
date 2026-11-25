@@ -113,6 +113,11 @@
 .sg .ofx input{accent-color:var(--ac);width:18px;height:18px;min-height:0;padding:0;margin:0;flex:none}
 .sg .ofx label span{display:inline;margin:0}
 .sg .ofxn{flex:1;min-width:0}
+.sg .ofxi{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sg .ofxu{font-size:11.5px;opacity:.65;font-weight:400}
+.sg .ofxd{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 4px 30px}
+.sg .ofxd button{font:inherit;font-size:12.5px;min-height:32px;padding:4px 12px;border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;cursor:pointer}
+.sg .ofxd button[aria-pressed="true"]{border-color:var(--btn);background:var(--btn);color:var(--btnt)}
 .sg .oftot{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding-top:12px;margin:0}
 .sg .oftot b{font-family:var(--fp);font-size:30px;font-weight:400;font-variant-numeric:tabular-nums}
 .sg .ofbk{font:inherit;font-weight:600;font-size:14px;letter-spacing:.06em;padding:16px;border:0;cursor:pointer;transition:filter .25s}
@@ -366,3 +371,17 @@
   .sg .ofc,.sg .ofi img,.sg .ofh,.sg .ofmos,.sg .ofbox,.sg .ofhi .ofph img,.sg .ofbar,.sg .ofpage.th-mono .ofstack .ofph{animation:none!important}
   .sg .ofc:hover .ofi img,.sg .ofph:hover img,.sg .th-cream .ofc:hover{transform:none}
 }
+/* A package with no photo yet: a designed picture in the look's colours (AutoArt) */
+.sg .ofauto{position:relative;display:block;width:100%;height:100%;min-height:100%;overflow:hidden;background:radial-gradient(120% 90% at 28% 18%,rgba(255,255,255,.12),rgba(255,255,255,0) 58%),var(--dark);color:var(--ac)}
+.sg .ofauto.k1{background:radial-gradient(110% 100% at 80% 85%,rgba(255,255,255,.1),rgba(255,255,255,0) 55%),var(--dark)}
+.sg .ofauto.k2{background:radial-gradient(90% 90% at 50% 50%,rgba(255,255,255,.1),rgba(255,255,255,0) 62%),var(--dark)}
+.sg .ofautp{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1;opacity:.32}
+.sg .ofautf{position:absolute;inset:14px;border:1px solid currentColor;opacity:.45;pointer-events:none}
+.sg .ofautl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:var(--fdw,400);font-size:clamp(64px,11vw,150px);line-height:1;color:var(--ond2);text-shadow:0 2px 24px rgba(0,0,0,.25)}
+.sg .ofi .ofauto{position:absolute;inset:0}
+.sg .ofhi .ofauto{position:absolute;inset:0}
+.sg .ofhi .ofauto .ofautl{font-size:clamp(120px,22vw,300px);opacity:.5}
+.sg .ofmos .ofauto,.sg .ofstack .ofauto{height:100%;min-height:clamp(260px,40vw,560px)}
+.sg .ofpage.th-mono .ofstack .ofauto{aspect-ratio:4/5;min-height:0}
+.sg .ofgrid .ofauto,.sg .ofg .ofauto{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.sg .ofc:hover .ofauto .ofautp{opacity:.45}

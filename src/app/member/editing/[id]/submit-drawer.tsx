@@ -1,188 +1,256 @@
 "use client";
 
 /**
- * Editor → "Submit work" side panel.
- * 1. What you're sending (Highlight video, Full video, Reel, Photos…)
- * 2. Upload the files (or a whole folder) — they go to the studio's private
- *    "StuPanel Edited / <program> / <type> / v<N>" folder on Google Drive
- *    — or paste a link to files kept somewhere else
- * 3. Notes → Send for review
- * The studio reviews; when it approves, uploaded files are copied to the client's delivery folder.
+ * Editor → "Send your work" side panel (Faisal 25-NOV-2026: one video at a time).
+ * 1. What kind (Full video, Teaser, Photos…)
+ * 2. Each video / photo set is its own row: the days the studio listed ("Holud — Full video"), what was sent
+ *    before, and any extra one the editor adds. Several files can be chosen at once — each becomes its own row.
+ *    Every row has its own upload (or link) and its own note, and goes to its own private Drive folder
+ *    "StuPanel Edited / <program> / <Kind> / <day or name> / v<N>".
+ * 3. A note for all → Send. The studio approves or asks for changes on each one separately, so a change to one
+ *    film means sending only that film again.
  * With `token` the same panel works on an editor's private work link (no login).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FileUp, FolderUp, Link2, Loader2, Send, Trash2, UploadCloud, X } from "lucide-react";
+import { Check, FileUp, FolderUp, Link2, Loader2, Plus, Send, Trash2, X } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { applyDuplicateChoice, checkDuplicates, uploadToDrive } from "@/lib/drive-uploader";
 import { uploadStore, type UploadEntry } from "@/lib/upload-store";
 import { fmtSize } from "@/app/(app)/programs/_components/raw-drive-section";
-
-const VIDEO_TYPES = [
-  { value: "highlight_video", label: "Highlight video" },
-  { value: "full_video", label: "Full video" },
-  { value: "teaser", label: "Teaser" },
-  { value: "reel", label: "Reel" },
-  { value: "other", label: "Other" },
-];
-const PHOTO_TYPES = [
-  { value: "photo_delivery", label: "Photos" },
-  { value: "album", label: "Album" },
-  { value: "other", label: "Other" },
-];
+import { PHOTO_KINDS, VIDEO_KINDS, WORK_LABEL, makeKey, nameFromFile, slotOf, titleOf, typeOf } from "@/lib/work-items";
 
 type Pending = {
   connected: boolean; version: number; label: string; folderUrl: string | null;
   files: { id: string; name: string; size: number; path: string; viewUrl: string }[];
   totals: { count: number; bytes: number }; freeBytes: number | null;
 };
+/** The latest version of one video, as sent before. */
+export type SentItem = { key: string; title: string; status: string; version: number; feedback?: string | null; byClient?: boolean };
+type Row = { key: string; title: string; planned: boolean; sent?: SentItem };
 
-const clean = (s: string) => s.replace(/[\\/]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120);
+const cleanPart = (s: string) => s.replace(/[\\/]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120);
 const chip = (on: boolean) => cn(
   "h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors",
   on ? "bg-[#17151F] text-white border-[#17151F]" : "bg-white text-[#4A4658] border-[#E6E2EE] hover:border-[#CFC8DD]",
 );
-const input = "w-full h-10 px-3 rounded-xl bg-[#F5F3FA] text-sm focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
+const area = "w-full px-3 py-2.5 rounded-xl bg-[#F5F3FA] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40";
+const isLink = (v: string) => /^https?:\/\/\S+\.\S+$/i.test(v.trim());
 
-export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onClose, onDone, toFix = [], sent = [] }: {
-  assignmentId: string; role: string; isRevision?: boolean; title: string;
+export function SubmitWorkDrawer({ assignmentId, token, first, role, title, plan = [], sent = [], days = [], onClose, onDone }: {
+  assignmentId: string; role: string; title: string;
   /** An editor's private work link (no login): the public endpoints are used. */
   token?: string;
-  /** The thing to start on (otherwise the first one to fix, or the first kind). */
+  /** The video (key) or kind to start on. */
   first?: string;
+  /** What the studio asked for: keys ("full_video|Holud") or kinds ("teaser"). */
+  plan?: string[];
+  /** The latest version of each video sent before. */
+  sent?: SentItem[];
+  /** The program's days, to name a video in one tap. */
+  days?: string[];
   onClose: () => void; onDone: () => void;
-  /** Things the studio asked to change (picked first). */
-  toFix?: { type: string; feedback: string | null; byClient?: boolean }[];
-  /** What was already sent: latest status + how many versions. */
-  sent?: { type: string; status: string; version: number }[];
 }) {
-  const types = role === "photo_editor" ? PHOTO_TYPES : VIDEO_TYPES;
-  const [type, setType] = useState([first, toFix[0]?.type].find(v => v && types.some(t => t.value === v)) ?? types[0].value);
-  const fix = toFix.find(f => f.type === type);
-  const isRevision = !!fix;
-  const SENT_TAG: Record<string, string> = { pending: "waiting", approved: "approved", revision_requested: "fix", replaced: "" };
-  const [data, setData] = useState<Pending | null>(null);
-  const [loadErr, setLoadErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [sending, setSending] = useState(false);
-  /** How the work is handed in: files uploaded here, or a link to files kept somewhere else. */
-  const [how, setHow] = useState<"upload" | "link">("upload");
-  const [link, setLink] = useState("");
-  const [linkErr, setLinkErr] = useState("");
+  const kinds = role === "photo_editor" ? PHOTO_KINDS : VIDEO_KINDS;
+  const isPhoto = role === "photo_editor";
+  const fixFirst = sent.find(s => s.status === "revision_requested");
+  const openPlan = plan.find(k => !sent.some(s => s.key === k && s.status === "approved"));
+  const [kind, setKind] = useState(() => {
+    const t = [first, fixFirst?.key, openPlan, plan[0]].map(k => (k ? typeOf(k) : "")).find(t => kinds.includes(t));
+    return t ?? kinds[0];
+  });
   const base = token ? `${API}/public/work/${token}` : `${API}/member/editing/${assignmentId}`;
   const uploadId = token ?? assignmentId;
-  const kind = token ? "edited-link" as const : "edited" as const;
-  const [notes, setNotes] = useState("");
-  const [revisionNotes, setRevisionNotes] = useState("");
-  const filesRef = useRef<HTMLInputElement>(null);
-  const folderRef = useRef<HTMLInputElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const upKind = token ? "edited-link" as const : "edited" as const;
 
-  // Uploads still running for this assignment (so "Send" waits for them).
-  const [uploads, setUploads] = useState<UploadEntry[]>([]);
-  useEffect(() => uploadStore.subscribe(setUploads), []);
-  const mine = uploads.filter(u => u.bookingId === uploadId && !u.cancelled);
-  const running = mine.filter(u => !u.done && !u.error).length;
-  const failed = mine.filter(u => u.error).length;
-  const active = mine.filter(u => !u.done && !u.error);
-  const pct = active.length ? Math.round(active.reduce((s, u) => s + (u.progress || 0), 0) / active.length) : 0;
+  // Rows of this kind: listed by the studio, sent before, or added now.
+  const [added, setAdded] = useState<Row[]>([]);
+  const rows = useMemo(() => {
+    const out: Row[] = [];
+    const push = (r: Row) => { if (!out.some(x => x.key === r.key)) out.push(r); };
+    for (const k of plan) if (typeOf(k) === kind) push({ key: k, title: titleOf(k), planned: true, sent: sent.find(s => s.key === k) });
+    for (const s of sent) if (typeOf(s.key) === kind) push({ key: s.key, title: s.title || titleOf(s.key), planned: false, sent: s });
+    for (const r of added) if (typeOf(r.key) === kind) push(r);
+    return out;
+  }, [plan, sent, added, kind]);
 
-  const load = useCallback((t: string) => {
-    setLoadErr("");
-    apiFetch(`${base}/files?type=${encodeURIComponent(t)}`)
-      .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d?.message || "Couldn't load"); return d; })
-      .then((d: Pending) => { setData(d); if (!d.connected) setHow("link"); })
-      .catch((e: Error) => setLoadErr(e.message));
+  // Each row's files waiting to be sent (its next version).
+  const [files, setFiles] = useState<Record<string, Pending | "err">>({});
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [freeBytes, setFreeBytes] = useState<number | null>(null);
+  const load = useCallback(async (key: string) => {
+    try {
+      const r = await apiFetch(`${base}/files?type=${encodeURIComponent(key)}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Couldn't load");
+      setFiles(m => ({ ...m, [key]: d as Pending }));
+      setConnected((d as Pending).connected);
+      setFreeBytes((d as Pending).freeBytes);
+    } catch { setFiles(m => ({ ...m, [key]: "err" })); }
   }, [base]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setData(null); load(type); }, [type, load]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const keysToLoad = rows.map(r => r.key).join("\n");
+  useEffect(() => {
+    const todo = (keysToLoad ? keysToLoad.split("\n") : []).filter(k => !(k in files));
+    const t = setTimeout(() => todo.forEach(k => void load(k)), 0);
+    return () => clearTimeout(t);
+  }, [keysToLoad]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Nothing listed for this kind: ask once, so we know whether Drive is connected.
+  useEffect(() => {
+    if (connected !== null || rows.length) return;
+    const t = setTimeout(() => void load(kind), 0);
+    return () => clearTimeout(t);
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [linkOpen, setLinkOpen] = useState<Record<string, boolean>>({});
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [newVersion, setNewVersion] = useState<Record<string, boolean>>({});
+  const [common, setCommon] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState("");
+  const pick = useRef<HTMLInputElement>(null);
+  const pickFolder = useRef<HTMLInputElement>(null);
+  const target = useRef<string | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const refreshSoon = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    // Google Drive can take a few seconds to list a new file: look now-ish, and once more a little later.
-    timer.current = setTimeout(() => { load(type); timer.current = setTimeout(() => load(type), 5000); }, 2500);
-  }, [load, type]);
 
-  async function start(list: FileList | null, fromFolder: boolean) {
-    if (!list?.length || busy) return;
-    const files = Array.from(list);
+  // Uploads still running (so "Send" waits for them), and per row.
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  useEffect(() => uploadStore.subscribe(setUploads), []);
+  const mine = uploads.filter(u => u.bookingId === uploadId && !u.cancelled);
+  const running = mine.filter(u => !u.done && !u.error);
+  const rowUploads = (key: string) => mine.filter(u => (u.folderName ?? "") === `Edited / ${key}` || (u.folderName ?? "").startsWith(`Edited / ${key}/`));
+  const refreshSoon = (key: string) => {
+    // Google Drive can take a few seconds to list a new file: look now-ish, and once more a little later.
+    timers.current.push(setTimeout(() => void load(key), 2500), setTimeout(() => void load(key), 7500));
+  };
+
+  /** Upload files into one row. From a folder, the folder's inside stays as it is. */
+  async function upload(key: string, list: File[], fromFolder: boolean) {
+    if (!list.length) return;
     const folderFor = (f: File) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
-      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(clean).filter(Boolean) : [];
-      return [type, ...sub].join("/");
+      const sub = fromFolder && rel.includes("/") ? rel.split("/").slice(1, -1).map(cleanPart).filter(Boolean) : [];
+      return [key, ...sub].join("/");
     };
-    const total = files.reduce((s, f) => s + f.size, 0);
-    if (data?.freeBytes != null && total > data.freeBytes) {
-      const ok = await askConfirm({ title: "Studio Drive is almost full", message: `These files are ${fmtSize(total)} but only ${fmtSize(data.freeBytes)} is free. Tell the studio, or upload anyway.`, confirmLabel: "Upload anyway", danger: true });
+    const total = list.reduce((s, f) => s + f.size, 0);
+    if (freeBytes != null && total > freeBytes) {
+      const ok = await askConfirm({ title: "Studio Drive is almost full", message: `These files are ${fmtSize(total)} but only ${fmtSize(freeBytes)} is free. Tell the studio, or upload anyway.`, confirmLabel: "Upload anyway", danger: true });
       if (!ok) return;
     }
+    const check = await checkDuplicates({ kind: upKind, files: list, bookingId: uploadId, folderFor });
+    const { files: toSend, plans } = applyDuplicateChoice(check, "skip");
+    if (!toSend.length) { notify("Already uploaded"); return; }
+    uploadToDrive({ kind: upKind, files: toSend, plans, folderFor, bookingId: uploadId, bookingName: title, onDone: () => refreshSoon(key) });
+  }
+
+  /** Several files at once: each goes to its own row — a listed day whose name is in the file name, else a new row. */
+  async function addMany(list: FileList | null, fromFolder: boolean) {
+    const chosen = Array.from(list ?? []);
+    if (pick.current) pick.current.value = "";
+    if (pickFolder.current) pickFolder.current.value = "";
+    if (!chosen.length || busy) return;
+    const into = target.current;
+    target.current = null;
     setBusy(true);
     try {
-      const check = await checkDuplicates({ kind, files, bookingId: uploadId, folderFor });
-      const { files: toSend, plans } = applyDuplicateChoice(check, "skip");
-      const skipped = files.length - toSend.length;
-      if (!toSend.length) { notify(`All ${files.length} files are already uploaded`); return; }
-      uploadToDrive({ kind, files: toSend, plans, folderFor, bookingId: uploadId, bookingName: title, onDone: refreshSoon });
-      notify(`Uploading ${toSend.length} files${skipped ? ` · ${skipped} already there` : ""}`);
+      if (into) { await upload(into, chosen, fromFolder); return; }
+      // A folder (photos) is one set; loose files are one row each.
+      const groups = new Map<string, File[]>();
+      for (const f of chosen) {
+        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+        const g = fromFolder && rel.includes("/") ? rel.split("/")[0] : f.name;
+        groups.set(g, [...(groups.get(g) ?? []), f]);
+      }
+      const used = new Set<string>();
+      const free = rows.filter(r => !r.sent || r.sent.status === "revision_requested").filter(r => !(files[r.key] && files[r.key] !== "err" && (files[r.key] as Pending).totals.count));
+      const made: Row[] = [];
+      for (const [name, fs] of groups) {
+        const low = name.toLowerCase();
+        const match = free.find(r => !used.has(r.key) && slotOf(r.key) && low.includes(slotOf(r.key).toLowerCase().split(" ")[0]));
+        let key = match?.key;
+        if (!key) {
+          let slot = nameFromFile(name) || "Video";
+          for (let n = 2; rows.some(r => r.key === makeKey(kind, slot)) || made.some(r => r.key === makeKey(kind, slot)); n++) slot = `${nameFromFile(name)} ${n}`;
+          key = makeKey(kind, slot);
+          made.push({ key, title: slot, planned: false });
+        }
+        used.add(key);
+        await upload(key, fs, fromFolder);
+      }
+      if (made.length) setAdded(a => [...a, ...made]);
+      notify(`Uploading ${chosen.length} file${chosen.length > 1 ? "s" : ""}${groups.size > 1 ? ` as ${groups.size} separate ${isPhoto ? "sets" : "videos"}` : ""}`);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Couldn't start the upload", { error: true });
-    } finally {
-      setBusy(false);
-      if (filesRef.current) filesRef.current.value = "";
-      if (folderRef.current) folderRef.current.value = "";
-    }
+    } finally { setBusy(false); }
   }
 
-  async function removeFile(f: Pending["files"][number]) {
+  async function removeFile(key: string, f: Pending["files"][number]) {
     const ok = await askConfirm({ title: `Remove "${f.name}"?`, message: "It is taken out of this version (moved to Drive trash).", confirmLabel: "Remove", danger: true });
     if (!ok) return;
-    const r = await apiFetch(`${base}/files/${f.id}?type=${encodeURIComponent(type)}`, { method: "DELETE" });
+    const r = await apiFetch(`${base}/files/${f.id}?type=${encodeURIComponent(key)}`, { method: "DELETE" });
     if (!r.ok) { notify("Couldn't remove", { error: true }); return; }
-    load(type);
+    void load(key);
   }
 
-  const hasLink = !!link.trim();
-  const hasFiles = (data?.totals.count ?? 0) > 0;
-  const canSend = (how === "link" ? hasLink : hasFiles) && running === 0 && !sending;
+  const pendingOf = (key: string) => { const p = files[key]; return p && p !== "err" ? p : null; };
+  const ready = rows.filter(r => (pendingOf(r.key)?.totals.count ?? 0) > 0 || (linkOpen[r.key] && isLink(links[r.key] ?? "")));
+  // Ready rows in other kinds too (the editor may switch kinds before sending).
+  const allKeys = Object.keys(files).filter(k => (pendingOf(k)?.totals.count ?? 0) > 0);
+  const readyKeys = [...new Set([...ready.map(r => r.key), ...allKeys, ...Object.keys(links).filter(k => linkOpen[k] && isLink(links[k]))])];
+  const canSend = readyKeys.length > 0 && running.length === 0 && !sending;
 
   async function send() {
     if (!canSend) return;
-    const url = how === "link" ? link.trim() : "";
-    if (url && !/^https?:\/\/\S+\.\S+$/i.test(url)) { setLinkErr("Paste the whole link. It starts with https://"); return; }
-    setLinkErr("");
-    setSending(true);
+    const bad = Object.entries(links).find(([k, v]) => linkOpen[k] && v.trim() && !isLink(v));
+    if (bad) { setErr(`The link for "${titleOf(bad[0])}" must start with https://`); return; }
+    setErr(""); setSending(true);
     try {
-      const note = [revisionNotes.trim() && `Changed: ${revisionNotes.trim()}`, notes.trim()].filter(Boolean).join("\n") || undefined;
-      const r = await apiFetch(`${base}/submit`, {
+      const items = readyKeys.map(k => {
+        const row = [...rows, ...added].find(r => r.key === k);
+        const sentBefore = sent.find(s => s.key === k);
+        const nm = (names[k] ?? "").trim();
+        return {
+          key: k,
+          title: nm || (row && !row.planned && !sentBefore ? row.title : undefined) || sentBefore?.title || undefined,
+          notes: (notes[k] ?? "").trim() || undefined,
+          link: linkOpen[k] && isLink(links[k] ?? "") ? links[k].trim() : undefined,
+        };
+      });
+      const r = await apiFetch(`${base}/submit-items`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(token
-          ? { deliverableType: type, link: url || undefined, notes: note }
-          : { deliverableType: type, deliveryLink: url || undefined, notes: notes.trim() || undefined, revisionNotes: revisionNotes.trim() || undefined }),
+        body: JSON.stringify({ items, notes: common.trim() || undefined }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) { notify((Array.isArray(d?.message) ? d.message[0] : d?.message) || "Couldn't send", { error: true }); return; }
-      notify("Sent to the studio for review");
+      if (!r.ok) { setErr((Array.isArray(d?.message) ? d.message[0] : d?.message) || "Couldn't send"); return; }
+      notify(items.length > 1 ? `${items.length} sent — the studio checks each one separately` : "Sent to the studio for review");
       onDone();
     } finally { setSending(false); }
   }
 
-  const grouped = (data?.files ?? []).reduce<Record<string, Pending["files"]>>((m, f) => { (m[f.path] ??= []).push(f); return m; }, {});
+  const tag = (s?: SentItem) => !s ? null
+    : s.status === "approved" ? { t: "Approved", c: "bg-[#E7F5EE] text-[#14613F]" }
+    : s.status === "revision_requested" ? { t: s.byClient ? "Client asked a change" : "Changes asked", c: "bg-[#FDECEF] text-[#C2304F]" }
+    : { t: "Waiting for review", c: "bg-[#EEE8FD] text-[#5B3FD0]" };
+  const kindCount = (t: string) => sent.filter(s => typeOf(s.key) === t && s.status === "revision_requested").length;
 
   return createPortal(
     <>
       <div className="sp-backdrop z-[60]" onClick={onClose} />
       <div className="fixed inset-0 z-[60] pointer-events-none">
-        <div className="sp-drawer pointer-events-auto sm:max-w-md flex flex-col">
+        <div className="sp-drawer pointer-events-auto sm:max-w-lg flex flex-col">
           <div className="px-5 py-4 border-b border-[#EEEBF4] flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-[#17151F]">{isRevision ? "Send the revision" : "Submit your work"}</h3>
+              <h3 className="font-bold text-[#17151F]">{fixFirst ? "Send your changes" : "Send your work"}</h3>
               <p className="text-xs text-[#6B6680] truncate">{title}</p>
             </div>
             <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F2EFF8]">
@@ -191,136 +259,151 @@ export function SubmitWorkDrawer({ assignmentId, token, first, role, title, onCl
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* 1. What */}
             <section className="space-y-2">
-              <p className="text-[13px] font-bold text-[#4A4658]">1 · What are you sending?</p>
+              <p className="text-[13px] font-bold text-[#4A4658]">1 · What kind?</p>
               <div className="flex flex-wrap gap-1.5">
-                {types.map(t => {
-                  const done = sent.find(x => x.type === t.value);
-                  return (
-                    <button key={t.value} type="button" className={chip(type === t.value)} onClick={() => setType(t.value)}>
-                      {t.label}
-                      {done && SENT_TAG[done.status] && (
-                        <span className={cn("ml-1.5 text-[11px] font-semibold", type === t.value ? "text-white/70" : done.status === "revision_requested" ? "text-[#C2304F]" : done.status === "approved" ? "text-[#1F8A5B]" : "text-[#5B3FD0]")}>
-                          · {SENT_TAG[done.status]}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {fix && (
-                <p className="text-[12px] text-[#C2304F] bg-[#FDECEF] rounded-xl px-3 py-2">{fix.byClient ? "The client" : "Studio"} asked for changes{fix.feedback ? `: ${fix.feedback}` : "."} This will be the next version.</p>
-              )}
-              {!fix && sent.find(x => x.type === type && x.status === "pending") && (
-                <p className="text-[12px] text-[#4A4658] bg-[#F7F5FB] rounded-xl px-3 py-2">You already sent this and it&apos;s waiting for review. Sending again replaces it with a new version.</p>
-              )}
-            </section>
-
-            {/* 2. Files or a link */}
-            <section className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-[#4A4658]">2 · Send the files</p>
-                {data && how === "upload" && <span className="text-[12px] font-semibold text-[#5B3FD0] bg-[#EEE8FD] rounded-full px-2.5 py-0.5">Version {data.version}</span>}
-              </div>
-              <div role="tablist" aria-label="How to send" className="grid grid-cols-2 p-1 rounded-full bg-[#F5F3FA]">
-                {([["upload", "Upload files", UploadCloud], ["link", "Paste a link", Link2]] as const).map(([k, label, Icon]) => (
-                  <button key={k} type="button" role="tab" aria-selected={how === k} onClick={() => setHow(k)}
-                    className={cn("h-10 rounded-full text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors", how === k ? "bg-white text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.10)]" : "text-[#6B6680] hover:text-[#17151F]")}>
-                    <Icon className="w-4 h-4" />{label}
+                {kinds.map(t => (
+                  <button key={t} type="button" className={chip(kind === t)} onClick={() => setKind(t)}>
+                    {WORK_LABEL[t] ?? t}
+                    {kindCount(t) > 0 && <span className={cn("ml-1.5 text-[11px] font-bold", kind === t ? "text-white/75" : "text-[#C2304F]")}>· {kindCount(t)} to fix</span>}
                   </button>
                 ))}
               </div>
-              {how === "link" ? (
-                <div>
-                  <label htmlFor="work-link" className="sr-only">Link to the files</label>
-                  <input id="work-link" type="url" inputMode="url" value={link} onChange={e => { setLink(e.target.value); setLinkErr(""); }}
-                    placeholder="https://drive.google.com/…" aria-invalid={!!linkErr} className={cn(input, "h-11")} />
-                  {linkErr
-                    ? <p role="alert" className="mt-1.5 text-[13px] font-semibold text-[#C2304F]">{linkErr}</p>
-                    : <p className="mt-1.5 text-[12px] text-[#6B6680]">Google Drive, Dropbox, WeTransfer, YouTube or any link the studio can open.{hasFiles ? " Files you uploaded for this version are sent too." : ""}</p>}
-                </div>
-              ) : (
-              <>
-              {loadErr ? (
-                <p className="text-sm text-[#C2304F]">{loadErr}</p>
-              ) : !data ? (
-                <div className="h-24 rounded-2xl bg-[#F5F3FA] animate-pulse" />
-              ) : !data.connected ? (
-                <p className="text-sm text-[#6B6680] rounded-2xl bg-[#F7F5FB] p-3">The studio hasn&apos;t connected Google Drive, so files can&apos;t be uploaded here. Use <b className="text-[#17151F]">Paste a link</b>.</p>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busy} onClick={() => folderRef.current?.click()}
-                      className="h-11 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
-                      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderUp className="w-4 h-4" />}Folder
-                    </button>
-                    <button type="button" disabled={busy} onClick={() => filesRef.current?.click()}
-                      className="h-11 rounded-full bg-white border border-[#E6E2EE] text-[#17151F] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
-                      <FileUp className="w-4 h-4" />Files
-                    </button>
-                  </div>
-                  <p className="text-[12px] text-[#6B6680]">Goes to the studio&apos;s private folder: <b className="text-[#17151F]">{data.label} / v{data.version}</b>. The client sees it only after the studio approves.</p>
-                  {running > 0 && (
-                    <div role="status" className="rounded-xl bg-[#F4F0FE] px-3 py-2.5">
-                      <p className="text-[13px] font-semibold text-[#5B3FD0]">Uploading {running} file{running > 1 ? "s" : ""} · {pct}% — keep this page open</p>
-                      <div className="mt-1.5 h-1.5 rounded-full bg-white overflow-hidden"><div className="h-full bg-[#7D5CEF] transition-[width] duration-300" style={{ width: `${pct}%` }} /></div>
-                    </div>
-                  )}
-                  {failed > 0 && running === 0 && <p role="alert" className="text-[13px] font-semibold text-[#C2304F]">{failed} file{failed > 1 ? "s" : ""} did not upload. Choose {failed > 1 ? "them" : "it"} again to retry.</p>}
-                  {hasFiles && (
-                    <div className="rounded-2xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
-                      <div className="px-3 py-2 bg-[#F7F5FB] flex justify-between text-[12px] text-[#4A4658]">
-                        <span className="font-semibold">Uploaded for this version</span>
-                        <span>{data.totals.count} files · {fmtSize(data.totals.bytes)}</span>
+            </section>
+
+            <section className="space-y-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[13px] font-bold text-[#4A4658]">2 · {isPhoto ? "Each set on its own" : "Each video on its own"}</p>
+                <p className="text-[12px] text-[#6B6680]">The studio checks each one separately</p>
+              </div>
+              {connected === false && (
+                <p className="text-sm text-[#6B6680] rounded-2xl bg-[#F7F5FB] p-3">The studio hasn&apos;t connected Google Drive, so files can&apos;t be uploaded here. Use <b className="text-[#17151F]">Paste a link</b> on each one.</p>
+              )}
+
+              {rows.map(r => {
+                const p = pendingOf(r.key);
+                const ups = rowUploads(r.key).filter(u => !u.done && !u.error);
+                const failed = rowUploads(r.key).filter(u => u.error).length;
+                const pct = ups.length ? Math.round(ups.reduce((s, u) => s + (u.progress || 0), 0) / ups.length) : 0;
+                const t = tag(r.sent);
+                const approved = r.sent?.status === "approved" && !newVersion[r.key];
+                const waiting = r.sent?.status === "pending" && !newVersion[r.key] && !(p?.totals.count);
+                const nextV = p?.version ?? ((r.sent?.version ?? 0) + 1);
+                return (
+                  <div key={r.key} className={cn("rounded-[18px] border p-3.5 space-y-2.5", r.sent?.status === "revision_requested" ? "border-[#F4C7D1] bg-[#FFF8FA]" : "border-[#EEEBF4] bg-white")}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        {!r.planned && !r.sent ? (
+                          <input aria-label="Name of this video" value={names[r.key] ?? r.title} maxLength={120}
+                            onChange={e => setNames(m => ({ ...m, [r.key]: e.target.value }))}
+                            className="w-full h-9 px-2.5 -ml-1 rounded-lg bg-[#F5F3FA] text-[14.5px] font-bold text-[#17151F] focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+                        ) : (
+                          <p className="text-[14.5px] font-bold text-[#17151F] break-words">{r.title}</p>
+                        )}
+                        <p className="text-[12px] text-[#6B6680] mt-0.5">
+                          {r.planned && !r.sent ? "Asked by the studio · not sent yet" : r.sent ? `Version ${r.sent.version} sent` : "Added by you"}
+                          {!approved && !waiting ? ` · this will be version ${nextV}` : ""}
+                        </p>
                       </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {Object.entries(grouped).map(([path, list]) => (
-                          <div key={path || "root"}>
-                            {path && <p className="px-3 pt-2 text-[11px] font-semibold text-[#6B6680] uppercase tracking-wide">{path}</p>}
-                            {list.map(f => (
+                      {t && <span className={cn("text-[11.5px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap", t.c)}>{t.t}</span>}
+                      {!r.planned && !r.sent && !(p?.totals.count) && !ups.length && (
+                        <button type="button" aria-label="Remove this row" onClick={() => setAdded(a => a.filter(x => x.key !== r.key))}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><X className="w-4 h-4" /></button>
+                      )}
+                    </div>
+                    {r.sent?.status === "revision_requested" && (
+                      <p className="text-[12.5px] text-[#9C2340] bg-[#FDECEF] rounded-xl px-3 py-2 whitespace-pre-wrap break-words">{r.sent.byClient ? "The client" : "Studio"}: {r.sent.feedback || "Please make changes."}</p>
+                    )}
+
+                    {approved || waiting ? (
+                      <button type="button" onClick={() => setNewVersion(m => ({ ...m, [r.key]: true }))} className="text-[12.5px] font-semibold text-[#5B3FD0]">
+                        {approved ? "Send a new version of this one" : "Replace it with a new version"}
+                      </button>
+                    ) : (
+                      <>
+                        {!linkOpen[r.key] && connected !== false && (
+                          <div className="flex gap-2 flex-wrap">
+                            <button type="button" disabled={busy} onClick={() => { target.current = r.key; (isPhoto ? pickFolder : pick).current?.click(); }}
+                              className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+                              {isPhoto ? <FolderUp className="w-4 h-4" /> : <FileUp className="w-4 h-4" />}{p?.totals.count ? "Add more" : isPhoto ? "Upload folder" : "Upload video"}
+                            </button>
+                            {isPhoto && (
+                              <button type="button" disabled={busy} onClick={() => { target.current = r.key; pick.current?.click(); }}
+                                className="h-10 px-4 rounded-full bg-white border border-[#E6E2EE] text-[13px] font-semibold text-[#17151F] inline-flex items-center gap-1.5 disabled:opacity-60"><FileUp className="w-4 h-4" />Files</button>
+                            )}
+                            <button type="button" onClick={() => setLinkOpen(m => ({ ...m, [r.key]: true }))} className="h-10 px-3 text-[13px] font-semibold text-[#5B3FD0] inline-flex items-center gap-1"><Link2 className="w-4 h-4" />Paste a link</button>
+                          </div>
+                        )}
+                        {(linkOpen[r.key] || connected === false) && (
+                          <div className="flex gap-2 items-center">
+                            <input type="url" inputMode="url" aria-label={`Link for ${r.title}`} value={links[r.key] ?? ""} placeholder="https://drive.google.com/…"
+                              onChange={e => { setLinks(m => ({ ...m, [r.key]: e.target.value })); setLinkOpen(m => ({ ...m, [r.key]: true })); setErr(""); }}
+                              className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-[#F5F3FA] text-sm focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+                            {connected !== false && <button type="button" onClick={() => setLinkOpen(m => ({ ...m, [r.key]: false }))} className="text-[12.5px] font-semibold text-[#6B6680] px-1">Upload instead</button>}
+                          </div>
+                        )}
+                        {ups.length > 0 && (
+                          <div role="status" className="rounded-xl bg-[#F4F0FE] px-3 py-2">
+                            <p className="text-[12.5px] font-semibold text-[#5B3FD0]">Uploading {ups.length} file{ups.length > 1 ? "s" : ""} · {pct}% — keep this page open</p>
+                            <div className="mt-1.5 h-1.5 rounded-full bg-white overflow-hidden"><div className="h-full bg-[#7D5CEF] transition-[width] duration-300" style={{ width: `${pct}%` }} /></div>
+                          </div>
+                        )}
+                        {failed > 0 && !ups.length && <p role="alert" className="text-[12.5px] font-semibold text-[#C2304F]">{failed} file{failed > 1 ? "s" : ""} did not upload. Choose {failed > 1 ? "them" : "it"} again.</p>}
+                        {p && p.totals.count > 0 && (
+                          <div className="rounded-xl border border-[#EEEBF4] divide-y divide-[#EEEBF4] overflow-hidden">
+                            {p.files.slice(0, 40).map(f => (
                               <div key={f.id} className="flex items-center gap-2 px-3 py-1.5">
-                                <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[13px] text-[#17151F] truncate hover:text-[#5B3FD0]">{f.name}</a>
+                                <Check className="w-3.5 h-3.5 text-[#1F8A5B] flex-shrink-0" />
+                                <a href={f.viewUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[13px] text-[#17151F] truncate hover:text-[#5B3FD0]">{f.path ? `${f.path}/` : ""}{f.name}</a>
                                 <span className="text-[11px] text-[#8A8599] tabular-nums">{fmtSize(f.size)}</span>
-                                <button type="button" onClick={() => removeFile(f)} title="Remove"
-                                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <button type="button" onClick={() => removeFile(r.key, f)} aria-label={`Remove ${f.name}`}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#A29DB3] hover:bg-[#FDECEF] hover:text-[#C2304F]"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
+                            {p.files.length > 40 && <p className="px-3 py-1.5 text-[12px] text-[#6B6680]">and {p.files.length - 40} more · {p.totals.count} files, {fmtSize(p.totals.bytes)}</p>}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                        )}
+                        <textarea value={notes[r.key] ?? ""} onChange={e => setNotes(m => ({ ...m, [r.key]: e.target.value }))} rows={2} maxLength={2000}
+                          aria-label={`Note for ${r.title}`}
+                          placeholder={r.sent?.status === "revision_requested" ? "What did you change in this one?" : `A note about this ${isPhoto ? "set" : "video"} (optional)`}
+                          className={area} />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+              {connected !== false && (
+                <button type="button" disabled={busy} onClick={() => { target.current = null; (isPhoto ? pickFolder : pick).current?.click(); }}
+                  className="w-full min-h-[52px] rounded-[18px] border-2 border-dashed border-[#D9D3E6] hover:border-[#7D5CEF] text-[#5B3FD0] text-[13.5px] font-semibold inline-flex items-center justify-center gap-2 px-4 py-3 disabled:opacity-60">
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {rows.length ? `Add ${isPhoto ? "another set (folder)" : "more videos — choose several at once"}` : `Choose ${isPhoto ? "a folder" : "your videos — several at once is fine"}`}
+                </button>
               )}
-              </>
+              {connected !== false && !isPhoto && days.length > 0 && rows.length === 0 && (
+                <p className="text-[12px] text-[#6B6680]">Tip: a file named after a day (Holud, Wedding…) is put on that day by itself. You can rename each one.</p>
               )}
-              <input ref={filesRef} type="file" multiple hidden onChange={e => start(e.target.files, false)} />
-              <input ref={folderRef} type="file" multiple hidden onChange={e => start(e.target.files, true)}
+              <input ref={pick} type="file" multiple hidden onChange={e => addMany(e.target.files, false)} />
+              <input ref={pickFolder} type="file" multiple hidden onChange={e => addMany(e.target.files, true)}
                 {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
             </section>
 
-            {/* 3. Notes */}
             <section className="space-y-2">
-              <p className="text-[13px] font-bold text-[#4A4658]">3 · Notes <span className="font-normal text-[#8A8599]">(optional)</span></p>
-              {isRevision && (
-                <textarea value={revisionNotes} onChange={e => setRevisionNotes(e.target.value)} rows={2} placeholder="What did you change in this version?"
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#F5F3FA] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
-              )}
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Anything the studio should know…"
-                className="w-full px-3 py-2.5 rounded-xl bg-[#F5F3FA] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40" />
+              <p className="text-[13px] font-bold text-[#4A4658]">3 · A note for all <span className="font-normal text-[#8A8599]">(optional)</span></p>
+              <textarea value={common} onChange={e => setCommon(e.target.value)} rows={2} maxLength={2000} placeholder="Anything the studio should know about all of them…" className={area} />
             </section>
           </div>
 
-          <div className="px-5 py-4 border-t border-[#EEEBF4] flex gap-2">
-            <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-sm font-semibold">Cancel</button>
-            <button type="button" onClick={send} disabled={!canSend}
-              className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {running > 0 ? "Wait for uploads…" : "Send for review"}
-            </button>
+          <div className="px-5 py-4 border-t border-[#EEEBF4] space-y-2">
+            {err && <p role="alert" className="text-[13px] font-semibold text-[#C2304F]">{err}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="h-11 px-5 rounded-full bg-[#F5F3FA] text-[#4A4658] text-sm font-semibold">Cancel</button>
+              <button type="button" onClick={send} disabled={!canSend}
+                className="flex-1 h-11 rounded-full bg-[#7D5CEF] hover:bg-[#6143CF] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {running.length > 0 ? "Wait for uploads…" : readyKeys.length > 1 ? `Send ${readyKeys.length} for review` : "Send for review"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

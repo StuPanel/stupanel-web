@@ -12,11 +12,8 @@ import { askConfirm, notify } from "@/components/feedback";
 import { Field, FormDrawer, FormGroup, inputCls } from "@/components/ui/form-kit";
 import { waNumber } from "@/lib/phone";
 import { cn } from "@/lib/utils";
+import { titleOf, typeOf } from "@/lib/work-items";
 
-const LABEL: Record<string, string> = {
-  highlight_video: "Highlight video", full_video: "Full video", teaser: "Teaser", reel: "Reel",
-  photo_delivery: "Photos", album: "Album", other: "Other",
-};
 const errOf = async (r: Response, fallback: string) => {
   const d = await r.json().catch(() => ({}));
   return (Array.isArray(d.message) ? d.message[0] : d.message) || fallback;
@@ -25,6 +22,7 @@ const errOf = async (r: Response, fallback: string) => {
 type For = { id: string; name: string; phone?: string | null; role: string; plan: string[]; missing: string[] };
 
 export function AddWorkDrawer({ editor, types, onClose, onDone }: { editor: For; types: string[]; onClose: () => void; onDone: () => void }) {
+  // What the studio listed (one per day, too), then the other kinds.
   const options = editor.plan.length ? [...editor.plan, ...types.filter(t => !editor.plan.includes(t))] : types;
   const [type, setType] = useState(editor.missing[0] ?? options[0]);
   const [link, setLink] = useState("");
@@ -39,10 +37,10 @@ export function AddWorkDrawer({ editor, types, onClose, onDone }: { editor: For;
     try {
       const r = await apiFetch(`${API}/editor-work/${editor.id}/submissions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliverableType: type, link: link.trim(), notes: notes.trim() || undefined }),
+        body: JSON.stringify({ deliverableType: typeOf(type), itemKey: type.includes("|") ? type : undefined, link: link.trim(), notes: notes.trim() || undefined }),
       });
       if (!r.ok) { setErr(await errOf(r, "Couldn't save. Please try again.")); return; }
-      notify(`${LABEL[type] ?? type} added and approved`);
+      notify(`${titleOf(type)} added and approved`);
       onDone(); onClose();
     } catch { setErr("Something went wrong. Please try again."); }
     finally { setBusy(false); }
@@ -59,7 +57,7 @@ export function AddWorkDrawer({ editor, types, onClose, onDone }: { editor: For;
       <FormGroup note="You are adding it yourself, so it is saved as approved. Nobody gets an email.">
         <Field label="What is it?">{id => (
           <select id={id} value={type} onChange={e => setType(e.target.value)} className={inputCls}>
-            {options.map(t => <option key={t} value={t}>{LABEL[t] ?? t}</option>)}
+            {options.map(t => <option key={t} value={t}>{titleOf(t)}</option>)}
           </select>
         )}</Field>
         <Field label="Link to the files" required>{id => (

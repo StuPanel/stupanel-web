@@ -12,7 +12,8 @@ self.addEventListener("push", (event) => {
     tag: typeof d.tag === "string" && d.tag ? d.tag : undefined,
     renotify: !!d.tag,
     icon: "/brand/stupanel-icon-256.png",
-    badge: "/brand/stupanel-icon-128.png",
+    // Android shows the badge as a one-colour shape in the status bar: a plain camera, not the full-colour logo.
+    badge: "/brand/stupanel-badge-96.png",
     data: { path },
   }));
 });

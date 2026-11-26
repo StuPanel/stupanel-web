@@ -5,7 +5,7 @@
  * colours, fonts and shapes in site.css. Used by /site/[slug] (published) and by the studio's
  * own preview of the draft.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL as API } from "@/lib/api";
@@ -54,7 +54,7 @@ export type SiteContent = {
   filmUrl: string; filmTitle: string; filmPhoto: string | null; filmId?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment from the film */ filmFrame?: number; showPackages: boolean; showLogo?: boolean;
   reviews: { text: string; name: string }[];
   films?: { url: string; title: string; id: string; /** Own cover photo */ cover?: string | null; /** No own cover: 0 = YouTube's cover, 1–3 = a moment */ frame?: number }[]; faqs?: { q: string; a: string }[];
-  stories?: SiteStory[]; team?: SiteTeamMember[]; /** Clicking a member opens their page */ teamClick?: boolean; /** ID card QR codes */ teamQr?: boolean; hide?: string[]; crop?: Record<string, SiteCrop>;
+  stories?: SiteStory[]; team?: SiteTeamMember[]; /** Clicking a member opens their page */ teamClick?: boolean; /** ID card QR codes */ teamQr?: boolean; hide?: string[]; /** Parts of Home, top to bottom */ homeOrder?: string[]; crop?: Record<string, SiteCrop>;
   phone: string; whatsapp: string; email: string; address: string; hours: string;
   facebook: string; instagram: string; youtube: string; footerLine: string;
   /** Own Terms / Privacy page text (empty = the standard words). See site-legal.ts for the writing rules. */
@@ -287,6 +287,13 @@ function HomeStories({ stories, photos, crops, L }: { stories: SiteStory[]; phot
 }
 
 /** Gallery look, Home: photos across the whole first screen, one plain sentence, the mosaic of albums, then the stories. */
+/** Every part of Home once: the studio's order first, parts it does not name after, in the usual order. */
+const HOME_ORDER = ["marquee", "about", "albums", "film", "stories", "packages", "reviews"];
+export function homeOrderOf(order?: string[]): string[] {
+  const own = (order ?? []).filter((k, i, all) => HOME_ORDER.includes(k) && all.indexOf(k) === i);
+  return [...own, ...HOME_ORDER.filter(k => !own.includes(k))];
+}
+
 function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) => string; openAlbum: (a: SiteAlbum) => void }) {
   const { content: c, photos, studio } = data;
   const own = (c.slides ?? []).filter(id => photos[id]);
@@ -300,13 +307,12 @@ function MonoHome({ data, L, openAlbum }: { data: SiteData; L: (path: string) =>
         <h1 className="cz">{[c.script, c.headline].filter(Boolean).join(" ")}</h1>
         {c.intro && <p>{c.intro}</p>}
       </section>
-      {c.albums.length > 0 && !hide.includes("albums") && (
+      {homeOrderOf(c.homeOrder).map(k => <Fragment key={k}>{k === "albums" ? c.albums.length > 0 && !hide.includes("albums") && (
         <section id="albums" className="wrap">
           <MonoAlbums albums={c.albums.slice(0, 10)} photos={photos} crops={c.crop} onOpen={openAlbum} />
           {c.albums.length > 5 && <div className="mmore"><Link href={L("/portfolio")} className="mlk">All work</Link></div>}
         </section>
-      )}
-      {stories.length > 0 && !hide.includes("stories") && <section className="wrap" style={{ paddingTop: "clamp(40px,6vw,90px)" }}><MonoRows stories={stories} photos={photos} crops={c.crop} L={L} /></section>}
+      ) : k === "stories" ? stories.length > 0 && !hide.includes("stories") && <section className="wrap" style={{ paddingTop: "clamp(40px,6vw,90px)" }}><MonoRows stories={stories} photos={photos} crops={c.crop} L={L} /></section> : null}</Fragment>)}
       <div style={{ height: "clamp(60px,8vw,110px)" }} />
     </>
   );
@@ -490,6 +496,83 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
   /** The studio's own fonts, colour, corners, buttons, headings and logo place (Look → Make it yours). */
   const own = styleOf(c.style);
 
+  /** The parts of Home between the top photo and the booking form; the studio orders them (Look → Home page parts). */
+  const homeParts: Record<string, React.ReactNode> = !home || mono ? {} : {
+    marquee: c.events.length > 0 && !hide.includes("marquee") && (
+          <div aria-hidden="true" style={{ overflow: "hidden", padding: "10px 0 40px" }}>
+            <div className="mq cz out">{[...c.events, ...c.events, ...c.events, ...c.events].map((e, i) => <span key={i} className={i % 2 ? "fill" : undefined}>{e}</span>)}</div>
+          </div>
+        ),
+    about: (<section id="about" className="wrap g2 sec">
+          <div className="rv">
+            {aboutRest.length > 0 && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
+            <h2 className="cz h2" style={{ marginBottom: 26 }}>{aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
+            {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 460 }}>{t}</p>)}
+            <a href="#book" className="cap ul" style={{ display: "inline-block", marginTop: 12 }}>Talk to the studio</a>
+          </div>
+          <Rise3D style={{ position: "relative", margin: "0 22px 22px 0" }}>
+            <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
+            <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
+              <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
+            </div>
+          </Rise3D>
+        </section>),
+    albums: c.albums.length > 0 && !hide.includes("albums") && (
+          <section id="albums" style={{ paddingBottom: "clamp(70px,8vw,120px)" }}>
+            <div className="wrap rv" style={{ textAlign: "center", marginBottom: 40 }}><Heading script="recent" title="Albums" /></div>
+              <div className="wrap agrid">
+                {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
+              </div>
+            <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
+          </section>
+        ),
+    film: c.filmId && !hide.includes("film") && (
+          <section id="film" style={{ background: "var(--dark)", color: "var(--ond)", padding: "clamp(70px,9vw,120px) 0" }}>
+            <div className="wrap" style={{ textAlign: "center" }}>
+              <Heading script="wedding" title="Films" light />
+              <div style={{ height: 40 }} />
+              <FilmTheater id={c.filmId} title={c.filmTitle} big className="cine rv" poster={filmPoster || undefined} frame={c.filmFrame} posterStyle={cropStyle(c.filmPhoto ? c.crop?.film : c.crop?.filmf)} />
+              {c.filmTitle && <p className="pf" style={{ margin: "34px 0 0", fontSize: 22, fontStyle: "italic" }}>{c.filmTitle}</p>}
+              {films.some(f => f.id !== c.filmId) && <Link href={L("/films")} className="cap ol fmore">More films</Link>}
+            </div>
+          </section>
+        ),
+    stories: (c.stories ?? []).length > 0 && !hide.includes("stories") && <HomeStories stories={(c.stories ?? []).slice(0, 4)} photos={photos} crops={c.crop} L={L} />,
+    packages: liveOffers(data).length > 0 && !hide.includes("packages") ? (
+          <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
+            <Heading script="our" title="Packages" />
+            {/* Home shows the first two (the studio orders them in Website → Packages); the rest are one tap away */}
+            <OfferCards data={data} L={L} limit={HOME_PACKAGES} />
+            {liveOffers(data).length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all {liveOffers(data).length} packages</Link></div>}
+          </section>
+        ) : packages.length > 0 && !hide.includes("packages") && (
+          <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
+            <Heading script="our" title="Packages" />
+            {/* The studio's price list: the first two packages (with their versions), then the Packages page */}
+            <PackageBrowser packages={homeList} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
+            {homeFamilies.length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all packages</Link></div>}
+          </section>
+        ),
+    reviews: nRev > 0 && !hide.includes("reviews") && (
+          <section id="reviews" style={{ background: "var(--panel)", padding: "clamp(70px,9vw,120px) 28px clamp(80px,9vw,130px)", textAlign: "center" }}>
+            <Heading script="kind" title="Words" />
+            <div style={{ height: 56 }} />
+            <div className="deck" aria-live="polite">
+              {c.reviews.map((r, i) => {
+                const k = (i - rev + nRev) % nRev;
+                return (
+                  <figure key={i} className="rvw" aria-hidden={k !== 0} style={{ margin: 0, ...(slot[k] ?? { ...slot[2], opacity: 0 }) }}>
+                    <blockquote className="pf" style={{ margin: "0 0 20px", fontSize: "clamp(17px,2vw,22px)", fontStyle: "italic", lineHeight: 1.55 }}>“{r.text}”</blockquote>
+                    {r.name && <figcaption className="cap">{r.name}</figcaption>}
+                  </figure>
+                );
+              })}
+            </div>
+            {nRev > 1 && <button type="button" onClick={() => setRev((rev + 1) % nRev)} className="cap ol nrv" style={{ marginTop: 60, background: "transparent", cursor: "pointer", color: "var(--ink)", fontFamily: "inherit" }}>Next review</button>}
+          </section>
+        ),
+  };
+
   return (
     <div ref={root} id="top" style={own.style} className={`sg${data.theme && data.theme !== "signature" ? ` t-${data.theme}` : ""}${home ? " home" : " noin inner"}${mono && (home || (page === "about" && !!c.aboutPhoto && !!photos[c.aboutPhoto])) ? " ovr" : ""}${own.cls}`}>
       <link rel="stylesheet" href={fontHref(data.theme)} precedence="default" />
@@ -564,85 +647,7 @@ export function SiteView({ data, preview, base, page = "home", albumId, storyId,
           </div>
         </section>
 
-        {c.events.length > 0 && !hide.includes("marquee") && (
-          <div aria-hidden="true" style={{ overflow: "hidden", padding: "10px 0 40px" }}>
-            <div className="mq cz out">{[...c.events, ...c.events, ...c.events, ...c.events].map((e, i) => <span key={i} className={i % 2 ? "fill" : undefined}>{e}</span>)}</div>
-          </div>
-        )}
-
-        <section id="about" className="wrap g2 sec">
-          <div className="rv">
-            {aboutRest.length > 0 && <div className="sc sch">{aboutScript.toLowerCase()}</div>}
-            <h2 className="cz h2" style={{ marginBottom: 26 }}>{aboutRest.length ? aboutRest.join(" ") : aboutScript}</h2>
-            {c.aboutText.split(/\n+/).filter(Boolean).map((t, i) => <p key={i} style={{ margin: "0 0 18px", maxWidth: 460 }}>{t}</p>)}
-            <a href="#book" className="cap ul" style={{ display: "inline-block", marginTop: 12 }}>Talk to the studio</a>
-          </div>
-          <Rise3D style={{ position: "relative", margin: "0 22px 22px 0" }}>
-            <div className="frm" aria-hidden="true" style={{ position: "absolute", inset: 0, border: "1px solid var(--ac)", transform: "translate(22px, 22px)" }} />
-            <div className="ph" style={{ position: "relative", aspectRatio: "4 / 4.6", overflow: "hidden" }}>
-              <Ph className="par" crop={c.crop?.about} p={photos[c.aboutPhoto ?? ""]} alt={`${studio.name} at work`} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.15)" }} />
-            </div>
-          </Rise3D>
-        </section>
-
-        {c.albums.length > 0 && !hide.includes("albums") && (
-          <section id="albums" style={{ paddingBottom: "clamp(70px,8vw,120px)" }}>
-            <div className="wrap rv" style={{ textAlign: "center", marginBottom: 40 }}><Heading script="recent" title="Albums" /></div>
-              <div className="wrap agrid">
-                {c.albums.slice(0, 8).map((a, i) => <AlbumCard key={a.id} a={a} photo={photos[a.cover ?? a.photos[0] ?? ""]} crop={c.crop?.[`album:${a.id}`]} onOpen={() => openAlbum(a)} i={i} />)}
-              </div>
-            <div style={{ textAlign: "center", marginTop: 50 }}><Link href={L("/portfolio")} className="cap ol">View all albums</Link></div>
-          </section>
-        )}
-
-        {c.filmId && !hide.includes("film") && (
-          <section id="film" style={{ background: "var(--dark)", color: "var(--ond)", padding: "clamp(70px,9vw,120px) 0" }}>
-            <div className="wrap" style={{ textAlign: "center" }}>
-              <Heading script="wedding" title="Films" light />
-              <div style={{ height: 40 }} />
-              <FilmTheater id={c.filmId} title={c.filmTitle} big className="cine rv" poster={filmPoster || undefined} frame={c.filmFrame} posterStyle={cropStyle(c.filmPhoto ? c.crop?.film : c.crop?.filmf)} />
-              {c.filmTitle && <p className="pf" style={{ margin: "34px 0 0", fontSize: 22, fontStyle: "italic" }}>{c.filmTitle}</p>}
-              {films.some(f => f.id !== c.filmId) && <Link href={L("/films")} className="cap ol fmore">More films</Link>}
-            </div>
-          </section>
-        )}
-
-        {(c.stories ?? []).length > 0 && !hide.includes("stories") && <HomeStories stories={(c.stories ?? []).slice(0, 4)} photos={photos} crops={c.crop} L={L} />}
-
-        {liveOffers(data).length > 0 && !hide.includes("packages") ? (
-          <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
-            <Heading script="our" title="Packages" />
-            {/* Home shows the first two (the studio orders them in Website → Packages); the rest are one tap away */}
-            <OfferCards data={data} L={L} limit={HOME_PACKAGES} />
-            {liveOffers(data).length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all {liveOffers(data).length} packages</Link></div>}
-          </section>
-        ) : packages.length > 0 && !hide.includes("packages") && (
-          <section id="packages" className="wrap sec" style={{ textAlign: "center" }}>
-            <Heading script="our" title="Packages" />
-            {/* The studio's price list: the first two packages (with their versions), then the Packages page */}
-            <PackageBrowser packages={homeList} heading="h3" ask={p => <a href="#book" className="cap ul" onClick={() => setAsk(p.name)}>Ask about this</a>} />
-            {homeFamilies.length > HOME_PACKAGES && <div style={{ marginTop: 44 }}><Link href={L("/packages")} className="cap ol">See all packages</Link></div>}
-          </section>
-        )}
-
-        {nRev > 0 && !hide.includes("reviews") && (
-          <section id="reviews" style={{ background: "var(--panel)", padding: "clamp(70px,9vw,120px) 28px clamp(80px,9vw,130px)", textAlign: "center" }}>
-            <Heading script="kind" title="Words" />
-            <div style={{ height: 56 }} />
-            <div className="deck" aria-live="polite">
-              {c.reviews.map((r, i) => {
-                const k = (i - rev + nRev) % nRev;
-                return (
-                  <figure key={i} className="rvw" aria-hidden={k !== 0} style={{ margin: 0, ...(slot[k] ?? { ...slot[2], opacity: 0 }) }}>
-                    <blockquote className="pf" style={{ margin: "0 0 20px", fontSize: "clamp(17px,2vw,22px)", fontStyle: "italic", lineHeight: 1.55 }}>“{r.text}”</blockquote>
-                    {r.name && <figcaption className="cap">{r.name}</figcaption>}
-                  </figure>
-                );
-              })}
-            </div>
-            {nRev > 1 && <button type="button" onClick={() => setRev((rev + 1) % nRev)} className="cap ol nrv" style={{ marginTop: 60, background: "transparent", cursor: "pointer", color: "var(--ink)", fontFamily: "inherit" }}>Next review</button>}
-          </section>
-        )}
+        {homeOrderOf(c.homeOrder).map(k => <Fragment key={k}>{homeParts[k]}</Fragment>)}
 
         <section id="book" className="wrap sec">
           <div className="rv" style={{ background: "var(--card)", boxShadow: "0 30px 70px rgba(var(--sh),.16)", padding: "clamp(44px,6vw,70px) clamp(22px, 6vw, 90px)", textAlign: "center", borderTop: "4px solid var(--ac)" }}>

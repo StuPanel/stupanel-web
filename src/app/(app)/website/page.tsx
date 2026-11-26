@@ -13,6 +13,7 @@ import { DomainGuide } from "./domain-guide";
 import { SeoTab } from "./seo-tab";
 import { TrackingTab } from "./tracking-tab";
 import { VisitorsTab } from "./visitors-tab";
+import { HomeParts } from "./home-parts";
 import { StylePanel } from "./style-panel";
 import { PackagesTab } from "./packages-tab";
 import { TeamSheet } from "./team-sheet";
@@ -26,7 +27,7 @@ import { askConfirm, notify } from "@/components/feedback";
 import { API_URL as API, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { LEGAL_MAX, standardLegal } from "@/components/site/site-legal";
-import { cropStyle, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory, type SiteTeamMember } from "@/components/site/site-view";
+import { cropStyle, homeOrderOf, type SiteAlbum, type SiteContent, type SiteCrop, type SiteStory, type SiteTeamMember } from "@/components/site/site-view";
 
 type Photo = { id: string; url: string; thumbUrl?: string | null; width: number; height: number; blur: string; sizeBytes?: number; /** Nothing on the website (draft or published) uses it since then */ unusedSince?: string | null };
 const small = (p: Photo) => p.thumbUrl || p.url;
@@ -1015,10 +1016,13 @@ export default function WebsitePage() {
       </div>
 
       <div hidden={tab !== "design"}>
-      <Sec icon={LayoutGrid} tone="violet" where="Home" title="Home page parts" help="Switch off a part to leave it out of the Home page. Its own page (Portfolio, Films, Packages, Reviews) stays.">
-        {([["marquee", "Moving words"], ["albums", "Albums"], ["film", "Wedding film"], ["stories", "Stories"], ["packages", "Packages"], ["reviews", "Reviews"]] as const).map(([k, label]) => (
-          <SwitchRow key={k} label={label} on={!(c.hide ?? []).includes(k)} onChange={v => set("hide", v ? (c.hide ?? []).filter(x => x !== k) : [...(c.hide ?? []), k])} />
-        ))}
+      <Sec icon={LayoutGrid} tone="violet" where="Home" title="Home page parts" help="The order visitors see on your Home page. Drag a part by its handle or use the arrows to move it. Switch a part off to leave it out of Home; its own page (Portfolio, Films, Packages, Reviews) stays.">
+        <HomeParts order={homeOrderOf(c.homeOrder)} hide={c.hide ?? []} onOrder={o => set("homeOrder", o)} onHide={h => set("hide", h)}
+          empty={{
+            ...(c.events.length ? {} : { marquee: "No event words yet" }), ...(c.albums.length ? {} : { albums: "No albums yet" }), ...(c.filmId ? {} : { film: "No film yet" }),
+            ...((c.stories ?? []).length ? {} : { stories: "No stories yet" }), ...(c.reviews.length ? {} : { reviews: "No reviews yet" }),
+          }} />
+        {site.theme === "mono" && <p className="px-4 py-3 text-[13px] text-[#6B6680]">The Gallery White look shows only Albums and Stories on Home; their order follows this list.</p>}
       </Sec>
       </div>
 

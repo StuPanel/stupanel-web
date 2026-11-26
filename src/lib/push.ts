@@ -87,7 +87,10 @@ export async function pushTest(): Promise<number> {
 export async function pushRefresh() {
   try {
     if (!pushSupported() || Notification.permission !== "granted") return;
-    const sub = await (await registration())?.pushManager.getSubscription();
+    const reg = await registration();
+    // Pick up a newer notification script (its icon, where a tap opens) without waiting a day.
+    void reg?.update().catch(() => undefined);
+    const sub = await reg?.pushManager.getSubscription();
     if (sub) await apiFetch(`${API}/push/subscribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
   } catch { /* next time */ }
 }

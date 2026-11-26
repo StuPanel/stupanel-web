@@ -38,6 +38,8 @@ export function HomeParts({ order, hide, onOrder, onHide, empty }: {
   const [drag, setDrag] = useState<{ key: string; dy: number } | null>(null);
   const [said, setSaid] = useState("");
   const start = useRef<{ y: number; index: number } | null>(null);
+  /** Where the dragged part is now (the handlers of one drag see the list as it was when it began). */
+  const at = useRef(0);
   const label = (k: string) => HOME_PARTS.find(p => p.key === k)?.label ?? k;
 
   const move = (i: number, to: number) => {
@@ -50,7 +52,7 @@ export function HomeParts({ order, hide, onOrder, onHide, empty }: {
   const down = (e: React.PointerEvent, i: number) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    start.current = { y: e.clientY, index: i };
+    start.current = { y: e.clientY, index: i }; at.current = i;
     setDrag({ key: order[i], dy: 0 });
   };
   const moving = (e: React.PointerEvent) => {
@@ -59,15 +61,16 @@ export function HomeParts({ order, hide, onOrder, onHide, empty }: {
     const dy = e.clientY - st.y;
     const steps = Math.round(dy / ROW);
     const to = Math.min(order.length - 1, Math.max(0, st.index + steps));
-    const at = order.indexOf(drag.key);
-    if (to !== at) {
-      const next = [...order]; next.splice(at, 1); next.splice(to, 0, drag.key);
+    const from = order.indexOf(drag.key);
+    if (to !== from) {
+      const next = [...order]; next.splice(from, 1); next.splice(to, 0, drag.key);
       onOrder(next);
     }
+    at.current = to;
     setDrag({ key: drag.key, dy: dy - (to - st.index) * ROW });
   };
   const up = () => {
-    if (drag) setSaid(`${label(drag.key)} is now part ${order.indexOf(drag.key) + 1} of ${order.length}`);
+    if (drag) setSaid(`${label(drag.key)} is now part ${at.current + 1} of ${order.length}`);
     start.current = null; setDrag(null);
   };
 

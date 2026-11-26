@@ -2,7 +2,8 @@
 /**
  * Website "Autofill" (Faisal 25-NOV-2026): each press puts the next ready text in a box.
  * The words come from StuPanel (Super Admin → Studio sites → Text templates), see stupanel-api text-templates.ts.
- * Fill-ins: {studio} {city} {events} {package}; a [part] is dropped when a fill-in inside it is empty.
+ * Fill-ins: {studio} {city} {events} {package}, and for a team member {name} {role}; a [part] is dropped when a
+ * fill-in inside it is empty.
  */
 import { useEffect, useState } from "react";
 import { Wand2 } from "lucide-react";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 export type TextItem = string | { a: string; b: string };
 type Field = { key: string; kind: "text" | "pair"; max: number; max2?: number };
 type Data = { fields: Field[]; texts: Record<string, TextItem[]>; studio: { name: string; city: string; country: string } };
-export type FillCtx = { events?: string[]; packageName?: string };
+export type FillCtx = { events?: string[]; packageName?: string; /** A team member's first name */ name?: string; /** What they do, "cinematographer and video editor" */ role?: string };
 
 let cache: Promise<Data | null> | null = null;
 function load(): Promise<Data | null> {
@@ -37,11 +38,13 @@ export function fillText(tpl: string, d: Data, ctx: FillCtx, max: number): strin
     city: d.studio.city || d.studio.country,
     events: eventsLine(ctx.events),
     package: ctx.packageName?.trim() || "this package",
+    name: ctx.name?.trim() || "our team member",
+    role: ctx.role?.trim() ?? "",
   };
-  const put = (s: string) => s.replace(/\{(studio|city|events|package)\}/g, (_, k: string) => vals[k] ?? "");
+  const put = (s: string) => s.replace(/\{(studio|city|events|package|name|role)\}/g, (_, k: string) => vals[k] ?? "");
   // [optional parts]: kept only when every fill-in inside has a value
   const out = tpl.replace(/\[([^\]]*)\]/g, (_, inner: string) => {
-    const keys = [...inner.matchAll(/\{(studio|city|events|package)\}/g)].map(m => m[1]);
+    const keys = [...inner.matchAll(/\{(studio|city|events|package|name|role)\}/g)].map(m => m[1]);
     return keys.every(k => vals[k]) ? put(inner) : "";
   });
   return put(out).replace(/ {2,}/g, " ").slice(0, max);
@@ -76,10 +79,12 @@ export function AutofillButton({ onClick, disabled, label = "Autofill", classNam
   );
 }
 
-/** Autofill for a one-text box. */
-export function AutofillText({ field, value, onFill, ctx }: { field: string; value: string; onFill: (v: string) => void; ctx?: FillCtx }) {
-  const { ready, texts } = useAutofill(field, ctx);
-  if (!ready) return null;
+/** Autofill for a one-text box. `also`: a second list after the first (a member's role list, then the general one). */
+export function AutofillText({ field, also, value, onFill, ctx }: { field: string; also?: string; value: string; onFill: (v: string) => void; ctx?: FillCtx }) {
+  const one = useAutofill(field, ctx);
+  const two = useAutofill(also ?? field, ctx);
+  const texts = also && also !== field ? [...one.texts, ...two.texts] : one.texts;
+  if (!texts.length) return null;
   return <AutofillButton onClick={() => { const v = nextOf(texts, t => t.trim() === (value ?? "").trim()); if (v != null) onFill(v); }} />;
 }
 

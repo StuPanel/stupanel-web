@@ -2,7 +2,7 @@
 
 /**
  * StuPanel team: the ready words behind every "Autofill" button on a studio's Website page (Faisal 25-NOV-2026).
- * Each press in a box gives the next text from its list. Fill-ins: {studio} {city} {events} {package};
+ * Each press in a box gives the next text from its list. Fill-ins: {studio} {city} {events} {package} {name} {role};
  * a part in [square brackets] is dropped when a fill-in inside it is empty.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -80,7 +80,7 @@ export default function SiteTextsAdmin() {
       </header>
 
       <p className="mt-4 px-4 py-3 rounded-[14px] bg-slate-800/60 border border-slate-700 text-slate-300 text-[13.5px] leading-relaxed flex gap-2"><Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <span>On a studio&apos;s Website page, each <b>Autofill</b> press puts the next text from the box&apos;s list. Use <code className="text-indigo-300">{"{studio}"}</code>, <code className="text-indigo-300">{"{city}"}</code>, <code className="text-indigo-300">{"{events}"}</code> and, in package boxes, <code className="text-indigo-300">{"{package}"}</code>. A part in [square brackets] is left out when the studio has no value for it, e.g. <code className="text-indigo-300">{"Photography[ in {city}]"}</code>.</span></p>
+        <span>On a studio&apos;s Website page, each <b>Autofill</b> press puts the next text from the box&apos;s list. Use <code className="text-indigo-300">{"{studio}"}</code>, <code className="text-indigo-300">{"{city}"}</code>, <code className="text-indigo-300">{"{events}"}</code>, in package boxes <code className="text-indigo-300">{"{package}"}</code>, and in team member boxes <code className="text-indigo-300">{"{name}"}</code> (first name) and <code className="text-indigo-300">{"{role}"}</code> (what they do). A part in [square brackets] is left out when the studio has no value for it, e.g. <code className="text-indigo-300">{"Photography[ in {city}]"}</code>.</span></p>
 
       {groups.map(g => (
         <section key={g} className="mt-6">

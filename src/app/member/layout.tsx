@@ -1,4 +1,6 @@
 "use client";
+import { pushForget } from "@/lib/push";
+import { PushBoot } from "@/components/push-boot";
 
 import { PanelSwitch, rememberPanel } from "@/components/layout/panel-switch";
 import { IdleSignOut } from "@/components/idle-sign-out";
@@ -233,6 +235,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   async function logout() {
     // End the session on the server too: otherwise the sign-in cookie that stays could
     // quietly sign this person back in (a request still running, another tab).
+    // This device stops getting this person's notifications.
+    await Promise.race([pushForget(), new Promise(r => setTimeout(r, 2500))]);
     try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* still sign out here */ }
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
@@ -248,6 +252,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     <div className="min-h-full sp-shell">
       <IdleSignOut />
       <div className="sp-scene" aria-hidden="true" />
+      <PushBoot />
       <StudioBackdrop />
       {/* Desktop floating sidebar */}
       <div className="hidden lg:block fixed top-3 bottom-3 left-3 w-[248px] z-30">

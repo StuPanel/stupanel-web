@@ -1,4 +1,5 @@
 "use client";
+import { pushForget } from "@/lib/push";
 
 /**
  * The signed-in person at the bottom of the sidebar (and a small avatar in the phone top bar).
@@ -75,6 +76,8 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
   function go(href: string) { setOpen(false); onNavigate?.(); router.push(href); }
   async function logout() {
     setOpen(false);
+    // This device stops getting this person's notifications.
+    await Promise.race([pushForget(), new Promise(r => setTimeout(r, 2500))]);
     try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* still sign out here */ }
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");

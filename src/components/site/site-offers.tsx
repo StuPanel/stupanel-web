@@ -31,6 +31,45 @@ export function bookChoices(d: SiteData): SitePackage[] {
   return live.map(o => ({ id: o.id, name: o.name, group: o.group, price: o.price ?? 0, currency: d.currency ?? "BDT", team: "", lines: [] }));
 }
 
+/** Whole days left of an offer, counting today (0 = it ended; its last day = 1). */
+function daysLeft(ends: string, now = new Date()): number {
+  if (!ends) return 0;
+  const end = new Date(`${ends}T23:59:59`).getTime();
+  return end < now.getTime() ? 0 : Math.ceil((end - now.getTime()) / 86400000);
+}
+/** The label on a card: the studio's own words, else the offer and how long it runs. */
+function offerBadge(o: SiteOffer, offer: boolean): string {
+  if (o.badge) return o.badge;
+  if (!offer) return "";
+  if (!o.ends) return "Offer";
+  const left = daysLeft(o.ends);
+  return left === 1 ? "Offer ends today" : left > 1 && left <= 7 ? `Offer: ${left} days left` : `Offer until ${endsText(o.ends)}`;
+}
+
+/**
+ * "Offer ends in 2d 05h 12m 09s" on a package's page, ticking in the visitor's own time (the offer runs to the
+ * end of its last day). Nothing on the server or after it ended, so the page never shows a wrong clock.
+ */
+function OfferCountdown({ ends }: { ends: string }) {
+  const [left, setLeft] = useState<number | null>(null);
+  useEffect(() => {
+    const end = new Date(`${ends}T23:59:59`).getTime();
+    const tick = () => setLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
+    const first = setTimeout(tick, 0), id = setInterval(tick, 1000);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, [ends]);
+  if (left === null || left <= 0) return null;
+  const d = Math.floor(left / 86400), h = Math.floor((left % 86400) / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+  const two = (n: number) => String(n).padStart(2, "0");
+  const cells: [string, string][] = d > 0 ? [[String(d), d === 1 ? "day" : "days"], [two(h), "hrs"], [two(m), "min"], [two(sec), "sec"]] : [[two(h), "hrs"], [two(m), "min"], [two(sec), "sec"]];
+  return (
+    <div className="ofcd" role="timer" aria-label={`Offer ends in ${d ? `${d} day${d > 1 ? "s" : ""} ` : ""}${h} hours ${m} minutes`}>
+      <span className="ofcdl">Offer ends in</span>
+      <span className="ofcdc" aria-hidden="true">{cells.map(([v, l]) => <span key={l}><b>{v}</b><i>{l}</i></span>)}</span>
+    </div>
+  );
+}
+
 function PriceLine({ o, cur, big }: { o: SiteOffer; cur: string; big?: boolean }) {
   const p = priceNow(o);
   if (p.price === null) return <span className="ofpr ask">Ask for the price</span>;
@@ -45,12 +84,12 @@ function PriceLine({ o, cur, big }: { o: SiteOffer; cur: string; big?: boolean }
 /** One package card. The look decides its shape (photo with words on it, a framed card, a plain photo…). */
 function OfferCard({ o, i, photo, crop, href, cur, theme }: { o: SiteOffer; i: number; photo?: SitePhoto; crop?: SiteCrop; href: string; cur: string; theme: string }) {
   const p = priceNow(o);
-  const badge = o.badge || (p.offer && o.ends ? `Offer until ${endsText(o.ends)}` : p.offer ? "Offer" : "");
+  const badge = offerBadge(o, p.offer);
   return (
     <Link href={href} className={`ofc${badge ? " has-b" : ""}`} style={{ ["--i" as string]: Math.min(i, 8) }}>
       <span className="ofi">
         {photo ? <Ph p={photo} alt="" eager={i < 3} crop={crop} sizes="(max-width: 860px) 92vw, 33vw" /> : <AutoArt name={o.name} />}
-        {badge && <span className="ofb">{badge}</span>}
+        {badge && <span className="ofb" suppressHydrationWarning>{badge}</span>}
         {theme === "dark" && <span className="ofplay" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7z" /></svg></span>}
       </span>
       <span className="oft">
@@ -118,7 +157,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
     const on = e.perDay && manyDays ? ` — ${daysOf(e.name).join(", ")}` : "";
     return c ? `${e.name}${on} (+${money(c, cur)})` : `${e.name}${on}`;
   });
-  const badge = o.badge || (p.offer && o.ends ? `Offer until ${endsText(o.ends)}` : p.offer ? "Offer" : "");
+  const badge = offerBadge(o, p.offer);
   // Facebook / Google count a look at a package (for ads that show one package).
   useEffect(() => {
     if (preview) return;
@@ -149,7 +188,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   const crumbs = <p className="ofcr"><Link href={L("/packages")}>Packages</Link>{o.group && <> / {o.group}</>}</p>;
   const heading = (
     <div className="ofh">
-      {badge && <span className="ofb">{badge}</span>}
+      {badge && <span className="ofb" suppressHydrationWarning>{badge}</span>}
       <h1 className="ofh1">{o.name}</h1>
       {o.tagline && <p className="ofh2">{o.tagline}</p>}
     </div>
@@ -163,6 +202,7 @@ export function OfferPage({ o, data, L, preview, wa }: { o: SiteOffer; data: Sit
   const box = (
     <aside className="ofbox" aria-label="Price and booking">
       <PriceLine o={o} cur={cur} big />
+      {p.offer && o.ends && <OfferCountdown ends={o.ends} />}
       {o.facts.length > 0 && <div className="ofts">{o.facts.map((f, k) => <div key={k}><b>{f.v}</b><span>{f.l}</span></div>)}</div>}
       {o.extras.length > 0 && (
         <fieldset className="ofx">

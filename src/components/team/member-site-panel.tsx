@@ -1,4 +1,5 @@
 "use client";
+import { AutofillText } from "@/lib/site-autofill";
 /**
  * A team member on the studio's website (Faisal 25-NOV-2026): shown or not, how they appear, the parts of their
  * page, and their ID card QR code. Used in their profile (Website tab) and from Website → Team.
@@ -49,7 +50,19 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 }
 
 /** One part of their page: a name, its switch, and its box (shown while on). */
-function Part({ title, hint, on, onChange, children }: { title: string; hint?: string; on: boolean; onChange: (v: boolean) => void; children?: React.ReactNode }) {
+/**
+ * Which ready "About" texts fit: by the first thing they do (their title, else their work roles).
+ * {role} is what they do in a sentence: "cinematographer and video editor".
+ */
+function aboutKind(title: string) {
+  const parts = title.split(/,|\/|&| and /i).map(x => x.trim().toLowerCase()).filter(Boolean);
+  const main = parts[0] ?? "";
+  const field = /edit|retouch|colou?r/.test(main) ? "member.about.edit" : /cinemat|video|film|drone/.test(main) ? "member.about.film" : /photo|camera/.test(main) ? "member.about.photo" : "member.about";
+  const role = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : main;
+  return { field, role };
+}
+
+function Part({ title, hint, on, onChange, action, children }: { title: string; hint?: string; on: boolean; onChange: (v: boolean) => void; /** Beside the switch (Autofill) */ action?: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="px-4 py-3.5">
       <div className="flex items-center gap-3">
@@ -57,6 +70,7 @@ function Part({ title, hint, on, onChange, children }: { title: string; hint?: s
           <p className="text-[15px] font-medium text-[#17151F]">{title}</p>
           {hint && <p className="text-xs text-[#6B6680] mt-0.5">{hint}</p>}
         </div>
+        {on && action}
         <Switch on={on} onChange={onChange} label={title} />
       </div>
       {on && children && <div className="mt-2.5">{children}</div>}
@@ -153,6 +167,7 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
 
   const photo = s.photoUrl || d.defaults.photo;
   const first = d.name.split(/\s+/)[0] || "They";
+  const about = aboutKind(s.title || d.defaults.title);
   const addSkill = () => { const v = skill.trim(); if (v && !s.skills.some(k => k.toLowerCase() === v.toLowerCase()) && s.skills.length < 8) put({ skills: [...s.skills, v] }); setSkill(""); };
   const fileName = `${d.memberId}-${d.name.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "")}`;
   const round = !d.theme || d.theme === "signature" || d.theme === "dark";
@@ -239,7 +254,8 @@ export function MemberSitePanel({ userId, onSaved }: { userId: string; /** After
               {Array.from({ length: new Date().getFullYear() - 1979 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <Part title="About them" on={s.aboutOn} onChange={v => put({ aboutOn: v })}>
+          <Part title="About them" on={s.aboutOn} onChange={v => put({ aboutOn: v })}
+            action={<AutofillText field={about.field} also="member.about" value={s.about} onFill={v => put({ about: v })} ctx={{ name: first, role: about.role }} />}>
             <textarea aria-label="About them" className={cn(input, "h-auto min-h-[96px] py-2.5 resize-y")} maxLength={700} value={s.about} placeholder="A few lines about how they work" onChange={e => put({ about: e.target.value })} />
             <p className="text-xs text-[#6B6680] mt-1 text-right tabular-nums">{s.about.length} / 700</p>
           </Part>

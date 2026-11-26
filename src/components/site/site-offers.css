@@ -102,6 +102,13 @@
 .sg .ofbox{position:sticky;top:90px;background:var(--card);padding:30px;border:1px solid var(--line);display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 60px -32px rgba(var(--sh),.4);animation:ofin .9s cubic-bezier(.2,.7,.2,1) .35s both}
 .sg .ofpr.big{font-size:44px}
 .sg .ofpr.big .ofwas{font-size:16px}
+/* Offer countdown under the price: quiet label, then days / hrs / min / sec in the look's own numerals */
+.sg .ofcd{padding-top:16px;border-top:1px solid var(--line)}
+.sg .ofcdl{display:block;font-size:12px;letter-spacing:.08em;color:var(--mut);margin-bottom:8px}
+.sg .ofcdc{display:flex;gap:8px}
+.sg .ofcdc>span{flex:1;min-width:0;max-width:72px;text-align:center;padding:8px 4px 7px;border:1px solid var(--line);border-radius:var(--rad,10px);background:var(--bg)}
+.sg .ofcdc b{display:block;font-family:var(--fp);font-weight:500;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.sg .ofcdc i{display:block;font-style:normal;font-size:11px;color:var(--mut);margin-top:2px}
 .sg .ofts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .sg .ofts div{background:var(--panel);padding:12px;display:flex;flex-direction:column;min-width:0}
 .sg .ofts b{font-family:var(--fp);font-size:22px;font-weight:400;line-height:1.2}

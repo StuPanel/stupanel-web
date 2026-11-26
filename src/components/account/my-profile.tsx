@@ -1,5 +1,6 @@
 "use client";
 import { PushSwitch } from "@/components/push-switch";
+import { InstallApp } from "@/components/install-app";
 
 import { CircleUserRound as HeaderIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/apple";
@@ -218,6 +219,7 @@ export function MyProfile({ embedded = false }: { embedded?: boolean }) {
           </div>
         </form>
         <div className="mt-7"><PushSwitch what="new enquiries, messages, payments and programs" /></div>
+        <div className="mt-7"><InstallApp /></div>
       </section>
 
       {/* The owner (Settings → My Profile) finds these in Settings → Security */}

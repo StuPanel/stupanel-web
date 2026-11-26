@@ -1,5 +1,6 @@
 "use client";
 import { PushSwitch } from "@/components/push-switch";
+import { InstallApp } from "@/components/install-app";
 
 import { useState, useEffect, useRef } from "react";
 import { Camera, Loader2, Eye, EyeOff, CheckCircle, ShieldCheck, Trash2, UserCircle } from "lucide-react";
@@ -203,6 +204,7 @@ export default function MemberProfilePage() {
       )}
 
       <PushSwitch what="new programs, editing work and messages" />
+      <InstallApp />
 
       <form onSubmit={changePassword}>
         <FormGroup title="Password" note="Signed in with Google only? You can skip this.">

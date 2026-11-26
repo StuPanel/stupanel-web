@@ -1,0 +1,14 @@
+{
+  "name": "StuPanel",
+  "short_name": "StuPanel",
+  "description": "Studio management for wedding photographers",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F3FA",
+  "theme_color": "#7D5CEF",
+  "icons": [
+    { "src": "/brand/stupanel-icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/brand/stupanel-icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

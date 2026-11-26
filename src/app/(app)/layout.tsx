@@ -1,4 +1,5 @@
 "use client";
+import { PushBoot } from "@/components/push-boot";
 
 import { rememberPanel } from "@/components/layout/panel-switch";
 import { useEffect, useState } from "react";
@@ -160,6 +161,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full sp-shell">
       <div className="sp-scene" aria-hidden="true" />
+      <PushBoot />
       <StudioBackdrop adopt={user?.role === "owner"} />
       {/* Desktop floating sidebar */}
       <div className={cn(

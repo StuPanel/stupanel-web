@@ -6,11 +6,12 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Ban, Check, CheckCheck, Copy, Download, EyeOff, Loader2, Smartphone, Trash2, Undo2 } from "lucide-react";
+import { Ban, Camera, Check, CheckCheck, ChevronRight, Copy, Download, EyeOff, Loader2, Smartphone, Trash2, Undo2 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
+import { CameraGuideSheet } from "@/components/face/camera-guide";
 import { LIVE_APP_PAGE, facePhotoUrl, num, type FaceDetail, type FacePhoto, type LiveDevice, type LivePanel } from "@/lib/face";
 
 const json = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -35,6 +36,7 @@ export function LiveTab({ g, onSettings, onChanged }: { g: FaceDetail; onSetting
   const [p, setP] = useState<LivePanel | null>(null);
   const [queue, setQueue] = useState<(FacePhoto & { hidden?: boolean })[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [guide, setGuide] = useState(false);
 
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([
@@ -99,6 +101,17 @@ export function LiveTab({ g, onSettings, onChanged }: { g: FaceDetail; onSetting
             className="h-11 px-4 rounded-full bg-white/10 text-white text-[13.5px] font-semibold inline-flex items-center gap-1.5 hover:bg-white/15"><Copy className="w-4 h-4" />Copy link for the team</button>
         </div>
       </div>
+
+      {/* Camera set-up guide */}
+      <button type="button" onClick={() => setGuide(true)} className={cn("w-full text-left bg-white rounded-[20px] p-4 sm:p-5 flex items-center gap-4 hover:bg-[#FAF9FC] transition-colors", CARD_SHADOW)}>
+        <span className="w-12 h-12 rounded-2xl bg-[#EEE8FD] text-[#5B3FD0] flex items-center justify-center flex-shrink-0"><Camera className="w-6 h-6" /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[15.5px] font-bold text-[#17151F]">Connect your camera</span>
+          <span className="block text-[13.5px] text-[#6B6680] mt-0.5">Step-by-step for Sony and the phone camera: what to do on the phone, then on the camera.</span>
+        </span>
+        <ChevronRight className="w-5 h-5 text-[#8A8599] flex-shrink-0" aria-hidden="true" />
+      </button>
+      {guide && <CameraGuideSheet onClose={() => setGuide(false)} />}
 
       {/* Numbers */}
       <div className={cn("bg-white rounded-[20px] grid grid-cols-2 lg:grid-cols-4 overflow-hidden", CARD_SHADOW)}>

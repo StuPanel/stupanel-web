@@ -10,6 +10,7 @@ import { Camera, Check, ChevronDown, Download, FolderOpen, Loader2, LogIn, Play,
 import { cn } from "@/lib/utils";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { PublicShell } from "@/components/public/public-shell";
+import { CameraGuide } from "@/components/face/camera-guide";
 
 type Info = { versionName: string; versionCode: number; url: string; sizeMb: number; date: string };
 
@@ -104,29 +105,21 @@ const STEPS: { title: string; lines: string[]; pic: React.ReactNode; icon: React
   { title: "Install", icon: ShieldCheck, pic: <PicInstall />, lines: ["If the phone asks, allow installing from your browser (Settings → Allow from this source), then go back.", "Google may say \"App blocked\" because the app is not on Google Play yet. Tap More details → Install anyway.", "It is StuPanel's own app — this message goes away once it is on Google Play."] },
   { title: "Sign in", icon: LogIn, pic: <PicSignIn />, lines: ["Open StuPanel Live.", "Tap Continue with Google, sign in, then tap Continue to the app.", "Or use your StuPanel email and password."] },
   { title: "Choose the event", icon: Smartphone, pic: <PicEvent />, lines: ["Today's events are at the top.", "Tap the event you are shooting.", "Don't see it? The studio must make its Face Search gallery first."] },
-  { title: "Choose the camera folder", icon: FolderOpen, pic: <PicFolder />, lines: ["Tap Choose the camera folder.", "Open the folder your camera app saves to (see Connect your camera below).", "Tap Use this folder → Allow. You do this only once."] },
+  { title: "Choose the camera folder", icon: FolderOpen, pic: <PicFolder />, lines: ["Tap Choose the camera folder.", "Open the folder your camera app saves to (see Connect your camera below: for Sony it is DCIM › Transfer & Tagging).", "Tap Use this folder → Allow. You do this only once."] },
   { title: "Start Live and shoot", icon: Play, pic: <PicLive />, lines: ["Tap Start Live.", "Lock the phone and put it in your pocket — it keeps sending.", "Every new photo reaches the guests within seconds."] },
 ];
 
-const CAMERAS: { id: string; name: string; app: string; folder: string; steps: string[] }[] = [
-  { id: "sony", name: "Sony", app: "Transfer & Tagging", folder: "the Transfer & Tagging folder", steps: ["Install Sony's Transfer & Tagging app on the phone.", "In the app, turn on receiving photos from the camera (FTP).", "On the camera: Network → FTP Transfer → on, and pick the phone.", "In StuPanel Live, choose the folder Transfer & Tagging saves to."] },
-  { id: "canon", name: "Canon", app: "Camera Connect", folder: "Pictures › Canon", steps: ["Install Canon Camera Connect and pair the camera.", "On the camera: Send to smartphone after shot → on (JPEG).", "In StuPanel Live, choose Pictures › Canon (or the folder Camera Connect saves to)."] },
-  { id: "nikon", name: "Nikon", app: "SnapBridge", folder: "DCIM › SnapBridge", steps: ["Install Nikon SnapBridge and pair the camera.", "Turn on Auto link, and send photos while shooting (JPEG).", "In StuPanel Live, choose DCIM › SnapBridge."] },
-  { id: "phone", name: "Phone", app: "The phone's own camera", folder: "DCIM › Camera", steps: ["Nothing to install.", "In StuPanel Live, choose DCIM › Camera.", "Good for a first try."] },
-];
 
 export default function LiveAppPage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [failed, setFailed] = useState(false);
   const [android, setAndroid] = useState<boolean | null>(null);
-  const [cam, setCam] = useState("sony");
 
   useEffect(() => {
     fetch("/downloads/live.json", { cache: "no-store" }).then(r => (r.ok ? r.json() : null)).then(d => (d ? setInfo(d) : setFailed(true))).catch(() => setFailed(true));
     const t = setTimeout(() => setAndroid(/android/i.test(navigator.userAgent)), 0);
     return () => clearTimeout(t);
   }, []);
-  const c = CAMERAS.find(x => x.id === cam) ?? CAMERAS[0];
 
   return (
     <PublicShell sub="StuPanel Live" width="max-w-[860px]">
@@ -174,31 +167,10 @@ export default function LiveAppPage() {
       </ol>
 
       {/* Camera */}
-      <section className="mt-9 rounded-[28px] bg-white p-5 sm:p-8" style={{ boxShadow: CARD_SHADOW }}>
+      <section id="camera" className="mt-9 rounded-[28px] bg-white p-5 sm:p-8" style={{ boxShadow: CARD_SHADOW }}>
         <h2 className="text-[22px] font-bold text-[#17151F]">Connect your camera</h2>
-        <p className="mt-1 text-[14px] text-[#6B6680]">Your camera&apos;s app puts each photo on the phone; StuPanel Live sends it on. Shoot RAW + JPEG — only the JPEG is sent.</p>
-        <div role="tablist" aria-label="Camera" className="mt-5 inline-flex max-w-full overflow-x-auto [scrollbar-width:none] gap-1 p-1 rounded-full bg-[#F5F3FA]">
-          {CAMERAS.map(x => (
-            <button key={x.id} type="button" role="tab" aria-selected={cam === x.id} onClick={() => setCam(x.id)}
-              className={cn("h-10 px-4 rounded-full text-[14px] font-semibold whitespace-nowrap flex-shrink-0 transition-colors", cam === x.id ? "bg-[#17151F] text-white" : "text-[#4A4658] hover:text-[#17151F]")}>{x.name}</button>
-          ))}
-        </div>
-        <div className="mt-5 grid sm:grid-cols-[1fr_auto] gap-5 items-start">
-          <ol className="space-y-3">
-            {c.steps.map((t, i) => (
-              <li key={t} className="flex gap-3">
-                <span className="w-7 h-7 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-bold flex items-center justify-center flex-shrink-0 tabular-nums">{i + 1}</span>
-                <p className="pt-0.5 text-[15px] leading-relaxed text-[#33303F]">{t}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="rounded-2xl bg-[#F7F5FB] px-4 py-3 min-w-[200px]">
-            <p className="text-[12px] font-semibold text-[#6B6680]">App on the phone</p>
-            <p className="text-[15px] font-bold text-[#17151F]">{c.app}</p>
-            <p className="mt-2 text-[12px] font-semibold text-[#6B6680]">Folder to choose in StuPanel Live</p>
-            <p className="text-[15px] font-bold text-[#5B3FD0]">{c.folder}</p>
-          </div>
-        </div>
+        <p className="mt-1 mb-5 text-[14px] text-[#6B6680]">Your camera&apos;s app puts each photo on the phone; StuPanel Live sends it on. Choose your camera and follow the steps; tick each one as you go.</p>
+        <CameraGuide />
       </section>
 
       <p className="mt-6 mb-2 text-center text-[13px] text-[#6B6680]">Stuck? Ask your studio — they can see your phone in the gallery&apos;s Live tab.</p>

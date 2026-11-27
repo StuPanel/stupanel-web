@@ -142,13 +142,12 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   /** The gallery's download size (known once the page opened). */
   const size = useRef<DownloadSize>("original");
   const stamp = useCallback((o: Result): Result => {
-    const small = size.current !== "original";
-    if (!o.watermark && !small) return o;
     const tag = (p: FacePhoto) => ({
       ...p,
       ...(o.watermark ? { wm: `${base}/photo/${p.id}/{size}.jpg?v=${o.watermark}` } : {}),
-      // Medium / Small: the saved file comes from StuPanel, the same pixels in a smaller file.
-      ...(small ? { file: `${base}/file/${p.id}.jpg?s=${size.current}${o.watermark ? `&v=${o.watermark}` : ""}` } : {}),
+      // The saved file always comes from StuPanel: Original is the camera's own file (Google's picture link is
+      // a re-compressed copy, Faisal 27-NOV); Medium / Small are the same pixels in a smaller file.
+      file: `${base}/file/${p.id}.jpg?s=${size.current}${o.watermark ? `&v=${o.watermark}` : ""}`,
     });
     return { ...o, photos: o.photos.map(tag), more: o.more.map(tag) };
   }, [base]);

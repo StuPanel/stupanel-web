@@ -66,6 +66,8 @@ class Sender {
   /** Files seen once: sent only when their size is the same on the next look (the camera finished writing). */
   private settling = new Map<string, number>();
   private queue: { key: string; file: File }[] = [];
+  /** Files being sent right now (not in the queue any more, not yet seen). */
+  private inflight = new Set<string>();
   private busy = 0;
   private sinceSync = 0;
   private wake: { release(): Promise<void> } | null = null;
@@ -168,7 +170,7 @@ class Sender {
         const now = Date.now();
         const queued = new Set(this.queue.map(q => q.key));
         for (const f of await this.list()) {
-          if (this.seen.has(f.key) || queued.has(f.key)) continue;
+          if (this.seen.has(f.key) || queued.has(f.key) || this.inflight.has(f.key)) continue;
           // Wait until the file stops changing (a camera or Lightroom may still be writing it).
           if (now - f.file.lastModified < 2000) continue;
           const first = this.settling.get(f.key);
@@ -191,8 +193,10 @@ class Sender {
     while (this.busy < PARALLEL && this.queue.length && this.state.status === "running") {
       const job = this.queue.shift()!;
       this.busy++;
+      this.inflight.add(job.key);
       void this.send(job).finally(() => {
         this.busy--;
+        this.inflight.delete(job.key);
         this.set({ waiting: this.queue.length + this.busy });
         if (!this.queue.length && !this.busy && this.sinceSync) void this.sync();
         this.pump();

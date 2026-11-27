@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { askConfirm, notify } from "@/components/feedback";
 import { CARD_SHADOW } from "@/components/ui/apple";
 import { CameraGuideSheet } from "@/components/face/camera-guide";
+import { ComputerSender } from "@/components/face/computer-sender";
 import { LIVE_APP_PAGE, facePhotoUrl, num, type FaceDetail, type FacePhoto, type LiveDevice, type LivePanel } from "@/lib/face";
 
 const json = (body: unknown) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -112,6 +113,9 @@ export function LiveTab({ g, onSettings, onChanged }: { g: FaceDetail; onSetting
         <ChevronRight className="w-5 h-5 text-[#8A8599] flex-shrink-0" aria-hidden="true" />
       </button>
       {guide && <CameraGuideSheet onClose={() => setGuide(false)} />}
+
+      {/* From a folder on this computer */}
+      <ComputerSender galleryId={g.id} onSent={load} />
 
       {/* Numbers */}
       <div className={cn("bg-white rounded-[20px] grid grid-cols-2 lg:grid-cols-4 overflow-hidden", CARD_SHADOW)}>

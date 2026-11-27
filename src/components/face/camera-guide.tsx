@@ -20,6 +20,7 @@ type Part = { id: "phone" | "camera" | "live"; title: string; icon: React.Elemen
 const CAMS: { id: string; name: string; ready: boolean; sub: string }[] = [
   { id: "sony", name: "Sony", ready: true, sub: "Alpha with FTP" },
   { id: "phone", name: "Phone camera", ready: true, sub: "No camera needed" },
+  { id: "laptop", name: "Laptop", ready: true, sub: "Any camera, from a folder" },
   { id: "canon", name: "Canon", ready: false, sub: "Guide coming soon" },
   { id: "nikon", name: "Nikon", ready: false, sub: "Guide coming soon" },
 ];
@@ -138,6 +139,33 @@ const PHONE_PARTS: Part[] = [
   },
 ];
 
+const LAPTOP_PARTS: Part[] = [
+  {
+    id: "phone", title: "On the laptop", icon: Smartphone, steps: [
+      { title: "Open the event in Chrome", lines: [<>On the laptop, open StuPanel in <B>Chrome</B> or <B>Edge</B>: <Path items={["AI Face Search", "your event", "Live"]} />.</>, <>Connect the laptop to the venue Wi-Fi or the phone&apos;s hotspot.</>] },
+      { title: "Make a folder for live photos", lines: [<>For example <B>Desktop › Live</B>. Only JPEG files are sent; RAW is skipped.</>] },
+    ],
+  },
+  {
+    id: "camera", title: "Get photos into the folder", icon: Camera, steps: [
+      {
+        title: "Choose one way",
+        lines: [
+          <><B>Camera on a cable</B> (instant): the camera maker&apos;s free tethering software saves each shot into the folder: Sony <B>Imaging Edge Desktop › Remote</B>, Canon <B>EOS Utility</B>, Nikon <B>NX Tether</B>. Set it to save JPEG (or RAW + JPEG) into your Live folder.</>,
+          <><B>Card copies</B>: every 20–30 minutes copy the new photos from the card into the folder.</>,
+          <><B>Lightroom</B>: pick and edit, then <B>Export</B> JPEGs into the folder. Guests get only your best, edited photos.</>,
+        ],
+      },
+    ],
+  },
+  {
+    id: "live", title: "Start Live", icon: Wifi, steps: [
+      { title: "Choose the folder and start", lines: [<>In the Live tab, <B>Send from this computer</B> › <B>Choose folder</B> › pick your Live folder › <B>Allow</B>.</>, <>Tap <B>Start sending</B>. Tick <B>Also send the photos already in this folder</B> if they should go too.</>] },
+      { title: "Keep the tab open", lines: [<>New photos go within seconds. Keep the tab open and the laptop awake (plugged in, sleep off).</>, <>No internet for a while? Photos wait and go when it is back.</>] },
+    ],
+  },
+];
+
 const SONY_TIPS: { q: string; a: React.ReactNode }[] = [
   { q: "The camera says it can't connect", a: <>Check the phone and camera are on the same Wi-Fi, Transfer &amp; Tagging&apos;s receiving screen is open, and Host name / Port match. Some hotel and hall Wi-Fi does not let devices talk to each other: use the phone&apos;s hotspot or a pocket router instead.</> },
   { q: "Photos reach the phone but not the gallery", a: <>Open StuPanel Live: is it <B>Live</B>, and is the folder <B>DCIM › Transfer &amp; Tagging</B>? With weak internet the photos wait and go by themselves when it comes back; none are lost.</> },
@@ -177,7 +205,7 @@ export function CameraGuide({ compact }: { /** Inside a side sheet: a little tig
   const [net, setNet] = useState<Net>("wifi");
   const [menu, setMenu] = useState<Menu>("old");
   const [open, setOpen] = useState<string | null>(null);
-  const parts = useMemo(() => (cam === "sony" ? sonyParts(net, menu) : cam === "phone" ? PHONE_PARTS : []), [cam, net, menu]);
+  const parts = useMemo(() => (cam === "sony" ? sonyParts(net, menu) : cam === "phone" ? PHONE_PARTS : cam === "laptop" ? LAPTOP_PARTS : []), [cam, net, menu]);
   const ticks = useTicks(`live-guide:${cam}:${cam === "sony" ? `${net}:${menu}` : ""}`);
   const all = parts.flatMap(p => p.steps.map(s => `${p.id}:${s.title}`));
   const doneCount = all.filter(x => ticks.done.includes(x)).length;
@@ -187,7 +215,7 @@ export function CameraGuide({ compact }: { /** Inside a side sheet: a little tig
   return (
     <div className={cn("space-y-5", compact && "space-y-4")}>
       {/* Camera */}
-      <div role="radiogroup" aria-label="Your camera" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div role="radiogroup" aria-label="Your camera" className={cn("grid grid-cols-2 gap-2", compact ? "sm:grid-cols-3" : "sm:grid-cols-5")}>
         {CAMS.map(c => (
           <button key={c.id} type="button" role="radio" aria-checked={cam === c.id} disabled={!c.ready} onClick={() => setCam(c.id)}
             className={cn("text-left rounded-[16px] px-3.5 py-3 border transition-colors disabled:cursor-not-allowed",

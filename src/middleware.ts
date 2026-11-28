@@ -70,6 +70,7 @@ const PUBLIC_PREFIXES = [
   "/w/",
   "/g/",
   "/f/",
+  "/album/",
   "/r/",
   "/site/",
   "/track",

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Check, Clock, Plus } from "lucide-react";
+import { BookOpen, Check, Clock, MessageCircle, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CARD_SHADOW, EmptyState, MainButton, PageHeader, RowsSkeleton, SearchField } from "@/components/ui/apple";
 import { albumApi, useWidth, type ReadySel } from "@/lib/album/api";
@@ -100,7 +100,13 @@ function AlbumCard({ r }: { r: AlbumListRow }) {
         </div>
         <span className="h-6 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center flex-shrink-0" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
       </div>
-      <p className="mt-2.5 text-[13px] text-[#4A4658] flex items-center gap-1.5"><Clock className="w-4 h-4 text-[#5B3FD0]" />Changed {fmtDate(r.updatedAt)}</p>
+      {r.openNotes ? (
+        <p className="mt-2.5 text-[13px] text-[#8A5300] flex items-center gap-1.5"><MessageCircle className="w-4 h-4" />{r.openNotes} {r.openNotes === 1 ? "note" : "notes"} from the client to look at</p>
+      ) : r.approvedAt ? (
+        <p className="mt-2.5 text-[13px] text-[#1F7A4F] flex items-center gap-1.5"><Check className="w-4 h-4" />Approved by the client on {fmtDate(r.approvedAt)} · ready to export</p>
+      ) : (
+        <p className="mt-2.5 text-[13px] text-[#4A4658] flex items-center gap-1.5"><Clock className="w-4 h-4 text-[#5B3FD0]" />Changed {fmtDate(r.updatedAt)}</p>
+      )}
     </Link>
   );
 }

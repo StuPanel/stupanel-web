@@ -60,17 +60,25 @@ export type Names = { bride?: string; groom?: string; date?: string };
 export type APhoto = { id: string; a: string; n: string; w: number | null; h: number | null; f: string | null; d: string | null; m: string | null; hl: boolean };
 
 export type AlbumRow = {
-  id: string; title: string; size: AlbumSize; look: LookId; status: AlbumStatus; names: Names | null;
+  id: string; title: string; size: AlbumSize; look: LookId; status: AlbumStatus; names: Names | null; approvedAt?: string | null;
   galleryId: string | null; bookingId: string | null; createdAt: string; updatedAt: string;
 };
-export type AlbumListRow = AlbumRow & { pages: number; cover: Spread | null; coverPhotos?: APhoto[] };
+export type AlbumListRow = AlbumRow & { pages: number; cover: Spread | null; coverPhotos?: APhoto[]; openNotes?: number };
+export type AlbumNote = { id: string; spread: string; text: string; by: "client" | "studio"; at: string; done?: boolean };
 export type Source = {
   gallery: { id: string; title: string; status: string; albums: { id: string; name: string }[] };
   program: { id: string; name: string; number: string; date: string | null };
   client: { firstName: string; lastName: string | null };
   photos: APhoto[];
 };
-export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null };
+export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null; notes: AlbumNote[]; proofUrl: string | null; approvedAt: string | null; sentAt: string | null };
+/** What the client's proof link gets. */
+export type ProofView = {
+  title: string; size: AlbumSize; names: Names | null; spreads: Spread[]; status: AlbumStatus; approvedAt: string | null;
+  notes: { id: string; spread: string; text: string; at: string }[];
+  photos: { id: string; d: string | null; w: number | null; h: number | null }[];
+  studio: { name: string; logoUrl: string | null; phone: string | null };
+};
 
 export const SIZES: { id: AlbumSize; label: string; w: number; h: number }[] = [
   { id: "12x36", label: "12 × 36", w: 36, h: 12 },

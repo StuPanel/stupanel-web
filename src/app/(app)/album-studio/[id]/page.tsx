@@ -8,7 +8,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Contrast, Download, Loader2, Plus, Redo2, Shuffle, Trash2, Undo2, X,
+  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Contrast, Download, Loader2, MessageCircle, Plus, Redo2, Share2, Shuffle, Trash2, Undo2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
@@ -20,6 +20,7 @@ import { QUOTES, quoteAfter } from "@/lib/album/quotes";
 import { photoUrl, ratioOf, sizeOf, STATUS, type AlbumDetail, type AlbumStatus, type APhoto, type ImgItem, type Item, type Spread, type TextItem } from "@/lib/album/types";
 import { SpreadView } from "@/components/album/spread-view";
 import { ExportDialog } from "@/components/album/export-dialog";
+import { ShareDialog } from "@/components/album/share-dialog";
 
 type Hist = { past: Spread[][]; future: Spread[][] };
 
@@ -35,6 +36,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const [save, setSave] = useState<"saved" | "saving" | "waiting" | "error">("saved");
   const [tray, setTray] = useState<"unused" | "all">("unused");
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const pending = useRef<Spread[] | null>(null);
   const spreadsRef = useRef<Spread[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -139,6 +141,15 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const clientNotes = (album?.notes ?? []).filter(n => n.by === "client");
+  const openNotes = clientNotes.filter(n => !n.done).length;
+  const pageNotes = clientNotes.filter(n => n.spread === spread?.id);
+  const otherNotes = clientNotes.filter(n => !n.done && n.spread !== spread?.id).length;
+  async function markNote(noteId: string, done: boolean) {
+    try { const r = await albumApi.noteDone(id, noteId, done); setAlbum(a => (a ? { ...a, notes: r.notes } : a)); }
+    catch (e) { notify((e as Error).message, { error: true }); }
+  }
+
   if (err) return <div role="alert" className="rounded-[18px] bg-[#FDECEF] p-4 text-[14px] text-[#7A1F33]">{err} <Link href="/album-studio" className="font-semibold">Back to albums</Link></div>;
   if (!album) return <div className="flex items-center gap-2 text-[14px] text-[#6B6680] p-6"><Loader2 className="w-4 h-4 animate-spin" />Opening the album…</div>;
 
@@ -152,7 +163,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
         <Link href="/album-studio" aria-label="Back to albums" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8]"><ChevronLeft className="w-5 h-5" /></Link>
         <div className="min-w-0 mr-auto leading-tight">
           <b className="block text-[15px] truncate">{album.title}</b>
-          <span className="text-[12px] text-[#6B6680]">{sizeOf(album.size).label} · {spreads.length} pages · <SaveState s={save} onRetry={flush} /></span>
+          <span className="text-[12px] text-[#6B6680]">{sizeOf(album.size).label} · {spreads.length} pages · <SaveState s={save} onRetry={flush} />{album.approvedAt ? <b className="text-[#1F7A4F]"> · Client approved</b> : null}</span>
         </div>
         <button aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!hist.past.length} onClick={undo} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8] disabled:opacity-35"><Undo2 className="w-[18px] h-[18px]" /></button>
         <button aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={redo} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8] disabled:opacity-35"><Redo2 className="w-[18px] h-[18px]" /></button>
@@ -161,6 +172,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           className="h-10 rounded-full border border-[#E4E0EC] bg-white px-3 text-[13px] font-semibold" style={{ color: STATUS[album.status].fg }}>
           {(Object.keys(STATUS) as AlbumStatus[]).map(s => <option key={s} value={s}>{STATUS[s].label}</option>)}
         </select>
+        <button onClick={() => setSharing(true)} className="h-10 px-3.5 rounded-full border border-[#E4E0EC] bg-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share with client</span><span className="sm:hidden">Share</span></button>
         <button onClick={() => { flush(); setExporting(true); }} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-bold inline-flex items-center gap-1.5 shadow-[0_10px_20px_-10px_rgba(109,74,230,.9)]"><Download className="w-4 h-4" />Export for print</button>
       </header>
 
@@ -204,7 +216,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               <Tool label="Next page" onClick={() => setCur(Math.min(spreads.length - 1, cur + 1))} disabled={cur >= spreads.length - 1}><ChevronRight className="w-4 h-4" /></Tool>
             </div>
           </div>
-          <Strip spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set(checks.filter(c => c.kind !== "twice").map(c => c.spread))} />
+          <Strip spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
         </main>
 
         {/* right panel */}
@@ -227,6 +239,22 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
             <section className="text-[13px] text-[#6B6680] rounded-xl bg-[#FAF9FC] p-3">Choose a photo or a text on the page to change it. Drag inside a chosen photo to move it in its frame.</section>
           )}
 
+          {(album.notes ?? []).some(n => n.by === "client") && (
+            <section>
+              <h2 className="text-[12px] font-bold text-[#6B6680] mb-2">Client notes · {openNotes} open</h2>
+              <div className="flex flex-col gap-2">
+                {pageNotes.length === 0 && <p className="text-[12.5px] text-[#6B6680]">None on this page.{otherNotes ? ` ${otherNotes} on other pages (orange in the strip).` : ""}</p>}
+                {pageNotes.map(n => (
+                  <div key={n.id} className={cn("rounded-xl p-3 text-[13px] flex gap-2", n.done ? "bg-[#F4F3F7] text-[#6B6680]" : "bg-[#FFF4D6] text-[#4A3300]")}>
+                    <MessageCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0"><p className={cn("whitespace-pre-wrap", n.done && "line-through")}>{n.text}</p><p className="text-[11.5px] opacity-70 mt-1">{fmtWhen(n.at)}</p></div>
+                    <button onClick={() => markNote(n.id, !n.done)} className="self-start h-7 px-2 rounded-full bg-white text-[12px] font-semibold flex-shrink-0">{n.done ? "Undo" : "Done"}</button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section>
             <h2 className="text-[12px] font-bold text-[#6B6680] mb-2">Checks · {checks.length ? `${checks.length} to look at` : "all good"}</h2>
             <div className="flex flex-col gap-2">
@@ -243,6 +271,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
         </aside>
       </div>
 
+      {sharing && <ShareDialog album={album} onClose={() => setSharing(false)} onChange={(url, status) => setAlbum(a => (a ? { ...a, proofUrl: url, status } : a))} />}
       {exporting && <ExportDialog album={album} spreads={spreads} byId={byId} checks={checks.length} onClose={() => setExporting(false)} />}
     </div>
   );
@@ -306,7 +335,7 @@ function Strip({ spreads, cur, setCur, ratio, byId, warn }: { spreads: Spread[];
           <div className={cn("rounded-[3px] overflow-hidden", i === cur ? "ring-2 ring-offset-2 ring-[#7D5CEF]" : warn.has(i) ? "ring-2 ring-[#E3A21A]" : "shadow-[0_2px_6px_rgba(40,20,10,.25)]")}>
             <SpreadView spread={s} width={tw} ratio={ratio} photos={byId} fold={false} />
           </div>
-          <span className={cn("block text-[11px] mt-1", i === cur ? "font-extrabold text-[#17151F]" : "font-semibold text-[#6B6680]")}>{i === 0 ? "Cover" : i}</span>
+          <span className={cn("block text-[11px] mt-1", i === cur ? "font-extrabold text-[#17151F]" : "font-semibold text-[#6B6680]")}>{i + 1}</span>
         </button>
       ))}
     </div>
@@ -354,3 +383,5 @@ function TextPanel({ it, onChange }: { it: TextItem; onChange: (patch: Partial<T
     </section>
   );
 }
+
+const fmtWhen = (d: string) => new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });

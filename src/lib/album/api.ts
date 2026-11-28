@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import type { AlbumDetail, AlbumListRow, Source, Spread } from "./types";
+import type { AlbumDetail, AlbumListRow, AlbumNote, ProofView, Source, Spread } from "./types";
 
 export type ReadySel = { id: string; title: string; status: string; submittedAt: string | null; picked: number; program: { id: string; name: string; number: string; date: string | null }; client: string };
 
@@ -19,11 +20,14 @@ export const albumApi = {
     apiFetch(`${API}/album-studio`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(json<{ id: string }>),
   save: (id: string, body: Partial<{ title: string; size: string; look: string; status: string; names: Record<string, string>; spreads: Spread[] }>) =>
     apiFetch(`${API}/album-studio/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(json<{ id: string; updatedAt: string; status: string }>),
+  proof: (id: string, on: boolean, reset = false) =>
+    apiFetch(`${API}/album-studio/${id}/proof`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on, reset }) }).then(json<{ on: boolean; url: string | null; status: string }>),
+  noteDone: (id: string, noteId: string, done: boolean) =>
+    apiFetch(`${API}/album-studio/${id}/notes/${noteId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done }) }).then(json<{ notes: AlbumNote[] }>),
   remove: (id: string) => apiFetch(`${API}/album-studio/${id}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
 };
 
 /** Width of an element, kept up to date. */
-import { useEffect, useRef, useState } from "react";
 export function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [w, setW] = useState(0);
@@ -35,3 +39,12 @@ export function useWidth<T extends HTMLElement>() {
   }, []);
   return [ref, w] as const;
 }
+
+/** The client's proof link (no login). Plain fetch: no studio session. */
+export const proofApi = {
+  view: (token: string) => fetch(`${API}/public/album/${encodeURIComponent(token)}`).catch(() => null).then(json<ProofView>),
+  note: (token: string, spread: string, text: string) =>
+    fetch(`${API}/public/album/${encodeURIComponent(token)}/notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spread, text }) }).catch(() => null)
+      .then(json<{ id: string; spread: string; text: string; at: string }>),
+  approve: (token: string) => fetch(`${API}/public/album/${encodeURIComponent(token)}/approve`, { method: "POST" }).catch(() => null).then(json<{ ok: boolean; approvedAt: string }>),
+};

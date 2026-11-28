@@ -80,7 +80,7 @@ function ImgView({ it, pos, W, H, photos, ring, pick, onDropPhoto }: { it: ImgIt
         border: bd ? `${bd}px solid ${it.bd!.c}` : undefined, boxSizing: "border-box",
         boxShadow: it.sh ? `0 ${H * 0.03}px ${H * 0.07}px -${H * 0.03}px rgba(0,0,0,.55)` : undefined,
         clipPath: it.cut === "torn" ? TORN : undefined, background: p ? "#d9d4cc" : "repeating-linear-gradient(45deg,#e7e2da 0 8px,#efebe5 8px 16px)",
-        cursor: pick ? "pointer" : undefined, zIndex: it.bg ? 0 : 1,
+        cursor: pick ? "pointer" : undefined,
       }}>
       {p?.d && (
         // eslint-disable-next-line @next/next/no-img-element

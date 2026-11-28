@@ -8,11 +8,11 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Contrast, Download, History, Loader2, MessageCircle, Plus, Redo2, Share2, Shuffle, Trash2, Undo2, X,
+  AlertTriangle, AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpToLine, Check, ChevronLeft, ChevronRight, Contrast, Download, History, ImagePlus, Loader2, MessageCircle, Move, Plus, Redo2, Repeat, Share2, Shuffle, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
-import { albumApi, useWidth } from "@/lib/album/api";
+import { albumApi } from "@/lib/album/api";
 import { checkAlbum, dpiOf } from "@/lib/album/checks";
 import { focusFor, makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
 import { scanPhotos } from "@/lib/album/faces";
@@ -23,6 +23,9 @@ import { SpreadView } from "@/components/album/spread-view";
 import { ExportDialog } from "@/components/album/export-dialog";
 import { ShareDialog } from "@/components/album/share-dialog";
 import { VersionsDialog } from "@/components/album/versions-dialog";
+import { Stage } from "@/components/album/stage";
+import { uid } from "@/lib/album/layout";
+import { FONTS } from "@/lib/album/looks";
 
 type Hist = { past: Spread[][]; future: Spread[][] };
 type SaveS = "saved" | "saving" | "waiting" | "error" | "conflict";
@@ -41,6 +44,8 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [pan, setPan] = useState(false);
+  const [swapFrom, setSwapFrom] = useState<string | null>(null);
   const rev = useRef(0);
   const pending = useRef<Spread[] | null>(null);
   const spreadsRef = useRef<Spread[]>([]);
@@ -75,7 +80,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     if (!pending.current) return;
     const body = pending.current; pending.current = null;
     setSave("saving");
-    try { const r = await albumApi.save(id, { spreads: body, base: rev.current }); rev.current = r.rev; setSave(pending.current ? "waiting" : "saved"); }
+    try { const r = await albumApi.save(id, { spreads: body, base: rev.current }); rev.current = typeof r.rev === "number" ? r.rev : rev.current + 1; setSave(pending.current ? "waiting" : "saved"); }
     catch (e) {
       pending.current = pending.current ?? body;
       if ((e as { code?: string }).code === "ALBUM_CHANGED") { setSave("conflict"); return; }
@@ -128,7 +133,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     commit(next);
   };
 
-  const editItem = (itemId: string, patch: Partial<ImgItem> | Partial<TextItem>) =>
+  const editItem = (itemId: string, patch: Partial<ImgItem> | Partial<TextItem> | Record<string, number>) =>
     change(all => all.map((s, i) => (i !== cur ? s : { ...s, items: s.items.map(it => (it.id === itemId ? ({ ...it, ...patch } as Item) : it)) })));
   const putPhoto = (itemId: string, photoId: string) => {
     const it = spread?.items.find(i => i.id === itemId); const p = byId.get(photoId);
@@ -136,6 +141,30 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     editItem(itemId, { p: photoId, ...pos, z: 1 }); setSel(itemId);
   };
   const setSpread = (fn: (s: Spread) => Spread) => change(all => all.map((s, i) => (i === cur ? fn(s) : s)));
+  const pick = (itemId: string | null) => { setSel(itemId); if (itemId !== sel) setPan(false); };
+  function deleteItem(itemId: string) { setSpread(s => ({ ...s, items: s.items.filter(i => i.id !== itemId) })); setSel(null); }
+  function layer(itemId: string, toFront: boolean) {
+    setSpread(s => { const it = s.items.find(i => i.id === itemId)!; const rest = s.items.filter(i => i.id !== itemId); const bgs = rest.filter(i => i.k === "img" && i.bg); const others = rest.filter(i => !(i.k === "img" && i.bg)); return { ...s, items: toFront ? [...rest, it] : [...bgs, it, ...others] }; });
+  }
+  function addText() {
+    const t: TextItem = { k: "text", id: uid(), role: "label", t: "Your words", x: 60, y: 40, w: 30, size: 6, font: FONTS.corm, color: /^#(1|2|0)/.test(spread?.bg ?? "") ? "#ffffff" : "#17151F", italic: true };
+    setSpread(s => ({ ...s, items: [...s.items, t] })); setSel(t.id);
+  }
+  function addFrame() {
+    const f: ImgItem = { k: "img", id: uid(), slot: 99, p: null, want: "a", x: 56, y: 15, w: 18, h: 60, bd: { w: 1.6, c: "#ffffff" }, sh: true };
+    setSpread(s => ({ ...s, items: [...s.items, f] })); setSel(f.id);
+  }
+  /** Swap the photos of two frames (the first chosen, then this one). */
+  function swapWith(otherId: string) {
+    const a = spread?.items.find(i => i.id === swapFrom), b = spread?.items.find(i => i.id === otherId);
+    setSwapFrom(null);
+    if (!a || !b || a.id === b.id || a.k !== "img" || b.k !== "img") return;
+    const pa = a.p, pb = b.p;
+    const posA = pb && byId.get(pb) ? focusFor({ ...a, z: 1 }, byId.get(pb)!, album?.faces?.[pb], ratio) : { fx: 50, fy: 40 };
+    const posB = pa && byId.get(pa) ? focusFor({ ...b, z: 1 }, byId.get(pa)!, album?.faces?.[pa], ratio) : { fx: 50, fy: 40 };
+    setSpread(s => ({ ...s, items: s.items.map(i => (i.id === a.id ? { ...i, p: pb, ...posA, z: 1 } as Item : i.id === b.id ? { ...i, p: pa, ...posB, z: 1 } as Item : i)) }));
+    setSel(b.id);
+  }
 
   async function setStatus(status: AlbumStatus) {
     if (!album) return;
@@ -169,10 +198,17 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input,textarea,select,[contenteditable]")) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+      const it = sel ? spread?.items.find(i => i.id === sel) : null;
+      if (it && /^Arrow/.test(e.key)) {
+        e.preventDefault();
+        const st = e.shiftKey ? 1 : 0.25;
+        const d = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st * 3], ArrowDown: [0, st * 3] }[e.key] ?? [0, 0];
+        editItem(it.id, { x: Math.round((it.x + d[0]) * 100) / 100, y: Math.round((it.y + d[1]) * 100) / 100 });
+      } else if (it && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); deleteItem(it.id); }
       else if (e.key === "ArrowRight") setCur(c => Math.min(spreads.length - 1, c + 1));
       else if (e.key === "ArrowLeft") setCur(c => Math.max(0, c - 1));
-      else if (e.key === "Escape") setSel(null);
+      else if (e.key === "Escape") { setSel(null); setSwapFrom(null); setPan(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -246,13 +282,14 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
 
         {/* page */}
         <main className="order-1 2xl:order-2 flex flex-col gap-3 min-w-0 lg:col-start-1 2xl:col-start-auto">
-          <div className="rounded-[18px] bg-[#E9E4DC] p-3 sm:p-6 flex flex-col items-center gap-3" onPointerDown={() => setSel(null)}>
+          <div className="rounded-[18px] bg-[#E9E4DC] p-3 sm:p-6 flex flex-col items-center gap-3" onPointerDown={() => { setSel(null); setPan(false); }}>
             <div className="flex items-center gap-2 text-[13px] text-[#4A4658] w-full">
               {spread?.chapter && <span className="px-2.5 h-6 rounded-full bg-white/70 inline-flex items-center font-semibold">{spread.chapter}</span>}
               <b className="text-[#17151F]">Page {cur + 1}</b><span>of {spreads.length}</span>
               <span className="ml-auto text-[12px] text-[#6B6680] hidden sm:inline">{lookOf(spread?.look ?? album.look).name}</span>
             </div>
-            {spread ? <Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={setSel} onPan={(itemId, fx, fy) => editItem(itemId, { fx, fy })} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} /> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
+            {swapFrom && <p className="w-full text-center text-[13px] font-semibold text-[#3F2A9E] bg-white/80 rounded-full py-1.5" role="status">Now click the frame to swap with · <button className="underline" onClick={() => setSwapFrom(null)}>Cancel</button></p>}
+            {spread ? <div className="w-full" onPointerDown={e => e.stopPropagation()}><Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={pick} pan={pan} onChange={(itemId, patch) => editItem(itemId, patch)} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} onSwapPick={swapFrom ? swapWith : null} /></div> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
             <div className="flex flex-wrap items-center justify-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
               <Tool label="Previous page" onClick={() => setCur(Math.max(0, cur - 1))} disabled={cur === 0}><ChevronLeft className="w-4 h-4" /></Tool>
               <Tool label="Move page left" onClick={() => movePage(-1)} disabled={cur === 0}><ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Move</span></Tool>
@@ -276,13 +313,25 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               </select>
               <button onClick={() => { setSpread(s => relayout(s, s.look, nextVariant(s), byId, ctxBase)); setSel(null); }}
                 className="mt-2 w-full h-10 rounded-xl bg-[#F2EFF8] text-[13px] font-semibold text-[#3F2A9E] inline-flex items-center justify-center gap-1.5"><Shuffle className="w-4 h-4" />Another layout</button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button onClick={addText} className="h-10 rounded-xl border border-[#E4E0EC] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><Type className="w-4 h-4" />Add text</button>
+                <button onClick={addFrame} className="h-10 rounded-xl border border-[#E4E0EC] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><ImagePlus className="w-4 h-4" />Add frame</button>
+              </div>
             </section>
           )}
 
-          {item?.k === "img" && <ImgPanel it={item} p={item.p ? byId.get(item.p) : undefined} size={album.size} onChange={patch => editItem(item.id, patch)} />}
-          {item?.k === "text" && <TextPanel it={item} onChange={patch => editItem(item.id, patch)} />}
+          {item?.k === "img" && <ImgPanel it={item} p={item.p ? byId.get(item.p) : undefined} size={album.size} onChange={patch => editItem(item.id, patch)}
+            pan={pan} setPan={setPan} onSwap={() => { setSwapFrom(item.id); setPan(false); }} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
+          {item?.k === "text" && <TextPanel it={item} onChange={patch => editItem(item.id, patch)} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
+          {item?.k === "box" && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-[12px] font-bold text-[#6B6680]">Shape</h2>
+              <p className="text-[12.5px] text-[#6B6680]">Drag to move, corners to resize.</p>
+              <LayerRow onLayer={f => layer(item.id, f)} onDelete={() => deleteItem(item.id)} />
+            </section>
+          )}
           {!item && spread && (
-            <section className="text-[13px] text-[#6B6680] rounded-xl bg-[#FAF9FC] p-3">Choose a photo or a text on the page to change it. Drag inside a chosen photo to move it in its frame.</section>
+            <section className="text-[13px] text-[#6B6680] rounded-xl bg-[#FAF9FC] p-3">Click a photo or a text to change it. Drag to move, drag a corner to resize (Shift keeps the shape). Arrow keys nudge, Delete removes.</section>
           )}
 
           {(album.notes ?? []).some(n => n.by === "client") && (
@@ -339,44 +388,6 @@ function Tool({ label, onClick, disabled, children }: { label: string; onClick: 
   return <button aria-label={label} title={label} onClick={onClick} disabled={disabled} className="h-9 px-3 rounded-full bg-white/85 text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-white disabled:opacity-40">{children}</button>;
 }
 
-/** The page, as large as fits; drag inside the chosen photo to move it in its frame. */
-function Stage({ spread, ratio, byId, sel, setSel, onPan, onDropPhoto, marks }: {
-  spread: Spread; ratio: number; byId: Map<string, APhoto>; sel: string | null; setSel: (id: string | null) => void;
-  onPan: (id: string, fx: number, fy: number) => void; onDropPhoto: (itemId: string, photoId: string) => void; marks: Set<string>;
-}) {
-  const [ref, w] = useWidth<HTMLDivElement>();
-  const drag = useRef<{ id: string; x: number; y: number; fx: number; fy: number; fw: number; fh: number } | null>(null);
-  const [live, setLive] = useState<{ id: string; fx: number; fy: number } | null>(null);
-  const width = Math.min(w, 1100);
-  const shown: Spread = live ? { ...spread, items: spread.items.map(i => (i.id === live.id ? { ...i, fx: live.fx, fy: live.fy } as Item : i)) } : spread;
-
-  const onPick = (id: string, e: React.PointerEvent) => {
-    const it = spread.items.find(i => i.id === id);
-    if (sel === id && it?.k === "img" && it.p) {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-      drag.current = { id, x: e.clientX, y: e.clientY, fx: it.fx ?? 50, fy: it.fy ?? 40, fw: (it.w / 100) * width, fh: (it.h / 100) * (width / ratio) };
-    }
-    setSel(id);
-  };
-  const move = (e: React.PointerEvent) => {
-    const d = drag.current; if (!d) return;
-    const fx = Math.max(0, Math.min(100, d.fx - ((e.clientX - d.x) / d.fw) * 100));
-    const fy = Math.max(0, Math.min(100, d.fy - ((e.clientY - d.y) / d.fh) * 100));
-    setLive({ id: d.id, fx: Math.round(fx), fy: Math.round(fy) });
-  };
-  const end = () => { if (drag.current && live) onPan(live.id, live.fx, live.fy); drag.current = null; setLive(null); };
-
-  return (
-    <div ref={ref} className="w-full flex justify-center touch-none" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
-      {width > 0 && (
-        <div className="shadow-[0_34px_50px_-26px_rgba(60,30,10,.6),0_4px_10px_rgba(60,30,10,.2)]">
-          <SpreadView spread={shown} width={width} ratio={ratio} photos={byId} selected={sel} onPick={onPick} onDropPhoto={onDropPhoto} marks={marks} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Strip({ spreads, cur, setCur, ratio, byId, warn }: { spreads: Spread[]; cur: number; setCur: (i: number) => void; ratio: number; byId: Map<string, APhoto>; warn: Set<number> }) {
   const tw = 132;
   const curRef = useRef<HTMLButtonElement>(null);
@@ -395,7 +406,20 @@ function Strip({ spreads, cur, setCur, ratio, byId, warn }: { spreads: Spread[];
   );
 }
 
-function ImgPanel({ it, p, size, onChange }: { it: ImgItem; p?: APhoto; size: AlbumDetail["size"]; onChange: (patch: Partial<ImgItem>) => void }) {
+function LayerRow({ onLayer, onDelete, label = "Delete" }: { onLayer: (front: boolean) => void; onDelete: () => void; label?: string }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <button onClick={() => onLayer(true)} title="Bring to front" className="h-9 rounded-xl bg-[#F2EFF8] text-[12px] font-semibold inline-flex items-center justify-center gap-1"><ArrowUpToLine className="w-3.5 h-3.5" />Front</button>
+      <button onClick={() => onLayer(false)} title="Send to back" className="h-9 rounded-xl bg-[#F2EFF8] text-[12px] font-semibold inline-flex items-center justify-center gap-1"><ArrowDownToLine className="w-3.5 h-3.5" />Back</button>
+      <button onClick={onDelete} className="h-9 rounded-xl bg-[#FDECEF] text-[#B42318] text-[12px] font-semibold inline-flex items-center justify-center gap-1"><Trash2 className="w-3.5 h-3.5" />{label}</button>
+    </div>
+  );
+}
+
+function ImgPanel({ it, p, size, onChange, pan, setPan, onSwap, onDelete, onLayer }: {
+  it: ImgItem; p?: APhoto; size: AlbumDetail["size"]; onChange: (patch: Partial<ImgItem>) => void;
+  pan: boolean; setPan: (v: boolean) => void; onSwap: () => void; onDelete: () => void; onLayer: (front: boolean) => void;
+}) {
   const dpi = p ? dpiOf(it, p, size) : null;
   return (
     <section className="flex flex-col gap-3">
@@ -409,12 +433,18 @@ function ImgPanel({ it, p, size, onChange }: { it: ImgItem; p?: APhoto; size: Al
         <button onClick={() => onChange({ bw: !it.bw })} aria-pressed={!!it.bw} className={cn("h-10 rounded-xl text-[13px] font-semibold inline-flex items-center justify-center gap-1.5", it.bw ? "bg-[#17151F] text-white" : "bg-[#F2EFF8]")}><Contrast className="w-4 h-4" />Black & white</button>
         <button onClick={() => onChange({ p: null })} disabled={!it.p} className="h-10 rounded-xl bg-[#F2EFF8] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40"><X className="w-4 h-4" />Empty frame</button>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => setPan(!pan)} aria-pressed={pan} disabled={!it.p} className={cn("h-10 rounded-xl text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-40", pan ? "bg-[#7D5CEF] text-white" : "bg-[#F2EFF8]")}><Move className="w-4 h-4" />{pan ? "Moving photo" : "Move photo"}</button>
+        <button onClick={onSwap} className="h-10 rounded-xl bg-[#F2EFF8] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><Repeat className="w-4 h-4" />Swap with…</button>
+      </div>
+      {pan && <p className="text-[12px] text-[#5B3FD0]">Drag inside the frame to slide the photo. Click outside when done.</p>}
       <button onClick={() => onChange({ fx: 50, fy: 40, z: 1 })} className="text-[12.5px] font-semibold text-[#5B3FD0] self-start">Reset position</button>
+      {!it.bg && <LayerRow onLayer={onLayer} onDelete={onDelete} label="Frame" />}
     </section>
   );
 }
 
-function TextPanel({ it, onChange }: { it: TextItem; onChange: (patch: Partial<TextItem>) => void }) {
+function TextPanel({ it, onChange, onDelete, onLayer }: { it: TextItem; onChange: (patch: Partial<TextItem>) => void; onDelete: () => void; onLayer: (front: boolean) => void }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-[12px] font-bold text-[#6B6680]">{it.role === "quote" ? "Quote" : it.role === "name" ? "Name" : "Text"}</h2>
@@ -430,9 +460,16 @@ function TextPanel({ it, onChange }: { it: TextItem; onChange: (patch: Partial<T
         <span className="flex justify-between">Size <span className="tabular-nums text-[#6B6680]">{it.size.toFixed(1)}</span></span>
         <input type="range" min={2} max={40} step={0.5} value={it.size} onChange={e => onChange({ size: Number(e.target.value) })} className="accent-[#7D5CEF]" />
       </label>
-      <label className="text-[13px] font-semibold flex items-center gap-2">Colour
-        <input type="color" value={/^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#ffffff"} onChange={e => onChange({ color: e.target.value })} className="w-10 h-8 rounded border border-[#E4E0EC]" />
-      </label>
+      <div className="flex items-center gap-2">
+        <label className="text-[13px] font-semibold flex items-center gap-2 mr-auto">Colour
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#ffffff"} onChange={e => onChange({ color: e.target.value })} className="w-10 h-8 rounded border border-[#E4E0EC]" />
+        </label>
+        {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as const).map(([a, Icon]) => (
+          <button key={a} aria-label={`Align ${a}`} aria-pressed={(it.align ?? "left") === a} onClick={() => onChange({ align: a })} className={cn("w-9 h-9 rounded-lg inline-flex items-center justify-center", (it.align ?? "left") === a ? "bg-[#17151F] text-white" : "bg-[#F2EFF8]")}><Icon className="w-4 h-4" /></button>
+        ))}
+      </div>
+      <button onClick={() => onChange({ italic: !it.italic })} aria-pressed={!!it.italic} className={cn("h-9 rounded-xl text-[13px] font-semibold italic", it.italic ? "bg-[#17151F] text-white" : "bg-[#F2EFF8]")}>Italic</button>
+      <LayerRow onLayer={onLayer} onDelete={onDelete} />
     </section>
   );
 }

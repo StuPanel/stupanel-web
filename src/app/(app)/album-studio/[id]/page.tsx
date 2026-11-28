@@ -8,21 +8,24 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Contrast, Download, Loader2, MessageCircle, Plus, Redo2, Share2, Shuffle, Trash2, Undo2, X,
+  AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Contrast, Download, History, Loader2, MessageCircle, Plus, Redo2, Share2, Shuffle, Trash2, Undo2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
 import { albumApi, useWidth } from "@/lib/album/api";
 import { checkAlbum, dpiOf } from "@/lib/album/checks";
-import { makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
+import { focusFor, makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
+import { scanPhotos } from "@/lib/album/faces";
 import { FONT_CHOICES, LOOKS, lookOf } from "@/lib/album/looks";
 import { QUOTES, quoteAfter } from "@/lib/album/quotes";
 import { photoUrl, ratioOf, sizeOf, STATUS, type AlbumDetail, type AlbumStatus, type APhoto, type ImgItem, type Item, type Spread, type TextItem } from "@/lib/album/types";
 import { SpreadView } from "@/components/album/spread-view";
 import { ExportDialog } from "@/components/album/export-dialog";
 import { ShareDialog } from "@/components/album/share-dialog";
+import { VersionsDialog } from "@/components/album/versions-dialog";
 
 type Hist = { past: Spread[][]; future: Spread[][] };
+type SaveS = "saved" | "saving" | "waiting" | "error" | "conflict";
 
 export default function AlbumEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -33,16 +36,18 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const [cur, setCur] = useState(0);
   const [sel, setSel] = useState<string | null>(null);
   const [hist, setHist] = useState<Hist>({ past: [], future: [] });
-  const [save, setSave] = useState<"saved" | "saving" | "waiting" | "error">("saved");
+  const [save, setSave] = useState<SaveS>("saved");
   const [tray, setTray] = useState<"unused" | "all">("unused");
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const rev = useRef(0);
   const pending = useRef<Spread[] | null>(null);
   const spreadsRef = useRef<Spread[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    albumApi.get(id).then(a => { const sp = Array.isArray(a.spreads) ? a.spreads : []; setAlbum(a); setSpreads(sp); spreadsRef.current = sp; }).catch(e => setErr(e.message));
+    albumApi.get(id).then(a => { const sp = Array.isArray(a.spreads) ? a.spreads : []; setAlbum(a); setSpreads(sp); spreadsRef.current = sp; rev.current = a.rev ?? 0; }).catch(e => setErr(e.message));
   }, [id]);
 
   const photos = useMemo(() => album?.source?.photos ?? [], [album]);
@@ -50,18 +55,46 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const ratio = album ? ratioOf(album.size) : 3;
   const spread = spreads[Math.min(cur, spreads.length - 1)];
   const used = useMemo(() => new Set(spreads.flatMap(photosOn)), [spreads]);
-  const checks = useMemo(() => (album ? checkAlbum(spreads, byId, album.size) : []), [spreads, byId, album]);
+  const checks = useMemo(() => (album ? checkAlbum(spreads, byId, album.size, album.faces) : []), [spreads, byId, album]);
   const item = spread?.items.find(i => i.id === sel) ?? null;
-  const ctxBase = useMemo(() => ({ ar: ratio, names: album?.names ?? {} }), [ratio, album]);
+  const ctxBase = useMemo(() => ({ ar: ratio, names: album?.names ?? {}, faces: album?.faces ?? undefined }), [ratio, album]);
+  const [finding, setFinding] = useState<string | null>(null);
+  /** Albums made before faces were found (or new photos): find them now, in this browser. */
+  async function findFaces() {
+    const list = photos.filter(p => used.has(p.id) && !album?.faces?.[p.id]);
+    setFinding(`0 of ${list.length}`);
+    const r = await scanPhotos(list, (d, t) => setFinding(`${d} of ${t}`));
+    const faces = { ...(album?.faces ?? {}), ...r.faces };
+    setAlbum(a => (a ? { ...a, faces } : a)); setFinding(null);
+    try { await albumApi.save(id, { faces }); notify(`Faces found in ${Object.values(r.faces).filter(f => f.length).length} photos`); }
+    catch (e) { notify((e as Error).message, { error: true }); }
+  }
 
   // ── saving ──
   const flush = useCallback(async () => {
     if (!pending.current) return;
     const body = pending.current; pending.current = null;
     setSave("saving");
-    try { await albumApi.save(id, { spreads: body }); setSave(pending.current ? "waiting" : "saved"); }
-    catch (e) { setSave("error"); pending.current = pending.current ?? body; notify((e as Error).message, { error: true }); }
+    try { const r = await albumApi.save(id, { spreads: body, base: rev.current }); rev.current = r.rev; setSave(pending.current ? "waiting" : "saved"); }
+    catch (e) {
+      pending.current = pending.current ?? body;
+      if ((e as { code?: string }).code === "ALBUM_CHANGED") { setSave("conflict"); return; }
+      setSave("error"); notify((e as Error).message, { error: true });
+    }
   }, [id]);
+  /** Someone else saved first: take their pages, or save ours over them. */
+  async function loadTheirs() {
+    try {
+      const a = await albumApi.get(id); const sp = Array.isArray(a.spreads) ? a.spreads : [];
+      pending.current = null; if (timer.current) clearTimeout(timer.current);
+      setAlbum(a); setSpreads(sp); spreadsRef.current = sp; rev.current = a.rev ?? 0; setHist({ past: [], future: [] }); setSave("saved"); setSel(null);
+    } catch (e) { notify((e as Error).message, { error: true }); }
+  }
+  async function keepMine() {
+    const body = pending.current ?? spreadsRef.current; pending.current = null; setSave("saving");
+    try { const r = await albumApi.save(id, { spreads: body }); rev.current = r.rev; setSave("saved"); }
+    catch (e) { pending.current = body; setSave("error"); notify((e as Error).message, { error: true }); }
+  }
   useEffect(() => {
     const off = (e: BeforeUnloadEvent) => { if (pending.current) { e.preventDefault(); } };
     window.addEventListener("beforeunload", off);
@@ -97,7 +130,11 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
 
   const editItem = (itemId: string, patch: Partial<ImgItem> | Partial<TextItem>) =>
     change(all => all.map((s, i) => (i !== cur ? s : { ...s, items: s.items.map(it => (it.id === itemId ? ({ ...it, ...patch } as Item) : it)) })));
-  const putPhoto = (itemId: string, photoId: string) => { editItem(itemId, { p: photoId, fx: 50, fy: 40, z: 1 }); setSel(itemId); };
+  const putPhoto = (itemId: string, photoId: string) => {
+    const it = spread?.items.find(i => i.id === itemId); const p = byId.get(photoId);
+    const pos = it?.k === "img" && p ? focusFor({ ...it, z: 1 }, p, album?.faces?.[photoId], ratio) : { fx: 50, fy: 40 };
+    editItem(itemId, { p: photoId, ...pos, z: 1 }); setSel(itemId);
+  };
   const setSpread = (fn: (s: Spread) => Spread) => change(all => all.map((s, i) => (i === cur ? fn(s) : s)));
 
   async function setStatus(status: AlbumStatus) {
@@ -165,6 +202,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           <b className="block text-[15px] truncate">{album.title}</b>
           <span className="text-[12px] text-[#6B6680]">{sizeOf(album.size).label} · {spreads.length} pages · <SaveState s={save} onRetry={flush} />{album.approvedAt ? <b className="text-[#1F7A4F]"> · Client approved</b> : null}</span>
         </div>
+        <button aria-label="Earlier versions" title="Earlier versions" onClick={() => { flush(); setVersionsOpen(true); }} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8]"><History className="w-[18px] h-[18px]" /></button>
         <button aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!hist.past.length} onClick={undo} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8] disabled:opacity-35"><Undo2 className="w-[18px] h-[18px]" /></button>
         <button aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={redo} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F2EFF8] disabled:opacity-35"><Redo2 className="w-[18px] h-[18px]" /></button>
         <label className="sr-only" htmlFor="st">Status</label>
@@ -175,6 +213,14 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
         <button onClick={() => setSharing(true)} className="h-10 px-3.5 rounded-full border border-[#E4E0EC] bg-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share with client</span><span className="sm:hidden">Share</span></button>
         <button onClick={() => { flush(); setExporting(true); }} className="h-10 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-bold inline-flex items-center gap-1.5 shadow-[0_10px_20px_-10px_rgba(109,74,230,.9)]"><Download className="w-4 h-4" />Export for print</button>
       </header>
+      {save === "conflict" && (
+        <div role="alert" className="rounded-[18px] bg-[#FFF4D6] border border-[#F2D58B] p-3.5 flex flex-wrap items-center gap-3 text-[14px] text-[#4A3300]">
+          <AlertTriangle className="w-5 h-5 text-[#A15C00] flex-shrink-0" />
+          <span className="flex-1 min-w-[220px]"><b>Someone else changed this album a moment ago.</b> Your latest changes are not saved yet.</span>
+          <button onClick={loadTheirs} className="h-9 px-3.5 rounded-full bg-white text-[13px] font-semibold">Load their changes</button>
+          <button onClick={keepMine} className="h-9 px-3.5 rounded-full bg-[#17151F] text-white text-[13px] font-semibold">Keep mine</button>
+        </div>
+      )}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[220px_minmax(0,1fr)_290px]">
         {/* photos */}
@@ -258,7 +304,12 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           <section>
             <h2 className="text-[12px] font-bold text-[#6B6680] mb-2">Checks · {checks.length ? `${checks.length} to look at` : "all good"}</h2>
             <div className="flex flex-col gap-2">
-              {checks.length === 0 && <p className="flex items-start gap-2 rounded-xl bg-[#F1F9F5] text-[#1C5A3C] p-3 text-[13px]"><Check className="w-4 h-4 mt-0.5 flex-shrink-0" />No soft photos, no empty frames, no photo used twice.</p>}
+              {checks.length === 0 && <p className="flex items-start gap-2 rounded-xl bg-[#F1F9F5] text-[#1C5A3C] p-3 text-[13px]"><Check className="w-4 h-4 mt-0.5 flex-shrink-0" />No soft photos, no empty frames, no photo used twice{album.faces ? ", no face on the fold" : ""}.</p>}
+              {!album.faces && (
+                <button onClick={findFaces} disabled={!!finding} className="text-left rounded-xl bg-[#F2EFF8] p-3 text-[13px] text-[#3F2A9E] font-semibold flex items-center gap-2">
+                  {finding ? <><Loader2 className="w-4 h-4 animate-spin" />Finding faces… {finding}</> : "Find faces, so none fall on the fold (free)"}
+                </button>
+              )}
               {checks.slice(0, 12).map((c, i) => (
                 <button key={i} onClick={() => { setCur(c.spread); setSel(c.item ?? null); }} className="text-left flex items-start gap-2 rounded-xl bg-[#FFF7E6] text-[#5C3B00] p-3 text-[13px] hover:bg-[#FFF0D2]">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#A15C00]" /><span><b>Page {c.spread + 1}:</b> {c.text}</span>
@@ -271,13 +322,15 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
         </aside>
       </div>
 
+      {versionsOpen && <VersionsDialog albumId={id} onClose={() => setVersionsOpen(false)} onRestored={(sp, r) => { pending.current = null; setSpreads(sp); spreadsRef.current = sp; rev.current = r; setHist({ past: [], future: [] }); setSave("saved"); setSel(null); setCur(0); }} />}
       {sharing && <ShareDialog album={album} onClose={() => setSharing(false)} onChange={(url, status) => setAlbum(a => (a ? { ...a, proofUrl: url, status } : a))} />}
       {exporting && <ExportDialog album={album} spreads={spreads} byId={byId} checks={checks.length} onClose={() => setExporting(false)} onSaved={f => setAlbum(a => (a ? { ...a, printFolder: f } : a))} />}
     </div>
   );
 }
 
-function SaveState({ s, onRetry }: { s: "saved" | "saving" | "waiting" | "error"; onRetry: () => void }) {
+function SaveState({ s, onRetry }: { s: SaveS; onRetry: () => void }) {
+  if (s === "conflict") return <b className="text-[#A15C00]">Not saved</b>;
   if (s === "error") return <button onClick={onRetry} className="text-[#B42318] font-semibold">Not saved · Try again</button>;
   return <span aria-live="polite">{s === "saved" ? "Saved" : "Saving…"}</span>;
 }

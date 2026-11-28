@@ -3,7 +3,7 @@
  * one with a title (names, a heading, a quote) and some with photos only. Frames never cross the
  * fold in the middle, except dimmed background photos, so no face is lost in the binding.
  */
-import type { BoxItem, ImgItem, LookId, Names, TextItem, TextRole } from "./types";
+import type { BoxItem, Faces, ImgItem, LookId, Names, TextItem, TextRole } from "./types";
 
 export const FONTS = {
   bodoni: "'Bodoni Moda', serif",
@@ -31,7 +31,7 @@ export const fontLabel = (css: string) => FONT_CHOICES.find(f => f.css === css)?
 
 export const FONT_HREF = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Playfair+Display:ital@0;1&family=Italiana&family=Pinyon+Script&family=Great+Vibes&family=Montserrat:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@400;500&display=swap";
 
-export type Ctx = { ar: number; names: Names; title: string | null; quote: string };
+export type Ctx = { ar: number; names: Names; title: string | null; quote: string; faces?: Faces };
 type Draft = Omit<ImgItem, "id"> | Omit<BoxItem, "id"> | Omit<TextItem, "id">;
 export type Variant = { id: string; photos: number; title?: boolean; make: (c: Ctx) => Draft[] };
 export type Look = { id: LookId; name: string; note: string; bg: string; variants: Variant[] };
@@ -67,7 +67,7 @@ export const LOOKS: Look[] = [
         img(4, "p", 76, 14, 17, 72, { bd: WHITE, sh: true }),
       ] },
       { id: "mono-3", photos: 4, make: () => [
-        img(0, "p", 0, 0, 100, 100, { bw: true, o: 0.68, bg: true }),
+        img(0, "l", 0, 0, 100, 100, { bw: true, o: 0.68, bg: true }),
         img(1, "p", 6, 12, 16, 76, { bd: WHITE, sh: true }),
         img(2, "p", 25, 20, 16, 66, { bd: WHITE, sh: true, r: [0, 30, 0, 0] }),
         img(3, "l", 55, 12, 40, 76, { bd: WHITE, sh: true }),

@@ -15,6 +15,7 @@ import { autoLayout, suggestedSpreads } from "@/lib/album/layout";
 import { LOOKS } from "@/lib/album/looks";
 import { isPickedMark, ratioOf, SIZES, type AlbumSize, type LookId, type Names, type Source } from "@/lib/album/types";
 import { SpreadView } from "@/components/album/spread-view";
+import { lookAlikes, scanPhotos, type Scan } from "@/lib/album/faces";
 import { fmtDate } from "@/lib/format";
 
 const STEPS = ["Photos", "Size & design", "Names"] as const;
@@ -38,6 +39,8 @@ function NewAlbum() {
   const [title, setTitle] = useState("");
   const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [scan, setScan] = useState<Scan | null>(null);
+  const [scanAt, setScanAt] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => { albumApi.ready().then(setReady).catch(() => setReady([])); }, []);
   useEffect(() => {
@@ -63,9 +66,17 @@ function NewAlbum() {
     for (const p of picks) m.set(p.f ?? "Photos", (m.get(p.f ?? "Photos") ?? 0) + 1);
     return [...m.entries()];
   }, [picks]);
-  const target = pages ?? suggestedSpreads(picks.length);
+  // Faces and look-alike shots, found in this browser (free) while the studio chooses.
+  useEffect(() => {
+    if (!picks.length) return;
+    let stop = false;
+    scanPhotos(picks, (done, total) => { if (!stop) setScanAt({ done, total }); }, () => stop).then(r => { if (!stop) setScan(r); });
+    return () => { stop = true; };
+  }, [picks]);
+  const skip = useMemo(() => (scan ? lookAlikes(picks, scan.looks) : new Set<string>()), [scan, picks]);
+  const target = pages ?? suggestedSpreads(picks.length - skip.size);
   const ratio = ratioOf(size);
-  const spreads = useMemo(() => (picks.length ? autoLayout(picks, { look, spreads: target, names, ar: ratio }) : []), [picks, look, target, names, ratio]);
+  const spreads = useMemo(() => (picks.length ? autoLayout(picks, { look, spreads: target, names, ar: ratio, faces: scan?.faces, skip }) : []), [picks, look, target, names, ratio, scan, skip]);
   const byId = useMemo(() => new Map((src?.photos ?? []).map(p => [p.id, p])), [src]);
   const shownPage = Math.min(page, Math.max(0, spreads.length - 1));
 
@@ -75,7 +86,7 @@ function NewAlbum() {
     try {
       const clean: Record<string, string> = {};
       for (const [k, v] of Object.entries(names)) if (v?.trim()) clean[k] = v.trim();
-      const r = await albumApi.create({ galleryId: gallery, title: title.trim() || undefined, size, look, names: clean, spreads });
+      const r = await albumApi.create({ galleryId: gallery, title: title.trim() || undefined, size, look, names: clean, spreads, faces: scan?.faces });
       router.push(`/album-studio/${r.id}`);
     } catch (e) { notify((e as Error).message, { error: true }); setSaving(false); }
   }
@@ -127,6 +138,7 @@ function NewAlbum() {
                   <ul className="flex flex-col gap-1.5">
                     {chapters.map(([n, c]) => <li key={n} className="h-10 px-3 rounded-xl bg-white flex items-center gap-2 text-[14px]"><b>{n}</b><span className="text-[#6B6680]">{c} photos</span></li>)}
                   </ul>
+                  <ScanLine scan={scan} at={scanAt} skipped={skip.size} />
                 </div>
               )}
             </>
@@ -172,7 +184,7 @@ function NewAlbum() {
               <button disabled={!canNext} onClick={() => setStep(step + 1)} className="flex-1 h-12 rounded-full bg-[#7D5CEF] text-white text-[15px] font-bold disabled:bg-[#EEE8FD] disabled:text-[#9C8FD0]">Next: {STEPS[step + 1].toLowerCase()}</button>
             ) : (
               <button disabled={saving || !spreads.length} onClick={create} className="flex-1 h-12 rounded-full bg-[#7D5CEF] text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60">
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}Make the album
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}{!scan && scanAt ? `Make the album (faces ${Math.round((scanAt.done / Math.max(1, scanAt.total)) * 100)}%)` : "Make the album"}
               </button>
             )}
           </div>
@@ -225,5 +237,20 @@ function Preview({ spreads, page, setPage, ratio, byId }: { spreads: ReturnType<
       )}
       <p className="text-[13px] text-[#5B5670] text-center max-w-[520px]">Your client’s photos in the design you pick. Frames stay off the fold, and photos are placed tall to tall, wide to wide.</p>
     </section>
+  );
+}
+
+function ScanLine({ scan, at, skipped }: { scan: Scan | null; at: { done: number; total: number } | null; skipped: number }) {
+  if (!at) return null;
+  if (!scan) return (
+    <p className="mt-3 text-[12.5px] text-[#4A6A58] flex items-center gap-2" aria-live="polite">
+      <Loader2 className="w-3.5 h-3.5 animate-spin" />Finding faces so none fall on the fold… {at.done} of {at.total}
+    </p>
+  );
+  const withFaces = Object.values(scan.faces).filter(f => f.length).length;
+  return (
+    <p className="mt-3 text-[12.5px] text-[#1C5A3C]" aria-live="polite">
+      ✓ Faces found in {withFaces} photos{skipped ? ` · ${skipped} look-alike ${skipped === 1 ? "shot" : "shots"} kept aside` : ""}. Loved photos go in the big frames.
+    </p>
   );
 }

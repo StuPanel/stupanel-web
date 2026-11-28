@@ -60,7 +60,7 @@ export type Names = { bride?: string; groom?: string; date?: string };
 export type APhoto = { id: string; a: string; n: string; w: number | null; h: number | null; f: string | null; d: string | null; m: string | null; hl: boolean };
 
 export type AlbumRow = {
-  id: string; title: string; size: AlbumSize; look: LookId; status: AlbumStatus; names: Names | null; approvedAt?: string | null;
+  id: string; title: string; size: AlbumSize; look: LookId; status: AlbumStatus; names: Names | null; approvedAt?: string | null; rev?: number;
   galleryId: string | null; bookingId: string | null; createdAt: string; updatedAt: string;
 };
 export type AlbumListRow = AlbumRow & { pages: number; cover: Spread | null; coverPhotos?: APhoto[]; openNotes?: number };
@@ -72,7 +72,10 @@ export type Source = {
   photos: APhoto[];
 };
 export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null; notes: AlbumNote[]; proofUrl: string | null; approvedAt: string | null; sentAt: string | null;
-  printFolder: { url: string; email: string; at: string; pages: number | null; shared: boolean } | null };
+  printFolder: { url: string; email: string; at: string; pages: number | null; shared: boolean } | null;
+  versions?: number; faces?: Faces | null };
+/** Faces per photo: boxes [x, y, w, h] in 0–1 of the photo. */
+export type Faces = Record<string, number[][]>;
 /** What the client's proof link gets. */
 export type ProofView = {
   title: string; size: AlbumSize; names: Names | null; spreads: Spread[]; status: AlbumStatus; approvedAt: string | null;

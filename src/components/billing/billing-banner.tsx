@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Clock, Lock, X } from "lucide-react";
 import { apiFetch, API_URL, LOCKED_EVENT, READ_ONLY_EVENT, studioLocked } from "@/lib/api";
 import type { BillingStatus } from "@/lib/billing";
+import { TrialDrop } from "./trial-drop";
 
 export type BillingMode = "full" | "trial" | "grace" | "read_only";
 
@@ -115,6 +116,9 @@ function Strip({ access, pending, dismissed, onDismiss }: {
     );
   }
 
+  // The free trial: a card that drops down from the top (its own timing, see trial-drop.tsx).
+  if (access.mode === "trial") return access.daysLeft !== null ? <TrialDrop daysLeft={access.daysLeft} endsAt={access.periodEndsAt} /> : null;
+
   if (dismissed) return null;
 
   if (access.mode === "grace") {
@@ -132,7 +136,7 @@ function Strip({ access, pending, dismissed, onDismiss }: {
 
   const soon = access.daysLeft !== null && access.daysLeft <= 7;
   if (!soon) return null;
-  const label = access.mode === "trial" ? "Free trial" : "Your plan";
+  const label = "Your plan";
   return (
     <div className="bg-[#EEE8FD] border-b border-[#CFC2F8] px-4 py-2.5 flex items-center gap-3 flex-wrap">
       <Clock className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />

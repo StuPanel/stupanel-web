@@ -1,5 +1,6 @@
 "use client";
 import { pushForget } from "@/lib/push";
+import { forgetTrialDrop } from "@/components/billing/trial-drop";
 
 /**
  * The signed-in person at the bottom of the sidebar (and a small avatar in the phone top bar).
@@ -78,6 +79,8 @@ export function AccountMenu({ variant, side = "right", onNavigate }: {
     setOpen(false);
     // This device stops getting this person's notifications.
     await Promise.race([pushForget(), new Promise(r => setTimeout(r, 2500))]);
+    // The next sign-in shows the free-trial card again.
+    forgetTrialDrop();
     try { await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }); } catch { /* still sign out here */ }
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");

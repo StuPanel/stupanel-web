@@ -71,7 +71,7 @@ const validEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 const shortDate = (iso: string | null | undefined) => {
   if (!iso) return "";
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}-${d.getFullYear()}`;
+  return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear()}`;
 };
 
 /** Email the member's invite again (new 7-day link). */

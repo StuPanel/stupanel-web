@@ -31,6 +31,14 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Old links from before Programs had its name (Faisal 28-NOV-2026: /bookings showed a 404).
+  async redirects() {
+    return [
+      { source: "/bookings", destination: "/programs", permanent: false },
+      { source: "/bookings/:id", destination: "/programs?view=:id", permanent: false },
+    ];
+  },
+
   async headers() {
     return [
       {

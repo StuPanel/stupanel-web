@@ -14,7 +14,7 @@ function authH() { return { "Content-Type": "application/json", Authorization: `
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
+    day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }

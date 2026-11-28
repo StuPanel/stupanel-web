@@ -18,6 +18,9 @@ export type CalEntry = {
   /** yyyy-mm-dd */
   date: string;
   title: string;
+  /** Short words for the chip in the month grid (e.g. the day's name "Holud"); `name` goes under it. */
+  short?: string;
+  name?: string;
   sub?: string;
   /** Whose side that day covers: bride | groom | both. */
   side?: string | null;
@@ -154,12 +157,18 @@ export function MonthCalendar({ year, month, onMonth, entries, loading, emptyDay
                     !inMonth && "text-[#CFC8DC]", inMonth && !isToday && "text-[#17151F]", isToday && "bg-[#C2304F] text-white")}>{d.getDate()}</span>
                   {list.length > 0 && (
                     <span className={cn("flex flex-wrap gap-0.5 justify-center mt-1 sm:hidden", !inMonth && "opacity-40")}>
-                      {list.slice(0, 3).map(e => <span key={e.key} className={cn("w-1.5 h-1.5 rounded-full", e.dot)} />)}
-                      {list.length > 3 && <span className="text-[9px] leading-none font-bold text-[#6B6680]">+</span>}
+                      {list.slice(0, 3).map(e => <span key={e.key} className={cn("w-2 h-2 rounded-full", e.dot)} />)}
+                      {list.length > 3 && <span className="text-[12px] leading-none font-bold text-[#4A4658]">+</span>}
                     </span>
                   )}
                   <span className={cn("hidden sm:block space-y-1 mt-1 w-full", !inMonth && "opacity-40")}>
-                    {list.slice(0, 2).map(e => <span key={e.key} className={cn("block text-xs px-1.5 py-0.5 rounded-[6px] font-semibold truncate leading-tight", e.chip)}>{e.title}</span>)}
+                    {/* Faisal 28-NOV-2026: long names were cut off. The day's name first, the program under it, on two short lines. */}
+                    {list.slice(0, 2).map(e => (
+                      <span key={e.key} title={e.title} className={cn("block px-2 py-1 rounded-[8px] leading-tight", e.chip)}>
+                        <span className="block text-[12.5px] font-bold truncate">{e.short || e.title}</span>
+                        {e.short && e.name && <span className="block text-[12px] font-medium opacity-80 truncate">{e.name}</span>}
+                      </span>
+                    ))}
                     {list.length > 2 && <span className="block text-xs font-semibold text-[#6B6680] pl-1">+{list.length - 2} more</span>}
                   </span>
                 </button>

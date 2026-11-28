@@ -15,7 +15,7 @@ function fmtTime(iso: string) {
   if (diffDays === 0) return d.toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit", hour12: true });
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return d.toLocaleDateString("en-BD", { weekday: "short" });
-  return `${String(d.getDate()).padStart(2,"0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}`;
+  return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`;
 }
 
 interface Contact {
@@ -116,7 +116,7 @@ export function DirectChat({ kind }: { kind: "team" | "clients" }) {
 
   const groupedMessages: { date: string; msgs: DMMessage[] }[] = [];
   for (const msg of messages) {
-    const dateKey = new Date(msg.createdAt).toLocaleDateString("en-BD", { day: "2-digit", month: "short", year: "numeric" });
+    const dateKey = new Date(msg.createdAt).toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric" });
     const last = groupedMessages[groupedMessages.length - 1];
     if (last && last.date === dateKey) last.msgs.push(msg);
     else groupedMessages.push({ date: dateKey, msgs: [msg] });

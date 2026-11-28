@@ -1,3 +1,4 @@
+import { QUOTES_BN } from "./bangla";
 /** Short lines for album pages (our own words). The editor's "Another quote" walks through them. */
 export const QUOTES = [
   "Two families, one story, and a lifetime that starts today.",
@@ -33,6 +34,7 @@ export const QUOTES = [
 ];
 
 export function quoteAfter(t: string) {
-  const i = QUOTES.indexOf(t);
-  return QUOTES[(i + 1) % QUOTES.length];
+  const list = /[\u0980-\u09FF]/.test(t) ? QUOTES_BN : QUOTES;
+  const i = list.indexOf(t);
+  return list[(i + 1) % list.length];
 }

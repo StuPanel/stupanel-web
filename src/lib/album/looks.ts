@@ -26,10 +26,15 @@ export const FONT_CHOICES: { id: string; label: string; css: string }[] = [
   { id: "mont", label: "Montserrat", css: FONTS.mont },
   { id: "corm", label: "Cormorant Garamond", css: FONTS.corm },
   { id: "cinzel", label: "Cinzel", css: FONTS.cinzel },
+  { id: "bn-serif", label: "Noto Serif Bengali (বাংলা)", css: "'Noto Serif Bengali', serif" },
+  { id: "bn-script", label: "Galada (বাংলা)", css: "'Galada', cursive" },
+  { id: "bn-sans", label: "Hind Siliguri (বাংলা)", css: "'Hind Siliguri', sans-serif" },
+  { id: "bn-tiro", label: "Tiro Bangla (বাংলা)", css: "'Tiro Bangla', serif" },
+  { id: "bn-anek", label: "Anek Bangla (বাংলা)", css: "'Anek Bangla', sans-serif" },
 ];
 export const fontLabel = (css: string) => FONT_CHOICES.find(f => f.css === css)?.label ?? "Font";
 
-export const FONT_HREF = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Playfair+Display:ital@0;1&family=Italiana&family=Pinyon+Script&family=Great+Vibes&family=Montserrat:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@400;500&display=swap";
+export const FONT_HREF = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Playfair+Display:ital@0;1&family=Italiana&family=Pinyon+Script&family=Great+Vibes&family=Montserrat:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@400;500&family=Noto+Serif+Bengali:wght@400;600&family=Galada&family=Hind+Siliguri:wght@300;400;500&family=Tiro+Bangla&family=Anek+Bangla:wght@300;500&display=swap";
 
 export type Ctx = { ar: number; names: Names; title: string | null; quote: string; faces?: Faces };
 type Draft = Omit<ImgItem, "id"> | Omit<BoxItem, "id"> | Omit<TextItem, "id"> | Omit<LogoItem, "id">;

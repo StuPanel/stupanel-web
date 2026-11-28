@@ -8,17 +8,18 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpToLine, Check, ChevronLeft, ChevronRight, Contrast, Download, History, ImagePlus, Loader2, MessageCircle, Move, Plus, Redo2, Repeat, Share2, Shuffle, Trash2, Type, Undo2, X,
+  AlertTriangle, AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpToLine, Bookmark, Check, ChevronLeft, ChevronRight, Contrast, Download, History, ImagePlus, Loader2, MessageCircle, Move, Plus, Redo2, Repeat, Share2, Shuffle, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/feedback";
 import { albumApi } from "@/lib/album/api";
 import { checkAlbum, dpiOf } from "@/lib/album/checks";
-import { focusFor, makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
+import { focusFor, fromSaved, makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
 import { scanPhotos } from "@/lib/album/faces";
+import { COMMAND_EXAMPLES, parseCommand } from "@/lib/album/commands";
 import { FONT_CHOICES, LOOKS, lookOf } from "@/lib/album/looks";
 import { QUOTES, quoteAfter } from "@/lib/album/quotes";
-import { photoUrl, ratioOf, sizeOf, STATUS, type AlbumDetail, type AlbumStatus, type APhoto, type ImgItem, type Item, type Spread, type TextItem } from "@/lib/album/types";
+import { photoUrl, ratioOf, sizeOf, STATUS, type AlbumDetail, type AlbumStatus, type APhoto, type ImgItem, type Item, type SavedLayout, type Spread, type TextItem } from "@/lib/album/types";
 import { SpreadView } from "@/components/album/spread-view";
 import { ExportDialog } from "@/components/album/export-dialog";
 import { ShareDialog } from "@/components/album/share-dialog";
@@ -45,6 +46,9 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const [sharing, setSharing] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [pan, setPan] = useState(false);
+  const [mine, setMine] = useState<SavedLayout[]>([]);
+  const [cmd, setCmd] = useState("");
+  useEffect(() => { albumApi.layouts().then(setMine).catch(() => setMine([])); }, []);
   const [swapFrom, setSwapFrom] = useState<string | null>(null);
   const rev = useRef(0);
   const pending = useRef<Spread[] | null>(null);
@@ -147,6 +151,66 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   function deleteItem(itemId: string) { setSpread(s => ({ ...s, items: s.items.filter(i => i.id !== itemId) })); setSel(null); }
   function layer(itemId: string, toFront: boolean) {
     setSpread(s => { const it = s.items.find(i => i.id === itemId)!; const rest = s.items.filter(i => i.id !== itemId); const bgs = rest.filter(i => i.k === "img" && i.bg); const others = rest.filter(i => !(i.k === "img" && i.bg)); return { ...s, items: toFront ? [...rest, it] : [...bgs, it, ...others] }; });
+  }
+  /** A typed command (Bangla or English, fixed rules). Says what it did, or that it did not understand. */
+  function runCommand(text: string) {
+    const c = parseCommand(text);
+    if (!c || !spread) { notify("বুঝতে পারিনি। নিচের উদাহরণগুলোর মতো লিখুন।", { error: true }); return; }
+    const it = sel ? spread.items.find(i => i.id === sel) : null;
+    const needPhoto = () => { notify("আগে পাতায় একটা ছবি বাছুন।", { error: true }); };
+    switch (c.do) {
+      case "bw":
+        if (c.scope === "photo" && it?.k === "img") editItem(it.id, { bw: c.on });
+        else setSpread(s => ({ ...s, items: s.items.map(i => (i.k === "img" && !i.bg ? { ...i, bw: c.on } : i)) }));
+        notify(c.on ? "সাদাকালো করা হলো" : "রঙিন করা হলো"); break;
+      case "scale": {
+        if (!it) return needPhoto();
+        const k = c.by, h = "h" in it ? it.h : 0;
+        const patch = it.k === "text" ? { size: Math.round(it.size * k * 10) / 10, w: Math.round(it.w * k * 10) / 10, x: Math.round((it.x - (it.w * (k - 1)) / 2) * 10) / 10 }
+          : { w: Math.round(it.w * k * 10) / 10, h: Math.round(h * k * 10) / 10, x: Math.round((it.x - (it.w * (k - 1)) / 2) * 10) / 10, y: Math.round((it.y - (h * (k - 1)) / 2) * 10) / 10 };
+        editItem(it.id, patch); notify(k > 1 ? "বড় করা হলো" : "ছোট করা হলো"); break;
+      }
+      case "removeText": setSpread(s => ({ ...s, items: s.items.filter(i => i.k !== "text") })); setSel(null); notify("লেখা সরানো হলো"); break;
+      case "addPage": addPage(); break;
+      case "removePage": removePage(); break;
+      case "layout": setSpread(s => relayout(s, s.look, nextVariant(s), byId, ctxBase, spare)); setSel(null); notify("অন্য লেআউট"); break;
+      case "look": setSpread(s => relayout(s, c.look, null, byId, ctxBase, spare)); setSel(null); notify(`ডিজাইন: ${lookOf(c.look).name}`); break;
+      case "go": if (c.page >= 1 && c.page <= spreads.length) { setCur(c.page - 1); setSel(null); } else notify(`এই অ্যালবামে ${spreads.length}টি পাতা।`, { error: true }); break;
+      case "next": setCur(x => Math.min(spreads.length - 1, x + 1)); break;
+      case "prev": setCur(x => Math.max(0, x - 1)); break;
+      case "flip": setSpread(s => ({ ...s, items: s.items.map(i => ({ ...i, x: Math.round((100 - i.x - i.w) * 100) / 100 } as Item)) })); notify("ডান-বাম উল্টানো হলো"); break;
+      case "quote": {
+        const q = spread.items.find(i => i.k === "text" && i.role === "quote");
+        if (!q || q.k !== "text") { notify("এই পাতায় কোনো কোট নেই।", { error: true }); return; }
+        editItem(q.id, { t: quoteAfter(q.t) }); break;
+      }
+      case "undo": undo(); break;
+      case "redo": redo(); break;
+      case "addText": {
+        addText();
+        if (c.text) setTimeout(() => setSpread(s => { const last = s.items[s.items.length - 1]; return last?.k === "text" ? { ...s, items: [...s.items.slice(0, -1), { ...last, t: c.text! }] } : s; }), 0);
+        break;
+      }
+      case "empty": if (it?.k === "img") editItem(it.id, { p: null }); else needPhoto(); break;
+    }
+    setCmd("");
+  }
+  async function saveMine() {
+    if (!spread) return;
+    const n = spread.items.filter(i => i.k === "img" && !i.bg).length;
+    const name = window.prompt("Name for this layout", `${lookOf(spread.look).name} · ${n} photos`);
+    if (!name?.trim()) return;
+    try { const l = await albumApi.saveLayout({ name: name.trim(), look: spread.look, bg: spread.bg, items: spread.items }); setMine(m => [l, ...m]); notify(`Saved to My layouts: ${l.name}`); }
+    catch (e) { notify((e as Error).message, { error: true }); }
+  }
+  function applyMine(layoutId: string) {
+    const l = mine.find(x => x.id === layoutId); if (!l || !spread) return;
+    const own = photosOn(spread).map(pid => byId.get(pid)).filter((x): x is APhoto => !!x);
+    setSpread(s => fromSaved(l, [...own, ...spare], ctxBase, s)); setSel(null);
+  }
+  async function dropMine(layoutId: string) {
+    if (!confirm("Delete this saved layout? Pages that use it stay as they are.")) return;
+    try { await albumApi.removeLayout(layoutId); setMine(m => m.filter(x => x.id !== layoutId)); } catch (e) { notify((e as Error).message, { error: true }); }
   }
   function addText() {
     const t: TextItem = { k: "text", id: uid(), role: "label", t: "Your words", x: 60, y: 40, w: 30, size: 6, font: FONTS.corm, color: /^#(1|2|0)/.test(spread?.bg ?? "") ? "#ffffff" : "#17151F", italic: true };
@@ -301,6 +365,15 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               <Tool label="Next page" onClick={() => setCur(Math.min(spreads.length - 1, cur + 1))} disabled={cur >= spreads.length - 1}><ChevronRight className="w-4 h-4" /></Tool>
             </div>
           </div>
+          <form onSubmit={e => { e.preventDefault(); runCommand(cmd); }} className="rounded-[18px] bg-white p-2 pl-4 flex items-center gap-2 shadow-[0_0_0_1px_rgba(40,28,96,.06)]">
+            <label htmlFor="cmd" className="sr-only">Type a command</label>
+            <input id="cmd" value={cmd} onChange={e => setCmd(e.target.value)} placeholder="লিখে বলুন, যেমন: এই পাতা সাদাকালো"
+              className="flex-1 min-w-0 h-10 text-[15px] outline-none bg-transparent" style={{ fontFamily: "'Hind Siliguri','Plus Jakarta Sans',sans-serif" }} autoComplete="off" />
+            <button type="submit" disabled={!cmd.trim()} className="h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold disabled:opacity-40">করো</button>
+          </form>
+          <div className="-mt-1 flex gap-1.5 overflow-x-auto pb-1" aria-label="Command examples">
+            {COMMAND_EXAMPLES.map(x => <button key={x} onClick={() => { setCmd(x); document.getElementById("cmd")?.focus(); }} className="flex-shrink-0 h-8 px-3 rounded-full bg-white/70 text-[12.5px] text-[#4A4658] hover:bg-white" style={{ fontFamily: "'Hind Siliguri',sans-serif" }}>{x}</button>)}
+          </div>
           <Strip studio={album.studio} spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
         </main>
 
@@ -315,6 +388,21 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               </select>
               <button onClick={() => { setSpread(s => relayout(s, s.look, nextVariant(s), byId, ctxBase, spare)); setSel(null); }}
                 className="mt-2 w-full h-10 rounded-xl bg-[#F2EFF8] text-[13px] font-semibold text-[#3F2A9E] inline-flex items-center justify-center gap-1.5"><Shuffle className="w-4 h-4" />Another layout</button>
+              <div className="mt-3 flex flex-col gap-2">
+                {mine.length > 0 && (
+                  <select value="" onChange={e => e.target.value && applyMine(e.target.value)} aria-label="Use one of my layouts" className="w-full h-10 rounded-xl border border-[#E4E0EC] px-3 text-[13.5px] bg-white">
+                    <option value="">My layouts ({mine.length})…</option>
+                    {mine.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                )}
+                <button onClick={saveMine} className="h-9 rounded-xl text-[13px] font-semibold text-[#3F2A9E] inline-flex items-center justify-center gap-1.5 hover:bg-[#F7F4FF]"><Bookmark className="w-4 h-4" />Save this page as my layout</button>
+                {mine.length > 0 && (
+                  <details className="text-[12.5px] text-[#6B6680]">
+                    <summary className="cursor-pointer">Manage my layouts</summary>
+                    <ul className="mt-2 flex flex-col gap-1">{mine.map(l => <li key={l.id} className="flex items-center gap-2"><span className="flex-1 truncate">{l.name}</span><button onClick={() => dropMine(l.id)} className="text-[#B42318] font-semibold">Delete</button></li>)}</ul>
+                  </details>
+                )}
+              </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button onClick={addText} className="h-10 rounded-xl border border-[#E4E0EC] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><Type className="w-4 h-4" />Add text</button>
                 <button onClick={addFrame} className="h-10 rounded-xl border border-[#E4E0EC] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><ImagePlus className="w-4 h-4" />Add frame</button>

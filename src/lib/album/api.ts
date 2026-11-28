@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, API_URL as API } from "@/lib/api";
-import type { AlbumDetail, AlbumListRow, AlbumNote, ProofView, Source, Spread } from "./types";
+import type { AlbumDetail, AlbumListRow, AlbumNote, Item, ProofView, SavedLayout, Source, Spread } from "./types";
 
 export type ReadySel = { id: string; title: string; status: string; submittedAt: string | null; picked: number; program: { id: string; name: string; number: string; date: string | null }; client: string };
 
@@ -37,6 +37,10 @@ export const albumApi = {
   versions: (id: string) => apiFetch(`${API}/album-studio/${id}/versions`).then(json<{ at: string; pages: number; by: string | null }[]>),
   restore: (id: string, at: string) =>
     apiFetch(`${API}/album-studio/${id}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at }) }).then(json<{ id: string; updatedAt: string; spreads: Spread[]; rev: number }>),
+  layouts: () => apiFetch(`${API}/album-studio/layouts`).then(json<SavedLayout[]>),
+  saveLayout: (body: { name: string; look: string; bg: string; items: Item[] }) =>
+    apiFetch(`${API}/album-studio/layouts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(json<SavedLayout>),
+  removeLayout: (layoutId: string) => apiFetch(`${API}/album-studio/layouts/${layoutId}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
   remove: (id: string) => apiFetch(`${API}/album-studio/${id}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
 };
 

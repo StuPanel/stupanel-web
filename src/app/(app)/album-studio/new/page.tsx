@@ -85,7 +85,7 @@ function NewAlbum() {
     setSaving(true);
     try {
       const clean: Record<string, string> = {};
-      for (const [k, v] of Object.entries(names)) if (v?.trim()) clean[k] = v.trim();
+      for (const [k, v] of Object.entries(names)) if (typeof v === "string" && v.trim()) clean[k] = v.trim();
       const r = await albumApi.create({ galleryId: gallery, title: title.trim() || undefined, size, look, names: clean, spreads, faces: scan?.faces });
       router.push(`/album-studio/${r.id}`);
     } catch (e) { notify((e as Error).message, { error: true }); setSaving(false); }
@@ -170,6 +170,15 @@ function NewAlbum() {
 
           {step === 2 && (
             <>
+              <div>
+                <p className="text-[13px] font-bold text-[#33303F] mb-2">Words on the pages</p>
+                <div className="flex gap-1.5 p-1 rounded-[14px] bg-[#F2EFF8]">
+                  {([["en", "English"], ["bn", "বাংলা"]] as const).map(([v, l]) => (
+                    <button key={v} onClick={() => setNames(n => ({ ...n, lang: v }))} className={cn("flex-1 h-10 rounded-[10px] text-[14px] font-semibold", (names.lang ?? "en") === v ? "bg-white text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.12),0_4px_12px_-6px_rgba(40,28,96,.3)]" : "text-[#4A4658]")}>{l}</button>
+                  ))}
+                </div>
+                <p className="text-[12.5px] text-[#6B6680] mt-1.5">{names.lang === "bn" ? "Titles, quotes and chapters in Bangla with Bangla fonts. Type the names in Bangla too." : "Titles and quotes in English, as in your reference albums."}</p>
+              </div>
               <Field label="Album name (for you)" value={title} onChange={setTitle} placeholder="Akash & Bappy · Wedding" />
               <Field label="Bride's name (on the pages)" value={names.bride ?? ""} onChange={v => setNames(n => ({ ...n, bride: v }))} placeholder="Bappy" />
               <Field label="Groom's name" value={names.groom ?? ""} onChange={v => setNames(n => ({ ...n, groom: v }))} placeholder="Akash" />

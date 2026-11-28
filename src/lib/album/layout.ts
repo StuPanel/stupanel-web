@@ -6,8 +6,9 @@
 import { LOOKS, lookOf, variantOf, type Ctx, type Look, type Variant } from "./looks";
 import { QUOTES } from "./quotes";
 import { faceCentre } from "./faces";
+import { toBangla } from "./bangla";
 import { faceOnFold } from "./checks";
-import type { APhoto, Faces, ImgItem, Item, LookId, Names, Spread } from "./types";
+import type { APhoto, Faces, ImgItem, Item, LookId, Names, SavedLayout, Spread } from "./types";
 
 let seq = 0;
 export const uid = (p = "i") => `${p}${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -81,7 +82,8 @@ export function focusFor(f: Pick<ImgItem, "x" | "w" | "h" | "z" | "fx" | "fy"> &
 
 /** One page of a design with these photos. */
 export function makeSpread(look: Look, v: Variant, photos: APhoto[], ctx: Ctx, chapter: string | null = null): Spread {
-  const items = v.make(ctx).map(d => ({ ...d, id: uid() })) as Item[];
+  let items = v.make(ctx).map(d => ({ ...d, id: uid() })) as Item[];
+  if (ctx.names?.lang === "bn") items = toBangla(items, Math.max(0, QUOTES.indexOf(ctx.quote)), chapter);
   place(items, photos, ctx);
   return { id: uid("s"), look: look.id, v: v.id, bg: look.bg, items, chapter };
 }
@@ -115,6 +117,14 @@ export function nextVariant(s: Spread) {
   const same = look.variants.filter(v => (cur.end ? !!v.end : !!v.title === !!cur.title && !v.end));
   const i = same.findIndex(v => v.id === s.v);
   return same[(i + 1) % same.length]?.id ?? s.v;
+}
+
+/** A page from one of the studio's saved layouts, with these photos (the page's own first, then unused ones). */
+export function fromSaved(saved: SavedLayout, pool: APhoto[], ctx: Pick<Ctx, "ar" | "faces">, keep: Spread): Spread {
+  let slot = 0;
+  const items = saved.items.map(it => ({ ...it, id: uid(), ...(it.k === "img" ? { p: null, slot: slot++ } : {}) })) as Item[];
+  place(items, pool, ctx);
+  return { id: keep.id, look: saved.look, v: `my:${saved.id}`, bg: saved.bg, items, chapter: keep.chapter ?? null };
 }
 
 export type AutoOptions = { look: LookId; spreads: number; names: Names; ar: number; faces?: Faces; skip?: Set<string> };

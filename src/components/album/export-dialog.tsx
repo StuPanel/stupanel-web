@@ -37,6 +37,7 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
   onSaved?: (f: NonNullable<AlbumDetail["printFolder"]>) => void;
 }) {
   const [where, setWhere] = useState<Where>("drive");
+  const [kind, setKind] = useState<"jpeg" | "pdf">("jpeg");
   const [dpi, setDpi] = useState(300);
   const [bleed, setBleed] = useState(3);
   const [run, setRun] = useState<{ at: number; done: boolean; missing: number; folder?: { url: string; email: string } } | null>(null);
@@ -63,14 +64,23 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
     }
     const canvas = document.createElement("canvas");
     let missing = 0, saved = 0;
+    const z0 = sizeOf(album.size), bin = bleed / 25.4;
+    const pw = z0.w + bin * 2, ph = z0.h + bin * 2;
+    // One PDF: every page at print size (inches), the JPEGs placed whole.
+    const pdf = kind === "pdf" ? new (await import("jspdf")).jsPDF({ orientation: "landscape", unit: "in", format: [pw, ph], compress: false }) : null;
     try {
       for (let i = 0; i < spreads.length; i++) {
         if (stop.current) break;
         setRun({ at: i, done: false, missing, folder });
         const r = await drawSpread(spreads[i], byId, { ...o, quality: 0.95, studio: album.studio }, canvas);
         missing += r.missing.length;
-        const blob = await toJpeg(r.canvas, 0.95);
+        const blob = await toJpeg(r.canvas, pdf ? 0.92 : 0.95);
         const name = pageName(i, album.title);
+        if (pdf) {
+          if (i > 0) pdf.addPage([pw, ph], "landscape");
+          pdf.addImage(new Uint8Array(await blob.arrayBuffer()), "JPEG", 0, 0, pw, ph, undefined, "NONE");
+          saved++; continue;
+        }
         if (where === "drive") await toDrive(album.id, name, blob);
         else if (dir) {
           const fh = await dir.getFileHandle(name, { create: true });
@@ -82,6 +92,14 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
           await new Promise(ok => setTimeout(ok, 400));
         }
         saved++;
+      }
+      if (pdf && !stop.current) {
+        setRun({ at: spreads.length - 1, done: false, missing, folder });
+        const blob = pdf.output("blob");
+        const name = pageName(0, album.title).replace(/-01\.jpg$/, ".pdf");
+        if (where === "drive") await toDrive(album.id, name, blob);
+        else if (dir) { const fh = await dir.getFileHandle(name, { create: true }); const w = await fh.createWritable(); await w.write(blob); await w.close(); }
+        else { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000); }
       }
       if (where === "drive" && folder) {
         await albumApi.driveDone(album.id, saved).catch(() => null);
@@ -109,7 +127,7 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
     <div className="fixed inset-0 z-50 bg-[rgba(23,21,31,.45)] flex items-center justify-center p-3" role="dialog" aria-modal aria-label="Export for print">
       <div className="w-full max-w-[560px] rounded-[26px] bg-white p-6 sm:p-7 flex flex-col gap-5 shadow-[0_40px_80px_-30px_rgba(0,0,0,.6)] max-h-[94dvh] overflow-y-auto">
         <div className="flex items-start gap-3">
-          <div className="flex-1"><h2 className="text-[22px] font-extrabold">Export for print</h2><p className="text-[14px] text-[#5B5670]">{album.title} · {spreads.length} pages · JPEG</p></div>
+          <div className="flex-1"><h2 className="text-[22px] font-extrabold">Export for print</h2><p className="text-[14px] text-[#5B5670]">{album.title} · {spreads.length} pages · {kind === "pdf" ? "one PDF" : "JPEG"}</p></div>
           <button aria-label="Close" onClick={() => { stop.current = true; onClose(); }} className="w-9 h-9 rounded-full bg-[#F2EFF8] flex items-center justify-center"><X className="w-4 h-4" /></button>
         </div>
 
@@ -124,6 +142,14 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
                   title="This computer" text={canPickFolder() ? "A folder you choose" : "Your Downloads"} />
               </div>
             </div>
+            <div>
+              <p className="text-[13px] font-bold text-[#33303F] mb-2">File</p>
+              <div className="flex gap-1.5 p-1 rounded-[14px] bg-[#F2EFF8]">
+                {([["jpeg", "JPEG for each page"], ["pdf", "One PDF"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setKind(v)} className={cn("flex-1 h-10 rounded-[10px] text-[13.5px] font-semibold", kind === v ? "bg-white text-[#17151F] shadow-[0_1px_2px_rgba(22,18,40,.12),0_4px_12px_-6px_rgba(40,28,96,.3)]" : "text-[#4A4658]")}>{l}</button>
+                ))}
+              </div>
+            </div>
             <Seg label="Quality" value={dpi} set={setDpi} options={[[300, "300 DPI (labs)"], [240, "240 DPI (smaller files)"]]} />
             <Seg label="Bleed" value={bleed} set={setBleed} options={[[0, "None"], [3, "3 mm"], [5, "5 mm"]]} />
             <p className="text-[13px] text-[#4A4658] rounded-xl bg-[#FAF8F4] p-3">
@@ -135,7 +161,7 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
             )}
             <p className="text-[12.5px] text-[#6B6680]">{where === "drive" ? "Pages go from this browser straight to your Google Drive." : canPickFolder() ? "You’ll choose a folder, and the pages are saved into it one by one." : "The pages download one by one. If the browser asks, allow several downloads."} Keep this tab open until it finishes.</p>
             {err && <p role="alert" className="text-[13px] text-[#B42318]">{err}</p>}
-            <button onClick={go} className="h-12 rounded-full bg-[#7D5CEF] text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_12px_24px_-12px_rgba(109,74,230,.95)]"><FolderDown className="w-5 h-5" />Export {spreads.length} pages</button>
+            <button onClick={go} className="h-12 rounded-full bg-[#7D5CEF] text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_12px_24px_-12px_rgba(109,74,230,.95)]"><FolderDown className="w-5 h-5" />{kind === "pdf" ? `Export PDF (${spreads.length} pages)` : `Export ${spreads.length} pages`}</button>
           </>
         )}
 
@@ -147,7 +173,7 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
             </div>
             <div className="h-2.5 rounded-full bg-[#EEEBF4] overflow-hidden"><div className="h-full bg-[#7D5CEF] rounded-full transition-[width]" style={{ width: `${(Math.min(run.at, spreads.length) / spreads.length) * 100}%` }} /></div>
             {busy && <p className="text-[13px] text-[#6B6680] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{where === "drive" ? "Drawing the page and sending it to Google Drive…" : "Reading photos and drawing the page…"}</p>}
-            {run.done && <p className="text-[14px] text-[#1C5A3C] flex items-center gap-2"><Check className="w-4 h-4" />{spreads.length} pages saved{run.folder ? ` to Google Drive (${run.folder.email})` : ""}.</p>}
+            {run.done && <p className="text-[14px] text-[#1C5A3C] flex items-center gap-2"><Check className="w-4 h-4" />{kind === "pdf" ? `PDF with ${spreads.length} pages saved` : `${spreads.length} pages saved`}{run.folder ? ` to Google Drive (${run.folder.email})` : ""}.</p>}
             {run.missing > 0 && <p className="text-[13px] text-[#B42318]">{run.missing} {run.missing === 1 ? "photo" : "photos"} could not be read from Google Drive and are grey. Check that the selection’s photos are still shared, then export again.</p>}
             {run.done && run.folder && (
               <div className="grid grid-cols-2 gap-2">

@@ -57,7 +57,8 @@ export type Spread = { id: string; look: LookId; v: string; bg: string; items: I
 export type LookId = "mono" | "inset" | "couple" | "arch" | "strips" | "band" | "blush" | "bride";
 export type AlbumSize = "12x36" | "12x30" | "10x30" | "12x24";
 export type AlbumStatus = "draft" | "client" | "approved" | "lab";
-export type Names = { bride?: string; groom?: string; date?: string };
+export type Names = { bride?: string; groom?: string; date?: string; /** words on the pages: en (default) or bn */ lang?: "en" | "bn" };
+export type SavedLayout = { id: string; name: string; look: LookId; bg: string; photos: number; items: Item[]; createdAt: string };
 
 /** A photo of the selection, short form from the API. */
 export type APhoto = { id: string; a: string; n: string; w: number | null; h: number | null; f: string | null; d: string | null; m: string | null; hl: boolean };

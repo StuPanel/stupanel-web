@@ -62,6 +62,8 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
   const used = useMemo(() => new Set(spreads.flatMap(photosOn)), [spreads]);
   const checks = useMemo(() => (album ? checkAlbum(spreads, byId, album.size, album.faces) : []), [spreads, byId, album]);
   const item = spread?.items.find(i => i.id === sel) ?? null;
+  /** Photos on no page yet: picks first. They fill frames a new layout adds. */
+  const spare = useMemo(() => photos.filter(p => !used.has(p.id)).sort((a, b) => Number(b.m === "selected" || b.m === "important") - Number(a.m === "selected" || a.m === "important")), [photos, used]);
   const ctxBase = useMemo(() => ({ ar: ratio, names: album?.names ?? {}, faces: album?.faces ?? undefined }), [ratio, album]);
   const [finding, setFinding] = useState<string | null>(null);
   /** Albums made before faces were found (or new photos): find them now, in this browser. */
@@ -289,7 +291,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               <span className="ml-auto text-[12px] text-[#6B6680] hidden sm:inline">{lookOf(spread?.look ?? album.look).name}</span>
             </div>
             {swapFrom && <p className="w-full text-center text-[13px] font-semibold text-[#3F2A9E] bg-white/80 rounded-full py-1.5" role="status">Now click the frame to swap with · <button className="underline" onClick={() => setSwapFrom(null)}>Cancel</button></p>}
-            {spread ? <div className="w-full" onPointerDown={e => e.stopPropagation()}><Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={pick} pan={pan} onChange={(itemId, patch) => editItem(itemId, patch)} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} onSwapPick={swapFrom ? swapWith : null} /></div> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
+            {spread ? <div className="w-full" onPointerDown={e => e.stopPropagation()}><Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={pick} pan={pan} onChange={(itemId, patch) => editItem(itemId, patch)} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} onSwapPick={swapFrom ? swapWith : null} studio={album.studio} /></div> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
             <div className="flex flex-wrap items-center justify-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
               <Tool label="Previous page" onClick={() => setCur(Math.max(0, cur - 1))} disabled={cur === 0}><ChevronLeft className="w-4 h-4" /></Tool>
               <Tool label="Move page left" onClick={() => movePage(-1)} disabled={cur === 0}><ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Move</span></Tool>
@@ -299,7 +301,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               <Tool label="Next page" onClick={() => setCur(Math.min(spreads.length - 1, cur + 1))} disabled={cur >= spreads.length - 1}><ChevronRight className="w-4 h-4" /></Tool>
             </div>
           </div>
-          <Strip spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
+          <Strip studio={album.studio} spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
         </main>
 
         {/* right panel */}
@@ -307,11 +309,11 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           {spread && (
             <section>
               <h2 className="text-[12px] font-bold text-[#6B6680] mb-2">Page design</h2>
-              <select value={spread.look} onChange={e => { setSpread(s => relayout(s, e.target.value as Spread["look"], null, byId, ctxBase)); setSel(null); }}
+              <select value={spread.look} onChange={e => { setSpread(s => relayout(s, e.target.value as Spread["look"], null, byId, ctxBase, spare)); setSel(null); }}
                 className="w-full h-10 rounded-xl border border-[#E4E0EC] px-3 text-[14px] font-semibold bg-white" aria-label="Page design">
                 {LOOKS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <button onClick={() => { setSpread(s => relayout(s, s.look, nextVariant(s), byId, ctxBase)); setSel(null); }}
+              <button onClick={() => { setSpread(s => relayout(s, s.look, nextVariant(s), byId, ctxBase, spare)); setSel(null); }}
                 className="mt-2 w-full h-10 rounded-xl bg-[#F2EFF8] text-[13px] font-semibold text-[#3F2A9E] inline-flex items-center justify-center gap-1.5"><Shuffle className="w-4 h-4" />Another layout</button>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button onClick={addText} className="h-10 rounded-xl border border-[#E4E0EC] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5"><Type className="w-4 h-4" />Add text</button>
@@ -323,6 +325,13 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           {item?.k === "img" && <ImgPanel it={item} p={item.p ? byId.get(item.p) : undefined} size={album.size} onChange={patch => editItem(item.id, patch)}
             pan={pan} setPan={setPan} onSwap={() => { setSwapFrom(item.id); setPan(false); }} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
           {item?.k === "text" && <TextPanel it={item} onChange={patch => editItem(item.id, patch)} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
+          {item?.k === "logo" && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-[12px] font-bold text-[#6B6680]">Studio logo</h2>
+              <p className="text-[12.5px] text-[#6B6680]">{album.studio?.logoUrl ? "Your logo from Settings." : "No logo yet, so your studio’s name shows. Add a logo in Settings → Studio."} Drag to move, corners to resize.</p>
+              <LayerRow onLayer={f => layer(item.id, f)} onDelete={() => deleteItem(item.id)} />
+            </section>
+          )}
           {item?.k === "box" && (
             <section className="flex flex-col gap-2">
               <h2 className="text-[12px] font-bold text-[#6B6680]">Shape</h2>
@@ -388,7 +397,7 @@ function Tool({ label, onClick, disabled, children }: { label: string; onClick: 
   return <button aria-label={label} title={label} onClick={onClick} disabled={disabled} className="h-9 px-3 rounded-full bg-white/85 text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-white disabled:opacity-40">{children}</button>;
 }
 
-function Strip({ spreads, cur, setCur, ratio, byId, warn }: { spreads: Spread[]; cur: number; setCur: (i: number) => void; ratio: number; byId: Map<string, APhoto>; warn: Set<number> }) {
+function Strip({ spreads, cur, setCur, ratio, byId, warn, studio }: { spreads: Spread[]; cur: number; setCur: (i: number) => void; ratio: number; byId: Map<string, APhoto>; warn: Set<number>; studio?: AlbumDetail["studio"] }) {
   const tw = 132;
   const curRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { curRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }, [cur]);
@@ -397,7 +406,7 @@ function Strip({ spreads, cur, setCur, ratio, byId, warn }: { spreads: Spread[];
       {spreads.map((s, i) => (
         <button key={s.id} ref={i === cur ? curRef : undefined} role="listitem" onClick={() => setCur(i)} aria-current={i === cur} className="flex-shrink-0 text-center">
           <div className={cn("rounded-[3px] overflow-hidden", i === cur ? "ring-2 ring-offset-2 ring-[#7D5CEF]" : warn.has(i) ? "ring-2 ring-[#E3A21A]" : "shadow-[0_2px_6px_rgba(40,20,10,.25)]")}>
-            <SpreadView spread={s} width={tw} ratio={ratio} photos={byId} fold={false} />
+            <SpreadView spread={s} width={tw} ratio={ratio} photos={byId} fold={false} studio={studio} />
           </div>
           <span className={cn("block text-[11px] mt-1", i === cur ? "font-extrabold text-[#17151F]" : "font-semibold text-[#6B6680]")}>{i + 1}</span>
         </button>

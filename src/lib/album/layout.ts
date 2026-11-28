@@ -42,6 +42,14 @@ function place(items: Item[], photos: APhoto[], ctx?: Pick<Ctx, "ar" | "faces">)
     f.p = p.id;
     if (ctx) Object.assign(f, focusFor(f, p, ctx.faces?.[p.id], ctx.ar));
   }
+  // Not enough photos for a dim background: it repeats one of the page's photos (in black and white).
+  const back = frames.find(f => f.bg && !f.p);
+  const first = frames.find(f => !f.bg && f.p);
+  if (back && first) {
+    back.p = first.p;
+    const ph = photos.find(x => x.id === first.p);
+    if (ctx && ph) Object.assign(back, focusFor(back, ph, ctx.faces?.[ph.id], ctx.ar));
+  }
 }
 
 /** Where a photo shows in its frame (object-position %) so the faces are in view and, for frames over the fold, off it. */
@@ -82,25 +90,29 @@ export function makeSpread(look: Look, v: Variant, photos: APhoto[], ctx: Ctx, c
 export const photosOn = (s: Spread) => s.items.filter((i): i is ImgItem => i.k === "img").map(i => i.p).filter((p): p is string => !!p);
 
 /** Same photos, another layout (or design): texts the studio typed are kept where the new layout has the same kind. */
-export function relayout(s: Spread, lookId: LookId, variantId: string | null, byId: Map<string, APhoto>, base: Omit<Ctx, "quote" | "title">): Spread {
+export function relayout(s: Spread, lookId: LookId, variantId: string | null, byId: Map<string, APhoto>, base: Omit<Ctx, "quote" | "title">, spare: APhoto[] = []): Spread {
   const look = lookOf(lookId);
   const ids = photosOn(s);
-  const pool = ids.map(id => byId.get(id)).filter((p): p is APhoto => !!p);
+  const own = ids.map(id => byId.get(id)).filter((p): p is APhoto => !!p);
+  // A layout with more frames takes photos not used yet (loved first); one with fewer frees the rest.
+  const extra = [...spare].sort((a, b) => loved(b) - loved(a));
+  const pool = [...own, ...extra];
   const hadTitle = s.items.some(i => i.k === "text");
-  const choices = look.variants.filter(v => !!v.title === hadTitle);
-  const v = variantId ? variantOf(look, variantId) : (choices.find(c => c.photos === pool.length) ?? choices[0] ?? look.variants[0]);
+  const wasEnd = s.items.some(i => i.k === "logo");
+  const choices = look.variants.filter(v => (wasEnd ? !!v.end : !!v.title === hadTitle && !v.end));
+  const v = variantId ? variantOf(look, variantId) : (choices.find(c => c.photos === own.length) ?? choices[0] ?? look.variants[0]);
   const oldText = s.items.filter(i => i.k === "text") as Extract<Item, { k: "text" }>[];
   const quote = oldText.find(t => t.role === "quote")?.t ?? QUOTES[0];
   const title = oldText.find(t => t.role === "title" || t.role === "name")?.t ?? s.chapter ?? null;
-  const next = makeSpread(look, v, pool, { ...base, quote, title: s.chapter ? title : null }, s.chapter ?? null);
+  const next = makeSpread(look, v, pool.slice(0, Math.max(v.photos, 0)), { ...base, quote, title: s.chapter ? title : null }, s.chapter ?? null);
   return { ...next, id: s.id };
 }
 
 /** The next layout of the same design and kind (the editor's Shuffle). */
 export function nextVariant(s: Spread) {
   const look = lookOf(s.look);
-  const isTitle = !!variantOf(look, s.v).title;
-  const same = look.variants.filter(v => !!v.title === isTitle);
+  const cur = variantOf(look, s.v);
+  const same = look.variants.filter(v => (cur.end ? !!v.end : !!v.title === !!cur.title && !v.end));
   const i = same.findIndex(v => v.id === s.v);
   return same[(i + 1) % same.length]?.id ?? s.v;
 }
@@ -121,8 +133,9 @@ export function autoLayout(input: APhoto[], o: AutoOptions): Spread[] {
   const total = Math.max(1, all.length);
   const out: Spread[] = [];
   let q = 0;
-  const titleV = look.variants.filter(v => v.title);
+  const titleV = look.variants.filter(v => v.title && !v.end);
   const photoV = look.variants.filter(v => !v.title);
+  const endV = look.variants.find(v => v.end);
   chapters.forEach((ch, ci) => {
     // Pages for this chapter, in proportion to its photos (at least one).
     const share = Math.max(1, Math.round((ch.photos.length / total) * o.spreads));
@@ -153,6 +166,12 @@ export function autoLayout(input: APhoto[], o: AutoOptions): Spread[] {
       out.push(makeSpread(look, v, take, ctx, isTitle ? ch.name : null));
     }
   });
+  // A closing page with the studio's logo, the couple's names and a loved photo.
+  if (endV && out.length >= 4) {
+    const usedIds = new Set(out.flatMap(photosOn));
+    const pick = [...all].sort((a, b) => loved(b) - loved(a)).find(p => !usedIds.has(p.id)) ?? [...all].sort((a, b) => loved(b) - loved(a))[0];
+    if (pick) out.push(makeSpread(look, endV, [pick], { ar: o.ar, names: o.names, faces: o.faces, quote: "", title: null }, null));
+  }
   return out.slice(0, 80);
 }
 

@@ -29,25 +29,37 @@ type Props = {
   /** Draw the fold shadow (off for flat previews) */
   fold?: boolean; className?: string; marks?: Set<string>;
   onDropPhoto?: (itemId: string, photoId: string) => void;
+  /** The studio's logo and name for logo boxes (closing page) */
+  studio?: { name: string; logoUrl: string | null } | null;
 };
 
-export function SpreadView({ spread, width, ratio, photos, selected, onPick, fold = true, className, marks, onDropPhoto }: Props) {
+export function SpreadView({ spread, width, ratio, photos, selected, onPick, fold = true, className, marks, onDropPhoto, studio }: Props) {
   useAlbumFonts();
   const W = width, H = width / ratio;
   return (
     <div className={className} style={{ position: "relative", width: W, height: H, background: spread.bg, overflow: "hidden", borderRadius: 2 }}>
-      {spread.items.map(it => <ItemView key={it.id} it={it} W={W} H={H} photos={photos} selected={selected === it.id} onPick={onPick} mark={marks?.has(it.id)} onDropPhoto={onDropPhoto} />)}
+      {spread.items.map(it => <ItemView key={it.id} it={it} W={W} H={H} photos={photos} selected={selected === it.id} onPick={onPick} mark={marks?.has(it.id)} onDropPhoto={onDropPhoto} studio={studio} bg={spread.bg} />)}
       {fold && <div aria-hidden style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: W * 0.05, transform: "translateX(-50%)", background: "linear-gradient(90deg,rgba(0,0,0,0),rgba(0,0,0,.16) 47%,rgba(255,255,255,.1) 52%,rgba(0,0,0,0))", pointerEvents: "none" }} />}
     </div>
   );
 }
 
-function ItemView({ it, W, H, photos, selected, onPick, mark, onDropPhoto }: { it: Item; W: number; H: number; photos: Map<string, APhoto>; selected: boolean; onPick?: Props["onPick"]; mark?: boolean; onDropPhoto?: Props["onDropPhoto"] }) {
+function ItemView({ it, W, H, photos, selected, onPick, mark, onDropPhoto, studio, bg }: { it: Item; W: number; H: number; photos: Map<string, APhoto>; selected: boolean; onPick?: Props["onPick"]; mark?: boolean; onDropPhoto?: Props["onDropPhoto"]; studio?: Props["studio"]; bg: string }) {
   const pos: React.CSSProperties = { position: "absolute", left: (it.x / 100) * W, top: (it.y / 100) * H, width: (it.w / 100) * W };
   const ring = selected ? { outline: "2px solid #7D5CEF", outlineOffset: 2, zIndex: 5 } : mark ? { outline: "2px dashed #E3A21A", outlineOffset: 2 } : {};
   const pick = onPick ? (e: React.PointerEvent) => { e.stopPropagation(); onPick(it.id, e); } : undefined;
   if (it.k === "box") {
     return <div aria-hidden onPointerDown={pick} style={{ ...pos, height: (it.h / 100) * H, background: it.fill, opacity: it.o ?? 1, borderRadius: radius(it.r, H), border: it.line ? `${Math.max(1, (it.line.w / 100) * H)}px solid ${it.line.c}` : undefined, backdropFilter: it.glass ? `blur(${H * 0.025}px)` : undefined, mixBlendMode: it.blend, boxSizing: "border-box", pointerEvents: onPick ? "auto" : "none", ...(it.glass ? { opacity: 1, background: `rgba(255,255,255,${it.o ?? 0.18})` } : {}) }} />;
+  }
+  if (it.k === "logo") {
+    return (
+      <div onPointerDown={pick} style={{ ...pos, ...ring, height: (it.h / 100) * H, display: "flex", alignItems: "center", justifyContent: "center", opacity: it.o ?? 1, cursor: pick ? "pointer" : undefined }}>
+        {studio?.logoUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={studio.logoUrl} alt={studio.name} draggable={false} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", pointerEvents: "none" }} />
+          : <span style={{ fontFamily: "'Cinzel', serif", fontSize: (it.h / 100) * H * 0.28, color: darkBg(bg) ? "#ffffff" : "#17151F", textAlign: "center", lineHeight: 1.1 }}>{studio?.name || "Your studio"}</span>}
+      </div>
+    );
   }
   if (it.k === "text") return <TextView it={it} pos={pos} H={H} ring={ring} pick={pick} />;
   return <ImgView it={it} pos={pos} W={W} H={H} photos={photos} ring={ring} pick={pick} onDropPhoto={onDropPhoto} />;
@@ -89,4 +101,11 @@ function ImgView({ it, pos, W, H, photos, ring, pick, onDropPhoto }: { it: ImgIt
       )}
     </div>
   );
+}
+
+/** Is a colour dark (white type on it)? */
+export function darkBg(c: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(c.trim()); if (!m) return false;
+  const n = parseInt(m[1], 16); const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
 }

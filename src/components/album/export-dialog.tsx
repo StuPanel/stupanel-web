@@ -67,7 +67,7 @@ export function ExportDialog({ album, spreads, byId, checks, onClose, onSaved }:
       for (let i = 0; i < spreads.length; i++) {
         if (stop.current) break;
         setRun({ at: i, done: false, missing, folder });
-        const r = await drawSpread(spreads[i], byId, { ...o, quality: 0.95 }, canvas);
+        const r = await drawSpread(spreads[i], byId, { ...o, quality: 0.95, studio: album.studio }, canvas);
         missing += r.missing.length;
         const blob = await toJpeg(r.canvas, 0.95);
         const name = pageName(i, album.title);

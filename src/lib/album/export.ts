@@ -6,7 +6,7 @@
  */
 import { photoUrl, sizeOf, type APhoto, type AlbumSize, type BoxItem, type Corners, type ImgItem, type Spread, type TextItem } from "./types";
 
-export type ExportOptions = { size: AlbumSize; dpi: number; bleedMm: number; quality?: number };
+export type ExportOptions = { size: AlbumSize; dpi: number; bleedMm: number; quality?: number; studio?: { name: string; logoUrl: string | null } | null };
 export const MM = 25.4;
 
 /** Canvas size of one page, bleed included. */
@@ -76,6 +76,7 @@ export async function drawSpread(s: Spread, photos: Map<string, APhoto>, o: Expo
   for (const it of s.items) {
     if (it.k === "img") { if (!(await drawImg(ctx, it, place(it), rad(it.r), H, photos))) missing.push(it.id); }
     else if (it.k === "box") drawBox(ctx, it, place(it), rad(it.r), H);
+    else if (it.k === "logo") await drawLogo(ctx, place(it), o.studio, s.bg, H);
     else drawText(ctx, it, bleed + (it.x / 100) * tw, bleed + (it.y / 100) * th, (it.w / 100) * tw, H);
   }
   return { canvas: cv, missing };
@@ -159,6 +160,25 @@ function drawBox(ctx: CanvasRenderingContext2D, it: BoxItem, b: Box, r: number[]
     roundPath(ctx, { l: b.l + lw / 2, t: b.t + lw / 2, w: b.w - lw, h: b.h - lw }, r);
     ctx.stroke(); ctx.restore();
   }
+}
+
+async function drawLogo(ctx: CanvasRenderingContext2D, b: Box, studio: ExportOptions["studio"], bg: string, H: number) {
+  if (studio?.logoUrl) {
+    try {
+      const im = await loadImage(studio.logoUrl);
+      const k = Math.min(b.w / im.naturalWidth, b.h / im.naturalHeight);
+      const w = im.naturalWidth * k, h = im.naturalHeight * k;
+      ctx.drawImage(im, b.l + (b.w - w) / 2, b.t + (b.h - h) / 2, w, h);
+      return;
+    } catch { /* fall back to the name */ }
+  }
+  const dark = (() => { const m = /^#?([0-9a-f]{6})$/i.exec(bg); if (!m) return false; const n = parseInt(m[1], 16); return 0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255) < 128; })();
+  ctx.save();
+  ctx.font = `400 ${b.h * 0.28}px 'Cinzel', serif`; ctx.fillStyle = dark ? "#ffffff" : "#17151F";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(studio?.name || "", b.l + b.w / 2, b.t + b.h / 2, b.w);
+  ctx.restore();
+  void H;
 }
 
 function drawText(ctx: CanvasRenderingContext2D, it: TextItem, x: number, y: number, w: number, H: number) {

@@ -18,13 +18,14 @@ type Drag = {
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
-export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropPhoto, marks, onSwapPick }: {
+export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropPhoto, marks, onSwapPick, studio }: {
   spread: Spread; ratio: number; byId: Map<string, APhoto>; sel: string | null; setSel: (id: string | null) => void;
   /** Dragging inside the chosen photo slides the photo in its frame */
   pan: boolean;
   onChange: (id: string, patch: Patch) => void; onDropPhoto: (itemId: string, photoId: string) => void; marks: Set<string>;
   /** In "swap" mode the next frame clicked is sent here instead of being chosen */
   onSwapPick?: ((id: string) => void) | null;
+  studio?: { name: string; logoUrl: string | null } | null;
 }) {
   const [ref, w] = useWidth<HTMLDivElement>();
   const W = Math.min(w, 1100), H = W / ratio;
@@ -124,7 +125,7 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
     <div ref={ref} className="w-full flex justify-center touch-none select-none" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       {W > 0 && (
         <div className="relative shadow-[0_34px_50px_-26px_rgba(60,30,10,.6),0_4px_10px_rgba(60,30,10,.2)]" style={{ cursor: onSwapPick ? "crosshair" : undefined }}>
-          <SpreadView spread={shown} width={W} ratio={ratio} photos={byId} selected={sel} onPick={onPick} onDropPhoto={onDropPhoto} marks={marks} />
+          <SpreadView spread={shown} width={W} ratio={ratio} photos={byId} selected={sel} onPick={onPick} onDropPhoto={onDropPhoto} marks={marks} studio={studio} />
           <div aria-hidden className="pointer-events-none absolute inset-0">
             {guides.v.map((v, i) => <span key={`v${i}`} className="absolute top-0 bottom-0 w-px" style={{ left: (v / 100) * W, background: v === 50 ? "#E5484D" : "#7D5CEF" }} />)}
             {guides.h.map((v, i) => <span key={`h${i}`} className="absolute left-0 right-0 h-px bg-[#7D5CEF]" style={{ top: (v / 100) * H }} />)}

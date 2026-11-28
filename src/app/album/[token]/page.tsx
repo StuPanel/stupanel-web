@@ -69,7 +69,7 @@ export default function AlbumProofPage({ params }: { params: Promise<{ token: st
       </header>
 
       <main className="flex-1 flex flex-col justify-center gap-4 px-3 py-5 w-full max-w-[1100px] mx-auto">
-        <Book key={page} spread={s} dir={dir} ratio={ratio} photos={photos} onSwipe={go} onOpen={() => setBig(true)} />
+        <Book key={page} spread={s} dir={dir} ratio={ratio} photos={photos} onSwipe={go} onOpen={() => setBig(true)} studio={data.studio} />
         <div className="flex items-center justify-center gap-3">
           <button aria-label="আগের পাতা" onClick={() => go(-1)} disabled={page === 0} className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center disabled:opacity-30"><ChevronLeft className="w-5 h-5" /></button>
           <span className="text-[13px] text-[#BFB3A8] tabular-nums min-w-[110px] text-center">পাতা {BN(page + 1)} / {BN(n)}{s.chapter ? ` · ${s.chapter}` : ""}</span>
@@ -120,7 +120,7 @@ export default function AlbumProofPage({ params }: { params: Promise<{ token: st
           </div>
         </div>
       )}
-      {big && <Big spread={s} ratio={ratio} photos={photos} onClose={() => setBig(false)} onSwipe={go} label={`পাতা ${BN(page + 1)} / ${BN(n)}`} />}
+      {big && <Big spread={s} ratio={ratio} photos={photos} onClose={() => setBig(false)} onSwipe={go} label={`পাতা ${BN(page + 1)} / ${BN(n)}`} studio={data.studio} />}
       {toast && <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 rounded-full bg-white text-[#17151F] px-4 py-2.5 text-[14px] font-semibold shadow-lg">{toast}</div>}
     </Shell>
   );
@@ -136,7 +136,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 /** One page with a short turn when it changes; swipe sideways to turn. */
-function Book({ spread, dir, ratio, photos, onSwipe, onOpen }: { spread: ProofView["spreads"][number]; dir: 1 | -1; ratio: number; photos: Map<string, APhoto>; onSwipe: (d: 1 | -1) => void; onOpen: () => void }) {
+function Book({ spread, dir, ratio, photos, onSwipe, onOpen, studio }: { spread: ProofView["spreads"][number]; dir: 1 | -1; ratio: number; photos: Map<string, APhoto>; onSwipe: (d: 1 | -1) => void; onOpen: () => void; studio: ProofView["studio"] }) {
   const [ref, w] = useWidth<HTMLDivElement>();
   const start = useRef<number | null>(null);
   return (
@@ -144,7 +144,7 @@ function Book({ spread, dir, ratio, photos, onSwipe, onOpen }: { spread: ProofVi
       onPointerUp={e => { const s = start.current; start.current = null; if (s === null) return; const dx = e.clientX - s; if (Math.abs(dx) > 40) onSwipe(dx < 0 ? 1 : -1); else onOpen(); }}>
       {w > 0 && (
         <div className="album-turn shadow-[0_24px_40px_-18px_rgba(0,0,0,.85)]" style={{ ["--from" as string]: dir > 0 ? "8deg" : "-8deg" }}>
-          <SpreadView spread={spread} width={w} ratio={ratio} photos={photos} />
+          <SpreadView spread={spread} width={w} ratio={ratio} photos={photos} studio={studio} />
         </div>
       )}
       <style>{`.album-turn{animation:albumTurn .45s cubic-bezier(.2,.8,.2,1) both;transform-origin:50% 50%}@keyframes albumTurn{from{opacity:0;transform:perspective(1200px) rotateY(var(--from)) translateX(calc(var(--from) * 2))}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.album-turn{animation:none}}`}</style>
@@ -153,7 +153,7 @@ function Book({ spread, dir, ratio, photos, onSwipe, onOpen }: { spread: ProofVi
 }
 
 /** Full screen. On a phone held upright the page turns sideways to fill the screen. */
-function Big({ spread, ratio, photos, onClose, onSwipe, label }: { spread: ProofView["spreads"][number]; ratio: number; photos: Map<string, APhoto>; onClose: () => void; onSwipe: (d: 1 | -1) => void; label: string }) {
+function Big({ spread, ratio, photos, onClose, onSwipe, label, studio }: { spread: ProofView["spreads"][number]; ratio: number; photos: Map<string, APhoto>; onClose: () => void; onSwipe: (d: 1 | -1) => void; label: string; studio: ProofView["studio"] }) {
   const [vw, setVw] = useState(0), [vh, setVh] = useState(0);
   useEffect(() => { const f = () => { setVw(window.innerWidth); setVh(window.innerHeight); }; f(); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   const upright = vh > vw;
@@ -165,7 +165,7 @@ function Big({ spread, ratio, photos, onClose, onSwipe, label }: { spread: Proof
       onPointerDown={e => { start.current = upright ? e.clientY : e.clientX; }}
       onPointerUp={e => { const s = start.current; start.current = null; if (s === null) return; const d = (upright ? e.clientY : e.clientX) - s; if (Math.abs(d) > 40) onSwipe(d < 0 ? 1 : -1); }}>
       <div style={{ transform: upright ? "rotate(90deg)" : undefined }}>
-        <SpreadView spread={spread} width={width} ratio={ratio} photos={photos} />
+        <SpreadView spread={spread} width={width} ratio={ratio} photos={photos} studio={studio} />
       </div>
       <span className="absolute left-4 top-4 text-[13px] text-white/70">{label}</span>
       <button aria-label="বন্ধ করুন" onClick={onClose} onPointerDown={e => e.stopPropagation()} className="absolute right-3 top-3 w-11 h-11 rounded-full bg-white/15 flex items-center justify-center text-white"><X className="w-5 h-5" /></button>

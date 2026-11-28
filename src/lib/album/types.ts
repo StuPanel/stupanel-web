@@ -47,7 +47,10 @@ export type TextItem = {
   bg?: string;
 };
 
-export type Item = ImgItem | BoxItem | TextItem;
+/** The studio's logo (from Settings), kept whole inside its box. */
+export type LogoItem = { k: "logo"; id: string; x: number; y: number; w: number; h: number; o?: number };
+
+export type Item = ImgItem | BoxItem | TextItem | LogoItem;
 
 export type Spread = { id: string; look: LookId; v: string; bg: string; items: Item[]; chapter?: string | null };
 
@@ -73,7 +76,7 @@ export type Source = {
 };
 export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null; notes: AlbumNote[]; proofUrl: string | null; approvedAt: string | null; sentAt: string | null;
   printFolder: { url: string; email: string; at: string; pages: number | null; shared: boolean } | null;
-  versions?: number; faces?: Faces | null };
+  versions?: number; faces?: Faces | null; studio?: { name: string; logoUrl: string | null } };
 /** Faces per photo: boxes [x, y, w, h] in 0–1 of the photo. */
 export type Faces = Record<string, number[][]>;
 /** What the client's proof link gets. */

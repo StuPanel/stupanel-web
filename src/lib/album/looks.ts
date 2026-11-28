@@ -3,7 +3,7 @@
  * one with a title (names, a heading, a quote) and some with photos only. Frames never cross the
  * fold in the middle, except dimmed background photos, so no face is lost in the binding.
  */
-import type { BoxItem, Faces, ImgItem, LookId, Names, TextItem, TextRole } from "./types";
+import type { BoxItem, Faces, ImgItem, LogoItem, LookId, Names, TextItem, TextRole } from "./types";
 
 export const FONTS = {
   bodoni: "'Bodoni Moda', serif",
@@ -32,8 +32,8 @@ export const fontLabel = (css: string) => FONT_CHOICES.find(f => f.css === css)?
 export const FONT_HREF = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Playfair+Display:ital@0;1&family=Italiana&family=Pinyon+Script&family=Great+Vibes&family=Montserrat:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@400;500&display=swap";
 
 export type Ctx = { ar: number; names: Names; title: string | null; quote: string; faces?: Faces };
-type Draft = Omit<ImgItem, "id"> | Omit<BoxItem, "id"> | Omit<TextItem, "id">;
-export type Variant = { id: string; photos: number; title?: boolean; make: (c: Ctx) => Draft[] };
+type Draft = Omit<ImgItem, "id"> | Omit<BoxItem, "id"> | Omit<TextItem, "id"> | Omit<LogoItem, "id">;
+export type Variant = { id: string; photos: number; title?: boolean; /** closing page (studio logo) */ end?: boolean; make: (c: Ctx) => Draft[] };
 export type Look = { id: LookId; name: string; note: string; bg: string; variants: Variant[] };
 
 const img = (slot: number, want: ImgItem["want"], x: number, y: number, w: number, h: number, more: Partial<ImgItem> = {}): Omit<ImgItem, "id"> =>
@@ -252,6 +252,52 @@ export const LOOKS: Look[] = [
     ],
   },
 ];
+
+// ── More layouts for every design (same frames, borders and colours as the design) ──
+type Frame = Partial<ImgItem>;
+const STYLE: Record<LookId, { frame: Frame; ink: string; soft: string; bgPhoto?: boolean; titleFont: string }> = {
+  mono: { frame: { bd: WHITE, sh: true }, ink: "#ffffff", soft: "#d8d4cc", bgPhoto: true, titleFont: FONTS.pinyon },
+  inset: { frame: { bd: WHITE, sh: true }, ink: "#ffffff", soft: "#e9efe6", titleFont: FONTS.bodoni },
+  couple: { frame: { sh: true }, ink: "#17151F", soft: "#6B6680", titleFont: FONTS.playfair },
+  arch: { frame: { r: [30, 30, 0, 0] }, ink: "#ffffff", soft: "#fff7ea", titleFont: FONTS.bodoni },
+  strips: { frame: {}, ink: "#E9D6C8", soft: "#bfae9f", titleFont: FONTS.mont },
+  band: { frame: { sh: true }, ink: "#ffffff", soft: "#d8d4cc", titleFont: FONTS.vibes },
+  blush: { frame: { bd: { w: 1.9, c: "#B8C3A8" } }, ink: "#C9959B", soft: "#6E4A50", titleFont: FONTS.italiana },
+  bride: { frame: { bd: { w: 0.8, c: "#D9D2C7" } }, ink: "#17151F", soft: "#6B6680", titleFont: FONTS.cinzel },
+};
+
+function extras(id: LookId): Variant[] {
+  const st = STYLE[id], f = st.frame;
+  const back = (c: Ctx, slot: number): Draft[] => (st.bgPhoto ? [img(slot, "l", 0, 0, 100, 100, { bw: true, o: 0.7, bg: true })] : []);
+  return [
+    { id: `${id}-6`, photos: st.bgPhoto ? 7 : 6, make: c => [
+      ...back(c, 6),
+      img(0, "p", 4, 9, 13.5, 82, f), img(1, "p", 18.5, 9, 13.5, 82, f), img(2, "p", 33, 9, 13.5, 82, f),
+      img(3, "p", 53.5, 9, 13.5, 82, f), img(4, "p", 68, 9, 13.5, 82, f), img(5, "p", 82.5, 9, 13.5, 82, f),
+    ] },
+    { id: `${id}-5`, photos: st.bgPhoto ? 6 : 5, make: c => [
+      ...back(c, 5),
+      img(0, "a", 4, 8, 42, 84, f),
+      img(1, "l", 54, 8, 20, 40, f), img(2, "l", 76, 8, 20, 40, f), img(3, "l", 54, 52, 20, 40, f), img(4, "l", 76, 52, 20, 40, f),
+    ] },
+    { id: `${id}-2`, photos: st.bgPhoto ? 3 : 2, make: c => [
+      ...back(c, 2),
+      img(0, "p", 12, 8, 28, 84, f), img(1, "p", 60, 8, 28, 84, f),
+    ] },
+    { id: `${id}-1`, photos: 1, title: true, make: c => [
+      img(0, "l", 52, 0, 48, 100),
+      txt("title", c.title ?? one(c.names), 6, 34, 40, 13, st.titleFont, st.ink, { align: "center" }),
+      txt("quote", c.quote, 10, 56, 32, 3.8, FONTS.corm, st.soft, { italic: true, align: "center" }),
+    ] },
+    { id: `${id}-end`, photos: 1, end: true, title: true, make: c => [
+      img(0, "a", 0, 0, 50, 100, { fy: 35 }),
+      { k: "logo", x: 66, y: 22, w: 18, h: 26 } as Omit<LogoItem, "id">,
+      txt("title", "Thank you", 55, 54, 40, 9, st.titleFont === FONTS.mont ? FONTS.vibes : st.titleFont, st.ink, { align: "center" }),
+      txt("quote", both(c.names) + (c.names.date ? ` · ${c.names.date}` : ""), 55, 70, 40, 3.6, FONTS.mont, st.soft, { align: "center", ls: 0.12, up: true }),
+    ] },
+  ];
+}
+for (const l of LOOKS) l.variants.push(...extras(l.id));
 
 export const lookOf = (id: string) => LOOKS.find(l => l.id === id) ?? LOOKS[0];
 export const variantOf = (look: Look, v: string) => look.variants.find(x => x.id === v) ?? look.variants[0];

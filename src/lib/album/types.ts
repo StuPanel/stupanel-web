@@ -71,7 +71,8 @@ export type Source = {
   client: { firstName: string; lastName: string | null };
   photos: APhoto[];
 };
-export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null; notes: AlbumNote[]; proofUrl: string | null; approvedAt: string | null; sentAt: string | null };
+export type AlbumDetail = AlbumRow & { spreads: Spread[]; source: Source | null; notes: AlbumNote[]; proofUrl: string | null; approvedAt: string | null; sentAt: string | null;
+  printFolder: { url: string; email: string; at: string; pages: number | null; shared: boolean } | null };
 /** What the client's proof link gets. */
 export type ProofView = {
   title: string; size: AlbumSize; names: Names | null; spreads: Spread[]; status: AlbumStatus; approvedAt: string | null;

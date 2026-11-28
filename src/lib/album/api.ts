@@ -24,6 +24,12 @@ export const albumApi = {
     apiFetch(`${API}/album-studio/${id}/proof`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on, reset }) }).then(json<{ on: boolean; url: string | null; status: string }>),
   noteDone: (id: string, noteId: string, done: boolean) =>
     apiFetch(`${API}/album-studio/${id}/notes/${noteId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done }) }).then(json<{ notes: AlbumNote[] }>),
+  driveStart: (id: string) => apiFetch(`${API}/album-studio/${id}/drive/start`, { method: "POST" }).then(json<{ id: string; url: string; email: string }>),
+  driveFile: (id: string, name: string, size: number) =>
+    apiFetch(`${API}/album-studio/${id}/drive/file`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, size }) }).then(json<{ uploadUrl: string }>),
+  driveDone: (id: string, pages: number) =>
+    apiFetch(`${API}/album-studio/${id}/drive/done`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pages }) }).then(json<{ url: string }>),
+  driveShare: (id: string) => apiFetch(`${API}/album-studio/${id}/drive/share`, { method: "POST" }).then(json<{ url: string; shared: boolean }>),
   remove: (id: string) => apiFetch(`${API}/album-studio/${id}`, { method: "DELETE" }).then(json<{ ok: boolean }>),
 };
 

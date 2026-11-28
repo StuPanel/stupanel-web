@@ -272,7 +272,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {sharing && <ShareDialog album={album} onClose={() => setSharing(false)} onChange={(url, status) => setAlbum(a => (a ? { ...a, proofUrl: url, status } : a))} />}
-      {exporting && <ExportDialog album={album} spreads={spreads} byId={byId} checks={checks.length} onClose={() => setExporting(false)} />}
+      {exporting && <ExportDialog album={album} spreads={spreads} byId={byId} checks={checks.length} onClose={() => setExporting(false)} onSaved={f => setAlbum(a => (a ? { ...a, printFolder: f } : a))} />}
     </div>
   );
 }

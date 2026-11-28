@@ -236,3 +236,22 @@
 .gf-book-wa:active,.gf-book-review:active{transform:scale(.98)}
 .gf-book-wa:focus-visible,.gf-book-review:focus-visible{outline:3px solid rgba(125,92,239,.5);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.gf-book{opacity:1;transform:none;transition:none}}
+
+/* "These might be you too" (Faisal 28-NOV-2026): near misses kept apart; the guest says It's me */
+.gf-searched{display:flex;align-items:center;gap:8px;margin:0 4px 12px;font-size:13px;font-weight:600;color:#5B5670}
+.gf-searched-dot{width:8px;height:8px;border-radius:50%;background:#3DD68C;box-shadow:0 0 0 4px rgba(61,214,140,.18);flex:none}
+.gf-maybe-open{display:flex;align-items:center;gap:14px;width:100%;margin:16px 0 4px;padding:12px 16px 12px 12px;border:1.5px dashed rgba(125,92,239,.45);border-radius:20px;background:rgba(125,92,239,.06);color:#17151F;text-align:left;cursor:pointer;transition:background .2s,transform .15s}
+.gf-maybe-open:hover{background:rgba(125,92,239,.11)}
+.gf-maybe-open:active{transform:scale(.98)}
+.gf-maybe-open:focus-visible,.gf-yes:focus-visible,.gf-maybe-pic:focus-visible,.gf-yes-big:focus-visible{outline:3px solid #7D5CEF;outline-offset:2px}
+.gf-maybe-stack{position:relative;width:68px;height:48px;flex:none}
+.gf-maybe-stack img{position:absolute;top:0;left:calc(var(--k) * 12px);width:44px;height:48px;object-fit:cover;border-radius:10px;border:2px solid #fff;box-shadow:0 6px 14px -8px rgba(40,28,96,.6);filter:saturate(.8)}
+.gf-maybe{margin-top:18px;padding:14px 10px 4px;border-radius:22px;background:rgba(125,92,239,.05);border:1px solid rgba(125,92,239,.16)}
+.gf-live .gf-maybe .gf-cols > .gf-maybe-tile{cursor:default}
+.gf-maybe-tile{position:relative;background:#fff;padding:5px;border-radius:16px;box-shadow:0 8px 20px -12px rgba(40,28,96,.35);animation:gf-rise var(--t-slow) var(--out) both}
+.gf-maybe-pic{display:block;width:100%;padding:0;border:0;background:none;cursor:pointer}
+.gf-maybe-pic img{display:block;width:100%;height:auto;border-radius:12px;opacity:.9}
+.gf-yes{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:40px;margin-top:5px;border:0;border-radius:12px;background:#EEE8FD;color:#4B32B8;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s,transform .12s}
+.gf-yes:hover{background:#E2D9FC}
+.gf-yes:active{transform:scale(.96)}
+.gf-yes-big{display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 24px;border:0;border-radius:18px;background:#fff;color:#4B32B8;font-size:16px;font-weight:700;cursor:pointer}

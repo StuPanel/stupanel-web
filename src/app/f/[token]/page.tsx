@@ -22,7 +22,12 @@ type DownloadSize = "original" | "medium" | "small";
 type BookWhen = "end" | "results" | "downloaded" | "afterFollow";
 type FollowWhen = "off" | "before" | "results" | "open" | "download" | "downloaded";
 type Open = { /** When the Book us card shows, and whether it is asked again / kept at the end */ bookWhen?: BookWhen; bookAgain?: boolean; bookKeepCard?: boolean; /** "Book us" card after the photos, and the review link */ bookButton?: boolean; bookWhatsApp?: string; bookText?: string; reviewUrl?: string; /** The file guests save (see the studio's settings) */ downloadSize?: DownloadSize; /** When the follow card shows, and its rules (see the studio's settings) */ followWhen?: FollowWhen; followSkip?: boolean; followAgain?: boolean; followTitle?: string; followText?: string; shareButton?: boolean; shareCaption?: string; /** Which share link this is: the guests' link, the all-photos link (no selfie needed) or the VIP link (no details asked) */ link?: "guest" | "full" | "vip"; /** Set when the cover carries the watermark: its version */ watermark?: string | null; askPhone?: Ask; askEmail?: Ask; askName?: Ask; contactOne?: boolean; title: string; status: "draft" | "published" | "closed"; eventDate: string | null; studio: { name: string; logoUrl: string | null }; cover: Cover; /** How the cover sits in its frame (the studio's "Adjust") */ coverFocus?: CoverFocus | null; needsPin: boolean; /** The gallery has a second code that opens every photo */ hasFullCode?: boolean; welcome: string; downloads: boolean; ready: boolean; register?: "off" | "optional" | "required"; follow?: { site: "facebook" | "instagram"; url: string }[] };
-type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
+type Result = { key: string; registered: boolean; /** This guest is never asked who they are */ noDetails?: boolean; /** false = came by the all-photos link and took no selfie */ selfie?: boolean; /** Set when the gallery has a watermark: its version, part of every photo link */ watermark?: string | null; /** Photos are held back until the guest gives their details */ needsRegister?: boolean; /** The photos are not out yet: the guest is on the list and will be told */ waiting?: boolean; count?: number; photos: FacePhoto[]; /** Near misses: "these might be you too" (the guest says yes) */ maybe?: FacePhoto[]; /** How many photos were looked through */ searched?: number; more: FacePhoto[]; moreKind: "all" | "highlights"; downloads: boolean; /** Many at once: Download all and Choose */ downloadAll?: boolean };
+type List = "mine" | "more" | "maybe";
+/** Near misses the guest said "Yes, it's me" to, on this phone. */
+function readYes(store: string) {
+  try { return new Set<string>(JSON.parse(localStorage.getItem(`${store}:yes`) || "[]")); } catch { return new Set<string>(); }
+}
 type Step = "load" | "bad" | "land" | "pin" | "selfie" | "search" | "register" | "wait" | "follow" | "results";
 
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join("") || "S";
@@ -116,7 +121,9 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   const [selfie, setSelfie] = useState("");
   const [res, setRes] = useState<Result | null>(null);
   const [count, setCount] = useState(0);
-  const [view, setView] = useState<{ list: "mine" | "more"; i: number } | null>(null);
+  const [view, setView] = useState<{ list: List; i: number } | null>(null);
+  /** Seconds the last search took (shown once, after a new selfie). */
+  const [took, setTook] = useState<number | null>(null);
   const [sentTo, setSentTo] = useState<SentTo>({});
   // Taps that help the studio grow are counted against this guest.
   useEffect(() => {
@@ -149,8 +156,21 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       // a re-compressed copy, Faisal 27-NOV); Medium / Small are the same pixels in a smaller file.
       file: `${base}/file/${p.id}.jpg?s=${size.current}${o.watermark ? `&v=${o.watermark}` : ""}`,
     });
-    return { ...o, photos: o.photos.map(tag), more: o.more.map(tag) };
-  }, [base]);
+    // Photos the guest said "Yes, it's me" to on this phone stay with their own photos.
+    const yes = readYes(store);
+    const maybe = (o.maybe ?? []).map(tag);
+    return { ...o, photos: [...o.photos.map(tag), ...maybe.filter(p => yes.has(p.id))], maybe: maybe.filter(p => !yes.has(p.id)), more: o.more.map(tag) };
+  }, [base, store]);
+
+  /** "Yes, it's me": a near miss joins the guest's own photos (kept on this phone). */
+  const itsMe = useCallback((id: string) => {
+    const yes = readYes(store); yes.add(id);
+    try { localStorage.setItem(`${store}:yes`, JSON.stringify([...yes].slice(-200))); } catch { /* private window */ }
+    setRes(r => {
+      const p = r?.maybe?.find(x => x.id === id);
+      return r && p ? { ...r, photos: [...r.photos, p], maybe: r.maybe!.filter(x => x.id !== id), count: (r.count ?? r.photos.length) + 1 } : r;
+    });
+  }, [store]);
 
   // ── the all-photos link: open every photo without a selfie ──
   const openAll = useCallback(async (d: Open, code?: string) => {
@@ -216,12 +236,13 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
   // ── search ──
   const search = useCallback(async (image: string, code?: string) => {
     const usePin = code ?? pin;
-    setSelfie(image); setStep("search"); setCount(0); setNote("");
+    setSelfie(image); setStep("search"); setCount(0); setNote(""); setTook(null);
     let key: string | undefined;
     try { key = JSON.parse(localStorage.getItem(store) || "{}").key; } catch { /* private window */ }
     const started = Date.now();
     const r = await fetch(`${base}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: image.split(",")[1], ...(key ? { key } : {}), ...(usePin ? { pin: usePin } : {}), ...(via.current ? { link: via.current } : {}) }) }).catch(() => null);
     const d = r ? await r.json().catch(() => ({})) : {};
+    const secs = (Date.now() - started) / 1000;
     if (!r?.ok) {
       const codeErr = d?.code;
       // The gallery got a code after this page was opened (or the code changed): ask for it without calling it wrong,
@@ -240,7 +261,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
     const n = out.count ?? out.photos.length;
     for (let i = 1; i <= n; i++) { setCount(i); await new Promise(ok => setTimeout(ok, Math.max(40, Math.min(160, 1400 / n)))); }
     await new Promise(ok => setTimeout(ok, n ? 500 : 200));
-    setRes(out);
+    setRes(out); setTook(secs);
     // The studio asks for a name and number: before the photos (required), or as a step the guest can skip (optional).
     const follow = g?.followWhen === "before" && !!g?.follow?.length && n > 0 && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();
     setStep(n > 0 && !out.registered && !out.noDetails && (out.needsRegister || g?.register === "optional") ? "register" : follow ? "follow" : "results");
@@ -361,19 +382,26 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
           onFollowed={() => { followed(); setStep("results"); }} onSkip={() => { skipped(); askedNow.current = true; setStep("results"); }} />
       )}
       {step === "results" && res && (
-        <Results g={g} res={res} selfie={selfie} onOpen={(list, i) => { setView({ list, i }); setTimeout(() => moment("open"), 700); }} onRetake={() => { setNote(""); setStep("selfie"); }} base={base}
+        <Results g={g} res={res} selfie={selfie} took={took} onItsMe={itsMe} onOpen={(list, i) => { setView({ list, i }); setTimeout(() => moment("open"), 700); }} onRetake={() => { setNote(""); setStep("selfie"); }} base={base}
           gate={then => moment("download", then)} onDownloaded={() => setTimeout(() => moment("downloaded"), 900)} />
       )}
       {view && res && (() => {
-        const list = view.list === "mine" ? res.photos : res.more;
+        const list = view.list === "mine" ? res.photos : view.list === "maybe" ? res.maybe ?? [] : res.more;
         const p = list[view.i];
         if (!p) return null;
+        const unsure = view.list === "maybe";
         return (
           <PhotoViewer count={list.length} index={view.i} onIndex={i => setView({ list: view.list, i })} onClose={() => setView(null)}
             src={facePhotoUrl(p, 1600)} srcAt={i => facePhotoUrl(list[i], 1600)} thumbAt={i => facePhotoUrl(list[i], 480)} zoomAt={i => facePhotoUrl(list[i], 2560)}
-            title={g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
-            footer={res.downloads || g.shareButton !== false ? (
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center" }}>
+            title={unsure ? T("Is this you?") : g.title} sub={T("{a} of {b}", { a: N(view.i + 1), b: N(list.length) })}
+            footer={unsure || res.downloads || g.shareButton !== false ? (
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
+                {unsure && <button type="button" className="gf-yes-big" onClick={() => {
+                  itsMe(p.id);
+                  // The photo moved to the guest's own photos: show the next one that might be them, or close.
+                  const left = list.length - 1;
+                  if (!left) setView(null); else setView({ list: "maybe", i: Math.min(view.i, left - 1) });
+                }}><Ic size={18} w={2.8} d={<path d="M5 12.5l4.5 4.5L19 7.5" />} />{T("Yes, it's me")}</button>}
                 {res.downloads && touch() && <SaveOne key={p.id} sheet={phoneSave()} photo={p} gate={run => moment("download", run)} onSaved={() => { counted(base, res.key, 1); setTimeout(() => moment("downloaded"), 900); }} />}
                 {res.downloads && !touch() && <a href={faceSaveUrl(p)} target="_blank" rel="noreferrer"
                   onClick={e => {
@@ -1171,7 +1199,7 @@ function Searching({ selfie, count }: { selfie: string; count: number }) {
 
 // ─── Results ──────────────────────────────────────────────────────────────────
 
-function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), onDownloaded }: { g: Open; res: Result; selfie: string; base: string; onOpen: (list: "mine" | "more", i: number) => void; onRetake: () => void;
+function Results({ g, res, selfie, base, took, onItsMe, onOpen, onRetake, gate = run => run(), onDownloaded }: { g: Open; res: Result; selfie: string; base: string; /** Seconds the search took (fresh search only) */ took?: number | null; onItsMe?: (id: string) => void; onOpen: (list: List, i: number) => void; onRetake: () => void;
   /** "When Download is pressed": the studio's card first, then `run` */ gate?: (run: () => void) => void; /** After photos were saved */ onDownloaded?: () => void }) {
   const n = res.photos.length;
   const [saving, setSaving] = useState(0);
@@ -1264,7 +1292,10 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
     onDownloaded?.();
   }
 
-  const tile = (p: FacePhoto, i: number, list: "mine" | "more") => {
+  const maybe = res.maybe ?? [];
+  /** "These might be you too" opened (closed by default: they are not sure). */
+  const [showMaybe, setShowMaybe] = useState(false);
+  const tile = (p: FacePhoto, i: number, list: List) => {
     const on = picking && picked.includes(p.id);
     return (
       <button key={p.id} type="button" className={`gf-print${picking ? " gf-pick" : ""}${on ? " gf-picked" : ""}`} onClick={() => (picking ? toggle(p.id) : onOpen(list, i))}
@@ -1278,6 +1309,17 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
       </button>
     );
   };
+  /** A near miss: the photo, and a "Yes, it's me" button under it. */
+  const unsure = (p: FacePhoto, i: number) => (
+    <div key={p.id} className="gf-maybe-tile" style={{ animationDelay: `${Math.min(i, 10) * 0.06}s` }}>
+      <button type="button" onClick={() => onOpen("maybe", i)} aria-label={`Open photo ${i + 1} that might be you`} className="gf-maybe-pic">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={facePhotoUrl(p, 480)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
+          style={{ aspectRatio: p.width && p.height ? `${p.width} / ${p.height}` : "4 / 5", background: "#F1EFF6" }} />
+      </button>
+      <button type="button" className="gf-yes" onClick={() => onItsMe?.(p.id)}><Ic size={15} w={3} d={<path d="M5 12.5l4.5 4.5L19 7.5" />} />{T("It's me")}</button>
+    </div>
+  );
 
   return (
     <div className="gf-step">
@@ -1302,7 +1344,34 @@ function Results({ g, res, selfie, base, onOpen, onRetake, gate = run => run(), 
             <span style={{ fontSize: 14, lineHeight: 1.5, color: "#4A4658" }}>{T("More photos may still be added. Open this page again later and your photos will show here by themselves. A clearer selfie also helps: face the light and take off sunglasses.")}</span>
           </div>
         )}
+        {!picking && !noSelfie && took != null && (res.searched ?? 0) > 0 && (
+          <p className="gf-rise gf-searched" role="status"><span className="gf-searched-dot" aria-hidden="true" />{T("Looked through {photos} in {secs} seconds", { photos: P(res.searched ?? 0), secs: took.toFixed(1) })}</p>
+        )}
         <div className="gf-cols">{res.photos.map((p, i) => tile(p, i, "mine"))}</div>
+        {!picking && maybe.length > 0 && (showMaybe ? (
+          <section className="gf-maybe gf-rise" aria-label="Photos that might be you">
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, margin: "0 2px 10px" }}>
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 800 }}>{T("These might be you too")}</h2>
+                <p style={{ fontSize: 13.5, color: "#5B5670", marginTop: 2, lineHeight: 1.45 }}>{T("We are not sure about these. Tap It's me on the ones you are in, and they join your photos.")}</p>
+              </div>
+              <button type="button" onClick={() => setShowMaybe(false)} style={{ height: 36, padding: "0 12px", borderRadius: 12, border: 0, background: "rgba(23,21,31,.06)", fontSize: 13, fontWeight: 700, color: "#4A4658", flex: "none" }}>{T("Hide")}</button>
+            </div>
+            <div className="gf-cols">{maybe.map((p, i) => unsure(p, i))}</div>
+          </section>
+        ) : (
+          <button type="button" className="gf-maybe-open gf-rise" onClick={() => setShowMaybe(true)}>
+            <span className="gf-maybe-stack" aria-hidden="true">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {maybe.slice(0, 3).map((p, i) => <img key={p.id} src={facePhotoUrl(p, 160)} alt="" referrerPolicy="no-referrer" style={{ ["--k" as string]: i }} />)}
+            </span>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", flex: 1, minWidth: 0 }}>
+              <b style={{ fontSize: 15.5 }}>{T("Show me more photos")}</b>
+              <span style={{ fontSize: 13, color: "#5B5670" }}>{T("{photos} might be you too", { photos: P(maybe.length) })}</span>
+            </span>
+            <Ic size={18} w={2.4} d={<path d="M9 5l7 7-7 7" />} />
+          </button>
+        ))}
         {res.more.length > 0 && (
           <>
             {!noSelfie && <h2 style={{ fontSize: 17, fontWeight: 800, margin: "18px 4px 10px" }}>{moreTitle}</h2>}

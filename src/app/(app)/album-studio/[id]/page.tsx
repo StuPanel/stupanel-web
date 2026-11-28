@@ -17,6 +17,7 @@ import { checkAlbum, dpiOf } from "@/lib/album/checks";
 import { focusFor, fromSaved, makeSpread, nextVariant, photosOn, relayout } from "@/lib/album/layout";
 import { scanPhotos } from "@/lib/album/faces";
 import { COMMAND_EXAMPLES, parseCommand } from "@/lib/album/commands";
+import { bnFontFor, isBangla } from "@/lib/album/bangla";
 import { FONT_CHOICES, LOOKS, lookOf } from "@/lib/album/looks";
 import { QUOTES, quoteAfter } from "@/lib/album/quotes";
 import { photoUrl, ratioOf, sizeOf, STATUS, type AlbumDetail, type AlbumStatus, type APhoto, type ImgItem, type Item, type SavedLayout, type Spread, type TextItem } from "@/lib/album/types";
@@ -119,11 +120,17 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     timer.current = setTimeout(flush, 1200);
   }, [flush]);
   /** Every change goes through here: undo history + save a moment later. */
-  const change = useCallback((fn: (s: Spread[]) => Spread[]) => {
+  /** Typing and sliders make one undo step per burst (same thing changed within 1.5 s), not one per key. */
+  const lastEdit = useRef<{ key: string; at: number } | null>(null);
+  const change = useCallback((fn: (s: Spread[]) => Spread[], key?: string) => {
     const prev = spreadsRef.current;
     const next = fn(prev);
     if (next === prev) return;
-    setHist(h => ({ past: [...h.past.slice(-49), prev], future: [] }));
+    const now = Date.now();
+    const same = !!key && lastEdit.current?.key === key && now - lastEdit.current.at < 1500;
+    lastEdit.current = key ? { key, at: now } : null;
+    if (!same) setHist(h => ({ past: [...h.past.slice(-49), prev], future: [] }));
+    else setHist(h => (h.future.length ? { ...h, future: [] } : h));
     commit(next);
   }, [commit]);
   const undo = () => {
@@ -139,8 +146,8 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
     commit(next);
   };
 
-  const editItem = (itemId: string, patch: Partial<ImgItem> | Partial<TextItem> | Record<string, number>) =>
-    change(all => all.map((s, i) => (i !== cur ? s : { ...s, items: s.items.map(it => (it.id === itemId ? ({ ...it, ...patch } as Item) : it)) })));
+  const editItem = (itemId: string, patch: Partial<ImgItem> | Partial<TextItem> | Record<string, number>, burst = false) =>
+    change(all => all.map((s, i) => (i !== cur ? s : { ...s, items: s.items.map(it => (it.id === itemId ? ({ ...it, ...patch } as Item) : it)) })), burst ? `${itemId}:${Object.keys(patch).sort().join(",")}` : undefined);
   const putPhoto = (itemId: string, photoId: string) => {
     const it = spread?.items.find(i => i.id === itemId); const p = byId.get(photoId);
     const pos = it?.k === "img" && p ? focusFor({ ...it, z: 1 }, p, album?.faces?.[photoId], ratio) : { fx: 50, fy: 40 };
@@ -265,6 +272,13 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
       const t = e.target as HTMLElement;
       if (t.closest("input,textarea,select,[contenteditable]")) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+      // Tab / Shift+Tab: the next or previous thing on the page (reaches a photo under a big text).
+      if (e.key === "Tab" && spread?.items.length && (sel || (e.target as HTMLElement) === document.body)) {
+        e.preventDefault();
+        const list = spread.items; const at = list.findIndex(i => i.id === sel);
+        const nx = list[(at + (e.shiftKey ? -1 : 1) + list.length) % list.length];
+        pick(nx.id); return;
+      }
       const it = sel ? spread?.items.find(i => i.id === sel) : null;
       if (it && /^Arrow/.test(e.key)) {
         e.preventDefault();
@@ -335,7 +349,11 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           <div className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] 2xl:grid-cols-2 gap-2 overflow-y-auto min-h-0 max-h-[260px] 2xl:max-h-none pr-0.5">
             {trayPhotos.map(p => (
               <button key={p.id} draggable onDragStart={e => e.dataTransfer.setData("text/photo", p.id)}
-                onClick={() => { if (item?.k === "img") putPhoto(item.id, p.id); else notify("Choose a frame on the page first."); }}
+                onClick={() => {
+                  if (item?.k === "img") { putPhoto(item.id, p.id); return; }
+                  const empty = spread?.items.find(i => i.k === "img" && !i.p && !i.bg);
+                  if (empty) putPhoto(empty.id, p.id); else notify("Click a frame on the page first, then the photo.");
+                }}
                 title={p.n} className={cn("relative aspect-square rounded-lg overflow-hidden bg-[#EEE] focus-visible:ring-2 focus-visible:ring-[#7D5CEF]", used.has(p.id) && "opacity-45")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {p.d && <img src={photoUrl(p.d, 200)} alt={p.n} loading="lazy" className="w-full h-full object-cover" draggable={false} />}
@@ -355,7 +373,8 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
               <span className="ml-auto text-[12px] text-[#6B6680] hidden sm:inline">{lookOf(spread?.look ?? album.look).name}</span>
             </div>
             {swapFrom && <p className="w-full text-center text-[13px] font-semibold text-[#3F2A9E] bg-white/80 rounded-full py-1.5" role="status">Now click the frame to swap with · <button className="underline" onClick={() => setSwapFrom(null)}>Cancel</button></p>}
-            {spread ? <div className="w-full" onPointerDown={e => e.stopPropagation()}><Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={pick} pan={pan} onChange={(itemId, patch) => editItem(itemId, patch)} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} onSwapPick={swapFrom ? swapWith : null} studio={album.studio} /></div> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
+            {spread ? <div className="w-full" onPointerDown={e => e.stopPropagation()}><Stage spread={spread} ratio={ratio} byId={byId} sel={sel} setSel={pick} pan={pan} onChange={(itemId, patch) => editItem(itemId, patch)} onDropPhoto={putPhoto} marks={new Set(curChecks.map(c => c.item!).filter(Boolean))} onSwapPick={swapFrom ? swapWith : null} studio={album.studio}
+              onDouble={itemId => { const it = spread.items.find(i => i.id === itemId); if (it?.k === "img" && it.p) setPan(true); if (it?.k === "text") setTimeout(() => { const ta = document.getElementById("album-text") as HTMLTextAreaElement | null; ta?.focus(); ta?.select(); }, 0); }} /></div> : <p className="text-[14px] text-[#6B6680] py-10">No pages. Add one below.</p>}
             <div className="flex flex-wrap items-center justify-center gap-1.5" onPointerDown={e => e.stopPropagation()}>
               <Tool label="Previous page" onClick={() => setCur(Math.max(0, cur - 1))} disabled={cur === 0}><ChevronLeft className="w-4 h-4" /></Tool>
               <Tool label="Move page left" onClick={() => movePage(-1)} disabled={cur === 0}><ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Move</span></Tool>
@@ -374,7 +393,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
           <div className="-mt-1 flex gap-1.5 overflow-x-auto pb-1" aria-label="Command examples">
             {COMMAND_EXAMPLES.map(x => <button key={x} onClick={() => { setCmd(x); document.getElementById("cmd")?.focus(); }} className="flex-shrink-0 h-8 px-3 rounded-full bg-white/70 text-[12.5px] text-[#4A4658] hover:bg-white" style={{ fontFamily: "'Hind Siliguri',sans-serif" }}>{x}</button>)}
           </div>
-          <Strip studio={album.studio} spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
+          <Strip onMove={(from, to) => { if (from === to) return; change(all => { const a = [...all]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return a; }); setCur(to); }} studio={album.studio} spreads={spreads} cur={cur} setCur={i => { setCur(i); setSel(null); }} ratio={ratio} byId={byId} warn={new Set([...checks.filter(c => c.kind !== "twice").map(c => c.spread), ...clientNotes.filter(n => !n.done).map(n => spreads.findIndex(x => x.id === n.spread)).filter(i => i >= 0)])} />
         </main>
 
         {/* right panel */}
@@ -410,9 +429,9 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
             </section>
           )}
 
-          {item?.k === "img" && <ImgPanel it={item} p={item.p ? byId.get(item.p) : undefined} size={album.size} onChange={patch => editItem(item.id, patch)}
+          {item?.k === "img" && <ImgPanel it={item} p={item.p ? byId.get(item.p) : undefined} size={album.size} onChange={(patch, burst) => editItem(item.id, patch, burst)}
             pan={pan} setPan={setPan} onSwap={() => { setSwapFrom(item.id); setPan(false); }} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
-          {item?.k === "text" && <TextPanel it={item} onChange={patch => editItem(item.id, patch)} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
+          {item?.k === "text" && <TextPanel it={item} onChange={(patch, burst) => editItem(item.id, patch, burst)} onDelete={() => deleteItem(item.id)} onLayer={f => layer(item.id, f)} />}
           {item?.k === "logo" && (
             <section className="flex flex-col gap-2">
               <h2 className="text-[12px] font-bold text-[#6B6680]">Studio logo</h2>
@@ -428,7 +447,7 @@ export default function AlbumEditorPage({ params }: { params: Promise<{ id: stri
             </section>
           )}
           {!item && spread && (
-            <section className="text-[13px] text-[#6B6680] rounded-xl bg-[#FAF9FC] p-3">Click a photo or a text to change it. Drag to move, drag a corner to resize (Shift keeps the shape). Arrow keys nudge, Delete removes.</section>
+            <section className="text-[13px] text-[#6B6680] rounded-xl bg-[#FAF9FC] p-3">Click a photo or a text to change it. Drag to move, a corner to resize (Shift keeps the shape). Double-click a photo to slide it in its frame, a text to type. Tab picks the next thing on the page; arrows nudge; Delete removes.</section>
           )}
 
           {(album.notes ?? []).some(n => n.by === "client") && (
@@ -485,14 +504,19 @@ function Tool({ label, onClick, disabled, children }: { label: string; onClick: 
   return <button aria-label={label} title={label} onClick={onClick} disabled={disabled} className="h-9 px-3 rounded-full bg-white/85 text-[13px] font-semibold inline-flex items-center gap-1.5 hover:bg-white disabled:opacity-40">{children}</button>;
 }
 
-function Strip({ spreads, cur, setCur, ratio, byId, warn, studio }: { spreads: Spread[]; cur: number; setCur: (i: number) => void; ratio: number; byId: Map<string, APhoto>; warn: Set<number>; studio?: AlbumDetail["studio"] }) {
+function Strip({ spreads, cur, setCur, ratio, byId, warn, studio, onMove }: { spreads: Spread[]; cur: number; setCur: (i: number) => void; ratio: number; byId: Map<string, APhoto>; warn: Set<number>; studio?: AlbumDetail["studio"]; onMove: (from: number, to: number) => void }) {
+  const [over, setOver] = useState<number | null>(null);
   const tw = 132;
   const curRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { curRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }, [cur]);
   return (
     <div className="rounded-[18px] bg-white/70 px-3 py-2.5 flex gap-3 overflow-x-auto" role="list" aria-label="Pages">
       {spreads.map((s, i) => (
-        <button key={s.id} ref={i === cur ? curRef : undefined} role="listitem" onClick={() => setCur(i)} aria-current={i === cur} className="flex-shrink-0 text-center">
+        <button key={s.id} ref={i === cur ? curRef : undefined} role="listitem" onClick={() => setCur(i)} aria-current={i === cur} title="Drag to move this page"
+          draggable onDragStart={e => { e.dataTransfer.setData("text/page", String(i)); e.dataTransfer.effectAllowed = "move"; }}
+          onDragOver={e => { if (e.dataTransfer.types.includes("text/page")) { e.preventDefault(); setOver(i); } }} onDragLeave={() => setOver(o => (o === i ? null : o))}
+          onDrop={e => { const from = Number(e.dataTransfer.getData("text/page")); setOver(null); if (Number.isFinite(from)) { e.preventDefault(); onMove(from, i); } }}
+          className={cn("flex-shrink-0 text-center rounded-md transition-transform", over === i && "translate-y-[-3px] ring-2 ring-[#7D5CEF]/50")}>
           <div className={cn("rounded-[3px] overflow-hidden", i === cur ? "ring-2 ring-offset-2 ring-[#7D5CEF]" : warn.has(i) ? "ring-2 ring-[#E3A21A]" : "shadow-[0_2px_6px_rgba(40,20,10,.25)]")}>
             <SpreadView spread={s} width={tw} ratio={ratio} photos={byId} fold={false} studio={studio} />
           </div>
@@ -514,7 +538,7 @@ function LayerRow({ onLayer, onDelete, label = "Delete" }: { onLayer: (front: bo
 }
 
 function ImgPanel({ it, p, size, onChange, pan, setPan, onSwap, onDelete, onLayer }: {
-  it: ImgItem; p?: APhoto; size: AlbumDetail["size"]; onChange: (patch: Partial<ImgItem>) => void;
+  it: ImgItem; p?: APhoto; size: AlbumDetail["size"]; onChange: (patch: Partial<ImgItem>, burst?: boolean) => void;
   pan: boolean; setPan: (v: boolean) => void; onSwap: () => void; onDelete: () => void; onLayer: (front: boolean) => void;
 }) {
   const dpi = p ? dpiOf(it, p, size) : null;
@@ -524,7 +548,7 @@ function ImgPanel({ it, p, size, onChange, pan, setPan, onSwap, onDelete, onLaye
       {p ? <p className="text-[12.5px] text-[#4A4658] truncate" title={p.n}>{p.n}{dpi && !it.bg ? <span className={cn("ml-1", dpi < 150 ? "text-[#A15C00] font-semibold" : "text-[#6B6680]")}>· {dpi} DPI</span> : null}</p> : <p className="text-[12.5px] text-[#6B6680]">Empty frame. Click a photo on the left.</p>}
       <label className="text-[13px] font-semibold flex flex-col gap-1">
         <span className="flex justify-between">Zoom <span className="tabular-nums text-[#6B6680]">{Math.round((it.z ?? 1) * 100)}%</span></span>
-        <input type="range" min={100} max={300} value={Math.round((it.z ?? 1) * 100)} onChange={e => onChange({ z: Number(e.target.value) / 100 })} className="accent-[#7D5CEF]" />
+        <input type="range" min={100} max={300} value={Math.round((it.z ?? 1) * 100)} onChange={e => onChange({ z: Number(e.target.value) / 100 }, true)} className="accent-[#7D5CEF]" />
       </label>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => onChange({ bw: !it.bw })} aria-pressed={!!it.bw} className={cn("h-10 rounded-xl text-[13px] font-semibold inline-flex items-center justify-center gap-1.5", it.bw ? "bg-[#17151F] text-white" : "bg-[#F2EFF8]")}><Contrast className="w-4 h-4" />Black & white</button>
@@ -541,11 +565,13 @@ function ImgPanel({ it, p, size, onChange, pan, setPan, onSwap, onDelete, onLaye
   );
 }
 
-function TextPanel({ it, onChange, onDelete, onLayer }: { it: TextItem; onChange: (patch: Partial<TextItem>) => void; onDelete: () => void; onLayer: (front: boolean) => void }) {
+function TextPanel({ it, onChange, onDelete, onLayer }: { it: TextItem; onChange: (patch: Partial<TextItem>, burst?: boolean) => void; onDelete: () => void; onLayer: (front: boolean) => void }) {
+  // Typing Bangla into a text set in an English font switches it to a matching Bangla font.
+  const type = (t: string) => onChange(isBangla(t) && !/Bengali|Galada|Hind|Tiro|Anek/.test(it.font) ? { t, font: bnFontFor(it.font) } : { t }, true);
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-[12px] font-bold text-[#6B6680]">{it.role === "quote" ? "Quote" : it.role === "name" ? "Name" : "Text"}</h2>
-      <textarea value={it.t} onChange={e => onChange({ t: e.target.value })} rows={it.role === "quote" ? 3 : 2} maxLength={300}
+      <textarea id="album-text" value={it.t} onChange={e => type(e.target.value)} rows={it.role === "quote" ? 3 : 2} maxLength={300}
         className="w-full rounded-xl border-[1.5px] border-[#7D5CEF] bg-[#FBFAFF] p-3 text-[16px] outline-none" style={{ fontFamily: it.font }} aria-label="Words" />
       {it.role === "quote" && <button onClick={() => onChange({ t: quoteAfter(it.t) })} className="h-9 rounded-full bg-[#F2EFF8] text-[12.5px] font-semibold text-[#3F2A9E] self-start px-3">↻ Another quote</button>}
       <label className="text-[13px] font-semibold flex flex-col gap-1">Font
@@ -555,11 +581,11 @@ function TextPanel({ it, onChange, onDelete, onLayer }: { it: TextItem; onChange
       </label>
       <label className="text-[13px] font-semibold flex flex-col gap-1">
         <span className="flex justify-between">Size <span className="tabular-nums text-[#6B6680]">{it.size.toFixed(1)}</span></span>
-        <input type="range" min={2} max={40} step={0.5} value={it.size} onChange={e => onChange({ size: Number(e.target.value) })} className="accent-[#7D5CEF]" />
+        <input type="range" min={2} max={40} step={0.5} value={it.size} onChange={e => onChange({ size: Number(e.target.value) }, true)} className="accent-[#7D5CEF]" />
       </label>
       <div className="flex items-center gap-2">
         <label className="text-[13px] font-semibold flex items-center gap-2 mr-auto">Colour
-          <input type="color" value={/^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#ffffff"} onChange={e => onChange({ color: e.target.value })} className="w-10 h-8 rounded border border-[#E4E0EC]" />
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#ffffff"} onChange={e => onChange({ color: e.target.value }, true)} className="w-10 h-8 rounded border border-[#E4E0EC]" />
         </label>
         {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as const).map(([a, Icon]) => (
           <button key={a} aria-label={`Align ${a}`} aria-pressed={(it.align ?? "left") === a} onClick={() => onChange({ align: a })} className={cn("w-9 h-9 rounded-lg inline-flex items-center justify-center", (it.align ?? "left") === a ? "bg-[#17151F] text-white" : "bg-[#F2EFF8]")}><Icon className="w-4 h-4" /></button>

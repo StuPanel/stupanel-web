@@ -4,7 +4,7 @@
  * One album page (spread) drawn with HTML. The print export draws the same model on a canvas
  * (lib/album/export.ts), so what the studio sees is what goes to the lab.
  */
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { FONT_HREF } from "@/lib/album/looks";
 import { photoUrl, type APhoto, type Corners, type ImgItem, type Item, type Spread, type TextItem } from "@/lib/album/types";
 
@@ -17,6 +17,10 @@ export function useAlbumFonts() {
     const l = document.createElement("link");
     l.rel = "stylesheet"; l.href = FONT_HREF;
     document.head.appendChild(l);
+    // A frame a photo is dragged over lights up.
+    const st = document.createElement("style");
+    st.textContent = "[data-drop='1']{outline:3px solid #7D5CEF!important;outline-offset:-3px;filter:brightness(1.08)}";
+    document.head.appendChild(st);
   }, []);
 }
 
@@ -31,22 +35,26 @@ type Props = {
   onDropPhoto?: (itemId: string, photoId: string) => void;
   /** The studio's logo and name for logo boxes (closing page) */
   studio?: { name: string; logoUrl: string | null } | null;
+  onDouble?: (id: string) => void;
 };
 
-export function SpreadView({ spread, width, ratio, photos, selected, onPick, fold = true, className, marks, onDropPhoto, studio }: Props) {
+/** Same page, same size: not drawn again (the page strip has one per page). */
+export const SpreadView = memo(SpreadViewInner);
+function SpreadViewInner({ spread, width, ratio, photos, selected, onPick, fold = true, className, marks, onDropPhoto, studio, onDouble }: Props) {
   useAlbumFonts();
   const W = width, H = width / ratio;
   return (
     <div className={className} style={{ position: "relative", width: W, height: H, background: spread.bg, overflow: "hidden", borderRadius: 2 }}>
-      {spread.items.map(it => <ItemView key={it.id} it={it} W={W} H={H} photos={photos} selected={selected === it.id} onPick={onPick} mark={marks?.has(it.id)} onDropPhoto={onDropPhoto} studio={studio} bg={spread.bg} />)}
+      {spread.items.map(it => <ItemView key={it.id} it={it} W={W} H={H} photos={photos} selected={selected === it.id} onPick={onPick} mark={marks?.has(it.id)} onDropPhoto={onDropPhoto} studio={studio} bg={spread.bg} onDouble={onDouble} />)}
       {fold && <div aria-hidden style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: W * 0.05, transform: "translateX(-50%)", background: "linear-gradient(90deg,rgba(0,0,0,0),rgba(0,0,0,.16) 47%,rgba(255,255,255,.1) 52%,rgba(0,0,0,0))", pointerEvents: "none" }} />}
     </div>
   );
 }
 
-function ItemView({ it, W, H, photos, selected, onPick, mark, onDropPhoto, studio, bg }: { it: Item; W: number; H: number; photos: Map<string, APhoto>; selected: boolean; onPick?: Props["onPick"]; mark?: boolean; onDropPhoto?: Props["onDropPhoto"]; studio?: Props["studio"]; bg: string }) {
+function ItemView({ it, W, H, photos, selected, onPick, mark, onDropPhoto, studio, bg, onDouble }: { it: Item; W: number; H: number; photos: Map<string, APhoto>; selected: boolean; onPick?: Props["onPick"]; mark?: boolean; onDropPhoto?: Props["onDropPhoto"]; studio?: Props["studio"]; bg: string; onDouble?: Props["onDouble"] }) {
   const pos: React.CSSProperties = { position: "absolute", left: (it.x / 100) * W, top: (it.y / 100) * H, width: (it.w / 100) * W };
-  const ring = selected ? { outline: "2px solid #7D5CEF", outlineOffset: 2, zIndex: 5 } : mark ? { outline: "2px dashed #E3A21A", outlineOffset: 2 } : {};
+  const dbl = onDouble ? (e: React.MouseEvent) => { e.stopPropagation(); onDouble(it.id); } : undefined;
+  const ring = selected ? { outline: "2px solid #7D5CEF", outlineOffset: 2 } : mark ? { outline: "2px dashed #E3A21A", outlineOffset: 2 } : {};
   const pick = onPick ? (e: React.PointerEvent) => { e.stopPropagation(); onPick(it.id, e); } : undefined;
   if (it.k === "box") {
     return <div aria-hidden onPointerDown={pick} style={{ ...pos, height: (it.h / 100) * H, background: it.fill, opacity: it.o ?? 1, borderRadius: radius(it.r, H), border: it.line ? `${Math.max(1, (it.line.w / 100) * H)}px solid ${it.line.c}` : undefined, backdropFilter: it.glass ? `blur(${H * 0.025}px)` : undefined, mixBlendMode: it.blend, boxSizing: "border-box", pointerEvents: onPick ? "auto" : "none", ...(it.glass ? { opacity: 1, background: `rgba(255,255,255,${it.o ?? 0.18})` } : {}) }} />;
@@ -61,13 +69,13 @@ function ItemView({ it, W, H, photos, selected, onPick, mark, onDropPhoto, studi
       </div>
     );
   }
-  if (it.k === "text") return <TextView it={it} pos={pos} H={H} ring={ring} pick={pick} />;
-  return <ImgView it={it} pos={pos} W={W} H={H} photos={photos} ring={ring} pick={pick} onDropPhoto={onDropPhoto} />;
+  if (it.k === "text") return <TextView it={it} pos={pos} H={H} ring={ring} pick={pick} dbl={dbl} />;
+  return <ImgView it={it} pos={pos} W={W} H={H} photos={photos} ring={ring} pick={pick} onDropPhoto={onDropPhoto} dbl={dbl} />;
 }
 
-function TextView({ it, pos, H, ring, pick }: { it: TextItem; pos: React.CSSProperties; H: number; ring: React.CSSProperties; pick?: (e: React.PointerEvent) => void }) {
+function TextView({ it, pos, H, ring, pick, dbl }: { it: TextItem; pos: React.CSSProperties; H: number; ring: React.CSSProperties; pick?: (e: React.PointerEvent) => void; dbl?: (e: React.MouseEvent) => void }) {
   return (
-    <div onPointerDown={pick} style={{
+    <div onPointerDown={pick} onDoubleClick={dbl} style={{
       ...pos, ...ring, fontFamily: it.font, fontSize: (it.size / 100) * H, color: it.color, textAlign: it.align ?? "left",
       fontStyle: it.italic ? "italic" : undefined, fontWeight: it.weight ?? 400, letterSpacing: it.ls ? `${it.ls}em` : undefined,
       lineHeight: it.lh ?? 1.15, textTransform: it.up ? "uppercase" : undefined, textShadow: it.shadow ? "0 2px 12px rgba(0,0,0,.35)" : undefined,
@@ -77,16 +85,17 @@ function TextView({ it, pos, H, ring, pick }: { it: TextItem; pos: React.CSSProp
   );
 }
 
-function ImgView({ it, pos, W, H, photos, ring, pick, onDropPhoto }: { it: ImgItem; pos: React.CSSProperties; W: number; H: number; photos: Map<string, APhoto>; ring: React.CSSProperties; pick?: (e: React.PointerEvent) => void; onDropPhoto?: Props["onDropPhoto"] }) {
+function ImgView({ it, pos, W, H, photos, ring, pick, onDropPhoto, dbl }: { it: ImgItem; pos: React.CSSProperties; W: number; H: number; photos: Map<string, APhoto>; ring: React.CSSProperties; pick?: (e: React.PointerEvent) => void; onDropPhoto?: Props["onDropPhoto"]; dbl?: (e: React.MouseEvent) => void }) {
   const p = it.p ? photos.get(it.p) : undefined;
   const fw = (it.w / 100) * W, fh = (it.h / 100) * H;
   const bd = it.bd ? Math.max(1, (it.bd.w / 100) * H) : 0;
   const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
   const filter = [it.bw ? "grayscale(1) contrast(1.05)" : "", it.light ? `brightness(${it.light})` : ""].filter(Boolean).join(" ") || undefined;
   return (
-    <div onPointerDown={pick}
-      onDragOver={onDropPhoto ? e => { if (e.dataTransfer.types.includes("text/photo")) e.preventDefault(); } : undefined}
-      onDrop={onDropPhoto ? e => { const id = e.dataTransfer.getData("text/photo"); if (id) { e.preventDefault(); onDropPhoto(it.id, id); } } : undefined}
+    <div onPointerDown={pick} onDoubleClick={dbl}
+      onDragOver={onDropPhoto ? e => { if (e.dataTransfer.types.includes("text/photo")) { e.preventDefault(); e.currentTarget.dataset.drop = "1"; } } : undefined}
+      onDragLeave={onDropPhoto ? e => { delete e.currentTarget.dataset.drop; } : undefined}
+      onDrop={onDropPhoto ? e => { delete e.currentTarget.dataset.drop; const id = e.dataTransfer.getData("text/photo"); if (id) { e.preventDefault(); onDropPhoto(it.id, id); } } : undefined}
       style={{
         ...pos, ...ring, height: fh, borderRadius: radius(it.r, H), overflow: "hidden", opacity: it.o ?? 1,
         border: bd ? `${bd}px solid ${it.bd!.c}` : undefined, boxSizing: "border-box",

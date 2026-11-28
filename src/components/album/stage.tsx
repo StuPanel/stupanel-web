@@ -18,7 +18,7 @@ type Drag = {
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
-export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropPhoto, marks, onSwapPick, studio }: {
+export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropPhoto, marks, onSwapPick, studio, onDouble }: {
   spread: Spread; ratio: number; byId: Map<string, APhoto>; sel: string | null; setSel: (id: string | null) => void;
   /** Dragging inside the chosen photo slides the photo in its frame */
   pan: boolean;
@@ -26,7 +26,10 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
   /** In "swap" mode the next frame clicked is sent here instead of being chosen */
   onSwapPick?: ((id: string) => void) | null;
   studio?: { name: string; logoUrl: string | null } | null;
+  /** Double click: a photo goes into "move photo" mode, a text opens for typing */
+  onDouble?: (id: string) => void;
 }) {
+  const frame = useRef<number | null>(null);
   const [ref, w] = useWidth<HTMLDivElement>();
   const W = Math.min(w, 1100), H = W / ratio;
   const drag = useRef<Drag | null>(null);
@@ -50,6 +53,8 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
     const it = spread.items.find(i => i.id === id); if (!it) return;
     setSel(id);
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    // A full-page background photo never moves by dragging (only its photo slides, in "move photo" mode).
+    if (it.k === "img" && it.bg && !(pan && sel === id)) return;
     drag.current = { id, mode: pan && sel === id && it.k === "img" ? "pan" : "move", sx: e.clientX, sy: e.clientY, start: it, moved: false };
   };
   const onHandle = (e: React.PointerEvent<HTMLSpanElement>) => {
@@ -60,7 +65,14 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
     drag.current = { id: it.id, mode: "resize", corner, sx: e.clientX, sy: e.clientY, start: it, moved: false };
   };
 
+  // One update per screen frame, however fast the pointer moves.
   const move = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    const ev = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey };
+    if (frame.current) cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => { frame.current = null; step(ev); });
+  };
+  const step = (e: { clientX: number; clientY: number; shiftKey: boolean }) => {
     const d = drag.current; if (!d || !W) return;
     const dxp = e.clientX - d.sx, dyp = e.clientY - d.sy;
     if (!d.moved && Math.hypot(dxp, dyp) < 4) return;
@@ -79,6 +91,8 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
       const gx = near([x, x + s.w / 2, x + s.w], snapX(d.id), tolX);
       const gy = s.k === "text" ? null : near([y, y + h / 2, y + h], snapY(d.id), tolY);
       if (gx) x += gx.d; if (gy) y += gy.d;
+      // Keep at least a bit of it on the page, so nothing gets lost off the edge.
+      x = Math.max(-s.w + 4, Math.min(96, x)); y = Math.max(s.k === "text" ? -2 : -h + 6, Math.min(94, y));
       setGuides({ v: gx ? [gx.line] : [], h: gy ? [gy.line] : [] });
       setLive({ id: d.id, patch: { x: r1(x), y: r1(y) } });
       return;
@@ -108,6 +122,7 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
     else setLive({ id: d.id, patch: { x: r1(x), y: r1(y), w: r1(w), h: r1(hh) } });
   };
   const end = () => {
+    if (frame.current) { cancelAnimationFrame(frame.current); frame.current = null; }
     const d = drag.current; drag.current = null;
     if (d?.moved && live) onChange(live.id, live.patch);
     setLive(null); setGuides({ v: [], h: [] });
@@ -122,10 +137,11 @@ export function Stage({ spread, ratio, byId, sel, setSel, pan, onChange, onDropP
   const corners: Drag["corner"][] = selItem?.k === "text" ? ["w", "e"] : ["nw", "ne", "sw", "se"];
 
   return (
-    <div ref={ref} className="w-full flex justify-center touch-none select-none" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+    <div ref={ref} className="w-full flex justify-center touch-none select-none" onPointerMove={move} onPointerUp={end} onPointerCancel={end}
+      onPointerDown={() => { if (!drag.current && !onSwapPick) setSel(null); }}>
       {W > 0 && (
         <div className="relative shadow-[0_34px_50px_-26px_rgba(60,30,10,.6),0_4px_10px_rgba(60,30,10,.2)]" style={{ cursor: onSwapPick ? "crosshair" : undefined }}>
-          <SpreadView spread={shown} width={W} ratio={ratio} photos={byId} selected={sel} onPick={onPick} onDropPhoto={onDropPhoto} marks={marks} studio={studio} />
+          <SpreadView spread={shown} width={W} ratio={ratio} photos={byId} selected={sel} onPick={onPick} onDropPhoto={onDropPhoto} marks={marks} studio={studio} onDouble={onDouble} />
           <div aria-hidden className="pointer-events-none absolute inset-0">
             {guides.v.map((v, i) => <span key={`v${i}`} className="absolute top-0 bottom-0 w-px" style={{ left: (v / 100) * W, background: v === 50 ? "#E5484D" : "#7D5CEF" }} />)}
             {guides.h.map((v, i) => <span key={`h${i}`} className="absolute left-0 right-0 h-px bg-[#7D5CEF]" style={{ top: (v / 100) * H }} />)}

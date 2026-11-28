@@ -7,6 +7,7 @@
  */
 import { useEffect } from "react";
 import { apiFetch, API_URL as API } from "@/lib/api";
+import { dashForget } from "@/lib/dash-cache";
 
 const KEY = "sp-last-active";
 const read = () => { try { return Number(localStorage.getItem(KEY) || 0); } catch { return 0; } };
@@ -19,6 +20,7 @@ async function signOut() {
     localStorage.removeItem("user_role");
     localStorage.removeItem(KEY);
   } catch { /* nothing to clear */ }
+  dashForget();
   document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
   window.location.href = "/login?reason=idle";
 }

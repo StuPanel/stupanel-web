@@ -222,7 +222,8 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
       // The all-photos link: every photo at once, no selfie (a code or a closed gallery goes by the first screen).
       if (d.link === "full" && d.status === "published" && !d.needsPin) { if (on && !(await openAll(d))) setStep("land"); return; }
       if (saved.key && d.status !== "closed") {
-        const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
+        // The link this visit came by decides what it may see (all-photos link: every photo; guests' link: own photos).
+        const m = await fetch(`${base}/mine${via.current ? `?a=${via.current}` : ""}`, { headers: { "x-guest-key": saved.key } }).catch(() => null);
         if (on && m?.ok) { const out = stamp(await m.json()); warm(out); setSelfie(saved.selfie || ""); setRes(out);
           if (out.waiting) return setStep(out.registered ? "wait" : "register");
           let followed = false; try { followed = localStorage.getItem(`${store}:followed`) === "1"; } catch { /* private window */ }
@@ -276,7 +277,7 @@ function GuestLive({ params }: { params: Promise<{ token: string }> }) {
     }
     if (res.waiting) { setRes({ ...res, registered: true }); return setStep("wait"); }
     if (res.needsRegister) {
-      const m = await fetch(`${base}/mine`, { headers: { "x-guest-key": res.key } }).catch(() => null);
+      const m = await fetch(`${base}/mine${via.current ? `?a=${via.current}` : ""}`, { headers: { "x-guest-key": res.key } }).catch(() => null);
       if (m?.ok) setRes(stamp(await m.json())); else setRes({ ...res, registered: true });
     } else setRes({ ...res, registered: true });
     const follow = g?.followWhen === "before" && !!g?.follow?.length && (() => { try { return localStorage.getItem(`${store}:followed`) !== "1"; } catch { return true; } })();

@@ -137,6 +137,14 @@ export function ShareTab({ g, onSaved, onSettings }: { g: FaceDetail; onSaved: (
 
       <div ref={qrBox} className="lg:sticky lg:top-4">
         <Group title={`QR code: ${NAME[which]}`} note="Print it on table cards or a standee. Press QR code on another link to switch.">
+          {which === "full" && (
+            // Faisal 28-NOV-2026: guests scanned the all-photos QR and saw every photo. Make it impossible to miss.
+            <div role="alert" className="mx-4 mt-4 rounded-[16px] bg-[#FFF3E0] ring-1 ring-[#F5C680] p-3.5 text-[13px] leading-snug text-[#6B4100]">
+              <b className="block text-[14px] text-[#4A2E00]">This QR opens every photo</b>
+              Anyone who scans it sees all the photos, not only their own. Give it to the couple and family only. For guests at the event, use the Guests QR.
+              <button type="button" onClick={() => showQr("guest")} className="mt-2.5 h-10 px-4 rounded-full bg-[#17151F] text-white text-[13px] font-semibold">Show the Guests QR</button>
+            </div>
+          )}
           <div className="p-5 flex flex-col items-center gap-4">
             <div className="w-[220px] h-[220px] rounded-[18px] bg-white ring-1 ring-[#EEEBF4] flex items-center justify-center overflow-hidden">
               {qr
@@ -144,7 +152,7 @@ export function ShareTab({ g, onSaved, onSettings }: { g: FaceDetail; onSaved: (
                 ? <img src={qr} alt={`QR code for the ${NAME[which]} link of ${g.title}`} className="w-full h-full" />
                 : <QrCode className="w-10 h-10 text-[#C9C2DA]" aria-hidden />}
             </div>
-            <p className="text-[15px] font-bold text-[#17151F] text-center">{which === "full" ? "Scan to see all photos" : "Scan to get your photos"}</p>
+            <p className={cn("text-[15px] font-bold text-center", which === "full" ? "text-[#8A5300]" : "text-[#17151F]")}>{which === "full" ? "Scan to see all photos" : "Scan to get your photos"}</p>
             {qr && <a href={qr} download={`${g.title.replace(/[^\w\- ]+/g, "").trim() || "gallery"} ${NAME[which]} QR.png`} className="h-11 px-5 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" aria-hidden />Download QR</a>}
           </div>
         </Group>

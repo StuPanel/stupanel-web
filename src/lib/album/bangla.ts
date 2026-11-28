@@ -48,6 +48,10 @@ const WORDS: Record<string, string> = {
   BRIDE: "বধূ", Bride: "নববধূ", Beautiful: "সুন্দর", Couple: "জুটি", THE: "", "Thank you": "ধন্যবাদ",
   LOVE: "ভালোবাসা", "TALES OF THE HEARTS": "হৃদয়ের গল্প", "Our Story": "আমাদের গল্প", "Our Wedding": "আমাদের বিয়ে",
   Forever: "চিরকাল", "Your words": "আপনার কথা",
+  Candid: "অকৃত্রিম", Majestic: "রাজকীয়", Adored: "আদরের", "Together is my favourite place": "একসাথে থাকাই প্রিয় ঠিকানা",
+  Vogue: "অনন্যা", "The Bride": "নববধূ", "Wedding day": "বিয়ের দিন", Together: "একসাথে", Vibes: "অনুভব", dreams: "স্বপ্ন",
+  Ours: "আমাদের", Heartbeats: "হৃদস্পন্দন", Adorned: "অলংকৃত", "Forever us": "চিরদিন আমরা", "Two glowing": "দুটি উজ্জ্বল",
+  Souls: "মন", "Fairytale bliss": "রূপকথার সুখ", "Elegant bride": "অনন্যা বধূ",
 };
 /** Common chapter (folder) names, in Bangla. */
 const CHAPTERS: [RegExp, string][] = [
@@ -60,8 +64,8 @@ export const chapterBn = (name: string) => CHAPTERS.find(([re]) => re.test(name)
 
 /** The Bangla font that suits an English one. */
 export function bnFontFor(font: string) {
-  if (/Pinyon|Great Vibes/.test(font)) return BN_FONTS.script;
-  if (/Montserrat|Plus Jakarta/.test(font)) return BN_FONTS.sans;
+  if (/Pinyon|Great Vibes|Alex Brush|Sacramento/.test(font)) return BN_FONTS.script;
+  if (/Montserrat|Plus Jakarta|Archivo/.test(font)) return BN_FONTS.sans;
   if (/Cormorant/.test(font)) return BN_FONTS.sans;
   return BN_FONTS.serif;
 }

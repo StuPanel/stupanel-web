@@ -24,6 +24,14 @@ export type ImgItem = {
   /** Full-page background photo (dim, may sit under the fold) */
   bg?: boolean;
   light?: number;
+  /** Turned by this many degrees */
+  rot?: number;
+  /** Soft focus, % of the page height */
+  blur?: number;
+  /** A colour laid over the photo (mode "color" tints it like sepia/gold; "normal" darkens or fades it) */
+  tint?: { c: string; o: number; mode?: "color" | "normal" };
+  /** A cut shape: x,y pairs in % of the frame (slanted bands) */
+  poly?: number[];
 };
 
 export type BoxItem = {
@@ -34,6 +42,7 @@ export type BoxItem = {
   /** Frosted glass: blurs what is under it */
   glass?: boolean;
   blend?: "multiply";
+  rot?: number;
 };
 
 export type TextRole = "name" | "title" | "quote" | "label";
@@ -45,6 +54,8 @@ export type TextItem = {
   /** letter spacing in em */
   ls?: number; lh?: number; up?: boolean; shadow?: boolean;
   bg?: string;
+  /** Turned by this many degrees (-90 = reads upwards, for side titles) */
+  rot?: number;
 };
 
 /** The studio's logo (from Settings), kept whole inside its box. */
@@ -54,7 +65,9 @@ export type Item = ImgItem | BoxItem | TextItem | LogoItem;
 
 export type Spread = { id: string; look: LookId; v: string; bg: string; items: Item[]; chapter?: string | null };
 
-export type LookId = "mono" | "inset" | "couple" | "arch" | "strips" | "band" | "blush" | "bride";
+export type LookId = "mono" | "inset" | "couple" | "arch" | "strips" | "band" | "blush" | "bride"
+  | "candid" | "majestic" | "triptych" | "gallery" | "centre" | "diagonal" | "polaroid" | "grid"
+  | "golden" | "olive" | "heartbeat" | "pill" | "peach" | "whitespread" | "fairytale" | "elegant";
 export type AlbumSize = "12x36" | "12x30" | "10x30" | "12x24";
 export type AlbumStatus = "draft" | "client" | "approved" | "lab";
 export type Names = { bride?: string; groom?: string; date?: string; /** words on the pages: en (default) or bn */ lang?: "en" | "bn" };

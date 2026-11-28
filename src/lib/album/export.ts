@@ -50,6 +50,18 @@ function tornPath(ctx: CanvasRenderingContext2D, b: Box) {
   ctx.closePath();
 }
 
+/** Turn the drawing around the centre of a box. */
+function turn(ctx: CanvasRenderingContext2D, b: Box, deg?: number) {
+  if (!deg) return;
+  const cx = b.l + b.w / 2, cy = b.t + b.h / 2;
+  ctx.translate(cx, cy); ctx.rotate((deg * Math.PI) / 180); ctx.translate(-cx, -cy);
+}
+function polyPath(ctx: CanvasRenderingContext2D, b: Box, pts: number[]) {
+  ctx.beginPath();
+  for (let i = 0; i + 1 < pts.length; i += 2) { const x = b.l + (pts[i] / 100) * b.w, y = b.t + (pts[i + 1] / 100) * b.h; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+  ctx.closePath();
+}
+
 const hasFilter = (ctx: CanvasRenderingContext2D) => typeof (ctx as unknown as { filter?: unknown }).filter === "string";
 
 /** Draws one page. `onPhoto` reports photos that could not be read. */
@@ -86,8 +98,9 @@ async function drawImg(ctx: CanvasRenderingContext2D, it: ImgItem, b: Box, r: nu
   const p = it.p ? photos.get(it.p) : undefined;
   const bd = it.bd ? (it.bd.w / 100) * H : 0;
   ctx.save();
+  turn(ctx, b, it.rot);
   ctx.globalAlpha = it.o ?? 1;
-  const outline = () => (it.cut === "torn" ? tornPath(ctx, b) : roundPath(ctx, b, r));
+  const outline = () => (it.cut === "torn" ? tornPath(ctx, b) : it.poly ? polyPath(ctx, b, it.poly) : roundPath(ctx, b, r));
   if (it.sh) {
     ctx.save(); ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = H * 0.06; ctx.shadowOffsetY = H * 0.03;
     outline(); ctx.fillStyle = it.bd?.c ?? "#000"; ctx.fill(); ctx.restore();
@@ -95,11 +108,11 @@ async function drawImg(ctx: CanvasRenderingContext2D, it: ImgItem, b: Box, r: nu
   if (bd) { outline(); ctx.fillStyle = it.bd!.c; ctx.fill(); }
   const inner: Box = { l: b.l + bd, t: b.t + bd, w: b.w - bd * 2, h: b.h - bd * 2 };
   const ir = r ? r.map(v => Math.max(0, v - bd)) : null;
-  if (it.cut === "torn") tornPath(ctx, inner); else roundPath(ctx, inner, ir);
+  if (it.cut === "torn") tornPath(ctx, inner); else if (it.poly) polyPath(ctx, inner, it.poly); else roundPath(ctx, inner, ir);
   ctx.clip();
   let ok = true;
   if (p?.d && p.w && p.h) {
-    const z = it.z ?? 1, fx = (it.fx ?? 50) / 100, fy = (it.fy ?? 40) / 100;
+    const z = (it.z ?? 1) * (it.blur ? 1.06 : 1), fx = (it.fx ?? 50) / 100, fy = (it.fy ?? 40) / 100;
     const s = Math.max(inner.w / p.w, inner.h / p.h);
     const want = Math.min(p.w, Math.ceil(p.w * s * z));
     try {
@@ -108,11 +121,16 @@ async function drawImg(ctx: CanvasRenderingContext2D, it: ImgItem, b: Box, r: nu
       const ox = inner.l + (inner.w - dw) * fx, oy = inner.t + (inner.h - dh) * fy;
       const cx = inner.l + inner.w * fx, cy = inner.t + inner.h * fy;
       const L = cx + (ox - cx) * z, T = cy + (oy - cy) * z;
-      const parts = [it.bw ? "grayscale(1) contrast(1.05)" : "", it.light ? `brightness(${it.light})` : ""].filter(Boolean).join(" ");
+      const parts = [it.bw ? "grayscale(1) contrast(1.05)" : "", it.light ? `brightness(${it.light})` : "", it.blur ? `blur(${Math.round((it.blur / 100) * H)}px)` : ""].filter(Boolean).join(" ");
       if (parts && hasFilter(ctx)) ctx.filter = parts;
       ctx.drawImage(im, L, T, dw * z, dh * z);
       ctx.filter = "none";
       if (parts && !hasFilter(ctx)) grayscaleRegion(ctx, inner, !!it.bw, it.light ?? 1);
+      if (it.tint) {
+        ctx.save(); ctx.globalAlpha = (it.o ?? 1) * it.tint.o;
+        if (it.tint.mode === "color") ctx.globalCompositeOperation = "color";
+        ctx.fillStyle = it.tint.c; ctx.fillRect(inner.l, inner.t, inner.w, inner.h); ctx.restore();
+      }
     } catch { ok = false; ctx.fillStyle = "#d9d4cc"; ctx.fillRect(inner.l, inner.t, inner.w, inner.h); }
   } else if (it.p) ok = false;
   ctx.restore();
@@ -135,6 +153,7 @@ function grayscaleRegion(ctx: CanvasRenderingContext2D, b: Box, bw: boolean, lig
 
 function drawBox(ctx: CanvasRenderingContext2D, it: BoxItem, b: Box, r: number[] | null, H: number) {
   ctx.save();
+  turn(ctx, b, it.rot);
   if (it.glass) {
     if (hasFilter(ctx)) {
       const tmp = document.createElement("canvas");
@@ -155,6 +174,7 @@ function drawBox(ctx: CanvasRenderingContext2D, it: BoxItem, b: Box, r: number[]
   ctx.restore();
   if (it.line) {
     ctx.save();
+    turn(ctx, b, it.rot);
     const lw = Math.max(1, (it.line.w / 100) * H);
     ctx.lineWidth = lw; ctx.strokeStyle = it.line.c;
     roundPath(ctx, { l: b.l + lw / 2, t: b.t + lw / 2, w: b.w - lw, h: b.h - lw }, r);
@@ -206,6 +226,8 @@ function drawText(ctx: CanvasRenderingContext2D, it: TextItem, x: number, y: num
     ctx.fillStyle = it.bg; ctx.fillRect(x, y, tw + padX * 2, lines.length * lineH + padY * 2);
     x += padX; y += padY; w = tw;
   }
+  // A turned title spins around the middle of its text block (as the page shows it).
+  turn(ctx, { l: x, t: y, w, h: lines.length * lineH }, it.rot);
   if (it.shadow) { ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = px * 0.5; ctx.shadowOffsetY = px * 0.08; }
   ctx.fillStyle = it.color;
   ctx.textAlign = it.align === "center" ? "center" : it.align === "right" ? "right" : "left";

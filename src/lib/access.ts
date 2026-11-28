@@ -38,7 +38,7 @@ export const ALL_AREAS: AreaKey[] = AREAS.map(a => a.key);
 const ROUTE_AREA: Record<string, AreaKey | "any" | "owner"> = {
   "/dashboard": "dashboard", "/reports": "reports",
   "/programs": "programs", "/calendar": "calendar", "/checklist": "programs", "/delivery": "delivery",
-  "/music": "music", "/photo-selection": "photo-selection", "/face-search": "face-search", "/contracts": "contracts",
+  "/music": "music", "/photo-selection": "photo-selection", "/album-studio": "photo-selection", "/face-search": "face-search", "/contracts": "contracts",
   "/clients": "clients", "/leads": "leads", "/referrals": "referrals",
   "/payments": "payments", "/invoices": "invoices", "/quotes": "quotes", "/expenses": "accounts", "/accounts": "accounts",
   "/team": "team", "/salary": "salary", "/team-pay": "team-pay",

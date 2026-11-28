@@ -28,3 +28,4 @@ Thumbs.db
 # TypeScript build info
 tsconfig.tsbuildinfo
 next-env.d.ts
+public/mediapipe/

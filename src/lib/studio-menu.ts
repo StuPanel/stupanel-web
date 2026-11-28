@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, CalendarDays, Users, Camera, CreditCard, Package, ImageIcon, BarChart3,
   MessageCircle, FileText, Wrench, Wallet, Landmark, Handshake, Receipt, Target, Music2, Images,
-  ScanFace, FileSignature, UserCog, Globe,
+  ScanFace, FileSignature, UserCog, Globe, BookOpen,
 } from "lucide-react";
 import type { TileColor } from "@/components/ui/apple";
 import { API_URL as API, apiFetch } from "@/lib/api";
@@ -43,6 +43,7 @@ export const DEFAULT_MENU: MenuGroup[] = [
   { id: "delivery", title: "Delivery & gallery", items: [
     I("delivery", "Delivery", "/delivery", ImageIcon, "teal"),
     I("photo-selection", "Photo Selection", "/photo-selection", Images, "red", "Selection"),
+    I("album-studio", "Album Studio", "/album-studio", BookOpen, "red", "Albums"),
     I("face-search", "AI Face Search", "/face-search", ScanFace, "violet", "Face Search"),
     I("music", "Music Library", "/music", Music2, "orchid", "Music"),
   ] },
@@ -67,7 +68,7 @@ export const DEFAULT_PHONE = ["programs", "calendar", "payments"];
 export type MenuChoice = { groups: { id: string; items: string[] }[]; hidden: string[]; phone: string[] };
 export type Features = { photoSelection?: boolean; musicSelection?: boolean; /** Plan switches the studio's plan leaves out */ planOff?: string[] };
 /** Menu pages and the plan switch each needs (Super Admin → Plans → What's included). */
-const PLAN_KEY: Record<string, string> = { "/photo-selection": "photo_selection", "/face-search": "face_search", "/music": "music_library", "/website": "website" };
+const PLAN_KEY: Record<string, string> = { "/photo-selection": "photo_selection", "/album-studio": "photo_selection", "/face-search": "face_search", "/music": "music_library", "/website": "website" };
 export const EMPTY_CHOICE: MenuChoice = { groups: [], hidden: [], phone: [] };
 
 /**
@@ -97,7 +98,7 @@ export function phoneItems(choice: MenuChoice | null | undefined): MenuItem[] {
 
 /** Pages a studio switched off in their own settings leave the menu by themselves. */
 export function switchedOff(href: string, f: Features | null | undefined) {
-  return (href === "/photo-selection" && f?.photoSelection === false) || (href === "/music" && f?.musicSelection === false)
+  return ((href === "/photo-selection" || href === "/album-studio") && f?.photoSelection === false) || (href === "/music" && f?.musicSelection === false)
     || (!!PLAN_KEY[href] && !!f?.planOff?.includes(PLAN_KEY[href]));
 }
 

@@ -20,7 +20,7 @@ function getToken() { return sessionStorage.getItem("admin_token") ?? ""; }
 function authH() { return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }; }
 function fmtDate(d?: string | null) {
   if (!d) return "Never";
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 type Kind = "owner" | "manager" | "team" | "freelancer";

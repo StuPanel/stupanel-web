@@ -78,22 +78,19 @@ export function formatCurrencyCompact(amount: number | string | null | undefined
 }
 
 /**
- * Format a date as "DD-MON-YYYY" (e.g. "10-JUN-2026").
+ * Format a date as "1 Oct 2026" (Faisal 28-NOV-2026: easier to read than "01-OCT-2026").
  * Single source of truth — replaces all inline MONTHS array implementations.
  */
 export function fmtDate(d: string | Date | undefined | null): string {
   if (!d) return "—";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return "—";
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).formatToParts(dt);
+  const parts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).formatToParts(dt);
   const day   = parts.find(p => p.type === "day")?.value ?? "";
-  const month = (parts.find(p => p.type === "month")?.value ?? "").toUpperCase();
+  // en-GB writes "Sept"; the app uses three letters.
+  const month = (parts.find(p => p.type === "month")?.value ?? "").slice(0, 3);
   const year  = parts.find(p => p.type === "year")?.value ?? "";
-  return `${day}-${month}-${year}`;
+  return `${day} ${month} ${year}`;
 }
 
 /**

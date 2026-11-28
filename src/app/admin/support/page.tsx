@@ -28,7 +28,7 @@ const SAVED_REPLIES: { group: string; title: string; text: string }[] = [
 ];
 
 const H = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("admin_token") ?? ""}` });
-const fmt = (d?: string | null) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dhaka" }) : "—";
+const fmt = (d?: string | null) => d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dhaka" }) : "—";
 function since(a: string, b?: string | null) {
   if (!b) return null;
   const m = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);

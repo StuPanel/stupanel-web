@@ -34,7 +34,7 @@ const statusColors: Record<string, string> = {
 };
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 function fmtBytes(b: number): string {
   if (b < 1048576) return `${(b / 1024).toFixed(0)} KB`;

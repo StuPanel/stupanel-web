@@ -149,13 +149,13 @@ export function NotePoints({ value, onChange, people, placeholder, label, mentio
             }}
             onBlur={() => setTimeout(() => setQuery(null), 150)}
             placeholder={placeholder ?? "Add a point — type @ to mention someone"}
-            className="flex-1 min-h-10 max-h-32 rounded-[14px] bg-[#F5F3FA] px-3.5 py-2.5 text-[14px] text-[#17151F] placeholder:text-[#9893A8] resize-none focus:outline-none focus:ring-2 focus:ring-[#5B3FD0]/40 [field-sizing:content]" />
+            className="flex-1 min-h-11 max-h-32 rounded-[14px] bg-white border border-[#DCD6E8] hover:border-[#C9C2DA] px-3.5 py-2.5 text-[14px] text-[#17151F] placeholder:text-[#7A7590] resize-none focus:outline-none focus:border-[#7D5CEF] focus:ring-2 focus:ring-[#7D5CEF]/25 [field-sizing:content]" />
           {editing !== null && (
             <button type="button" onClick={() => { setEditing(null); setDraft(""); setPicked({}); }} aria-label="Stop changing"
-              className="h-10 w-10 rounded-full bg-[#F5F3FA] text-[#6B6680] flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
+              className="h-11 w-11 rounded-full bg-[#F5F3FA] text-[#6B6680] flex items-center justify-center flex-shrink-0"><X className="w-4 h-4" /></button>
           )}
           <button type="button" onClick={submit} disabled={!draft.trim()}
-            className="h-10 px-3.5 rounded-full bg-[#EEE8FD] text-[#5B3FD0] text-[13px] font-semibold inline-flex items-center gap-1 disabled:opacity-50 flex-shrink-0">
+            className="h-11 px-4 rounded-full bg-[#7D5CEF] text-white text-[13px] font-semibold inline-flex items-center gap-1 disabled:bg-[#EEE8FD] disabled:text-[#5B3FD0] flex-shrink-0">
             {editing === null ? <><Plus className="w-3.5 h-3.5" />Add</> : <><Check className="w-3.5 h-3.5" />Save</>}
           </button>
         </div>
@@ -174,7 +174,7 @@ export function NotePoints({ value, onChange, people, placeholder, label, mentio
           </div>
         )}
       </div>
-      <p className="mt-1.5 text-[11.5px] text-[#8A8599] flex items-center gap-1"><AtSign className="w-3 h-3" />{mentionHint && !people.length ? mentionHint : "Type @ to mention someone — they see the point marked “For you”."}</p>
+      <p className="mt-1.5 text-[12px] text-[#6B6680] flex items-center gap-1"><AtSign className="w-3 h-3" />{mentionHint && !people.length ? mentionHint : "Type @ to mention someone — they see the point marked “For you”."}</p>
     </div>
   );
 }

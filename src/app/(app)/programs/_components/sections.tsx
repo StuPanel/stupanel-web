@@ -391,7 +391,7 @@ function Submissions({ bookingId, a, onChanged, onDelivered }: { bookingId: stri
               </span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone(s.reviewStatus)}`}>{s.reviewStatus === "revision_requested" && s.reviewedBy === "client" ? "Client asked for a change" : label(s.reviewStatus)}</span>
             </div>
-            <p className="text-[11px] text-[#6B6680]">Sent {new Date(s.submittedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+            <p className="text-[11px] text-[#6B6680]">Sent {new Date(s.submittedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
             {(s.revisionNotes || s.notes) && <p className="text-[12px] text-[#4A4658] whitespace-pre-line">{[s.revisionNotes, s.notes].filter(Boolean).join("\n")}</p>}
             {s.reviewFeedback && <p className="text-[12px] text-[#C2304F] whitespace-pre-line">{s.reviewedBy === "client" ? "Client:" : "Your note:"} {s.reviewFeedback}</p>}
             <div className="flex flex-wrap items-center gap-1.5">

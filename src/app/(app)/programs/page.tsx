@@ -1,6 +1,5 @@
 "use client";
 
-import { SIDES } from "@/lib/coverage-side";
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, CalendarDays, Camera, FilePen } from "lucide-react";
@@ -34,7 +33,6 @@ export default function ProgramsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sideFilter, setSideFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [packages, setPackages] = useState<Package[]>(_cachedPackages);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(_cachedTeam);
@@ -71,7 +69,6 @@ export default function ProgramsPage() {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (sideFilter !== "all") params.set("side", sideFilter);
 
       // Only fetch static data once per session
       const staticFetches = _staticLoaded ? [] : [
@@ -95,7 +92,7 @@ export default function ProgramsPage() {
         _staticLoaded = true;
       }
     } finally { setLoading(false); }
-  }, [page, search, statusFilter, sideFilter]);
+  }, [page, search, statusFilter]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -151,15 +148,6 @@ export default function ProgramsPage() {
           options={[
             { value: "all", label: "All", count: Object.values(meta.statusCounts ?? {}).reduce((a, b) => a + b, 0) },
             ...allStatuses.filter(([s]) => STATUS_CFG[s]).map(([s, c]) => ({ value: s, label: STATUS_CFG[s].label, count: c, dot: STATUS_HEX[s] })),
-          ]} />
-      )}
-
-      {/* Whose side — shown once some program has a side */}
-      {(Object.keys(meta.sideCounts ?? {}).length > 0 || sideFilter !== "all") && (
-        <Chips label="Filter by side" value={sideFilter} onChange={v => { setSideFilter(v); setPage(1); }}
-          options={[
-            { value: "all", label: "Any side" },
-            ...SIDES.map(x => ({ value: x.id, label: x.label, count: meta.sideCounts?.[x.id] ?? 0 })),
           ]} />
       )}
 

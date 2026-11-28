@@ -14,7 +14,7 @@ function fmtTime(iso: string) {
   if (diffDays === 0) return d.toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit", hour12: true });
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return d.toLocaleDateString("en-BD", { weekday: "short" });
-  return `${String(d.getDate()).padStart(2,"0")}-${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][d.getMonth()]}`;
+  return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`;
 }
 
 interface DMMessage {

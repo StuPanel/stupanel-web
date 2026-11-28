@@ -18,7 +18,7 @@ function when(iso: string) {
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins} min ago`;
   if (mins < 24 * 60) return `${Math.round(mins / 60)} h ago`;
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
 export function FileActivity({ bookingId, area }: { bookingId: string; area: "raw" | "delivery" }) {

@@ -754,7 +754,7 @@ function RawBackups({ bookingId, state, driveCount, nLinks, shotOver, onSaved }:
   const when = (iso: string) => {
     if (!iso) return "";
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
   const KindIcon = ({ k }: { k: BackupKind }) => { const I = KINDS.find(x => x.value === k)?.icon ?? HardDrive; return <I className="w-4 h-4 text-[#5B3FD0] flex-shrink-0" />; };
 

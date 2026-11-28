@@ -16,7 +16,7 @@ function authH() { return { Authorization: `Bearer ${getToken()}` }; }
 
 function fmtDate(d?: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 const statusConfig: Record<string, { icon: any; color: string }> = {

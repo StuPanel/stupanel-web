@@ -20,7 +20,7 @@ import { ListSkeleton, SearchPill, matches } from "@/components/list-ui";
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
+    day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
@@ -30,7 +30,7 @@ function fmtShort(d: string) {
   if (diff < 60000) return "just now";
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {

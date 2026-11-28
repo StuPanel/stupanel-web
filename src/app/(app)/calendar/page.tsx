@@ -51,7 +51,7 @@ function toEntries(b: Booking & { eventDays?: Day[] }): CalEntry[] {
     const shifts = (d.shifts ?? []).map(s => [s.label, s.start && s.end ? `${fmtT(s.start)}–${fmtT(s.end)}` : ""].filter(Boolean).join(" ")).filter(Boolean);
     const people = new Set((d.shifts ?? []).flatMap(s => (s.assignments ?? []) as { id?: string }[]).map(a => a?.id).filter(Boolean)).size;
     return {
-      ...base, key: `${b.id}-${i}`, date: d.date!.slice(0, 10), side: daySide(d, b.coverageSide),
+      ...base, key: `${b.id}-${i}`, date: d.date!.slice(0, 10), side: daySide(d, b.coverageSide), short: d.eventType || undefined, name,
       title: d.eventType && d.eventType.toLowerCase() !== name.toLowerCase() ? `${name} · ${d.eventType}` : name,
       sub: [client, shifts.join(", "), d.location || b.eventLocation, people ? `${people} on the team` : ""].filter(Boolean).join(" · "),
     };

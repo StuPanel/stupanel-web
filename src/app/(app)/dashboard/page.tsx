@@ -13,6 +13,7 @@ import {
   LayoutDashboard, Plus, UserPlus, CreditCard, BarChart3, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { apiFetch, API_URL as API } from "@/lib/api";
+import { dashRead, dashWrite } from "@/lib/dash-cache";
 import { cn } from "@/lib/utils";
 import { fmtDate as sharedFmtDate, formatCurrencyCompact, formatCurrency } from "@/lib/format";
 import { CARD_SHADOW, Group, ListRow, PageHeader, Tile } from "@/components/ui/apple";
@@ -94,11 +95,15 @@ export default function DashboardPage() {
     });
   }
 
+  /** Shows what this device saw last time at once (see dash-cache), then the fresh answer. A failed call keeps what is shown. */
   const load = useCallback(async <T,>(path: string, set: (v: T) => void, fallback: T) => {
+    const kept = dashRead<T>(path);
+    if (kept !== null) set(kept);
     try {
       const r = await apiFetch(`${API}${path}`);
-      set(r.ok ? await r.json() : fallback);
-    } catch { set(fallback); }
+      if (r.ok) { const v = (await r.json()) as T; set(v); dashWrite(path, v); }
+      else if (kept === null) set(fallback);
+    } catch { if (kept === null) set(fallback); }
   }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect

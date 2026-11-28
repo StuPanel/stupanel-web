@@ -26,7 +26,30 @@ function notifyIfReadOnly(res: Response) {
     .catch(() => {});
 }
 
-export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+/**
+ * The same plain GET asked for twice at once (the menu and the backdrop both want the studio settings, two
+ * badges want the unread counts): one request goes out and each caller gets its own copy of the answer
+ * (Faisal 28-NOV-2026: the dashboard was slow; every trip to the server costs time).
+ */
+const inFlight = new Map<string, Promise<Response>>();
+/** Only small answers many parts of the app ask for (never files: a copy of a big download would double it). */
+const SHARED = /\/(companies\/settings|companies\/me|auth\/me|auth\/studios|chat\/unread|leads\/unseen|billing\/status)$/;
+
+export function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+  const plainGet = (!init?.method || init.method.toUpperCase() === "GET") && !init?.body && !init?.signal && !init?.headers && SHARED.test(input);
+  if (!plainGet) return apiFetchOnce(input, init);
+  const key = `${localStorage.getItem("access_token") ?? ""}|${input}`;
+  let p = inFlight.get(key);
+  if (!p) {
+    p = apiFetchOnce(input, init);
+    inFlight.set(key, p);
+    const drop = () => { if (inFlight.get(key) === p) inFlight.delete(key); };
+    p.then(drop, drop);
+  }
+  return p.then(r => r.clone());
+}
+
+async function apiFetchOnce(input: string, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("access_token") ?? "";
 
   const res = await fetch(input, {
